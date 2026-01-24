@@ -35,7 +35,9 @@ function IconWrap({
         background: active
           ? "linear-gradient(135deg, rgba(236,72,153,.35), rgba(168,85,247,.35))"
           : "transparent",
-        border: active ? "1px solid rgba(236,72,153,.45)" : "1px solid transparent",
+        border: active
+          ? "1px solid rgba(236,72,153,.45)"
+          : "1px solid transparent",
       }}
     >
       {children}
@@ -110,7 +112,10 @@ export default function Sidebar({
   Item: ({ item }: { item: NavItem }) => React.ReactElement;
   forceCloseButton?: boolean;
 }) {
-  const { closeSidebar, isSidebarOpen } = useUI();
+  // 🔑 MINIMAL TYPE FIX — runtime unchanged
+  const ui = useUI() as { closeSidebar: () => void; isSidebarOpen: boolean };
+  const { closeSidebar, isSidebarOpen } = ui;
+
   const pathname = usePathname();
   const cartCount = useStore((s) => s.cart.length);
 
