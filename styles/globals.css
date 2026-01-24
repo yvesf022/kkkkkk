@@ -1,0 +1,349 @@
+/* =========================================================
+   Karabo’s Online Store
+   PRODUCTION UI — Premium eCommerce Palette Upgrade (Balanced)
+   - Less white / less washout
+   - Stronger contrast separation
+   - Better glass + card definition
+   - Keeps rendering safe (no class removals)
+   ========================================================= */
+
+:root {
+  /* =========================================================
+     ✅ Premium Commerce Palette (Balanced + Less White)
+     ========================================================= */
+
+  /* Backgrounds (LESS WHITE, more neutral + premium) */
+  --bg: rgba(244, 246, 251, 1);
+  --bg2: rgba(232, 236, 245, 1);
+
+  /* Base text */
+  --text: rgba(12, 14, 20, 0.98);
+  --muted: rgba(12, 14, 20, 0.74);
+  --muted2: rgba(12, 14, 20, 0.56);
+
+  /* Primary brand (Navy = premium) */
+  --brand: rgba(20, 34, 64, 1);      /* deep navy */
+  --brand2: rgba(45, 72, 126, 1);    /* softer navy */
+
+  /* Secondary accent (Pink, controlled) */
+  --accent: rgba(255, 34, 140, 1);
+  --accent2: rgba(255, 98, 176, 1);
+
+  /* Premium highlight (Gold) */
+  --gold: rgba(214, 170, 92, 1);
+  --gold2: rgba(236, 203, 140, 1);
+
+  /* Cards (slightly tinted, NOT bright white) */
+  --card: rgba(255, 255, 255, 0.82);
+  --card2: rgba(252, 253, 255, 0.92);
+
+  /* Borders (a bit stronger for definition) */
+  --border: rgba(12, 14, 20, 0.14);
+
+  /* Shadows: neutral + premium */
+  --shadow: 0 22px 80px rgba(12, 14, 20, 0.11);
+
+  /* Radius */
+  --radius2: 26px;
+
+  /* Sidebar */
+  --sidebarW: 310px;
+
+  /* Spacing */
+  --gap: 18px;
+  --pad: 18px;
+
+  /* ✅ HEADER HEIGHT + GAP */
+  --headerH: 102px;
+  --headerGap: 14px; /* space between header and content */
+
+  /* =========================================================
+     UX polish tokens (won’t break rendering)
+     ========================================================= */
+  --focusRing: 0 0 0 4px rgba(45, 72, 126, 0.24);
+  --focusRing2: 0 0 0 4px rgba(255, 34, 140, 0.18);
+
+  /* Glass (less white fog, more neutral mist) */
+  --glass: rgba(248, 250, 255, 0.72);
+  --glass2: rgba(248, 250, 255, 0.86);
+
+  /* Lines */
+  --softLine: rgba(12, 14, 20, 0.08);
+  --softLine2: rgba(12, 14, 20, 0.12);
+
+  /* Extra: subtle atmospheric tint */
+  --atmoNavy: rgba(45, 72, 126, 0.14);
+  --atmoPink: rgba(255, 34, 140, 0.08);
+  --atmoGold: rgba(214, 170, 92, 0.10);
+}
+
+html { font-size: clamp(14px, 1vw + 9px, 16px); }
+* { box-sizing: border-box; }
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  overflow-x: hidden;
+
+  /* ✅ prevents fixed header overlapping content */
+  padding-top: calc(var(--headerH) + var(--headerGap));
+
+  /* =========================================================
+     ✅ Premium background (Balanced)
+     - Less white
+     - More depth
+     - Keeps brand vibe
+     ========================================================= */
+  background:
+    radial-gradient(1000px 600px at 10% 8%, rgba(45, 72, 126, 0.22), transparent 62%),
+    radial-gradient(1000px 600px at 92% 10%, rgba(214, 170, 92, 0.16), transparent 62%),
+    radial-gradient(1100px 720px at 50% 110%, rgba(255, 34, 140, 0.10), transparent 64%),
+    radial-gradient(800px 520px at 50% 45%, rgba(12, 14, 20, 0.06), transparent 60%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+}
+
+@media (max-width: 420px) {
+  :root { --headerH: 96px; --headerGap: 12px; }
+}
+
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font-family: inherit; }
+
+/* =========================================================
+   ✅ Accessible focus (premium ecommerce feel)
+   ========================================================= */
+:where(a, button, input, select, textarea, [role="button"]) {
+  outline: none;
+}
+:where(a, button, input, select, textarea, [role="button"]):focus-visible {
+  box-shadow: var(--focusRing);
+  border-radius: 12px;
+}
+
+/* =========================================================
+   ✅ FIXED HEADER (NOT TRANSPARENT)
+   - Reduced white intensity
+   - Stronger separation from page background
+   ========================================================= */
+.kyFixedHeader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 140;
+}
+
+/* ✅ SOLID HEADER BAR BACKGROUND (balanced, not white) */
+.kyHeaderBar {
+  padding: 14px 0;
+
+  /* Premium solid header (neutral + navy tint) */
+  background:
+    radial-gradient(900px 260px at 12% 0%, rgba(45, 72, 126, 0.10), transparent 62%),
+    radial-gradient(900px 260px at 92% 0%, rgba(255, 34, 140, 0.06), transparent 62%),
+    linear-gradient(180deg, rgba(250, 252, 255, 1), rgba(236, 241, 249, 1));
+
+  border-bottom: 1px solid rgba(12, 14, 20, 0.12);
+
+  /* no transparency */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+
+  box-shadow:
+    0 18px 60px rgba(12, 14, 20, 0.12),
+    inset 0 1px 0 rgba(255,255,255,0.55);
+}
+
+/* inner card style */
+.kyHeaderInner {
+  border-radius: var(--radius2);
+  border: 1px solid rgba(12, 14, 20, 0.14);
+
+  box-shadow:
+    0 18px 60px rgba(12, 14, 20, 0.10),
+    inset 0 1px 0 rgba(255,255,255,0.58);
+
+  /* Less bright white */
+  background: rgba(252, 253, 255, 0.92);
+}
+
+/* Layout */
+.container {
+  width: min(1200px, 92vw);
+  margin: 0 auto;
+  position: relative;
+  overflow: visible;
+}
+
+/* =========================================================
+   ✅ PAGE GRID
+   Desktop: sidebar fixed, content pushed right
+   ========================================================= */
+.pageGrid {
+  display: grid;
+  grid-template-columns: var(--sidebarW) 1fr;
+  gap: var(--gap);
+  padding: var(--pad) 0;
+  align-items: start;
+  min-width: 0;
+  overflow: visible;
+}
+.pageGrid > * { min-width: 0; }
+
+/* ✅ FIXED SIDEBAR MODE (desktop only) */
+@media (min-width: 981px) {
+  .pageGrid {
+    grid-template-columns: 1fr;
+    padding-left: calc(var(--sidebarW) + var(--gap));
+  }
+}
+
+/* =========================================================
+   ✅ Premium buttons / pills
+   (improved contrast: less white, more definition)
+   ========================================================= */
+.pill {
+  border: 1px solid var(--softLine2);
+  border-radius: 999px;
+  padding: 10px 14px;
+
+  background: rgba(252, 253, 255, 0.88);
+  color: var(--text);
+
+  font-weight: 900;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, filter .16s ease;
+  box-shadow: 0 14px 40px rgba(12, 14, 20, 0.10);
+}
+
+.pill:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 72, 126, 0.24);
+  box-shadow: 0 20px 54px rgba(12, 14, 20, 0.12);
+  filter: saturate(1.03);
+}
+
+.btn {
+  border: 1px solid var(--softLine2);
+  background: rgba(252, 253, 255, 0.90);
+  color: var(--text);
+
+  border-radius: 999px;
+  padding: 10px 16px;
+  cursor: pointer;
+
+  transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease, filter .14s ease;
+  box-shadow: 0 14px 36px rgba(12, 14, 20, 0.10);
+
+  font-weight: 1000;
+  letter-spacing: 0.12px;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 72, 126, 0.24);
+  box-shadow: 0 22px 60px rgba(12, 14, 20, 0.12);
+  filter: saturate(1.03);
+}
+
+/* =========================================================
+   ✅ Primary CTA — navy luxury gradient
+   ========================================================= */
+.btnPrimary {
+  border: 1px solid rgba(20, 34, 64, 0.42);
+  color: rgba(255, 255, 255, 0.99);
+
+  background: linear-gradient(
+    180deg,
+    rgba(45, 72, 126, 1),
+    rgba(20, 34, 64, 1)
+  );
+
+  box-shadow:
+    0 22px 70px rgba(12, 14, 20, 0.18),
+    inset 0 1px 0 rgba(255,255,255,0.30);
+}
+
+.btnPrimary:hover {
+  border-color: rgba(214, 170, 92, 0.42);
+  box-shadow:
+    0 26px 78px rgba(12, 14, 20, 0.18),
+    0 0 0 1px rgba(214, 170, 92, 0.18) inset;
+  filter: saturate(1.06);
+}
+
+.btnPrimary:focus-visible {
+  box-shadow: var(--focusRing), 0 26px 78px rgba(12, 14, 20, 0.18);
+}
+
+/* =========================================================
+   ✅ Badge — premium neutral with gold accent
+   ========================================================= */
+.badge {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+
+  border: 1px solid rgba(214, 170, 92, 0.38);
+  background: rgba(214, 170, 92, 0.14);
+  color: rgba(12, 14, 20, 0.88);
+
+  font-weight: 1000;
+  letter-spacing: 0.2px;
+}
+
+/* =========================================================
+   ✅ Scrollbar — premium and consistent
+   ========================================================= */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: rgba(12, 14, 20, 0.07);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(45, 72, 126, 0.76),
+    rgba(20, 34, 64, 0.88)
+  );
+  border-radius: 999px;
+  border: 2px solid rgba(250, 252, 255, 0.78);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(214, 170, 92, 0.88),
+    rgba(45, 72, 126, 0.94)
+  );
+}
+
+/* =========================================================
+   ✅ Better text rendering + selection
+   ========================================================= */
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+::selection {
+  background: rgba(214, 170, 92, 0.34);
+  color: rgba(12, 14, 20, 0.98);
+}
+
+/* =========================================================
+   ✅ Images / media – polished ecommerce feel
+   ========================================================= */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
