@@ -1,11 +1,12 @@
 import Link from "next/link";
 import ProductCard from "@/components/store/ProductCard";
-import { getProducts } from "@/lib/api";
+import { getProducts, Product as ApiProduct } from "@/lib/api";
 
-/**
- * Utility: shuffle array safely
- */
-function shuffleArray<T>(arr: T[]) {
+/* =======================
+   Helpers
+======================= */
+
+function shuffleArray<T>(arr: T[]): T[] {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -15,53 +16,64 @@ function shuffleArray<T>(arr: T[]) {
 }
 
 /**
- * Picks products randomly across sub-stores
+ * Normalize API products into a shape
+ * guaranteed safe for ProductCard
  */
-function pickRandomFromEachStore(allProducts: any[], count = 12) {
+function normalizeForCard(p: ApiProduct) {
+  return {
+    ...p,
+    img: p.img || p.image || "/placeholder.png",
+    category: p.category || "general",
+  };
+}
+
+/**
+ * Picks products randomly across categories
+ */
+function pickRandomFromEachStore(
+  allProducts: ApiProduct[],
+  count = 12
+) {
   if (!Array.isArray(allProducts) || allProducts.length === 0) return [];
 
-  const getStoreKey = (p: any) =>
-    p.category || p.store || p.subStore || p.type || "other";
+  const groups = allProducts.reduce<Record<string, ApiProduct[]>>(
+    (acc, p) => {
+      const key = (p.category || "other").toLowerCase();
+      acc[key] = acc[key] || [];
+      acc[key].push(p);
+      return acc;
+    },
+    {}
+  );
 
-  const groups = allProducts.reduce((acc: Record<string, any[]>, p: any) => {
-    const key = String(getStoreKey(p)).toLowerCase();
-    acc[key] = acc[key] || [];
-    acc[key].push(p);
-    return acc;
-  }, {});
+  const keys = Object.keys(groups);
 
-  const storeKeys = Object.keys(groups);
-
-  if (storeKeys.length <= 1) {
+  if (keys.length <= 1) {
     return shuffleArray(allProducts).slice(0, count);
   }
 
-  storeKeys.forEach((k) => {
-    groups[k] = shuffleArray(groups[k]);
-  });
+  keys.forEach((k) => (groups[k] = shuffleArray(groups[k])));
 
-  const selected: any[] = [];
+  const selected: ApiProduct[] = [];
   let round = 0;
 
   while (selected.length < count) {
     let added = false;
-
-    for (const key of storeKeys) {
+    for (const key of keys) {
       const item = groups[key]?.[round];
       if (item && selected.length < count) {
         selected.push(item);
         added = true;
       }
     }
-
     if (!added) break;
     round++;
   }
 
   if (selected.length < count) {
-    const selectedIds = new Set(selected.map((p) => p.id || p._id));
+    const ids = new Set(selected.map((p) => p.id || p._id));
     const remaining = allProducts.filter(
-      (p) => !selectedIds.has(p.id || p._id)
+      (p) => !ids.has(p.id || p._id)
     );
     selected.push(
       ...shuffleArray(remaining).slice(0, count - selected.length)
@@ -71,18 +83,22 @@ function pickRandomFromEachStore(allProducts: any[], count = 12) {
   return selected;
 }
 
-export default async function HomePage() {
-  let products: any[] = [];
+/* =======================
+   Page
+======================= */
 
-  // ✅ SAFE FETCH (NO UI CRASH)
+export default async function HomePage() {
+  let products: ApiProduct[] = [];
+
   try {
     products = await getProducts();
   } catch (err) {
-    console.error("❌ Failed to load products on homepage:", err);
+    console.error("❌ Failed to load products:", err);
     products = [];
   }
 
-  const featuredProducts = pickRandomFromEachStore(products, 12);
+  const featuredProducts = pickRandomFromEachStore(products, 12)
+    .map(normalizeForCard); // 🔑 CRITICAL FIX
 
   return (
     <div
@@ -90,12 +106,9 @@ export default async function HomePage() {
         display: "grid",
         gap: 14,
         marginTop: "calc(-1 * (var(--headerH) + var(--headerGap)))",
-        paddingTop: 0,
       }}
     >
-      {/* ===========================
-          HERO
-          =========================== */}
+      {/* HERO */}
       <section className="glass neon-border" style={{ padding: 18 }}>
         <div
           style={{
@@ -107,12 +120,7 @@ export default async function HomePage() {
           }}
         >
           <div>
-            <div
-              style={{
-                fontSize: 28,
-                fontWeight: 1200,
-              }}
-            >
+            <div style={{ fontSize: 28, fontWeight: 1200 }}>
               Welcome to Karabo’s Boutique!
             </div>
 
@@ -128,14 +136,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ===========================
-          PRODUCTS
-          =========================== */}
+      {/* PRODUCTS */}
       <section className="glass neon-border" style={{ padding: 18 }}>
         {featuredProducts.length === 0 ? (
-          <div className="muted">
-            Products will appear here soon.
-          </div>
+          <div className="muted">Products will appear here soon.</div>
         ) : (
           <div
             style={{
@@ -144,7 +148,7 @@ export default async function HomePage() {
               gap: 14,
             }}
           >
-            {featuredProducts.map((p: any) => (
+            {featuredProducts.map((p) => (
               <ProductCard key={p._id || p.id} p={p} />
             ))}
           </div>
