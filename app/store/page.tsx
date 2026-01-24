@@ -11,8 +11,11 @@ import StoreToolbar, {
    Types
 ======================= */
 
+// 🔑 StoreToolbar owns the base filters.
+// We extend them here with page-specific needs.
 type Filters = BaseFilters & {
   minRating: number;
+  priceMax: number;
 };
 
 type BackendProduct = {
