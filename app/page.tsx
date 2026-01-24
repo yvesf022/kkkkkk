@@ -20,8 +20,11 @@ function shuffleArray<T>(arr: T[]): T[] {
  * guaranteed safe for ProductCard
  */
 function normalizeForCard(p: ApiProduct) {
+  const id = p.id ?? p._id ?? "";
+
   return {
     ...p,
+    id, // ✅ GUARANTEED
     img: p.img || p.image || "/placeholder.png",
     category: p.category || "general",
   };
@@ -98,7 +101,7 @@ export default async function HomePage() {
   }
 
   const featuredProducts = pickRandomFromEachStore(products, 12)
-    .map(normalizeForCard); // 🔑 CRITICAL FIX
+    .map(normalizeForCard); // 🔑 FINAL GUARANTEE
 
   return (
     <div
@@ -149,7 +152,7 @@ export default async function HomePage() {
             }}
           >
             {featuredProducts.map((p) => (
-              <ProductCard key={p._id || p.id} p={p} />
+              <ProductCard key={p.id} p={p} />
             ))}
           </div>
         )}
