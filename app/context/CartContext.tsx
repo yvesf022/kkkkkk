@@ -2,18 +2,21 @@
 
 import { createContext, useContext, useState } from "react";
 
-type CartItem = {
+export type CartItem = {
   _id?: string;
   id?: string;
   title: string;
   price: number;
-  quantity?: number;
+  quantity: number;
+  img?: string;
 };
 
 type CartContextType = {
-  items: CartItem[];
+  cart: CartItem[];              // ✅ alias used by cart/page.tsx
+  items: CartItem[];             // (kept for compatibility)
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   total: number;
 };
@@ -24,7 +27,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
   const addToCart = (item: CartItem) => {
-    setItems((prev) => [...prev, { ...item, quantity: 1 }]);
+    setItems((prev) => {
+      const existing = prev.find(
+        (i) => (i._id || i.id) === (item._id || item.id)
+      );
+
+      if (existing) {
+        return prev.map((i) =>
+          (i._id || i.id) === (item._id || item.id)
+            ? { ...i, quantity: i.quantity + 1 }
+            : i
+        );
+      }
+
+      return [...prev, { ...item, quantity: item.quantity || 1 }];
+    });
   };
 
   const removeFromCart = (id: string) => {
@@ -33,16 +50,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const updateQuantity = (id: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(id);
+      return;
+    }
+
+    setItems((prev) =>
+      prev.map((i) =>
+        (i._id || i.id) === id ? { ...i, quantity } : i
+      )
+    );
+  };
+
   const clearCart = () => setItems([]);
 
   const total = items.reduce(
-    (sum, item) => sum + item.price * (item.quantity || 1),
+    (sum, item) => sum + item.price * item.quantity,
     0
   );
 
   return (
     <CartContext.Provider
-      value={{ items, addToCart, removeFromCart, clearCart, total }}
+      value={{
+        cart: items,          // ✅ this fixes Netlify error
+        items,
+        addToCart,
+        removeFromCart,
+        updateQuantity,       // ✅ added
+        clearCart,
+        total,
+      }}
     >
       {children}
     </CartContext.Provider>
