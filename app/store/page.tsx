@@ -34,7 +34,9 @@ type UIProduct = {
   oldPrice?: number;
   rating: number;
   tags: string[];
-  image?: string;
+  category?: string;
+  img?: string;        // ✅ required by ProductCard
+  image?: string;      // optional (kept if used elsewhere)
 };
 
 /* =======================
@@ -59,19 +61,25 @@ export default function StorePage() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`)
       .then((res) => res.json())
       .then((data: BackendProduct[]) => {
-        const mapped: UIProduct[] = data.map((p) => ({
-          id: p._id,
-          title: p.title,
-          price: p.price,
-          rating: 4.5,
-          tags: [
-            ...(p.category ? [p.category] : []),
-            ...(p.varieties ?? []),
-          ],
-          image: p.image
+        const mapped: UIProduct[] = data.map((p) => {
+          const imageUrl = p.image
             ? `${process.env.NEXT_PUBLIC_API_URL}/uploads/products/${p.image}`
-            : undefined,
-        }));
+            : undefined;
+
+          return {
+            id: p._id,
+            title: p.title,
+            price: p.price,
+            rating: 4.5, // placeholder
+            tags: [
+              ...(p.category ? [p.category] : []),
+              ...(p.varieties ?? []),
+            ],
+            category: p.category,
+            img: imageUrl,   // ✅ ProductCard expects this
+            image: imageUrl, // optional duplicate
+          };
+        });
 
         setProducts(mapped);
         setLoading(false);
@@ -99,7 +107,7 @@ export default function StorePage() {
       data = data.filter((p) => (p.oldPrice ?? 0) > p.price);
     }
 
-    // Sort (SortMode is opaque → compare safely as string)
+    // Sort (SortMode treated opaquely)
     const sortKey = String(sort);
 
     if (sortKey === "priceLow") {
