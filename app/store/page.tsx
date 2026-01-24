@@ -34,9 +34,8 @@ type UIProduct = {
   oldPrice?: number;
   rating: number;
   tags: string[];
-  category?: string;
-  img?: string;        // ✅ required by ProductCard
-  image?: string;      // optional (kept if used elsewhere)
+  category: string;   // ✅ required
+  img: string;        // ✅ REQUIRED (ProductCard contract)
 };
 
 /* =======================
@@ -62,9 +61,10 @@ export default function StorePage() {
       .then((res) => res.json())
       .then((data: BackendProduct[]) => {
         const mapped: UIProduct[] = data.map((p) => {
-          const imageUrl = p.image
-            ? `${process.env.NEXT_PUBLIC_API_URL}/uploads/products/${p.image}`
-            : undefined;
+          const img =
+            p.image
+              ? `${process.env.NEXT_PUBLIC_API_URL}/uploads/products/${p.image}`
+              : "/placeholder.png";
 
           return {
             id: p._id,
@@ -75,9 +75,8 @@ export default function StorePage() {
               ...(p.category ? [p.category] : []),
               ...(p.varieties ?? []),
             ],
-            category: p.category,
-            img: imageUrl,   // ✅ ProductCard expects this
-            image: imageUrl, // optional duplicate
+            category: p.category ?? "general",
+            img, // ✅ guaranteed
           };
         });
 
