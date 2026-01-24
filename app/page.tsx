@@ -24,9 +24,10 @@ function normalizeForCard(p: ApiProduct) {
 
   return {
     ...p,
-    id, // ✅ GUARANTEED
+    id,                         // ✅ required
     img: p.img || p.image || "/placeholder.png",
     category: p.category || "general",
+    rating: p.rating ?? 4.5,    // ✅ FINAL REQUIRED FIELD
   };
 }
 
@@ -101,7 +102,7 @@ export default async function HomePage() {
   }
 
   const featuredProducts = pickRandomFromEachStore(products, 12)
-    .map(normalizeForCard); // 🔑 FINAL GUARANTEE
+    .map(normalizeForCard);
 
   return (
     <div
