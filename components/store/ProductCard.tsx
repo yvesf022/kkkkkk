@@ -14,13 +14,13 @@ const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
 type Product = {
   _id?: string;
-  id: string; // ✅ REQUIRED (fixes QuickViewModal type contract)
+  id: string;        // ✅ required
   title: string;
   price: number;
   oldPrice?: number;
   img: string;
   category: string;
-  rating?: number;
+  rating: number;    // ✅ REQUIRED (FINAL FIX)
 };
 
 export default function ProductCard({ p }: { p: Product }) {
