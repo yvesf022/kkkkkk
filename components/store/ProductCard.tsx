@@ -14,7 +14,7 @@ const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
 type Product = {
   _id?: string;
-  id?: string;
+  id: string; // ✅ REQUIRED (fixes QuickViewModal type contract)
   title: string;
   price: number;
   oldPrice?: number;
@@ -32,7 +32,7 @@ export default function ProductCard({ p }: { p: Product }) {
     return Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100);
   }, [p.oldPrice, p.price]);
 
-  const productId = p._id || p.id || "";
+  const productId = p.id || p._id;
 
   return (
     <>
@@ -76,7 +76,7 @@ export default function ProductCard({ p }: { p: Product }) {
                 fontWeight: 1100,
               }}
             >
-              {p.category?.toUpperCase()}
+              {p.category.toUpperCase()}
             </div>
 
             {discount ? (
