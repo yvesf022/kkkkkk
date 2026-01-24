@@ -9,18 +9,18 @@ import { useCart } from "@/app/context/CartContext";
 import QuickViewModal from "@/components/store/QuickViewModal";
 import { ScaleHover } from "@/components/ui/Motion";
 
-/** ✅ Lesotho currency formatter (Maloti) */
+/** Lesotho currency formatter (Maloti) */
 const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
 type Product = {
   _id?: string;
-  id: string;        // ✅ required
+  id: string;
   title: string;
   price: number;
   oldPrice?: number;
   img: string;
   category: string;
-  rating: number;    // ✅ REQUIRED (FINAL FIX)
+  rating: number;
 };
 
 export default function ProductCard({ p }: { p: Product }) {
@@ -168,7 +168,8 @@ export default function ProductCard({ p }: { p: Product }) {
               <button
                 className="btn btnPrimary"
                 onClick={() => {
-                  addToCart(p);
+                  // ✅ FINAL FIX: CartItem requires quantity
+                  addToCart({ ...p, quantity: 1 });
                   toast.success("Added to cart 🛒");
                 }}
                 style={{ flex: 1 }}
