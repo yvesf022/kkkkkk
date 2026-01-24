@@ -1,122 +1,84 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
 import { useCart } from "../context/CartContext";
-
-/** Lesotho currency formatter (Maloti) */
-const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
+import Link from "next/link";
 
 export default function CartPage() {
-  const { items, removeFromCart, clearCart, total } = useCart();
+  const { cart, removeFromCart, updateQuantity } = useCart();
 
-  if (items.length === 0) {
+  if (cart.length === 0) {
     return (
-      <div className="glass neon-border" style={{ padding: 18 }}>
-        <h1 className="neon-text">Your cart is empty</h1>
-        <p style={{ marginTop: 10 }}>
-          Add products from Karabo’s Boutique and checkout securely.
-        </p>
-
-        <Link href="/store" className="btn btnPrimary" style={{ marginTop: 14 }}>
-          Go to Store →
+      <div className="glass neon-text" style={{ padding: "2rem", marginTop: "2rem" }}>
+        <h1>Your Cart is Empty</h1>
+        <Link href="/store" className="btn pill">
+          Go to Store
         </Link>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
-      {/* HEADER */}
-      <div className="glass neon-border" style={{ padding: 16 }}>
-        <h1 className="neon-text">Your Cart</h1>
-        <p style={{ opacity: 0.7 }}>
-          Review your items before checkout.
-        </p>
-      </div>
+    <div className="glass neon-text" style={{ padding: "2rem", marginTop: "2rem" }}>
+      <h1>Your Cart</h1>
 
-      {/* ITEMS */}
-      <div style={{ display: "grid", gap: 12 }}>
-        {items.map((item) => {
-          const id = item._id || item.id!;
-
-          return (
-            <div
-              key={id}
-              className="glass neon-border"
-              style={{
-                padding: 14,
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}
-            >
-              {item.img ? (
-                <div
-                  style={{
-                    width: 86,
-                    height: 64,
-                    borderRadius: 16,
-                    overflow: "hidden",
-                  }}
-                >
-                  <Image
-                    src={item.img}
-                    alt={item.title}
-                    width={300}
-                    height={200}
-                    style={{ objectFit: "cover" }}
-                  />
-                </div>
-              ) : null}
-
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <b>{item.title}</b>
-                <div style={{ marginTop: 6, opacity: 0.75 }}>
-                  {fmtM(item.price)}
-                </div>
-              </div>
-
-              <button
-                className="btn"
-                aria-label="Remove item"
-                onClick={() => removeFromCart(id)}
-              >
-                Remove
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* SUMMARY */}
-      <div className="glass neon-border" style={{ padding: 16 }}>
-        <div style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontWeight: 1000 }}>
-            Total:{" "}
-            <span className="neon-text">{fmtM(total)}</span>
-          </div>
-        </div>
-
+      {cart.map((item) => (
         <div
+          key={item.id}
+          className="glass"
           style={{
-            marginTop: 14,
             display: "flex",
-            justifyContent: "space-between",
-            gap: 10,
-            flexWrap: "wrap",
+            gap: "1rem",
+            marginBottom: "1rem",
+            padding: "1rem",
+            alignItems: "center",
           }}
         >
-          <button className="btn" onClick={clearCart}>
-            Clear Cart
-          </button>
+          {/* ✅ FIX: image instead of img */}
+          {item.image && (
+            <div
+              style={{
+                width: 86,
+                height: 86,
+                backgroundImage: `url(${item.image})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                borderRadius: 12,
+              }}
+            />
+          )}
 
-          <Link href="/checkout" className="btn btnPrimary">
-            Proceed to Checkout →
-          </Link>
+          <div style={{ flex: 1 }}>
+            <h3>{item.title}</h3>
+            <p>{item.price}</p>
+
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <button
+                className="btn pill"
+                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+              >
+                −
+              </button>
+
+              <span>{item.quantity}</span>
+
+              <button
+                className="btn pill"
+                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <button className="btn" onClick={() => removeFromCart(item.id)}>
+            Remove
+          </button>
         </div>
-      </div>
+      ))}
+
+      <Link href="/checkout" className="btn pill">
+        Proceed to Checkout
+      </Link>
     </div>
   );
 }
