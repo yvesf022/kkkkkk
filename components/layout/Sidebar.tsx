@@ -112,8 +112,12 @@ export default function Sidebar({
   Item: ({ item }: { item: NavItem }) => React.ReactElement;
   forceCloseButton?: boolean;
 }) {
-  // 🔑 MINIMAL TYPE FIX — runtime unchanged
-  const ui = useUI() as { closeSidebar: () => void; isSidebarOpen: boolean };
+  // 🔑 COMPILER-APPROVED TYPE ASSERTION (runtime unchanged)
+  const ui = useUI() as unknown as {
+    closeSidebar: () => void;
+    isSidebarOpen: boolean;
+  };
+
   const { closeSidebar, isSidebarOpen } = ui;
 
   const pathname = usePathname();
