@@ -3,9 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import ProductCard from "@/components/store/ProductCard";
 import StoreToolbar, {
-  Filters,
+  Filters as BaseFilters,
   SortMode,
 } from "@/components/store/StoreToolbar";
+
+/* =======================
+   Types
+======================= */
+
+type Filters = BaseFilters & {
+  minRating: number;
+};
 
 type BackendProduct = {
   _id: string;
@@ -26,6 +34,10 @@ type UIProduct = {
   tags: string[];
   image?: string;
 };
+
+/* =======================
+   Page
+======================= */
 
 export default function StorePage() {
   const [products, setProducts] = useState<UIProduct[]>([]);
@@ -68,7 +80,7 @@ export default function StorePage() {
   const list = useMemo(() => {
     let data = [...products];
 
-    // Filter
+    // Search
     const q = filters.q.trim().toLowerCase();
     if (q.length > 0) {
       data = data.filter((p) => {
@@ -77,6 +89,7 @@ export default function StorePage() {
       });
     }
 
+    // Filters
     data = data.filter((p) => p.rating >= filters.minRating);
     data = data.filter((p) => p.price <= filters.priceMax);
 
