@@ -11,11 +11,12 @@ import StoreToolbar, {
    Types
 ======================= */
 
-// 🔑 StoreToolbar owns the base filters.
-// We extend them here with page-specific needs.
+// 🔑 StoreToolbar owns the base filter contract.
+// This page EXTENDS it with everything it actually uses.
 type Filters = BaseFilters & {
   minRating: number;
   priceMax: number;
+  onlyDiscount: boolean;
 };
 
 type BackendProduct = {
@@ -64,7 +65,7 @@ export default function StorePage() {
           id: p._id,
           title: p.title,
           price: p.price,
-          rating: 4.5, // default for now
+          rating: 4.5, // placeholder
           tags: [
             ...(p.category ? [p.category] : []),
             ...(p.varieties ?? []),
