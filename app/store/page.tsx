@@ -11,8 +11,6 @@ import StoreToolbar, {
    Types
 ======================= */
 
-// 🔑 StoreToolbar owns the base filter contract.
-// This page EXTENDS it with everything it actually uses.
 type Filters = BaseFilters & {
   minRating: number;
   priceMax: number;
@@ -65,7 +63,7 @@ export default function StorePage() {
           id: p._id,
           title: p.title,
           price: p.price,
-          rating: 4.5, // placeholder
+          rating: 4.5,
           tags: [
             ...(p.category ? [p.category] : []),
             ...(p.varieties ?? []),
@@ -101,10 +99,16 @@ export default function StorePage() {
       data = data.filter((p) => (p.oldPrice ?? 0) > p.price);
     }
 
-    // Sort
-    if (sort === "priceLow") data.sort((a, b) => a.price - b.price);
-    if (sort === "priceHigh") data.sort((a, b) => b.price - a.price);
-    if (sort === "rating") data.sort((a, b) => b.rating - a.rating);
+    // Sort (SortMode is opaque → compare safely as string)
+    const sortKey = String(sort);
+
+    if (sortKey === "priceLow") {
+      data.sort((a, b) => a.price - b.price);
+    } else if (sortKey === "priceHigh") {
+      data.sort((a, b) => b.price - a.price);
+    } else if (sortKey === "rating") {
+      data.sort((a, b) => b.rating - a.rating);
+    }
 
     return data;
   }, [products, filters, sort]);
