@@ -24,10 +24,10 @@ function normalizeForCard(p: ApiProduct) {
 
   return {
     ...p,
-    id,                         // ✅ required
+    id,                               // ✅ required
     img: p.img || p.image || "/placeholder.png",
     category: p.category || "general",
-    rating: p.rating ?? 4.5,    // ✅ FINAL REQUIRED FIELD
+    rating: 4.5,                      // ✅ DO NOT READ p.rating
   };
 }
 
