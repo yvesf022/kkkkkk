@@ -1,6 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
+
+/* =======================
+   Types
+======================= */
 
 export type CartItem = {
   _id?: string;
@@ -8,12 +12,13 @@ export type CartItem = {
   title: string;
   price: number;
   quantity: number;
-  img?: string;
+  img?: string;     // legacy / existing usage
+  image?: string;   // used by cart/page.tsx
 };
 
 type CartContextType = {
-  cart: CartItem[];              // ✅ alias used by cart/page.tsx
-  items: CartItem[];             // (kept for compatibility)
+  cart: CartItem[];        // alias expected by cart/page.tsx
+  items: CartItem[];       // kept for backward compatibility
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -21,9 +26,17 @@ type CartContextType = {
   total: number;
 };
 
+/* =======================
+   Context
+======================= */
+
 const CartContext = createContext<CartContextType | null>(null);
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
+/* =======================
+   Provider
+======================= */
+
+export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
   const addToCart = (item: CartItem) => {
@@ -63,7 +76,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => {
+    setItems([]);
+  };
 
   const total = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -73,11 +88,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   return (
     <CartContext.Provider
       value={{
-        cart: items,          // ✅ this fixes Netlify error
+        cart: items,        // ✅ required by cart/page.tsx
         items,
         addToCart,
         removeFromCart,
-        updateQuantity,       // ✅ added
+        updateQuantity,
         clearCart,
         total,
       }}
@@ -87,8 +102,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* =======================
+   Hook
+======================= */
+
 export function useCart() {
   const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart must be used inside CartProvider");
+  if (!ctx) {
+    throw new Error("useCart must be used within a CartProvider");
+  }
   return ctx;
 }
