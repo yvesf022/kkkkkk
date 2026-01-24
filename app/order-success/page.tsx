@@ -8,7 +8,10 @@ export default function OrderSuccessPage() {
   const orderId = searchParams.get("orderId");
 
   return (
-    <div className="glass neon-text" style={{ padding: "2rem", marginTop: "2rem" }}>
+    <div
+      className="glass neon-text"
+      style={{ padding: "2rem", marginTop: "2rem" }}
+    >
       <h1>Order Placed Successfully 🎉</h1>
 
       <p>
@@ -18,11 +21,12 @@ export default function OrderSuccessPage() {
 
       <p>
         <strong>Order Reference:</strong>{" "}
-        {orderId ? orderId : "Please check this in My Orders"}
+        {orderId ? orderId : "Check this in your account"}
       </p>
 
       <div style={{ marginTop: "2rem", display: "flex", gap: "1rem" }}>
-        <Link href="/my-orders" className="btn">
+        {/* ✅ CONSISTENT ROUTE */}
+        <Link href="/account" className="btn">
           View My Orders
         </Link>
 
