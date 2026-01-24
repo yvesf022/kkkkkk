@@ -11,8 +11,16 @@ import { useStore } from "@/lib/store";
 import ProductCard from "@/components/store/ProductCard";
 import { FadeIn, ScaleHover } from "@/components/ui/Motion";
 
+/* =======================
+   Helpers
+======================= */
+
 const formatCurrency = (v: number) =>
   `M ${Math.round(v).toLocaleString("en-LS")}`;
+
+/* =======================
+   Page
+======================= */
 
 export default function ProductDetails({
   params,
@@ -32,7 +40,7 @@ export default function ProductDetails({
   const product = products.find((x) => x.id === id);
 
   const gallery = useMemo(
-    () => (product ? [product.img, product.img, product.img] : []),
+    () => (product?.img ? [product.img, product.img, product.img] : []),
     [product]
   );
 
@@ -49,7 +57,13 @@ export default function ProductDetails({
     [product]
   );
 
-  const inStock = product ? product.stock !== 0 : false;
+  // ✅ SAFE: stock may not exist in lib/products
+  const stock =
+    typeof (product as any)?.stock === "number"
+      ? (product as any).stock
+      : 0;
+
+  const inStock = stock > 0;
   const inWish = product ? wishlist.includes(product.id) : false;
 
   useEffect(() => {
@@ -80,7 +94,7 @@ export default function ProductDetails({
             </h1>
 
             <div style={{ color: "var(--muted)", fontSize: 14 }}>
-              {product.category.toUpperCase()} • ⭐ {product.rating}
+              {product.category?.toUpperCase()} • ⭐ {product.rating}
             </div>
           </div>
 
@@ -116,33 +130,6 @@ export default function ProductDetails({
                   }}
                 />
               </div>
-
-              <div style={{ display: "flex", gap: 10 }}>
-                {gallery.map((img, i) => (
-                  <button
-                    key={i}
-                    className="pill"
-                    style={{
-                      padding: 0,
-                      width: 84,
-                      height: 64,
-                      border:
-                        i === activeImg
-                          ? "2px solid var(--brand2)"
-                          : "1px solid var(--softLine)",
-                    }}
-                    onClick={() => setActiveImg(i)}
-                  >
-                    <Image
-                      src={img}
-                      alt=""
-                      width={200}
-                      height={150}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* BUY PANEL */}
@@ -165,24 +152,6 @@ export default function ProductDetails({
                 >
                   {inStock ? "In Stock" : "Out of Stock"}
                 </div>
-              </div>
-
-              {/* QUANTITY */}
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <button
-                  className="pill"
-                  onClick={() => setQty(Math.max(1, qty - 1))}
-                >
-                  −
-                </button>
-                <b>{qty}</b>
-                <button
-                  className="pill"
-                  disabled={!inStock}
-                  onClick={() => setQty(qty + 1)}
-                >
-                  +
-                </button>
               </div>
 
               {/* ACTIONS */}
@@ -215,25 +184,6 @@ export default function ProductDetails({
               >
                 {inWish ? "Remove from Wishlist" : "Save to Wishlist"}
               </button>
-            </div>
-          </div>
-
-          {/* DESCRIPTION */}
-          <div className="hr" style={{ margin: "20px 0" }} />
-
-          <div>
-            <h3>Description</h3>
-            <p style={{ marginTop: 8, color: "var(--muted)" }}>
-              Premium product with high-quality finish. Perfect for everyday
-              use and special occasions.
-            </p>
-
-            <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-              {(product.tags ?? []).map((t) => (
-                <span key={t} className="badge">
-                  #{t}
-                </span>
-              ))}
             </div>
           </div>
         </div>
