@@ -1,4 +1,6 @@
 import "../styles/globals.css";
+import type React from "react";
+
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import Footer from "@/components/layout/Footer";
@@ -7,10 +9,18 @@ import ToastProvider from "@/components/ui/ToastProvider";
 import NextTopLoader from "nextjs-toploader";
 import { CartProvider } from "./context/CartContext";
 
+/* =======================
+   Metadata
+======================= */
+
 export const metadata = {
   title: "Karabo’s Boutique",
   description: "Futuristic neon online store UI",
 };
+
+/* =======================
+   Layout
+======================= */
 
 export default function RootLayout({
   children,
@@ -36,7 +46,11 @@ export default function RootLayout({
 
             <main className="container">
               <div className="pageGrid">
-                <Sidebar />
+                <Sidebar
+                  nav={[]}
+                  quickLinks={[]}
+                  Item={() => null}
+                />
                 <div>{children}</div>
               </div>
             </main>
