@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import type { Product } from "@/lib/products";
 import { useStore } from "@/lib/store";
+import { useCart } from "@/app/context/CartContext";
 
 /** Lesotho currency formatter (Maloti) */
 const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
@@ -20,7 +21,7 @@ export default function QuickViewModal({
   product: Product | null;
   onClose: () => void;
 }) {
-  const addToCart = useStore((s) => s.addToCart);
+  const { addToCart } = useCart(); // ✅ CORRECT CART
   const toggleWishlist = useStore((s) => s.toggleWishlist);
   const wishlist = useStore((s) => s.wishlist);
 
@@ -127,9 +128,7 @@ export default function QuickViewModal({
                 alignItems: "center",
               }}
             >
-              <div style={{ fontWeight: 900 }}>
-                Quick View
-              </div>
+              <div style={{ fontWeight: 900 }}>Quick View</div>
 
               <button
                 className="btn btnGhost"
@@ -220,9 +219,7 @@ export default function QuickViewModal({
                       "0 18px 50px rgba(15,23,42,0.14)",
                   }}
                 >
-                  <div style={{ fontWeight: 800 }}>
-                    Price
-                  </div>
+                  <div style={{ fontWeight: 800 }}>Price</div>
 
                   <div
                     style={{
@@ -232,18 +229,6 @@ export default function QuickViewModal({
                     }}
                   >
                     {fmtM(product.price)}
-                    {product.oldPrice && (
-                      <span
-                        style={{
-                          marginLeft: 10,
-                          fontSize: 14,
-                          opacity: 0.5,
-                          textDecoration: "line-through",
-                        }}
-                      >
-                        {fmtM(product.oldPrice)}
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -285,7 +270,6 @@ export default function QuickViewModal({
               </div>
             </div>
 
-            {/* RESPONSIVE */}
             <style>{`
               @media (max-width: 900px) {
                 .qvGrid {
