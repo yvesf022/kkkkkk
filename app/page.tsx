@@ -1,5 +1,3 @@
-"use client";
-
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
@@ -16,14 +14,12 @@ function shuffle<T>(arr: T[]) {
 
 /**
  * 🔒 STRICT NORMALIZATION
- * - NO legacy fields
- * - Netlify-safe
  * - Matches ProductCard contract exactly
  */
 function normalizeForCard(p: ApiProduct) {
   return {
     ...p,
-    id: p.id, // ✅ SINGLE SOURCE OF TRUTH
+    id: p.id,
     img: p.img || "/placeholder.png",
     category: p.category || "general",
     rating: 4.5,
@@ -31,7 +27,7 @@ function normalizeForCard(p: ApiProduct) {
 }
 
 /* =======================
-   PAGE
+   PAGE (SERVER COMPONENT)
 ======================= */
 
 export default async function HomePage() {
