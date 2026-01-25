@@ -12,22 +12,38 @@ export default function ProductCardSkeleton() {
         gap: 10,
       }}
     >
+      {/* top row */}
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <Skeleton height={18} radius={999} style={{ width: 90 }} />
-        <Skeleton height={18} radius={999} style={{ width: 60 }} />
+        <div style={{ width: 90 }}>
+          <Skeleton height={18} radius={999} />
+        </div>
+        <div style={{ width: 60 }}>
+          <Skeleton height={18} radius={999} />
+        </div>
       </div>
 
+      {/* image */}
       <Skeleton height={170} radius={18} />
 
+      {/* title */}
       <Skeleton height={16} radius={10} />
 
-      <Skeleton height={14} radius={8} style={{ width: 120 }} />
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <Skeleton height={40} radius={14} style={{ flex: 1 }} />
-        <Skeleton height={40} radius={14} style={{ flex: 1 }} />
+      {/* subtitle */}
+      <div style={{ width: 120 }}>
+        <Skeleton height={14} radius={8} />
       </div>
 
+      {/* buttons */}
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <Skeleton height={40} radius={14} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <Skeleton height={40} radius={14} />
+        </div>
+      </div>
+
+      {/* footer */}
       <Skeleton height={40} radius={14} />
     </div>
   );
