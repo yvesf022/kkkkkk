@@ -14,11 +14,17 @@ function shuffle<T>(arr: T[]) {
   return [...arr].sort(() => Math.random() - 0.5);
 }
 
+/**
+ * 🔒 IMPORTANT:
+ * ProductCard expects a Product with REQUIRED `category`
+ * We must guarantee it here for Netlify + TS build
+ */
 function normalizeForCard(p: ApiProduct) {
   return {
     ...p,
     id: p.id ?? p._id ?? "",
     img: p.img || p.image || "/placeholder.png",
+    category: p.category || "general", // ✅ FIX
     rating: 4.5,
   };
 }
@@ -109,7 +115,6 @@ export default async function HomePage() {
               flexWrap: "wrap",
             }}
           >
-            {/* SOFT BLUE SHINY BUTTON */}
             <Link href="/store" className="btn btnTech">
               Explore Store →
             </Link>
@@ -119,58 +124,6 @@ export default async function HomePage() {
             </Link>
           </div>
         </div>
-      </section>
-
-      {/* ================= CATEGORY STRIP ================= */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 20,
-        }}
-      >
-        {[
-          {
-            title: "Beauty",
-            desc: "Glow & skincare",
-            bg: "linear-gradient(135deg,#edf4ff,#ffeef6)",
-          },
-          {
-            title: "Mobile",
-            desc: "Accessories & tech",
-            bg: "linear-gradient(135deg,#eef6ff,#e9faff)",
-          },
-          {
-            title: "Fashion",
-            desc: "Style & outfits",
-            bg: "linear-gradient(135deg,#fff1f6,#f3ecff)",
-          },
-        ].map((c) => (
-          <Link
-            key={c.title}
-            href="/store"
-            style={{
-              padding: 22,
-              borderRadius: 20,
-              background: c.bg,
-              textDecoration: "none",
-              color: "#0f172a",
-              boxShadow: "0 14px 36px rgba(15,23,42,0.12)",
-            }}
-          >
-            <div style={{ fontWeight: 800 }}>{c.title}</div>
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 13,
-                fontWeight: 600,
-                color: "rgba(15,23,42,0.6)",
-              }}
-            >
-              {c.desc}
-            </div>
-          </Link>
-        ))}
       </section>
 
       {/* ================= FEATURED ================= */}
@@ -201,8 +154,7 @@ export default async function HomePage() {
         style={{
           borderRadius: 24,
           padding: 24,
-          background:
-            "linear-gradient(135deg,#ffffff,#f8fbff)",
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
           boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
         }}
       >
