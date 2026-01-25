@@ -65,122 +65,202 @@ export default function CheckoutPage() {
     }
   }
 
+  /* ================= EMPTY CART ================= */
+
   if (items.length === 0) {
     return (
-      <div className="glass neon-border container">
-        <h1 className="neon-text">Checkout</h1>
-        <p>Your cart is empty.</p>
+      <div
+        style={{
+          maxWidth: 640,
+          margin: "48px auto 0",
+          padding: 32,
+          borderRadius: 26,
+          background: `
+            radial-gradient(
+              420px 220px at 10% 0%,
+              rgba(96,165,250,0.25),
+              transparent 60%
+            ),
+            linear-gradient(135deg,#f8fbff,#eef6ff)
+          `,
+          boxShadow: "0 26px 70px rgba(15,23,42,0.18)",
+          textAlign: "center",
+        }}
+      >
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Checkout</h1>
+        <p style={{ marginTop: 8, color: "rgba(15,23,42,0.6)" }}>
+          Your cart is empty.
+        </p>
       </div>
     );
   }
 
+  /* ================= CHECKOUT ================= */
+
   return (
-    <div className="container" style={{ display: "grid", gap: "var(--gap)" }}>
+    <div style={{ display: "grid", gap: 26 }}>
       {/* HEADER */}
-      <div className="glass neon-border">
-        <h1 className="neon-text">Checkout</h1>
-        <p className="muted">
-          Bank Transfer Payment – Karabo’s Boutique
+      <section
+        style={{
+          borderRadius: 24,
+          padding: 24,
+          background: `
+            radial-gradient(
+              420px 200px at 10% 0%,
+              rgba(96,165,250,0.22),
+              transparent 60%
+            ),
+            radial-gradient(
+              360px 180px at 90% 10%,
+              rgba(244,114,182,0.18),
+              transparent 60%
+            ),
+            linear-gradient(
+              135deg,
+              #f8fbff,
+              #eef6ff,
+              #fff1f6
+            )
+          `,
+          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
+        }}
+      >
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Checkout</h1>
+        <p style={{ marginTop: 6, color: "rgba(15,23,42,0.6)" }}>
+          Bank transfer payment — Karabo’s Boutique
         </p>
-      </div>
+      </section>
 
       {/* ADDRESS */}
-      <div className="glass neon-border">
-        <h3>Delivery Address</h3>
+      <section
+        style={{
+          borderRadius: 24,
+          padding: 24,
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
+        }}
+      >
+        <h3 style={{ fontWeight: 900 }}>Delivery Address</h3>
 
-        <div style={{ display: "grid", gap: 10 }}>
-          <input
-            className="pill"
-            placeholder="Full Name"
-            value={address.name}
-            onChange={(e) =>
-              setAddress({ ...address, name: e.target.value })
-            }
-          />
-          <input
-            className="pill"
-            placeholder="Phone Number"
-            value={address.phone}
-            onChange={(e) =>
-              setAddress({ ...address, phone: e.target.value })
-            }
-          />
-          <input
-            className="pill"
-            placeholder="Street / Village"
-            value={address.line1}
-            onChange={(e) =>
-              setAddress({ ...address, line1: e.target.value })
-            }
-          />
-          <input
-            className="pill"
-            placeholder="City / Town"
-            value={address.city}
-            onChange={(e) =>
-              setAddress({ ...address, city: e.target.value })
-            }
-          />
-          <input
-            className="pill"
-            placeholder="District"
-            value={address.district}
-            onChange={(e) =>
-              setAddress({ ...address, district: e.target.value })
-            }
-          />
+        <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+          {[
+            ["Full Name", "name"],
+            ["Phone Number", "phone"],
+            ["Street / Village", "line1"],
+            ["City / Town", "city"],
+            ["District", "district"],
+          ].map(([label, key]) => (
+            <input
+              key={key}
+              className="pill"
+              placeholder={label}
+              value={(address as any)[key]}
+              onChange={(e) =>
+                setAddress({ ...address, [key]: e.target.value })
+              }
+            />
+          ))}
         </div>
-      </div>
+      </section>
 
       {/* BANK DETAILS */}
-      <div className="glass neon-border">
-        <h3>Bank Transfer Details</h3>
+      <section
+        style={{
+          borderRadius: 24,
+          padding: 24,
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
+        }}
+      >
+        <h3 style={{ fontWeight: 900 }}>Bank Transfer Details</h3>
 
-        <div className="pill">
+        <div
+          style={{
+            marginTop: 10,
+            padding: 16,
+            borderRadius: 18,
+            background: "rgba(255,255,255,0.7)",
+            boxShadow: "inset 0 0 0 1px rgba(15,23,42,0.08)",
+          }}
+        >
           <b>Account Name:</b> Karabo’s Boutique<br />
           <b>Bank Name:</b> YOUR BANK NAME<br />
           <b>Account Number:</b> XXXXXXXX<br />
           <b>Reference:</b> Your Full Name
         </div>
 
-        <p className="muted">
-          Please complete the transfer and upload proof of payment.
+        <p style={{ marginTop: 8, color: "rgba(15,23,42,0.6)" }}>
+          Complete the transfer and upload proof of payment below.
         </p>
-      </div>
+      </section>
 
-      {/* PROOF UPLOAD */}
-      <div className="glass neon-border">
-        <h3>Upload Proof of Payment</h3>
+      {/* PROOF */}
+      <section
+        style={{
+          borderRadius: 24,
+          padding: 24,
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
+        }}
+      >
+        <h3 style={{ fontWeight: 900 }}>Upload Proof of Payment</h3>
 
         <input
           type="file"
           accept="image/*,.pdf"
           className="pill"
           onChange={(e) => setProof(e.target.files?.[0] || null)}
+          style={{ marginTop: 12 }}
         />
-      </div>
+      </section>
 
       {/* SUMMARY */}
-      <div className="glass neon-border">
-        <h3>Order Summary</h3>
+      <section
+        style={{
+          borderRadius: 24,
+          padding: 24,
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
+        }}
+      >
+        <h3 style={{ fontWeight: 900 }}>Order Summary</h3>
 
-        {items.map((item, i) => (
-          <div key={i} className="pill">
-            <b>{item.title}</b> — {fmtM(item.price)}
-          </div>
-        ))}
-
-        <div className="hr" />
-
-        <div style={{ fontWeight: 1000 }}>
-          Total: <span className="neon-text">{fmtM(total)}</span>
+        <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+          {items.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontWeight: 600,
+              }}
+            >
+              <span>{item.title}</span>
+              <span>{fmtM(item.price)}</span>
+            </div>
+          ))}
         </div>
-      </div>
+
+        <div
+          style={{
+            marginTop: 14,
+            paddingTop: 14,
+            borderTop: "1px solid rgba(15,23,42,0.08)",
+            fontWeight: 900,
+            fontSize: 18,
+          }}
+        >
+          Total:{" "}
+          <span style={{ color: "#2563eb" }}>
+            {fmtM(total)}
+          </span>
+        </div>
+      </section>
 
       {/* ACTION */}
       <div style={{ textAlign: "right" }}>
         <button
-          className="btn btnPrimary"
+          className="btn btnTech"
           disabled={!addressValid || !proof || loading}
           onClick={submitOrder}
         >

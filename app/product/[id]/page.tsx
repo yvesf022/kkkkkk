@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,23 +12,36 @@ import ProductCard from "@/components/store/ProductCard";
 import { FadeIn, ScaleHover } from "@/components/ui/Motion";
 
 /* =======================
-   Helpers
+   HELPERS
 ======================= */
 
 const formatCurrency = (v: number) =>
   `M ${Math.round(v).toLocaleString("en-LS")}`;
 
+/**
+ * 🔒 Normalize product for ProductCard safety
+ */
+function normalize(p: any) {
+  return {
+    ...p,
+    id: p.id,
+    img: p.img || p.image || "/placeholder.png",
+    category: p.category || "general",
+    rating: p.rating ?? 4.5,
+  };
+}
+
 /* =======================
-   Page
+   PAGE
 ======================= */
 
 export default function ProductDetails({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
   const router = useRouter();
-  const { id } = use(params);
+  const { id } = params;
 
   const addToCart = useStore((s) => s.addToCart);
   const toggleWishlist = useStore((s) => s.toggleWishlist);
@@ -37,45 +50,63 @@ export default function ProductDetails({
   const [activeImg, setActiveImg] = useState(0);
   const [qty, setQty] = useState(1);
 
-  const product = products.find((x) => x.id === id);
+  const product = useMemo(
+    () => products.find((x) => x.id === id),
+    [id]
+  );
+
+  const safeProduct = product ? normalize(product) : null;
 
   const gallery = useMemo(
-    () => (product?.img ? [product.img, product.img, product.img] : []),
-    [product]
+    () =>
+      safeProduct?.img
+        ? [safeProduct.img, safeProduct.img, safeProduct.img]
+        : [],
+    [safeProduct]
   );
 
   const related = useMemo(
     () =>
-      product
+      safeProduct
         ? products
             .filter(
               (x) =>
-                x.category === product.category && x.id !== product.id
+                x.category === safeProduct.category &&
+                x.id !== safeProduct.id
             )
             .slice(0, 4)
+            .map(normalize)
         : [],
-    [product]
+    [safeProduct]
   );
 
-  // ✅ SAFE: stock may not exist in lib/products
   const stock =
-    typeof (product as any)?.stock === "number"
-      ? (product as any).stock
+    typeof (safeProduct as any)?.stock === "number"
+      ? (safeProduct as any).stock
       : 0;
 
   const inStock = stock > 0;
-  const inWish = product ? wishlist.includes(product.id) : false;
+  const inWish = safeProduct
+    ? wishlist.includes(safeProduct.id)
+    : false;
 
   useEffect(() => {
     setQty(1);
     setActiveImg(0);
-  }, [product?.id]);
+  }, [safeProduct?.id]);
 
-  if (!product) {
+  if (!safeProduct) {
     return (
-      <div className="glass neon-border" style={{ padding: 18 }}>
+      <div
+        style={{
+          padding: 32,
+          borderRadius: 22,
+          background: "linear-gradient(135deg,#f8fbff,#eef6ff)",
+          boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
+        }}
+      >
         Product not found.{" "}
-        <Link href="/store" className="neon-text">
+        <Link href="/store" className="btn btnTech">
           Back to Store
         </Link>
       </div>
@@ -84,83 +115,125 @@ export default function ProductDetails({
 
   return (
     <FadeIn>
-      <div style={{ display: "grid", gap: 20 }}>
-        {/* PRODUCT CARD */}
-        <div className="glass neon-border" style={{ padding: 20 }}>
+      <div style={{ display: "grid", gap: 32 }}>
+        {/* ================= PRODUCT ================= */}
+        <section
+          style={{
+            borderRadius: 26,
+            padding: 28,
+            background: `
+              radial-gradient(
+                420px 240px at 90% 0%,
+                rgba(96,165,250,0.22),
+                transparent 60%
+              ),
+              radial-gradient(
+                360px 200px at 10% 10%,
+                rgba(244,114,182,0.18),
+                transparent 60%
+              ),
+              linear-gradient(135deg,#ffffff,#f4f9ff)
+            `,
+            boxShadow:
+              "0 26px 70px rgba(15,23,42,0.16)",
+          }}
+        >
           {/* HEADER */}
           <div style={{ display: "grid", gap: 6 }}>
-            <h1 className="neon-text" style={{ fontSize: 28 }}>
-              {product.title}
+            <h1
+              style={{
+                fontSize: 28,
+                fontWeight: 900,
+                color: "#0f172a",
+              }}
+            >
+              {safeProduct.title}
             </h1>
 
-            <div style={{ color: "var(--muted)", fontSize: 14 }}>
-              {product.category?.toUpperCase()} • ⭐ {product.rating}
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "rgba(15,23,42,0.55)",
+              }}
+            >
+              {safeProduct.category.toUpperCase()} • ⭐{" "}
+              {safeProduct.rating}
             </div>
           </div>
 
-          <div className="hr" style={{ margin: "16px 0" }} />
+          <div style={{ height: 1, background: "rgba(15,23,42,0.08)", margin: "18px 0" }} />
 
           {/* GRID */}
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "1.2fr 1fr",
-              gap: 20,
+              gap: 24,
             }}
           >
-            {/* GALLERY */}
-            <div style={{ display: "grid", gap: 12 }}>
-              <div
+            {/* IMAGE */}
+            <div
+              style={{
+                borderRadius: 22,
+                overflow: "hidden",
+                background: "#fff",
+                boxShadow:
+                  "0 14px 40px rgba(15,23,42,0.14)",
+              }}
+            >
+              <Image
+                src={gallery[activeImg]}
+                alt={safeProduct.title}
+                width={1200}
+                height={800}
+                priority
                 style={{
-                  borderRadius: 24,
-                  overflow: "hidden",
-                  border: "1px solid var(--softLine)",
+                  width: "100%",
+                  height: 360,
+                  objectFit: "cover",
                 }}
-              >
-                <Image
-                  src={gallery[activeImg] || "/placeholder.png"}
-                  alt={product.title}
-                  width={1200}
-                  height={800}
-                  priority
-                  style={{
-                    width: "100%",
-                    height: 360,
-                    objectFit: "cover",
-                  }}
-                />
-              </div>
+              />
             </div>
 
             {/* BUY PANEL */}
-            <div style={{ display: "grid", gap: 16 }}>
+            <div style={{ display: "grid", gap: 18 }}>
               <div>
-                <div style={{ fontSize: 26, fontWeight: 1000 }}>
-                  {formatCurrency(product.price)}
+                <div
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 900,
+                  }}
+                >
+                  {formatCurrency(safeProduct.price)}
                 </div>
 
                 <div
-                  className="pill"
                   style={{
                     marginTop: 6,
+                    padding: "6px 12px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 700,
                     width: "fit-content",
                     background: inStock
                       ? "rgba(34,197,94,.12)"
                       : "rgba(239,68,68,.12)",
-                    color: inStock ? "#16a34a" : "#dc2626",
+                    color: inStock
+                      ? "#16a34a"
+                      : "#dc2626",
                   }}
                 >
                   {inStock ? "In Stock" : "Out of Stock"}
                 </div>
               </div>
 
-              {/* ACTIONS */}
               <ScaleHover>
                 <button
-                  className="btn btnPrimary"
+                  className="btn btnTech"
                   disabled={!inStock}
                   onClick={() => {
-                    addToCart(product.id, qty);
+                    addToCart(safeProduct.id, qty);
                     toast.success("Added to cart");
                   }}
                 >
@@ -169,9 +242,9 @@ export default function ProductDetails({
               </ScaleHover>
 
               <button
-                className="btn"
+                className="btn btnGhost"
                 onClick={() => {
-                  addToCart(product.id, qty);
+                  addToCart(safeProduct.id, qty);
                   router.push("/checkout");
                 }}
               >
@@ -179,33 +252,55 @@ export default function ProductDetails({
               </button>
 
               <button
-                className="btn"
-                onClick={() => toggleWishlist(product.id)}
+                className="btn btnGhost"
+                onClick={() =>
+                  toggleWishlist(safeProduct.id)
+                }
               >
-                {inWish ? "Remove from Wishlist" : "Save to Wishlist"}
+                {inWish
+                  ? "Remove from Wishlist"
+                  : "Save to Wishlist"}
               </button>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* RELATED */}
+        {/* ================= RELATED ================= */}
         {related.length > 0 && (
-          <div className="glass neon-border" style={{ padding: 18 }}>
-            <h3 className="neon-text">Related Products</h3>
+          <section
+            style={{
+              borderRadius: 24,
+              padding: 24,
+              background:
+                "linear-gradient(135deg,#ffffff,#f8fbff)",
+              boxShadow:
+                "0 22px 60px rgba(15,23,42,0.14)",
+            }}
+          >
+            <h3
+              style={{
+                fontSize: 20,
+                fontWeight: 900,
+                marginBottom: 16,
+                color: "#0f172a",
+              }}
+            >
+              Related Products
+            </h3>
+
             <div
               style={{
-                marginTop: 14,
                 display: "grid",
                 gridTemplateColumns:
-                  "repeat(auto-fit, minmax(240px, 1fr))",
-                gap: 14,
+                  "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 18,
               }}
             >
               {related.map((p) => (
                 <ProductCard key={p.id} p={p} />
               ))}
             </div>
-          </div>
+          </section>
         )}
       </div>
     </FadeIn>

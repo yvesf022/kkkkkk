@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Product } from "@/lib/products";
 import { useStore } from "@/lib/store";
 
-/** ✅ Lesotho currency formatter (Maloti) */
+/** Lesotho currency formatter (Maloti) */
 const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
 export default function QuickViewModal({
@@ -26,7 +26,8 @@ export default function QuickViewModal({
 
   const inWish = product ? wishlist.includes(product.id) : false;
 
-  // ✅ FIX: dependency array must never change size/order
+  /* ================= LOCK SCROLL + ESC ================= */
+
   useEffect(() => {
     if (!open) return;
 
@@ -35,137 +36,135 @@ export default function QuickViewModal({
     };
 
     window.addEventListener("keydown", onKey);
-
-    // ✅ lock background scroll
-    const prevOverflow = document.body.style.overflow;
+    const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
+      document.body.style.overflow = prev;
     };
   }, [open, onClose]);
 
+  /* ================= RENDER ================= */
+
   return (
     <AnimatePresence>
-      {open && product ? (
+      {open && product && (
         <>
-          {/* Overlay */}
+          {/* OVERLAY */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.16 }}
+            transition={{ duration: 0.18 }}
             onClick={onClose}
             style={{
               position: "fixed",
               inset: 0,
               zIndex: 120,
-              background:
-                "radial-gradient(1000px 520px at 14% 18%, rgba(45,72,126,0.30), rgba(0,0,0,0) 60%)," +
-                "radial-gradient(1000px 520px at 88% 16%, rgba(255,34,140,0.16), rgba(0,0,0,0) 60%)," +
-                "rgba(2, 6, 16, 0.72)",
+              background: `
+                radial-gradient(
+                  1200px 600px at 12% 18%,
+                  rgba(96,165,250,0.18),
+                  transparent 60%
+                ),
+                radial-gradient(
+                  1200px 600px at 88% 16%,
+                  rgba(244,114,182,0.14),
+                  transparent 60%
+                ),
+                rgba(8,12,22,0.55)
+              `,
               backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
             }}
-            aria-hidden="true"
           />
 
-          {/* Modal */}
+          {/* MODAL */}
           <motion.div
-            initial={{ opacity: 0, y: 18, scale: 0.985 }}
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.985 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
             role="dialog"
             aria-modal="true"
-            aria-label="Quick view modal"
             style={{
               position: "fixed",
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: "min(980px, 94vw)",
+              width: "min(960px, 94vw)",
               zIndex: 130,
               borderRadius: 28,
               overflow: "hidden",
-              border: "1px solid rgba(12,14,20,0.16)",
+              background: `
+                radial-gradient(
+                  1000px 500px at 16% 12%,
+                  rgba(96,165,250,0.14),
+                  transparent 60%
+                ),
+                radial-gradient(
+                  1000px 500px at 90% 18%,
+                  rgba(244,114,182,0.10),
+                  transparent 60%
+                ),
+                linear-gradient(
+                  180deg,
+                  #ffffff,
+                  #f6f9ff
+                )
+              `,
               boxShadow:
-                "0 40px 140px rgba(0,0,0,0.38), 0 0 0 1px rgba(255,255,255,0.06) inset",
-              background:
-                "radial-gradient(1200px 520px at 18% 14%, rgba(45,72,126,0.14), transparent 60%)," +
-                "radial-gradient(1200px 520px at 88% 16%, rgba(214,170,92,0.10), transparent 60%)," +
-                "radial-gradient(1000px 520px at 50% 120%, rgba(255,34,140,0.08), transparent 62%)," +
-                "linear-gradient(180deg, rgba(255,255,255,0.90), rgba(244,246,251,0.82))",
+                "0 40px 120px rgba(15,23,42,0.35)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
+            {/* HEADER */}
             <div
               style={{
-                padding: 16,
+                padding: 18,
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                gap: 10,
               }}
             >
-              <div
-                style={{
-                  fontWeight: 1200,
-                  letterSpacing: 0.2,
-                  color: "rgba(20,34,64,0.92)",
-                }}
-              >
-                Quick View ✨
+              <div style={{ fontWeight: 900 }}>
+                Quick View
               </div>
 
               <button
-                className="btn"
+                className="btn btnGhost"
                 onClick={onClose}
                 aria-label="Close"
-                style={{
-                  padding: 10,
-                  borderRadius: 16,
-                  minWidth: 46,
-                  height: 46,
-                  display: "grid",
-                  placeItems: "center",
-                  border: "1px solid rgba(12,14,20,0.14)",
-                  background:
-                    "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(252,253,255,0.80))",
-                  boxShadow: "0 18px 50px rgba(12,14,20,0.10)",
-                  fontWeight: 1200,
-                  color: "rgba(20,34,64,0.90)",
-                }}
               >
                 ✕
               </button>
             </div>
 
-            <div className="hr" style={{ borderColor: "rgba(12,14,20,0.10)" }} />
-
-            {/* Body */}
             <div
-              className="kyQVGrid"
+              style={{
+                height: 1,
+                background: "rgba(15,23,42,0.08)",
+              }}
+            />
+
+            {/* BODY */}
+            <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "1.15fr 1fr",
-                gap: 14,
-                padding: 16,
+                gap: 18,
+                padding: 18,
               }}
+              className="qvGrid"
             >
-              {/* Image */}
+              {/* IMAGE */}
               <div
                 style={{
                   borderRadius: 24,
                   overflow: "hidden",
-                  border: "1px solid rgba(12,14,20,0.14)",
-                  background:
-                    "radial-gradient(900px 360px at 16% 12%, rgba(45,72,126,0.12), transparent 62%)," +
-                    "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(244,246,251,0.86))",
+                  background: "#fff",
                   boxShadow:
-                    "0 30px 100px rgba(12,14,20,0.10), inset 0 1px 0 rgba(255,255,255,0.45)",
+                    "0 22px 60px rgba(15,23,42,0.14)",
                 }}
               >
                 <Image
@@ -173,24 +172,23 @@ export default function QuickViewModal({
                   alt={product.title}
                   width={1200}
                   height={900}
-                  style={{ width: "100%", height: 360, objectFit: "cover" }}
+                  style={{
+                    width: "100%",
+                    height: 360,
+                    objectFit: "cover",
+                  }}
                 />
               </div>
 
-              {/* Details */}
-              <div style={{ display: "grid", gap: 12 }}>
+              {/* DETAILS */}
+              <div style={{ display: "grid", gap: 14 }}>
                 <div>
                   <div
                     style={{
                       fontSize: 22,
-                      fontWeight: 1200,
-                      lineHeight: 1.18,
-                      letterSpacing: 0.2,
-                      background:
-                        "linear-gradient(90deg, rgba(20,34,64,0.96), rgba(45,72,126,0.94), rgba(255,34,140,0.78))",
-                      WebkitBackgroundClip: "text",
-                      backgroundClip: "text",
-                      color: "transparent",
+                      fontWeight: 900,
+                      lineHeight: 1.2,
+                      color: "#0f172a",
                     }}
                   >
                     {product.title}
@@ -198,112 +196,106 @@ export default function QuickViewModal({
 
                   <div
                     style={{
-                      marginTop: 8,
-                      color: "rgba(12,14,20,0.68)",
-                      fontWeight: 900,
+                      marginTop: 6,
+                      fontWeight: 700,
+                      color: "rgba(15,23,42,0.6)",
                       display: "flex",
                       gap: 8,
-                      flexWrap: "wrap",
                     }}
                   >
                     <span>⭐ {product.rating}</span>
-                    <span style={{ opacity: 0.35 }}>•</span>
-                    <span style={{ color: "rgba(20,34,64,0.86)" }}>
-                      {product.category.toUpperCase()}
-                    </span>
+                    <span>•</span>
+                    <span>{product.category.toUpperCase()}</span>
                   </div>
                 </div>
 
-                {/* Price */}
+                {/* PRICE */}
                 <div
-                  className="glass"
                   style={{
-                    padding: 14,
-                    borderRadius: 24,
-                    border: "1px solid rgba(12,14,20,0.12)",
+                    padding: 16,
+                    borderRadius: 22,
                     background:
-                      "linear-gradient(180deg, rgba(255,255,255,0.82), rgba(252,253,255,0.74))",
-                    boxShadow: "0 22px 80px rgba(12,14,20,0.10)",
+                      "linear-gradient(135deg,#ffffff,#f4f9ff)",
+                    boxShadow:
+                      "0 18px 50px rgba(15,23,42,0.14)",
                   }}
                 >
-                  <div style={{ fontWeight: 1200, color: "rgba(20,34,64,0.92)" }}>
+                  <div style={{ fontWeight: 800 }}>
                     Price
                   </div>
 
                   <div
                     style={{
                       marginTop: 8,
-                      fontWeight: 1300,
                       fontSize: 18,
-                      color: "rgba(20,34,64,0.96)",
-                      letterSpacing: 0.2,
+                      fontWeight: 900,
                     }}
                   >
-                    {fmtM(product.price)}{" "}
-                    {product.oldPrice ? (
+                    {fmtM(product.price)}
+                    {product.oldPrice && (
                       <span
                         style={{
                           marginLeft: 10,
-                          opacity: 0.72,
-                          textDecoration: "line-through",
-                          fontWeight: 1000,
-                          color: "rgba(12,14,20,0.60)",
                           fontSize: 14,
+                          opacity: 0.5,
+                          textDecoration: "line-through",
                         }}
                       >
                         {fmtM(product.oldPrice)}
                       </span>
-                    ) : null}
+                    )}
                   </div>
                 </div>
 
-                {/* Buttons */}
+                {/* ACTIONS */}
                 <div style={{ display: "grid", gap: 10 }}>
                   <button
-                    className="btn btnPrimary"
+                    className="btn btnTech"
                     onClick={() => {
-                      addToCart(product.id, 1);
-                      toast.success("Added to cart ✅");
+                      addToCart({
+                        id: product.id,
+                        title: product.title,
+                        price: product.price,
+                        quantity: 1,
+                        img: product.img,
+                      });
+                      toast.success("Added to cart");
                       onClose();
                     }}
-                    style={{ padding: "14px 16px", fontWeight: 1200 }}
                   >
                     Add to Cart
                   </button>
 
                   <button
-                    className="btn"
+                    className="btn btnGhost"
                     onClick={() => {
                       toggleWishlist(product.id);
-                      toast.success(inWish ? "Removed from wishlist" : "Saved to wishlist 💗");
-                    }}
-                    style={{
-                      padding: "14px 16px",
-                      fontWeight: 1100,
-                      borderColor: inWish
-                        ? "rgba(255,34,140,0.40)"
-                        : "rgba(12,14,20,0.14)",
-                      boxShadow: inWish
-                        ? "0 0 0 4px rgba(255,34,140,0.10), 0 22px 70px rgba(12,14,20,0.10)"
-                        : "0 22px 70px rgba(12,14,20,0.10)",
+                      toast.success(
+                        inWish
+                          ? "Removed from wishlist"
+                          : "Saved to wishlist"
+                      );
                     }}
                   >
-                    {inWish ? "Remove from Wishlist" : "Save to Wishlist"}
+                    {inWish
+                      ? "Remove from Wishlist"
+                      : "Save to Wishlist"}
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Responsive */}
+            {/* RESPONSIVE */}
             <style>{`
-              .kyQVGrid { min-width: 0; }
-              @media (max-width: 980px) {
-                .kyQVGrid { grid-template-columns: 1fr !important; }
+              @media (max-width: 900px) {
+                .qvGrid {
+                  grid-template-columns: 1fr !important;
+                }
               }
             `}</style>
           </motion.div>
         </>
-      ) : null}
+      )}
     </AnimatePresence>
   );
 }

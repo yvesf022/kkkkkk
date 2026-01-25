@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FadeIn } from "@/components/ui/Motion";
 
-type Tab = "profile" | "orders" | "addresses" | "settings";
+type Tab = "orders" | "profile" | "addresses" | "settings";
 
 const demoOrders = [
   {
@@ -30,6 +30,10 @@ const demoOrders = [
   },
 ] as const;
 
+/* =======================
+   UI HELPERS
+======================= */
+
 function TabButton({
   label,
   active,
@@ -41,14 +45,19 @@ function TabButton({
 }) {
   return (
     <button
-      className="pill"
       onClick={onClick}
       style={{
+        padding: "10px 18px",
+        borderRadius: 999,
+        border: "1px solid rgba(96,165,250,0.35)",
+        background: active
+          ? "linear-gradient(135deg,#e0f2ff,#f0f7ff)"
+          : "rgba(255,255,255,0.65)",
+        boxShadow: active
+          ? "0 8px 26px rgba(96,165,250,0.25)"
+          : "0 4px 14px rgba(15,23,42,0.08)",
+        fontWeight: 800,
         cursor: "pointer",
-        fontWeight: 1000,
-        borderColor: active ? "rgba(73,215,255,0.55)" : "rgba(73,215,255,0.18)",
-        background: active ? "rgba(73,215,255,0.12)" : "rgba(10,24,54,0.55)",
-        boxShadow: active ? "0 0 26px rgba(73,215,255,0.2)" : "none",
       }}
     >
       {label}
@@ -57,118 +66,202 @@ function TabButton({
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const style =
-    status === "Delivered"
-      ? { borderColor: "rgba(73,215,255,0.35)", background: "rgba(73,215,255,0.10)" }
-      : status === "Shipped"
-      ? { borderColor: "rgba(255,77,243,0.25)", background: "rgba(255,77,243,0.08)" }
-      : { borderColor: "rgba(234,246,255,0.18)", background: "rgba(234,246,255,0.06)" };
+  const map: Record<string, string> = {
+    Delivered: "rgba(34,197,94,0.15)",
+    Shipped: "rgba(96,165,250,0.18)",
+    Processing: "rgba(244,114,182,0.18)",
+  };
 
   return (
-    <span className="badge" style={{ ...style, fontWeight: 1000 }}>
+    <span
+      style={{
+        padding: "6px 12px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 800,
+        background: map[status] ?? "rgba(15,23,42,0.1)",
+      }}
+    >
       {status}
     </span>
   );
 }
+
+/* =======================
+   PAGE
+======================= */
 
 export default function AccountPage() {
   const [tab, setTab] = useState<Tab>("orders");
 
   const title = useMemo(() => {
     if (tab === "profile") return "Profile";
-    if (tab === "orders") return "Orders";
     if (tab === "addresses") return "Addresses";
-    return "Settings";
+    if (tab === "settings") return "Settings";
+    return "Orders";
   }, [tab]);
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
+    <div style={{ display: "grid", gap: 28 }}>
+      {/* ================= HEADER ================= */}
       <FadeIn>
-        <div className="glass neon-border" style={{ padding: 16 }}>
-          <div className="neon-text" style={{ fontSize: 22, fontWeight: 1000 }}>
+        <section
+          style={{
+            borderRadius: 24,
+            padding: 24,
+            background: `
+              radial-gradient(
+                420px 200px at 10% 0%,
+                rgba(96,165,250,0.22),
+                transparent 60%
+              ),
+              radial-gradient(
+                360px 180px at 90% 10%,
+                rgba(244,114,182,0.18),
+                transparent 60%
+              ),
+              linear-gradient(
+                135deg,
+                #f8fbff,
+                #eef6ff,
+                #fff1f6
+              )
+            `,
+            boxShadow:
+              "0 22px 60px rgba(15,23,42,0.14)",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: 26,
+              fontWeight: 900,
+              color: "#0f172a",
+            }}
+          >
             Account
-          </div>
-          <div style={{ marginTop: 6, color: "rgba(234,246,255,0.72)", fontSize: 13 }}>
-            Manage profile, orders, addresses, and settings.
-          </div>
+          </h1>
 
-          <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <p
+            style={{
+              marginTop: 6,
+              fontSize: 14,
+              fontWeight: 600,
+              color: "rgba(15,23,42,0.6)",
+            }}
+          >
+            Manage orders, profile details, addresses, and settings.
+          </p>
+
+          <div
+            style={{
+              marginTop: 18,
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
             <TabButton label="Orders" active={tab === "orders"} onClick={() => setTab("orders")} />
             <TabButton label="Profile" active={tab === "profile"} onClick={() => setTab("profile")} />
             <TabButton label="Addresses" active={tab === "addresses"} onClick={() => setTab("addresses")} />
             <TabButton label="Settings" active={tab === "settings"} onClick={() => setTab("settings")} />
           </div>
-        </div>
+        </section>
       </FadeIn>
 
-      <FadeIn delay={0.04}>
-        <div className="glass neon-border" style={{ padding: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 1000, fontSize: 16 }}>{title}</div>
-            <Link className="btn btnPrimary" href="/store">
+      {/* ================= CONTENT ================= */}
+      <FadeIn delay={0.05}>
+        <section
+          style={{
+            borderRadius: 24,
+            padding: 24,
+            background:
+              "linear-gradient(135deg,#ffffff,#f8fbff)",
+            boxShadow:
+              "0 22px 60px rgba(15,23,42,0.14)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 12,
+            }}
+          >
+            <h2 style={{ fontSize: 18, fontWeight: 900 }}>{title}</h2>
+
+            <Link href="/store" className="btn btnTech">
               Continue Shopping →
             </Link>
           </div>
 
-          <div className="hr" style={{ margin: "14px 0" }} />
+          <div style={{ height: 1, background: "rgba(15,23,42,0.08)", margin: "18px 0" }} />
 
-          {/* Orders */}
-          {tab === "orders" ? (
-            <div style={{ display: "grid", gap: 12 }}>
+          {/* ORDERS */}
+          {tab === "orders" && (
+            <div style={{ display: "grid", gap: 16 }}>
               {demoOrders.map((o) => (
                 <div
                   key={o.id}
-                  className="glass"
                   style={{
-                    padding: 14,
+                    padding: 18,
                     borderRadius: 22,
-                    border: "1px solid rgba(73,215,255,0.14)",
                     background:
-                      "radial-gradient(900px 260px at 25% 20%, rgba(73,215,255,0.12), transparent 60%), rgba(14,24,55,0.55)",
+                      "linear-gradient(135deg,#ffffff,#f4f9ff)",
+                    boxShadow:
+                      "0 12px 34px rgba(15,23,42,0.12)",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                     <div>
-                      <div style={{ fontWeight: 1000 }}>{o.id}</div>
-                      <div style={{ marginTop: 6, color: "rgba(234,246,255,0.72)", fontSize: 13 }}>
+                      <div style={{ fontWeight: 900 }}>{o.id}</div>
+                      <div style={{ marginTop: 4, fontSize: 13, color: "rgba(15,23,42,0.6)" }}>
                         {o.date} • {o.items} items
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <StatusBadge status={o.status} />
-                      <div style={{ fontWeight: 1000 }}>₹ {o.total}</div>
+                      <div style={{ fontWeight: 900 }}>₹ {o.total}</div>
                     </div>
                   </div>
 
-                  <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button className="btn">Track</button>
-                    <button className="btn">Invoice</button>
-                    <button className="btn" style={{ borderColor: "rgba(255,77,243,0.22)" }}>
-                      Support
-                    </button>
+                  <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <button className="btn btnGhost">Track</button>
+                    <button className="btn btnGhost">Invoice</button>
+                    <button className="btn btnGhost">Support</button>
                   </div>
                 </div>
               ))}
             </div>
-          ) : null}
+          )}
 
-          {/* Profile */}
-          {tab === "profile" ? (
-            <div style={{ display: "grid", gap: 10 }}>
-              <input className="pill" placeholder="Full Name" style={{ outline: "none", color: "white" }} />
-              <input className="pill" placeholder="Email" style={{ outline: "none", color: "white" }} />
-              <input className="pill" placeholder="Phone" style={{ outline: "none", color: "white" }} />
-              <button className="btn btnPrimary">Save Profile</button>
+          {/* PROFILE */}
+          {tab === "profile" && (
+            <div style={{ display: "grid", gap: 12, maxWidth: 420 }}>
+              <input className="pill" placeholder="Full Name" />
+              <input className="pill" placeholder="Email" />
+              <input className="pill" placeholder="Phone" />
+              <button className="btn btnTech">Save Profile</button>
             </div>
-          ) : null}
+          )}
 
-          {/* Addresses */}
-          {tab === "addresses" ? (
-            <div style={{ display: "grid", gap: 12 }}>
-              <div className="glass" style={{ padding: 14, borderRadius: 22, border: "1px solid rgba(73,215,255,0.14)" }}>
-                <div style={{ fontWeight: 1000 }}>Primary Address</div>
-                <div style={{ marginTop: 6, color: "rgba(234,246,255,0.72)", lineHeight: 1.6 }}>
+          {/* ADDRESSES */}
+          {tab === "addresses" && (
+            <div style={{ display: "grid", gap: 14 }}>
+              <div
+                style={{
+                  padding: 18,
+                  borderRadius: 22,
+                  background:
+                    "linear-gradient(135deg,#ffffff,#f4f9ff)",
+                  boxShadow:
+                    "0 12px 34px rgba(15,23,42,0.12)",
+                }}
+              >
+                <div style={{ fontWeight: 900 }}>Primary Address</div>
+                <div style={{ marginTop: 6, lineHeight: 1.6, color: "rgba(15,23,42,0.65)" }}>
                   221B Neon Street
                   <br />
                   Cyber City, GOA
@@ -177,13 +270,13 @@ export default function AccountPage() {
                 </div>
               </div>
 
-              <button className="btn btnPrimary">Add New Address</button>
+              <button className="btn btnTech">Add New Address</button>
             </div>
-          ) : null}
+          )}
 
-          {/* Settings */}
-          {tab === "settings" ? (
-            <div style={{ display: "grid", gap: 12 }}>
+          {/* SETTINGS */}
+          {tab === "settings" && (
+            <div style={{ display: "grid", gap: 14, maxWidth: 420 }}>
               <label className="pill" style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <input type="checkbox" defaultChecked />
                 Email notifications
@@ -194,12 +287,10 @@ export default function AccountPage() {
                 SMS notifications
               </label>
 
-              <button className="btn" style={{ borderColor: "rgba(255,77,243,0.22)" }}>
-                Logout
-              </button>
+              <button className="btn btnGhost">Logout</button>
             </div>
-          ) : null}
-        </div>
+          )}
+        </section>
       </FadeIn>
     </div>
   );

@@ -9,30 +9,116 @@ export default function OrderSuccessClient() {
 
   return (
     <div
-      className="glass neon-text"
-      style={{ padding: "2rem", marginTop: "2rem" }}
+      style={{
+        display: "grid",
+        gap: 24,
+        maxWidth: 720,
+        margin: "48px auto 0",
+      }}
     >
-      <h1>Order Placed Successfully 🎉</h1>
+      {/* SUCCESS CARD */}
+      <section
+        style={{
+          borderRadius: 26,
+          padding: "32px 36px",
+          background: `
+            radial-gradient(
+              420px 220px at 10% 0%,
+              rgba(96,165,250,0.28),
+              transparent 60%
+            ),
+            radial-gradient(
+              360px 200px at 90% 10%,
+              rgba(244,114,182,0.22),
+              transparent 60%
+            ),
+            linear-gradient(
+              135deg,
+              #f8fbff,
+              #eef6ff,
+              #fff1f6
+            )
+          `,
+          boxShadow: "0 26px 70px rgba(15,23,42,0.18)",
+        }}
+      >
+        {/* ICON */}
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+            background:
+              "linear-gradient(135deg,#60a5fa,#93c5fd,#f472b6)",
+            boxShadow:
+              "0 12px 34px rgba(96,165,250,0.45)",
+            fontSize: 28,
+          }}
+        >
+          ✓
+        </div>
 
-      <p>
-        Thank you for your order. We have received your request and will review
-        your payment shortly.
-      </p>
+        <h1
+          style={{
+            marginTop: 18,
+            fontSize: 28,
+            fontWeight: 900,
+            color: "#0f172a",
+          }}
+        >
+          Order Placed Successfully
+        </h1>
 
-      <p>
-        <strong>Order Reference:</strong>{" "}
-        {orderId ? orderId : "Check this in your account"}
-      </p>
+        <p
+          style={{
+            marginTop: 10,
+            fontSize: 15,
+            fontWeight: 600,
+            color: "rgba(15,23,42,0.65)",
+            maxWidth: 520,
+          }}
+        >
+          Thank you for your order. We’ve received your request and your payment
+          is being reviewed. You’ll be notified as soon as it’s confirmed.
+        </p>
 
-      <div style={{ marginTop: "2rem", display: "flex", gap: "1rem" }}>
-        <Link href="/account" className="btn">
-          View My Orders
-        </Link>
+        {/* ORDER ID */}
+        <div
+          style={{
+            marginTop: 16,
+            padding: "14px 18px",
+            borderRadius: 18,
+            background: "rgba(255,255,255,0.75)",
+            boxShadow:
+              "inset 0 0 0 1px rgba(15,23,42,0.06)",
+            fontWeight: 700,
+            color: "#0f172a",
+          }}
+        >
+          <span style={{ opacity: 0.7 }}>Order Reference:</span>{" "}
+          {orderId || "Check this in your account"}
+        </div>
 
-        <Link href="/" className="btn pill">
-          Continue Shopping
-        </Link>
-      </div>
+        {/* ACTIONS */}
+        <div
+          style={{
+            marginTop: 28,
+            display: "flex",
+            gap: 14,
+            flexWrap: "wrap",
+          }}
+        >
+          <Link href="/account" className="btn btnTech">
+            View My Orders →
+          </Link>
+
+          <Link href="/" className="btn btnGhost">
+            Continue Shopping
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

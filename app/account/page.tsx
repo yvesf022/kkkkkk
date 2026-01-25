@@ -7,102 +7,152 @@ const sections = [
     title: "My Orders",
     desc: "View your past and recent orders",
     href: "/account/orders",
-    icon: "📦",
   },
   {
     title: "Addresses",
     desc: "Manage shipping addresses",
     href: "/account/addresses",
-    icon: "🏠",
   },
   {
     title: "Profile",
     desc: "Update personal information",
     href: "/account/profile",
-    icon: "👤",
   },
   {
     title: "Settings",
-    desc: "Notifications, preferences",
+    desc: "Notifications and preferences",
     href: "/account/settings",
-    icon: "⚙️",
   },
 ];
 
 export default function AccountPage() {
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      {/* HEADER */}
-      <div className="glass neon-border" style={{ padding: 18 }}>
-        <div className="neon-text" style={{ fontSize: 24, fontWeight: 1000 }}>
-          My Account
-        </div>
-
-        <div
+    <div style={{ display: "grid", gap: 26 }}>
+      {/* ================= HEADER ================= */}
+      <section
+        style={{
+          borderRadius: 24,
+          padding: 24,
+          background: `
+            radial-gradient(
+              420px 200px at 10% 0%,
+              rgba(96,165,250,0.22),
+              transparent 60%
+            ),
+            radial-gradient(
+              360px 180px at 90% 10%,
+              rgba(244,114,182,0.18),
+              transparent 60%
+            ),
+            linear-gradient(
+              135deg,
+              #f8fbff,
+              #eef6ff,
+              #fff1f6
+            )
+          `,
+          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
+        }}
+      >
+        <h1
           style={{
-            marginTop: 8,
-            color: "var(--muted)",
+            fontSize: 26,
             fontWeight: 900,
+            color: "#0f172a",
           }}
         >
-          Manage your profile, orders, and settings.
-        </div>
-      </div>
+          My Account
+        </h1>
 
-      {/* DASHBOARD */}
-      <div
+        <p
+          style={{
+            marginTop: 6,
+            fontWeight: 600,
+            color: "rgba(15,23,42,0.6)",
+          }}
+        >
+          Manage your orders, profile, and account settings.
+        </p>
+      </section>
+
+      {/* ================= DASHBOARD ================= */}
+      <section
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 14,
+          gap: 18,
         }}
       >
         {sections.map((s) => (
           <Link
             key={s.title}
             href={s.href}
-            className="glass neon-border"
             style={{
-              padding: 16,
+              borderRadius: 22,
+              padding: 20,
+              textDecoration: "none",
+              color: "#0f172a",
+              background:
+                "linear-gradient(135deg,#ffffff,#f8fbff)",
+              boxShadow:
+                "0 18px 50px rgba(15,23,42,0.14)",
               display: "grid",
               gap: 8,
-              cursor: "pointer",
-              transition: "transform .15s ease",
+              transition: "transform .15s ease, box-shadow .15s ease",
             }}
           >
-            <div style={{ fontSize: 22 }}>{s.icon}</div>
-            <div style={{ fontWeight: 1000 }}>{s.title}</div>
-            <div style={{ fontSize: 13, color: "var(--muted2)" }}>
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 900,
+              }}
+            >
+              {s.title}
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "rgba(15,23,42,0.6)",
+              }}
+            >
               {s.desc}
             </div>
           </Link>
         ))}
-      </div>
+      </section>
 
-      {/* ACTIONS */}
-      <div
-        className="glass neon-border"
+      {/* ================= ACTIONS ================= */}
+      <section
         style={{
-          padding: 16,
+          borderRadius: 24,
+          padding: 20,
+          background:
+            "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow:
+            "0 18px 50px rgba(15,23,42,0.14)",
           display: "flex",
           justifyContent: "space-between",
-          gap: 10,
+          gap: 12,
           flexWrap: "wrap",
         }}
       >
-        <Link href="/store" className="btn">
+        <Link href="/store" className="btn btnGhost">
           ← Back to Store
         </Link>
 
         <button
-          className="btn"
+          className="btn btnTech"
           onClick={() => {
-            alert("Logged out (demo)");
+            // replace with real logout later
+            localStorage.removeItem("token");
+            window.location.href = "/";
           }}
         >
           Logout
         </button>
-      </div>
+      </section>
     </div>
   );
 }

@@ -5,15 +5,19 @@ import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
+/* =======================
+   PAGE
+======================= */
+
 export default function AdminPage() {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // login form
+  // login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // product form
+  // product
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -21,6 +25,10 @@ export default function AdminPage() {
   const [varieties, setVarieties] = useState("");
   const [image, setImage] = useState<File | null>(null);
   const [csv, setCsv] = useState<File | null>(null);
+
+  /* =======================
+     AUTH
+  ======================= */
 
   async function login() {
     setLoading(true);
@@ -35,16 +43,23 @@ export default function AdminPage() {
       if (!res.ok) throw new Error();
 
       setToken(data.token);
-      toast.success("Admin logged in");
+      toast.success("Admin authenticated");
     } catch {
-      toast.error("Login failed");
+      toast.error("Invalid credentials");
     } finally {
       setLoading(false);
     }
   }
 
+  /* =======================
+     ADD PRODUCT
+  ======================= */
+
   async function addProduct() {
-    if (!image) return toast.error("Image required");
+    if (!image) {
+      toast.error("Product image is required");
+      return;
+    }
 
     const fd = new FormData();
     fd.append("title", title);
@@ -61,16 +76,28 @@ export default function AdminPage() {
         body: fd,
       });
 
-      toast.success("Product added");
-      setTitle(""); setDescription(""); setPrice("");
-      setCategory(""); setVarieties(""); setImage(null);
+      toast.success("Product created");
+
+      setTitle("");
+      setDescription("");
+      setPrice("");
+      setCategory("");
+      setVarieties("");
+      setImage(null);
     } catch {
-      toast.error("Failed to add product");
+      toast.error("Failed to create product");
     }
   }
 
+  /* =======================
+     BULK UPLOAD
+  ======================= */
+
   async function bulkUpload() {
-    if (!csv) return toast.error("CSV required");
+    if (!csv) {
+      toast.error("CSV file required");
+      return;
+    }
 
     const fd = new FormData();
     fd.append("csv", csv);
@@ -82,34 +109,112 @@ export default function AdminPage() {
         body: fd,
       });
 
-      toast.success("Bulk upload successful");
+      toast.success("Bulk upload completed");
       setCsv(null);
     } catch {
       toast.error("Bulk upload failed");
     }
   }
 
+  /* =======================
+     LOGIN VIEW
+  ======================= */
+
   if (!token) {
     return (
-      <div className="container glass neon-border">
-        <h1 className="neon-text">Admin Login</h1>
+      <div
+        style={{
+          minHeight: "70vh",
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <section
+          style={{
+            width: "100%",
+            maxWidth: 420,
+            padding: 28,
+            borderRadius: 18,
+            background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+            boxShadow: "0 18px 50px rgba(15,23,42,0.16)",
+          }}
+        >
+          <h1 style={{ fontSize: 22, fontWeight: 900 }}>
+            Admin Login
+          </h1>
 
-        <input className="pill" placeholder="Email" value={email}
-          onChange={(e) => setEmail(e.target.value)} />
-        <input className="pill" placeholder="Password" type="password" value={password}
-          onChange={(e) => setPassword(e.target.value)} />
+          <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
+            <input
+              className="pill"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
-        <button className="btn btnPrimary" disabled={loading} onClick={login}>
-          {loading ? "Logging in…" : "Login"}
-        </button>
+            <input
+              className="pill"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+
+            <button
+              className="btn btnTech"
+              disabled={loading}
+              onClick={login}
+            >
+              {loading ? "Authenticating…" : "Login"}
+            </button>
+          </div>
+        </section>
       </div>
     );
   }
 
+  /* =======================
+     ADMIN PANEL
+  ======================= */
+
   return (
-    <div className="container" style={{ display: "grid", gap: "var(--gap)" }}>
-      <div className="glass neon-border">
-        <h2>Add Product</h2>
+    <div
+      style={{
+        maxWidth: 960,
+        margin: "32px auto",
+        display: "grid",
+        gap: 24,
+      }}
+    >
+      {/* HEADER */}
+      <section
+        style={{
+          padding: 20,
+          borderRadius: 18,
+          background: "linear-gradient(135deg,#f8fbff,#eef6ff)",
+          boxShadow: "0 14px 40px rgba(15,23,42,0.14)",
+        }}
+      >
+        <h1 style={{ fontSize: 22, fontWeight: 900 }}>
+          Admin Dashboard
+        </h1>
+
+        <p style={{ marginTop: 4, color: "rgba(15,23,42,0.6)" }}>
+          Manage products and inventory
+        </p>
+      </section>
+
+      {/* ADD PRODUCT */}
+      <section
+        style={{
+          padding: 24,
+          borderRadius: 18,
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
+          display: "grid",
+          gap: 12,
+        }}
+      >
+        <h2 style={{ fontWeight: 900 }}>Add Product</h2>
 
         <input className="pill" placeholder="Title" value={title}
           onChange={(e) => setTitle(e.target.value)} />
@@ -122,18 +227,46 @@ export default function AdminPage() {
         <textarea className="pill" placeholder="Description" value={description}
           onChange={(e) => setDescription(e.target.value)} />
 
-        <input type="file" className="pill" onChange={(e) => setImage(e.target.files?.[0] || null)} />
+        <input
+          type="file"
+          className="pill"
+          onChange={(e) =>
+            setImage(e.target.files?.[0] || null)
+          }
+        />
 
-        <button className="btn btnPrimary" onClick={addProduct}>
+        <button className="btn btnTech" onClick={addProduct}>
           Add Product
         </button>
-      </div>
+      </section>
 
-      <div className="glass neon-border">
-        <h2>Bulk Upload (CSV)</h2>
-        <input type="file" className="pill" onChange={(e) => setCsv(e.target.files?.[0] || null)} />
-        <button className="btn" onClick={bulkUpload}>Upload CSV</button>
-      </div>
+      {/* BULK UPLOAD */}
+      <section
+        style={{
+          padding: 24,
+          borderRadius: 18,
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
+          display: "grid",
+          gap: 12,
+        }}
+      >
+        <h2 style={{ fontWeight: 900 }}>
+          Bulk Upload (CSV)
+        </h2>
+
+        <input
+          type="file"
+          className="pill"
+          onChange={(e) =>
+            setCsv(e.target.files?.[0] || null)
+          }
+        />
+
+        <button className="btn btnGhost" onClick={bulkUpload}>
+          Upload CSV
+        </button>
+      </section>
     </div>
   );
 }

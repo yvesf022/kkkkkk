@@ -44,66 +44,62 @@ export default function ProductCard({ p }: { p: Product }) {
 
       <ScaleHover>
         <div
-          className="glass neon-border kyProductCard"
           style={{
-            padding: 14,
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: 26,
-            border: "1px solid rgba(12, 14, 20, 0.12)",
+            padding: 16,
+            borderRadius: 22,
             background:
-              "radial-gradient(720px 260px at 12% 10%, rgba(45,72,126,0.12), transparent 60%)," +
-              "radial-gradient(720px 260px at 88% 14%, rgba(214,170,92,0.10), transparent 62%)," +
-              "radial-gradient(720px 260px at 50% 110%, rgba(255,34,140,0.06), transparent 64%)," +
-              "linear-gradient(180deg, rgba(255,255,255,0.82), rgba(252,253,255,0.74))",
-            boxShadow: "0 26px 90px rgba(12,14,20,0.10)",
+              "linear-gradient(135deg,#ffffff,#f8fbff)",
+            boxShadow:
+              "0 18px 50px rgba(15,23,42,0.14)",
+            display: "grid",
+            gap: 10,
           }}
         >
-          {/* Category + discount */}
+          {/* TOP ROW */}
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
-              gap: 10,
+              gap: 8,
             }}
           >
-            <div
-              className="badge"
+            <span
               style={{
-                background: "rgba(45,72,126,0.10)",
-                color: "rgba(20,34,64,0.92)",
-                fontWeight: 1100,
+                padding: "6px 10px",
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 900,
+                background: "rgba(96,165,250,0.12)",
+                color: "#1e3a8a",
               }}
             >
               {p.category.toUpperCase()}
-            </div>
+            </span>
 
-            {discount ? (
-              <div
-                className="badge"
+            {discount && (
+              <span
                 style={{
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 900,
                   background:
-                    "linear-gradient(180deg, rgba(214,170,92,0.16), rgba(255,34,140,0.06))",
-                  fontWeight: 1200,
+                    "linear-gradient(135deg,#fde68a,#f472b6)",
                 }}
               >
-                -{discount}%
-              </div>
-            ) : null}
+                −{discount}%
+              </span>
+            )}
           </div>
 
-          {/* Image */}
-          <Link
-            href={`/product/${productId}`}
-            style={{ display: "block", marginTop: 12 }}
-          >
+          {/* IMAGE */}
+          <Link href={`/product/${productId}`}>
             <div
               style={{
-                width: "100%",
-                height: 172,
-                borderRadius: 22,
+                height: 170,
+                borderRadius: 18,
                 overflow: "hidden",
+                background: "#fff",
               }}
             >
               <Image
@@ -111,79 +107,86 @@ export default function ProductCard({ p }: { p: Product }) {
                 alt={p.title}
                 width={700}
                 height={500}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
               />
             </div>
           </Link>
 
-          {/* Title */}
+          {/* TITLE */}
           <div
             style={{
-              marginTop: 12,
-              fontWeight: 1100,
-              fontSize: 15,
-              color: "rgba(20,34,64,0.92)",
+              fontWeight: 900,
+              fontSize: 14,
+              color: "#0f172a",
+              lineHeight: 1.3,
             }}
           >
             {p.title}
           </div>
 
-          {/* Price */}
+          {/* PRICE */}
           <div
             style={{
-              marginTop: 8,
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
             }}
           >
-            <span style={{ fontWeight: 1200 }}>
+            <span style={{ fontWeight: 900 }}>
               {fmtM(p.price)}
-              {p.oldPrice ? (
+              {p.oldPrice && (
                 <span
                   style={{
-                    marginLeft: 8,
+                    marginLeft: 6,
                     textDecoration: "line-through",
-                    opacity: 0.6,
-                    fontSize: 13,
+                    opacity: 0.5,
+                    fontSize: 12,
                   }}
                 >
                   {fmtM(p.oldPrice)}
                 </span>
-              ) : null}
+              )}
             </span>
           </div>
 
-          {/* Buttons */}
-          <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-            <div style={{ display: "flex", gap: 10 }}>
+          {/* ACTIONS */}
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8 }}>
               <Link
-                className="btn"
                 href={`/product/${productId}`}
+                className="btn btnGhost"
                 style={{ flex: 1, textAlign: "center" }}
               >
                 View
               </Link>
 
               <button
-                className="btn btnPrimary"
-                onClick={() => {
-                  // ✅ FINAL FIX: CartItem requires quantity
-                  addToCart({ ...p, quantity: 1 });
-                  toast.success("Added to cart 🛒");
-                }}
+                className="btn btnTech"
                 style={{ flex: 1 }}
+                onClick={() => {
+                  addToCart({
+                    id: productId!,
+                    title: p.title,
+                    price: p.price,
+                    quantity: 1,
+                    img: p.img,
+                  });
+                  toast.success("Added to cart");
+                }}
               >
                 Add
               </button>
             </div>
 
             <button
-              className="btn"
+              className="btn btnGhost"
               onClick={() => setQvOpen(true)}
-              style={{ fontWeight: 1100 }}
             >
-              Quick View ✨
+              Quick View
             </button>
           </div>
         </div>
