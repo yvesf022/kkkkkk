@@ -21,6 +21,10 @@ type Product = {
   img: string;
   category: string;
   rating: number;
+
+  /** INVENTORY */
+  stock?: number;
+  is_active?: boolean;
 };
 
 export default function ProductCard({ p }: { p: Product }) {
@@ -33,6 +37,9 @@ export default function ProductCard({ p }: { p: Product }) {
   }, [p.oldPrice, p.price]);
 
   const productId = p.id || p._id;
+
+  const isOutOfStock =
+    p.is_active === false || (typeof p.stock === "number" && p.stock <= 0);
 
   return (
     <>
@@ -47,12 +54,11 @@ export default function ProductCard({ p }: { p: Product }) {
           style={{
             padding: 16,
             borderRadius: 22,
-            background:
-              "linear-gradient(135deg,#ffffff,#f8fbff)",
-            boxShadow:
-              "0 18px 50px rgba(15,23,42,0.14)",
+            background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+            boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
             display: "grid",
             gap: 10,
+            opacity: isOutOfStock ? 0.6 : 1,
           }}
         >
           {/* TOP ROW */}
@@ -76,19 +82,34 @@ export default function ProductCard({ p }: { p: Product }) {
               {p.category.toUpperCase()}
             </span>
 
-            {discount && (
+            {isOutOfStock ? (
               <span
                 style={{
                   padding: "6px 10px",
                   borderRadius: 999,
                   fontSize: 11,
                   fontWeight: 900,
-                  background:
-                    "linear-gradient(135deg,#fde68a,#f472b6)",
+                  background: "#fee2e2",
+                  color: "#991b1b",
                 }}
               >
-                −{discount}%
+                OUT OF STOCK
               </span>
+            ) : (
+              discount && (
+                <span
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 900,
+                    background:
+                      "linear-gradient(135deg,#fde68a,#f472b6)",
+                  }}
+                >
+                  −{discount}%
+                </span>
+              )
             )}
           </div>
 
@@ -167,7 +188,13 @@ export default function ProductCard({ p }: { p: Product }) {
               <button
                 className="btn btnTech"
                 style={{ flex: 1 }}
+                disabled={isOutOfStock}
                 onClick={() => {
+                  if (isOutOfStock) {
+                    toast.error("This product is out of stock");
+                    return;
+                  }
+
                   addToCart({
                     id: productId!,
                     title: p.title,
@@ -178,13 +205,14 @@ export default function ProductCard({ p }: { p: Product }) {
                   toast.success("Added to cart");
                 }}
               >
-                Add
+                {isOutOfStock ? "Unavailable" : "Add"}
               </button>
             </div>
 
             <button
               className="btn btnGhost"
               onClick={() => setQvOpen(true)}
+              disabled={isOutOfStock}
             >
               Quick View
             </button>

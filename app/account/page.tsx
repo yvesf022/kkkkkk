@@ -1,38 +1,79 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { getSession, logout } from "@/lib/auth";
 
-const sections = [
-  {
-    title: "My Orders",
-    desc: "View your past and recent orders",
-    href: "/account/orders",
-  },
-  {
-    title: "Addresses",
-    desc: "Manage shipping addresses",
-    href: "/account/addresses",
-  },
-  {
-    title: "Profile",
-    desc: "Update personal information",
-    href: "/account/profile",
-  },
-  {
-    title: "Settings",
-    desc: "Notifications and preferences",
-    href: "/account/settings",
-  },
-];
+const API = process.env.NEXT_PUBLIC_API_URL!;
+
+type Order = {
+  id: string;
+  total_amount: number;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+};
 
 export default function AccountPage() {
+  const router = useRouter();
+
+  const [email, setEmail] = useState<string | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  /* ======================
+     SESSION CHECK
+  ====================== */
+  useEffect(() => {
+    const session = getSession();
+
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+
+    setEmail(session.email);
+    fetchOrders(session.token);
+  }, []);
+
+  /* ======================
+     FETCH USER ORDERS
+  ====================== */
+  async function fetchOrders(token: string) {
+    setLoadingOrders(true);
+    try {
+      const res = await fetch(`${API}/api/orders/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      setOrders(data);
+    } catch {
+      toast.error("Failed to load your orders");
+    } finally {
+      setLoadingOrders(false);
+    }
+  }
+
+  /* ======================
+     LOGOUT
+  ====================== */
+  function handleLogout() {
+    logout("/");
+  }
+
   return (
     <div style={{ display: "grid", gap: 26 }}>
       {/* ================= HEADER ================= */}
       <section
         style={{
           borderRadius: 24,
-          padding: 24,
+          padding: 26,
           background: `
             radial-gradient(
               420px 200px at 10% 0%,
@@ -44,23 +85,12 @@ export default function AccountPage() {
               rgba(244,114,182,0.18),
               transparent 60%
             ),
-            linear-gradient(
-              135deg,
-              #f8fbff,
-              #eef6ff,
-              #fff1f6
-            )
+            linear-gradient(135deg,#f8fbff,#eef6ff,#fff1f6)
           `,
           boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
         }}
       >
-        <h1
-          style={{
-            fontSize: 26,
-            fontWeight: 900,
-            color: "#0f172a",
-          }}
-        >
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
           My Account
         </h1>
 
@@ -71,85 +101,127 @@ export default function AccountPage() {
             color: "rgba(15,23,42,0.6)",
           }}
         >
-          Manage your orders, profile, and account settings.
+          Logged in as <b>{email}</b>
         </p>
       </section>
 
-      {/* ================= DASHBOARD ================= */}
+      {/* ================= ORDERS SUMMARY ================= */}
+      <section
+        style={{
+          borderRadius: 22,
+          padding: 22,
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
+        }}
+      >
+        <h2 style={{ fontWeight: 900, marginBottom: 12 }}>
+          Recent Orders
+        </h2>
+
+        {loadingOrders && <p>Loading orders…</p>}
+
+        {!loadingOrders && orders.length === 0 && (
+          <p style={{ opacity: 0.6 }}>
+            You haven’t placed any orders yet.
+          </p>
+        )}
+
+        {!loadingOrders &&
+          orders.slice(0, 3).map((o) => (
+            <div
+              key={o.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 0",
+                borderBottom: "1px solid #e5e7eb",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700 }}>
+                  ₹{o.total_amount}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    opacity: 0.6,
+                  }}
+                >
+                  {new Date(o.created_at).toLocaleDateString()}
+                </div>
+              </div>
+
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background:
+                    o.status === "approved"
+                      ? "#dcfce7"
+                      : o.status === "rejected"
+                      ? "#fee2e2"
+                      : "#fef3c7",
+                  color:
+                    o.status === "approved"
+                      ? "#166534"
+                      : o.status === "rejected"
+                      ? "#991b1b"
+                      : "#92400e",
+                }}
+              >
+                {o.status.toUpperCase()}
+              </span>
+            </div>
+          ))}
+
+        <div style={{ marginTop: 14 }}>
+          <Link href="/account/orders" className="btn btnGhost">
+            View all orders →
+          </Link>
+        </div>
+      </section>
+
+      {/* ================= QUICK ACTIONS ================= */}
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(220px, 1fr))",
           gap: 18,
         }}
       >
-        {sections.map((s) => (
-          <Link
-            key={s.title}
-            href={s.href}
-            style={{
-              borderRadius: 22,
-              padding: 20,
-              textDecoration: "none",
-              color: "#0f172a",
-              background:
-                "linear-gradient(135deg,#ffffff,#f8fbff)",
-              boxShadow:
-                "0 18px 50px rgba(15,23,42,0.14)",
-              display: "grid",
-              gap: 8,
-              transition: "transform .15s ease, box-shadow .15s ease",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 15,
-                fontWeight: 900,
-              }}
-            >
-              {s.title}
-            </div>
-
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "rgba(15,23,42,0.6)",
-              }}
-            >
-              {s.desc}
-            </div>
-          </Link>
-        ))}
+        <Link href="/account/orders" className="btn btnTech">
+          My Orders
+        </Link>
+        <Link href="/account/profile" className="btn btnTech">
+          Profile
+        </Link>
+        <Link href="/account/settings" className="btn btnTech">
+          Settings
+        </Link>
       </section>
 
-      {/* ================= ACTIONS ================= */}
+      {/* ================= FOOTER ACTIONS ================= */}
       <section
         style={{
           borderRadius: 24,
           padding: 20,
-          background:
-            "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow:
-            "0 18px 50px rgba(15,23,42,0.14)",
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
           display: "flex",
           justifyContent: "space-between",
-          gap: 12,
           flexWrap: "wrap",
+          gap: 12,
         }}
       >
         <Link href="/store" className="btn btnGhost">
           ← Back to Store
         </Link>
 
-        <button
-          className="btn btnTech"
-          onClick={() => {
-            // replace with real logout later
-            localStorage.removeItem("token");
-            window.location.href = "/";
-          }}
-        >
+        <button className="btn btnTech" onClick={handleLogout}>
           Logout
         </button>
       </section>

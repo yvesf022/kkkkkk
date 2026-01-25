@@ -6,19 +6,26 @@ import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
+/* ======================
+   TYPES
+====================== */
 type Order = {
   id: string;
   total_amount: number;
-  status: string;
+  status: string; // payment status
+  shipping_status?: string; // NEW
   created_at: string;
 };
 
-function StatusBadge({ status }: { status: string }) {
+/* ======================
+   PAYMENT STATUS BADGE
+====================== */
+function PaymentStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string }> = {
     pending: { label: "Awaiting Payment", color: "#f59e0b" },
-    payment_submitted: { label: "Under Review", color: "#3b82f6" },
-    confirmed: { label: "Confirmed", color: "#22c55e" },
-    rejected: { label: "Rejected", color: "#ef4444" },
+    payment_submitted: { label: "Payment Under Review", color: "#3b82f6" },
+    confirmed: { label: "Payment Approved", color: "#22c55e" },
+    rejected: { label: "Payment Rejected", color: "#ef4444" },
   };
 
   const s = map[status] || {
@@ -42,6 +49,63 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/* ======================
+   SHIPPING STATUS BADGE
+====================== */
+function ShippingStatusBadge({
+  status,
+}: {
+  status?: string;
+}) {
+  if (!status) {
+    return (
+      <span
+        style={{
+          padding: "6px 12px",
+          borderRadius: 999,
+          fontSize: 12,
+          fontWeight: 800,
+          background: "#e5e7eb",
+          color: "#374151",
+        }}
+      >
+        Not shipped yet
+      </span>
+    );
+  }
+
+  const map: Record<string, { label: string; color: string }> = {
+    pending: { label: "Pending", color: "#f59e0b" },
+    processing: { label: "Processing", color: "#3b82f6" },
+    shipped: { label: "Shipped", color: "#8b5cf6" },
+    delivered: { label: "Delivered", color: "#22c55e" },
+    cancelled: { label: "Cancelled", color: "#ef4444" },
+  };
+
+  const s = map[status] || {
+    label: status,
+    color: "#64748b",
+  };
+
+  return (
+    <span
+      style={{
+        padding: "6px 12px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 800,
+        color: "#fff",
+        background: s.color,
+      }}
+    >
+      {s.label}
+    </span>
+  );
+}
+
+/* ======================
+   PAGE
+====================== */
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +142,7 @@ export default function OrdersPage() {
           My Orders
         </h1>
         <p style={{ marginTop: 6, color: "rgba(15,23,42,0.6)" }}>
-          Track the status of your purchases
+          Track payment and shipping status of your purchases
         </p>
       </section>
 
@@ -106,9 +170,10 @@ export default function OrdersPage() {
               boxShadow:
                 "0 18px 50px rgba(15,23,42,0.14)",
               display: "grid",
-              gap: 10,
+              gap: 14,
             }}
           >
+            {/* HEADER */}
             <div
               style={{
                 display: "flex",
@@ -130,14 +195,26 @@ export default function OrdersPage() {
                   {new Date(o.created_at).toLocaleString()}
                 </div>
               </div>
-
-              <StatusBadge status={o.status} />
             </div>
 
+            {/* STATUSES */}
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <PaymentStatusBadge status={o.status} />
+              <ShippingStatusBadge status={o.shipping_status} />
+            </div>
+
+            {/* TOTAL */}
             <div style={{ fontWeight: 800 }}>
               Total: M {o.total_amount.toLocaleString("en-ZA")}
             </div>
 
+            {/* ACTIONS */}
             {o.status === "rejected" && (
               <Link
                 href={`/checkout?order=${o.id}`}
