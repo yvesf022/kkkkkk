@@ -7,7 +7,7 @@ export default function MobileStore() {
     .map((p) => ({
       ...p,
       category: p.category || "general", // 🔒 safety
-      img: p.img || p.image || "/placeholder.png",
+      img: p.img || "/placeholder.png", // ✅ FIXED: no p.image
     }));
 
   return (

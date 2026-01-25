@@ -7,7 +7,7 @@ export default function FashionStore() {
     .map((p) => ({
       ...p,
       category: p.category || "general", // 🔒 ProductCard safety
-      img: p.img || p.image || "/placeholder.png",
+      img: p.img || "/placeholder.png", // ✅ FIXED: no p.image
     }));
 
   return (
