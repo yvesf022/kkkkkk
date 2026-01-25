@@ -15,8 +15,6 @@ type NavItem = {
   hint?: string;
 };
 
-/* ---------- helpers unchanged ---------- */
-
 function IconWrap({
   children,
   active,
@@ -69,7 +67,18 @@ function Badge({ text }: { text: string }) {
 function Divider({ label, collapsed }: { label: string; collapsed: boolean }) {
   if (collapsed) return <div style={{ height: 8 }} />;
   return (
-    <div style={{ fontSize: 12, fontWeight: 1000, display: "flex", gap: 10 }}>
+    <div
+      style={{
+        fontSize: 12,
+        letterSpacing: 0.18,
+        fontWeight: 1000,
+        color: "var(--muted2)",
+        marginTop: 2,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}
+    >
       <span>{label}</span>
       <span style={{ height: 1, flex: 1, background: "rgba(12,14,20,0.10)" }} />
     </div>
@@ -81,14 +90,12 @@ function CollapseChevron({ collapsed }: { collapsed: boolean }) {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
       <path
         d={collapsed ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"}
-        stroke="rgba(20,34,64,0.9)"
+        stroke="rgba(20,34,64,0.90)"
         strokeWidth="2"
       />
     </svg>
   );
 }
-
-/* ---------- main sidebar unchanged ---------- */
 
 export default function Sidebar() {
   const path = usePathname();
@@ -108,8 +115,50 @@ export default function Sidebar() {
     }
   }, []);
 
-  const nav = useMemo<NavItem[]>(() => [], []);
-  const quickLinks = useMemo<NavItem[]>(() => [], []);
+  const nav = useMemo<NavItem[]>(() => [
+    {
+      label: "All Products",
+      href: "/store",
+      hint: "Browse everything",
+      icon: <span>🛍️</span>,
+    },
+    {
+      label: "Beauty Products",
+      href: "/store/beauty",
+      hint: "Glow, skincare, cosmetics",
+      badge: "Glow",
+      icon: <span>✨</span>,
+    },
+    {
+      label: "Mobile & Accessories",
+      href: "/store/mobile",
+      hint: "Cases, chargers, add-ons",
+      badge: "Tech",
+      icon: <span>📱</span>,
+    },
+    {
+      label: "Fashion Store",
+      href: "/store/fashion",
+      hint: "Streetwear & outfits",
+      badge: "Style",
+      icon: <span>👗</span>,
+    },
+  ], []);
+
+  const quickLinks = useMemo<NavItem[]>(() => [
+    {
+      label: "Wishlist",
+      href: "/wishlist",
+      badge: wishlistCount > 0 ? String(wishlistCount) : undefined,
+      icon: <span>❤️</span>,
+    },
+    {
+      label: "Cart",
+      href: "/cart",
+      badge: cartCount > 0 ? String(cartCount) : undefined,
+      icon: <span>🛒</span>,
+    },
+  ], [cartCount, wishlistCount]);
 
   const Item = ({ item }: { item: NavItem }) => {
     const active = path === item.href;
@@ -117,41 +166,37 @@ export default function Sidebar() {
       <Link href={item.href} onClick={closeSidebar} className="pill">
         <IconWrap active={active}>{item.icon}</IconWrap>
         {!collapsed && item.label}
+        {!collapsed && item.badge && <Badge text={item.badge} />}
       </Link>
     );
   };
 
   return (
-    <>
-      <aside className="kyDesktopSidebar">
-        <SidebarShell
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
-          nav={nav}
-          quickLinks={quickLinks}
-          Item={Item}
-        />
-      </aside>
-    </>
+    <aside className="kyDesktopSidebar">
+      <SidebarShell
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+        nav={nav}
+        quickLinks={quickLinks}
+        Item={Item}
+      />
+    </aside>
   );
 }
 
-/* ---------- 🔴 ONLY FIX IS HERE ---------- */
-
+/* 🔧 ONLY NETLIFY FIX IS HERE */
 function SidebarShell({
   collapsed,
   setCollapsed,
   nav,
   quickLinks,
   Item,
-  forceCloseButton = false,
 }: {
   collapsed: boolean;
   setCollapsed: (v: boolean | ((s: boolean) => boolean)) => void;
   nav: NavItem[];
   quickLinks: NavItem[];
   Item: React.ComponentType<{ item: NavItem }>;
-  forceCloseButton?: boolean;
 }) {
   return (
     <div className="glass">
