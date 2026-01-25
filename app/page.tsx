@@ -15,16 +15,17 @@ function shuffle<T>(arr: T[]) {
 }
 
 /**
- * 🔒 IMPORTANT:
- * ProductCard expects a Product with REQUIRED `category`
- * We must guarantee it here for Netlify + TS build
+ * 🔒 STRICT NORMALIZATION
+ * - NO legacy fields
+ * - Netlify-safe
+ * - Matches ProductCard contract exactly
  */
 function normalizeForCard(p: ApiProduct) {
   return {
     ...p,
-    id: p.id ?? p._id ?? "",
-    img: p.img || p.image || "/placeholder.png",
-    category: p.category || "general", // ✅ FIX
+    id: p.id, // ✅ SINGLE SOURCE OF TRUTH
+    img: p.img || "/placeholder.png",
+    category: p.category || "general",
     rating: 4.5,
   };
 }
