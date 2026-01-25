@@ -1,5 +1,7 @@
 import "@/styles/globals.css";
-import ClientShell from "@/components/layout/ClientShell";
+import { UIProvider } from "@/components/layout/uiStore";
+import Header from "@/components/layout/Header";
+import Sidebar from "@/components/layout/Sidebar";
 
 export default function RootLayout({
   children,
@@ -9,11 +11,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ClientShell>
+        {/* Client context provider */}
+        <UIProvider>
+          {/* Header */}
+          <Header />
+
+          {/* Fixed Sidebar */}
+          <Sidebar />
+
+          {/* Page content */}
           <main className="pageContentWrap">
             {children}
           </main>
-        </ClientShell>
+        </UIProvider>
       </body>
     </html>
   );
