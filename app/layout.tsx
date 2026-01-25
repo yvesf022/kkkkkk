@@ -23,7 +23,6 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <UIProvider>
-          {/* ✅ CartProvider MUST wrap everything */}
           <CartProvider>
             <ToastProvider />
 
@@ -31,15 +30,14 @@ export default function RootLayout({
               color="#ff228c"
               height={3}
               showSpinner={false}
-              shadow="0 0 18px rgba(255,34,140,0.6)"
             />
 
             <Header />
 
             <main className="container">
               <div className="pageGrid">
-                <div>{children}</div>
                 <Sidebar />
+                <div className="pageContent">{children}</div>
               </div>
             </main>
 

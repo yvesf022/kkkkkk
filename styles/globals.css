@@ -1,101 +1,91 @@
-/* =========================================================
-   Karabo’s Online Store
-   PRODUCTION UI — Premium eCommerce Palette Upgrade (Balanced)
-   ========================================================= */
+"use client";
 
-:root {
-  --bg: rgba(244, 246, 251, 1);
-  --bg2: rgba(232, 236, 245, 1);
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useMemo } from "react";
+import { useStore } from "@/lib/store";
 
-  --text: rgba(12, 14, 20, 0.98);
-  --muted: rgba(12, 14, 20, 0.74);
-  --muted2: rgba(12, 14, 20, 0.56);
+type NavItem = {
+  label: string;
+  href: string;
+  badge?: string;
+};
 
-  --brand: rgba(20, 34, 64, 1);
-  --brand2: rgba(45, 72, 126, 1);
+export default function Sidebar() {
+  const path = usePathname();
+  const cartCount = useStore((s) => s.cartCount());
+  const wishlistCount = useStore((s) => s.wishlist.length);
 
-  --accent: rgba(255, 34, 140, 1);
-  --accent2: rgba(255, 98, 176, 1);
+  const nav: NavItem[] = useMemo(
+    () => [
+      { label: "All Products", href: "/store" },
+      { label: "Beauty Products", href: "/store/beauty", badge: "Glow" },
+      { label: "Mobile & Accessories", href: "/store/mobile", badge: "Tech" },
+      { label: "Fashion Store", href: "/store/fashion", badge: "Style" },
+    ],
+    []
+  );
 
-  --gold: rgba(214, 170, 92, 1);
-  --gold2: rgba(236, 203, 140, 1);
+  const quick: NavItem[] = useMemo(
+    () => [
+      { label: "Wishlist", href: "/wishlist", badge: wishlistCount?.toString() },
+      { label: "Cart", href: "/cart", badge: cartCount?.toString() },
+    ],
+    [cartCount, wishlistCount]
+  );
 
-  --card: rgba(255, 255, 255, 0.82);
-  --card2: rgba(252, 253, 255, 0.92);
+  return (
+    <aside className="glass" style={{ padding: 18 }}>
+      <div style={{ marginBottom: 16 }}>
+        <strong>Sub-Stores</strong>
+        <div style={{ fontSize: 13, opacity: 0.7 }}>
+          Choose your store
+        </div>
+      </div>
 
-  --border: rgba(12, 14, 20, 0.14);
-  --shadow: 0 22px 80px rgba(12, 14, 20, 0.11);
+      <div style={{ display: "grid", gap: 10 }}>
+        {nav.map((item) => {
+          const active = path === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 16,
+                fontWeight: 600,
+                background: active ? "rgba(255,34,140,0.12)" : "transparent",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              {item.label}
+              {item.badge && <span className="badge">{item.badge}</span>}
+            </Link>
+          );
+        })}
+      </div>
 
-  --radius2: 26px;
+      <hr style={{ margin: "18px 0", opacity: 0.2 }} />
 
-  /* SIDEBAR */
-  --sidebarW: 310px;
-
-  --gap: 18px;
-  --pad: 18px;
-
-  --headerH: 102px;
-  --headerGap: 14px;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  overflow-x: hidden;
-  padding-top: calc(var(--headerH) + var(--headerGap));
-  background:
-    radial-gradient(1000px 600px at 10% 8%, rgba(45, 72, 126, 0.22), transparent 62%),
-    radial-gradient(1000px 600px at 92% 10%, rgba(214, 170, 92, 0.16), transparent 62%),
-    linear-gradient(180deg, var(--bg), var(--bg2));
-}
-
-.container {
-  width: min(1200px, 92vw);
-  margin: 0 auto;
-  position: relative;
-}
-
-/* =========================================================
-   ✅ PAGE GRID — RIGHT SIDEBAR (FIXED)
-   ========================================================= */
-
-.pageGrid {
-  display: block;
-  padding: var(--pad) 0;
-}
-
-/* Reserve space for RIGHT fixed sidebar */
-@media (min-width: 981px) {
-  .pageGrid {
-    padding-right: calc(var(--sidebarW) + var(--gap));
-  }
-}
-
-/* =========================================================
-   Pills / Buttons / Badges (unchanged)
-   ========================================================= */
-
-.pill {
-  border: 1px solid rgba(12, 14, 20, 0.12);
-  border-radius: 999px;
-  padding: 10px 14px;
-  background: rgba(252, 253, 255, 0.88);
-  font-weight: 900;
-}
-
-.btn {
-  border-radius: 999px;
-  padding: 10px 16px;
-  font-weight: 1000;
-}
-
-.badge {
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(214, 170, 92, 0.38);
-  background: rgba(214, 170, 92, 0.14);
+      <div style={{ display: "grid", gap: 10 }}>
+        {quick.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 16,
+              fontWeight: 600,
+              display: "flex",
+              justifyContent: "space-between",
+            }}
+          >
+            {item.label}
+            {item.badge && <span className="badge">{item.badge}</span>}
+          </Link>
+        ))}
+      </div>
+    </aside>
+  );
 }
