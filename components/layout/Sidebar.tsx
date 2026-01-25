@@ -31,7 +31,6 @@ function IconWrap({
         display: "grid",
         placeItems: "center",
         flexShrink: 0,
-
         border: active
           ? "1px solid rgba(214, 170, 92, 0.42)"
           : "1px solid rgba(45, 72, 126, 0.16)",
@@ -41,10 +40,7 @@ function IconWrap({
         boxShadow: active
           ? "0 12px 28px rgba(12, 14, 20, 0.12)"
           : "0 10px 22px rgba(12, 14, 20, 0.08)",
-
         color: active ? "rgba(20,34,64,0.92)" : "rgba(20,34,64,0.70)",
-        transition:
-          "transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease",
       }}
     >
       {children}
@@ -57,8 +53,8 @@ function Badge({ text }: { text: string }) {
     <span
       className="badge"
       style={{
-        borderColor: "rgba(214, 170, 92, 0.34)",
-        background: "rgba(214, 170, 92, 0.14)",
+        borderColor: "rgba(214,170,92,0.34)",
+        background: "rgba(214,170,92,0.14)",
         color: "rgba(12,14,20,0.88)",
       }}
     >
@@ -67,41 +63,12 @@ function Badge({ text }: { text: string }) {
   );
 }
 
-function Divider({ label, collapsed }: { label: string; collapsed: boolean }) {
-  if (collapsed) return <div style={{ height: 8 }} />;
-  return (
-    <div
-      style={{
-        fontSize: 12,
-        letterSpacing: 0.18,
-        fontWeight: 1000,
-        color: "var(--muted2)",
-        marginTop: 2,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-      }}
-    >
-      <span style={{ flexShrink: 0 }}>{label}</span>
-      <span
-        aria-hidden="true"
-        style={{
-          height: 1,
-          width: "100%",
-          background: "rgba(12,14,20,0.10)",
-          borderRadius: 999,
-        }}
-      />
-    </div>
-  );
-}
-
 function CollapseChevron({ collapsed }: { collapsed: boolean }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
       <path
         d={collapsed ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"}
-        stroke="rgba(20,34,64,0.90)"
+        stroke="rgba(20,34,64,0.9)"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -113,7 +80,6 @@ function CollapseChevron({ collapsed }: { collapsed: boolean }) {
 export default function Sidebar() {
   const path = usePathname();
   const { sidebarOpen, closeSidebar } = useUI();
-
   const cartCount = useStore((s) => s.cartCount());
   const wishlistCount = useStore((s) => s.wishlist.length);
 
@@ -121,42 +87,81 @@ export default function Sidebar() {
   const autoCollapseRef = useRef<boolean | null>(null);
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeSidebar();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeSidebar]);
-
-  useEffect(() => {
     const mq = window.matchMedia("(max-width: 1180px)");
-    const apply = () => {
-      if (autoCollapseRef.current === null) {
-        autoCollapseRef.current = true;
-        setCollapsed(mq.matches);
-      }
-    };
-    apply();
-    const onChange = () => {
-      if (autoCollapseRef.current) setCollapsed(mq.matches);
-    };
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
+    if (autoCollapseRef.current === null) {
+      autoCollapseRef.current = true;
+      setCollapsed(mq.matches);
+    }
   }, []);
 
-  const nav: NavItem[] = useMemo(() => [], []);
-  const quickLinks: NavItem[] = useMemo(() => [], []);
+  const nav: NavItem[] = useMemo(
+    () => [
+      { label: "All Products", href: "/store", icon: <span>🛍️</span> },
+      { label: "Beauty", href: "/store/beauty", badge: "Glow", icon: <span>✨</span> },
+      { label: "Mobile", href: "/store/mobile", badge: "Tech", icon: <span>📱</span> },
+      { label: "Fashion", href: "/store/fashion", badge: "Style", icon: <span>👗</span> },
+    ],
+    []
+  );
+
+  const quickLinks: NavItem[] = useMemo(
+    () => [
+      { label: "Wishlist", href: "/wishlist", badge: wishlistCount ? String(wishlistCount) : undefined, icon: <span>❤️</span> },
+      { label: "Cart", href: "/cart", badge: cartCount ? String(cartCount) : undefined, icon: <span>🛒</span> },
+      { label: "Account", href: "/account", icon: <span>👤</span> },
+    ],
+    [cartCount, wishlistCount]
+  );
 
   const Item = ({ item }: { item: NavItem }) => {
     const active = path === item.href;
     return (
       <Link href={item.href} onClick={closeSidebar} className="pill">
-        {item.label}
+        <IconWrap active={active}>{item.icon}</IconWrap>
+        {!collapsed && <span>{item.label}</span>}
+        {!collapsed && item.badge && <Badge text={item.badge} />}
       </Link>
     );
   };
 
-  return null;
+  return (
+    <>
+      <aside className="kyDesktopSidebar">
+        <SidebarShell
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          nav={nav}
+          quickLinks={quickLinks}
+          Item={Item}
+        />
+      </aside>
+
+      <div
+        className="kyMobileOverlay"
+        onClick={closeSidebar}
+        style={{
+          opacity: sidebarOpen ? 1 : 0,
+          pointerEvents: sidebarOpen ? "auto" : "none",
+        }}
+      />
+
+      <aside
+        className="kyMobileDrawer"
+        style={{
+          transform: sidebarOpen ? "translateX(0)" : "translateX(-110%)",
+        }}
+      >
+        <SidebarShell
+          collapsed={false}
+          setCollapsed={() => {}}
+          nav={nav}
+          quickLinks={quickLinks}
+          Item={Item}
+          forceCloseButton
+        />
+      </aside>
+    </>
+  );
 }
 
 function SidebarShell({
@@ -175,5 +180,31 @@ function SidebarShell({
   forceCloseButton?: boolean;
 }) {
   const { closeSidebar } = useUI();
-  return <div />;
+
+  return (
+    <div className="glass" style={{ height: "100%", padding: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <strong>{collapsed ? "Menu" : "Sub-Stores"}</strong>
+        {!forceCloseButton ? (
+          <button onClick={() => setCollapsed((s) => !s)}>
+            <CollapseChevron collapsed={collapsed} />
+          </button>
+        ) : (
+          <button onClick={closeSidebar}>✕</button>
+        )}
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        {nav.map((item) => (
+          <Item key={item.href} item={item} />
+        ))}
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        {quickLinks.map((item) => (
+          <Item key={item.href} item={item} />
+        ))}
+      </div>
+    </div>
+  );
 }
