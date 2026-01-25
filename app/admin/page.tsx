@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { getSession, login, logout } from "@/lib/auth";
+import { getSession, logout } from "@/lib/auth";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -59,7 +59,11 @@ export default function AdminPage() {
         throw new Error("Not an admin account");
       }
 
-      login(data.token, data.role, data.email);
+      // ✅ STORE SESSION DIRECTLY (NO login() HELPER)
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("role", data.role);
+      localStorage.setItem("email", data.email);
+
       toast.success("Welcome admin");
       router.refresh();
     } catch (err: any) {
@@ -130,7 +134,7 @@ export default function AdminPage() {
         Welcome to Karabo admin panel
       </p>
 
-      {/* You already have the rest of your dashboard logic here */}
+      {/* Your existing admin dashboard content continues here */}
     </div>
   );
 }
