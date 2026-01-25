@@ -1,9 +1,7 @@
-// lib/products.ts
+// ⚠️ COMPATIBILITY SHIM
+// This file exists ONLY to satisfy legacy imports
+// Real product data now comes from the backend API
 
-/**
- * 🔒 SINGLE SOURCE OF TRUTH
- * MUST match backend + api.ts exactly
- */
 export type Product = {
   id: string;
   title: string;
@@ -12,3 +10,7 @@ export type Product = {
   category: string;
   rating: number;
 };
+
+// Empty fallback — pages that still import this
+// should not crash Netlify build
+export const products: Product[] = [];
