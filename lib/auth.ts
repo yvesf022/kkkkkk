@@ -1,19 +1,39 @@
-export function getSession() {
+type Session = {
+  token: string;
+  role: string;
+  email: string;
+};
+
+/* ======================
+   SAFE SESSION GETTER
+====================== */
+export function getSession(): Session | null {
   if (typeof window === "undefined") return null;
 
-  const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role");
+  try {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+    const email = localStorage.getItem("email");
 
-  if (!token || !role) return null;
+    if (!token || !role || !email) return null;
 
-  return { token, role };
+    return { token, role, email };
+  } catch {
+    return null;
+  }
 }
 
-export function logout(redirect = "/login") {
+/* ======================
+   LOGOUT
+====================== */
+export function logout(redirectTo: string = "/") {
   if (typeof window === "undefined") return;
 
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
-
-  window.location.href = redirect;
+  try {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("email");
+  } finally {
+    window.location.href = redirectTo;
+  }
 }
