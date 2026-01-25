@@ -6,8 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
-import { products } from "@/lib/products";
-import { useStore } from "@/lib/store";
+import { products } from "@/lib/products"; // compatibility shim (OK)
+import { useStore } from "@/lib/store"; // wishlist ONLY
+import { useCart } from "@/app/context/CartContext"; // ✅ cart ONLY
 import ProductCard from "@/components/store/ProductCard";
 import { FadeIn, ScaleHover } from "@/components/ui/Motion";
 
@@ -19,13 +20,15 @@ const formatCurrency = (v: number) =>
   `M ${Math.round(v).toLocaleString("en-LS")}`;
 
 /**
- * 🔒 Normalize product for ProductCard safety
+ * 🔒 Strict normalization
+ * - NO legacy fields
+ * - Netlify-safe
  */
 function normalize(p: any) {
   return {
     ...p,
     id: p.id,
-    img: p.img || p.image || "/placeholder.png",
+    img: p.img || "/placeholder.png",
     category: p.category || "general",
     rating: p.rating ?? 4.5,
   };
@@ -43,7 +46,8 @@ export default function ProductDetails({
   const router = useRouter();
   const { id } = params;
 
-  const addToCart = useStore((s) => s.addToCart);
+  // ✅ CORRECT STATE USAGE
+  const { addToCart } = useCart();
   const toggleWishlist = useStore((s) => s.toggleWishlist);
   const wishlist = useStore((s) => s.wishlist);
 
@@ -134,19 +138,12 @@ export default function ProductDetails({
               ),
               linear-gradient(135deg,#ffffff,#f4f9ff)
             `,
-            boxShadow:
-              "0 26px 70px rgba(15,23,42,0.16)",
+            boxShadow: "0 26px 70px rgba(15,23,42,0.16)",
           }}
         >
           {/* HEADER */}
           <div style={{ display: "grid", gap: 6 }}>
-            <h1
-              style={{
-                fontSize: 28,
-                fontWeight: 900,
-                color: "#0f172a",
-              }}
-            >
+            <h1 style={{ fontSize: 28, fontWeight: 900 }}>
               {safeProduct.title}
             </h1>
 
@@ -178,8 +175,7 @@ export default function ProductDetails({
                 borderRadius: 22,
                 overflow: "hidden",
                 background: "#fff",
-                boxShadow:
-                  "0 14px 40px rgba(15,23,42,0.14)",
+                boxShadow: "0 14px 40px rgba(15,23,42,0.14)",
               }}
             >
               <Image
@@ -188,44 +184,14 @@ export default function ProductDetails({
                 width={1200}
                 height={800}
                 priority
-                style={{
-                  width: "100%",
-                  height: 360,
-                  objectFit: "cover",
-                }}
+                style={{ width: "100%", height: 360, objectFit: "cover" }}
               />
             </div>
 
             {/* BUY PANEL */}
             <div style={{ display: "grid", gap: 18 }}>
-              <div>
-                <div
-                  style={{
-                    fontSize: 26,
-                    fontWeight: 900,
-                  }}
-                >
-                  {formatCurrency(safeProduct.price)}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 6,
-                    padding: "6px 12px",
-                    borderRadius: 999,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    width: "fit-content",
-                    background: inStock
-                      ? "rgba(34,197,94,.12)"
-                      : "rgba(239,68,68,.12)",
-                    color: inStock
-                      ? "#16a34a"
-                      : "#dc2626",
-                  }}
-                >
-                  {inStock ? "In Stock" : "Out of Stock"}
-                </div>
+              <div style={{ fontSize: 26, fontWeight: 900 }}>
+                {formatCurrency(safeProduct.price)}
               </div>
 
               <ScaleHover>
@@ -233,7 +199,13 @@ export default function ProductDetails({
                   className="btn btnTech"
                   disabled={!inStock}
                   onClick={() => {
-                    addToCart(safeProduct.id, qty);
+                    addToCart({
+                      id: safeProduct.id,
+                      title: safeProduct.title,
+                      price: safeProduct.price,
+                      quantity: qty,
+                      img: safeProduct.img,
+                    });
                     toast.success("Added to cart");
                   }}
                 >
@@ -244,7 +216,13 @@ export default function ProductDetails({
               <button
                 className="btn btnGhost"
                 onClick={() => {
-                  addToCart(safeProduct.id, qty);
+                  addToCart({
+                    id: safeProduct.id,
+                    title: safeProduct.title,
+                    price: safeProduct.price,
+                    quantity: qty,
+                    img: safeProduct.img,
+                  });
                   router.push("/checkout");
                 }}
               >
@@ -253,13 +231,9 @@ export default function ProductDetails({
 
               <button
                 className="btn btnGhost"
-                onClick={() =>
-                  toggleWishlist(safeProduct.id)
-                }
+                onClick={() => toggleWishlist(safeProduct.id)}
               >
-                {inWish
-                  ? "Remove from Wishlist"
-                  : "Save to Wishlist"}
+                {inWish ? "Remove from Wishlist" : "Save to Wishlist"}
               </button>
             </div>
           </div>
@@ -271,20 +245,11 @@ export default function ProductDetails({
             style={{
               borderRadius: 24,
               padding: 24,
-              background:
-                "linear-gradient(135deg,#ffffff,#f8fbff)",
-              boxShadow:
-                "0 22px 60px rgba(15,23,42,0.14)",
+              background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+              boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
             }}
           >
-            <h3
-              style={{
-                fontSize: 20,
-                fontWeight: 900,
-                marginBottom: 16,
-                color: "#0f172a",
-              }}
-            >
+            <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>
               Related Products
             </h3>
 
