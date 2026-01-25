@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-
 import { useCart } from "../context/CartContext";
+
+const API = process.env.NEXT_PUBLIC_API_URL!;
 
 /** Maloti formatter */
 const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
@@ -14,7 +15,15 @@ export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
 
   const [loading, setLoading] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
+
   const [proof, setProof] = useState<File | null>(null);
+  const [bank, setBank] = useState<any>(null);
+
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
 
   const [address, setAddress] = useState({
     name: "",
@@ -32,117 +41,115 @@ export default function CheckoutPage() {
     address.city &&
     address.district;
 
-  async function submitOrder() {
-    if (!proof) {
-      toast.error("Please upload proof of payment");
+  /* ======================
+     CREATE ORDER
+  ====================== */
+  async function createOrder() {
+    if (!token) {
+      router.push("/login");
       return;
     }
 
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("items", JSON.stringify(items));
-      formData.append("address", JSON.stringify(address));
-      formData.append("total", String(total));
-      formData.append("currency", "LSL");
-      formData.append("paymentMethod", "bank_transfer");
-      formData.append("status", "pending_payment");
-      formData.append("proof", proof);
-
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/orders`, {
+      const res = await fetch(`${API}/api/orders`, {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          items,
+          delivery_address: address,
+          total_amount: total,
+        }),
       });
 
-      clearCart();
-      toast.success("Order submitted. Awaiting payment confirmation.");
-      router.push("/order-success");
+      const data = await res.json();
+      if (!res.ok) throw new Error();
+
+      setOrderId(data.order_id);
+
+      // fetch bank details
+      const payRes = await fetch(
+        `${API}/api/orders/${data.order_id}/payment-instructions`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const payData = await payRes.json();
+      setBank(payData.bank_details);
+
+      toast.success("Order created. Please complete payment.");
     } catch {
-      toast.error("Failed to submit order");
+      toast.error("Failed to create order");
     } finally {
       setLoading(false);
     }
   }
 
-  /* ================= EMPTY CART ================= */
+  /* ======================
+     SUBMIT PROOF
+  ====================== */
+  async function submitProof() {
+    if (!orderId || !proof) return;
 
+    setLoading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append("amount", String(total));
+      fd.append("method", "bank_transfer");
+      fd.append("proof", proof);
+
+      const res = await fetch(
+        `${API}/api/orders/${orderId}/payments`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: fd,
+        }
+      );
+
+      if (!res.ok) throw new Error();
+
+      clearCart();
+      toast.success("Payment proof submitted");
+      router.push("/account");
+    } catch {
+      toast.error("Failed to submit proof");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ======================
+     EMPTY CART
+  ====================== */
   if (items.length === 0) {
     return (
-      <div
-        style={{
-          maxWidth: 640,
-          margin: "48px auto 0",
-          padding: 32,
-          borderRadius: 26,
-          background: `
-            radial-gradient(
-              420px 220px at 10% 0%,
-              rgba(96,165,250,0.25),
-              transparent 60%
-            ),
-            linear-gradient(135deg,#f8fbff,#eef6ff)
-          `,
-          boxShadow: "0 26px 70px rgba(15,23,42,0.18)",
-          textAlign: "center",
-        }}
-      >
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Checkout</h1>
-        <p style={{ marginTop: 8, color: "rgba(15,23,42,0.6)" }}>
-          Your cart is empty.
-        </p>
+      <div style={{ maxWidth: 640, margin: "48px auto", textAlign: "center" }}>
+        <h1>Checkout</h1>
+        <p>Your cart is empty.</p>
       </div>
     );
   }
 
-  /* ================= CHECKOUT ================= */
-
+  /* ======================
+     UI
+  ====================== */
   return (
     <div style={{ display: "grid", gap: 26 }}>
-      {/* HEADER */}
-      <section
-        style={{
-          borderRadius: 24,
-          padding: 24,
-          background: `
-            radial-gradient(
-              420px 200px at 10% 0%,
-              rgba(96,165,250,0.22),
-              transparent 60%
-            ),
-            radial-gradient(
-              360px 180px at 90% 10%,
-              rgba(244,114,182,0.18),
-              transparent 60%
-            ),
-            linear-gradient(
-              135deg,
-              #f8fbff,
-              #eef6ff,
-              #fff1f6
-            )
-          `,
-          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
-        }}
-      >
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Checkout</h1>
-        <p style={{ marginTop: 6, color: "rgba(15,23,42,0.6)" }}>
-          Bank transfer payment — Karabo’s Boutique
-        </p>
-      </section>
+      <h1 style={{ fontSize: 26, fontWeight: 900 }}>Checkout</h1>
 
       {/* ADDRESS */}
-      <section
-        style={{
-          borderRadius: 24,
-          padding: 24,
-          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
-        }}
-      >
-        <h3 style={{ fontWeight: 900 }}>Delivery Address</h3>
-
-        <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+      {!orderId && (
+        <section>
+          <h3>Delivery Address</h3>
           {[
             ["Full Name", "name"],
             ["Phone Number", "phone"],
@@ -160,113 +167,59 @@ export default function CheckoutPage() {
               }
             />
           ))}
-        </div>
-      </section>
 
-      {/* BANK DETAILS */}
-      <section
-        style={{
-          borderRadius: 24,
-          padding: 24,
-          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
-        }}
-      >
-        <h3 style={{ fontWeight: 900 }}>Bank Transfer Details</h3>
+          <button
+            className="btn btnTech"
+            disabled={!addressValid || loading}
+            onClick={createOrder}
+          >
+            {loading ? "Creating order…" : "Proceed to Payment"}
+          </button>
+        </section>
+      )}
 
-        <div
-          style={{
-            marginTop: 10,
-            padding: 16,
-            borderRadius: 18,
-            background: "rgba(255,255,255,0.7)",
-            boxShadow: "inset 0 0 0 1px rgba(15,23,42,0.08)",
-          }}
-        >
-          <b>Account Name:</b> Karabo’s Boutique<br />
-          <b>Bank Name:</b> YOUR BANK NAME<br />
-          <b>Account Number:</b> XXXXXXXX<br />
-          <b>Reference:</b> Your Full Name
-        </div>
+      {/* PAYMENT */}
+      {orderId && bank && (
+        <>
+          <section>
+            <h3>Bank Transfer Details</h3>
+            <p><b>Bank:</b> {bank.bank_name}</p>
+            <p><b>Account Name:</b> {bank.account_name}</p>
+            <p><b>Account Number:</b> {bank.account_number}</p>
+            <p><b>Reference:</b> {orderId}</p>
+            <p>{bank.instructions}</p>
+          </section>
 
-        <p style={{ marginTop: 8, color: "rgba(15,23,42,0.6)" }}>
-          Complete the transfer and upload proof of payment below.
-        </p>
-      </section>
+          <section>
+            <h3>Upload Proof of Payment</h3>
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              onChange={(e) => setProof(e.target.files?.[0] || null)}
+            />
 
-      {/* PROOF */}
-      <section
-        style={{
-          borderRadius: 24,
-          padding: 24,
-          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
-        }}
-      >
-        <h3 style={{ fontWeight: 900 }}>Upload Proof of Payment</h3>
-
-        <input
-          type="file"
-          accept="image/*,.pdf"
-          className="pill"
-          onChange={(e) => setProof(e.target.files?.[0] || null)}
-          style={{ marginTop: 12 }}
-        />
-      </section>
+            <button
+              className="btn btnTech"
+              disabled={!proof || loading}
+              onClick={submitProof}
+            >
+              {loading ? "Submitting…" : "Submit Proof"}
+            </button>
+          </section>
+        </>
+      )}
 
       {/* SUMMARY */}
-      <section
-        style={{
-          borderRadius: 24,
-          padding: 24,
-          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
-        }}
-      >
-        <h3 style={{ fontWeight: 900 }}>Order Summary</h3>
-
-        <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-          {items.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontWeight: 600,
-              }}
-            >
-              <span>{item.title}</span>
-              <span>{fmtM(item.price)}</span>
-            </div>
-          ))}
-        </div>
-
-        <div
-          style={{
-            marginTop: 14,
-            paddingTop: 14,
-            borderTop: "1px solid rgba(15,23,42,0.08)",
-            fontWeight: 900,
-            fontSize: 18,
-          }}
-        >
-          Total:{" "}
-          <span style={{ color: "#2563eb" }}>
-            {fmtM(total)}
-          </span>
-        </div>
+      <section>
+        <h3>Order Summary</h3>
+        {items.map((i) => (
+          <div key={i.id} style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>{i.title}</span>
+            <span>{fmtM(i.price)}</span>
+          </div>
+        ))}
+        <b>Total: {fmtM(total)}</b>
       </section>
-
-      {/* ACTION */}
-      <div style={{ textAlign: "right" }}>
-        <button
-          className="btn btnTech"
-          disabled={!addressValid || !proof || loading}
-          onClick={submitOrder}
-        >
-          {loading ? "Submitting…" : "Submit Order"}
-        </button>
-      </div>
     </div>
   );
 }

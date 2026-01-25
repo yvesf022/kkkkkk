@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUI } from "@/components/layout/uiStore";
 import { useStore } from "@/lib/store";
 
@@ -41,15 +41,12 @@ function CountBadge({ n }: { n: number }) {
   );
 }
 
-/** 🔥 Premium futuristic capsule */
 function CapsuleLink({
   href,
   children,
-  activeGlow = false,
 }: {
   href: string;
   children: React.ReactNode;
-  activeGlow?: boolean;
 }) {
   return (
     <Link
@@ -64,13 +61,10 @@ function CapsuleLink({
         fontSize: 14,
         textDecoration: "none",
         color: "#f8fbff",
-        background: activeGlow
-          ? "linear-gradient(180deg, rgba(255,34,140,.22), rgba(0,200,255,.10))"
-          : "linear-gradient(180deg, rgba(8,14,28,.75), rgba(6,10,20,.75))",
+        background:
+          "linear-gradient(180deg, rgba(8,14,28,.75), rgba(6,10,20,.75))",
         border: "1px solid rgba(255,255,255,.18)",
-        boxShadow: activeGlow
-          ? "0 0 22px rgba(255,34,140,.45), 0 0 30px rgba(0,200,255,.25)"
-          : "0 10px 26px rgba(0,0,0,.35)",
+        boxShadow: "0 10px 26px rgba(0,0,0,.35)",
         backdropFilter: "blur(6px)",
       }}
     >
@@ -85,12 +79,27 @@ function CapsuleLink({
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { toggleSidebar } = useUI();
 
   const cartCount = useStore((s) =>
     s.cart.reduce((a, b) => a + b.qty, 0)
   );
   const wishlistCount = useStore((s) => s.wishlist.length);
+
+  // 🔐 AUTH STATE
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setToken(localStorage.getItem("token"));
+  }, []);
+
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <header className="kyFixedHeader">
@@ -104,77 +113,56 @@ export default function Header() {
               gap: 18,
             }}
           >
-            {/* LEFT */}
-            <div style={{ display: "flex", alignItems: "center" }}>
-              {/* 🔥 MAX-SIZE LOGO WITH CLARITY */}
-              <Link
-                href="/"
-                aria-label="Karabo’s Boutique"
+            {/* LOGO */}
+            <Link
+              href="/"
+              aria-label="Karabo’s Boutique"
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 14,
+                padding: "10px 18px",
+                borderRadius: 18,
+                background:
+                  "linear-gradient(180deg, rgba(4,8,20,.85), rgba(4,8,16,.75))",
+                border: "1px solid rgba(255,255,255,.14)",
+                textDecoration: "none",
+                lineHeight: 1,
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              <span
                 style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 14,
-                  padding: "10px 18px",
-                  borderRadius: 18,
-                  background:
-                    "linear-gradient(180deg, rgba(4,8,20,.85), rgba(4,8,16,.75))",
-                  border: "1px solid rgba(255,255,255,.14)",
-                  textDecoration: "none",
-                  lineHeight: 1,
-                  backdropFilter: "blur(10px)",
+                  fontSize: 42,
+                  fontWeight: 1400,
+                  color: "#ff2fa0",
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 42, // 🚀 MAX size
-                    fontWeight: 1400,
-                    letterSpacing: 1.4,
-                    color: "#ff2fa0",
-                    textShadow:
-                      "0 0 10px rgba(255,47,160,.95), 0 0 22px rgba(255,47,160,.75)",
-                  }}
-                >
-                  Karabo’s
-                </span>
-
-                <span
-                  style={{
-                    fontSize: 36,
-                    fontWeight: 1200,
-                    letterSpacing: 1.2,
-                    color: "#00e6ff",
-                    textShadow:
-                      "0 0 8px rgba(0,230,255,.95), 0 0 20px rgba(0,230,255,.75)",
-                  }}
-                >
-                  Boutique
-                </span>
-              </Link>
-            </div>
+                Karabo’s
+              </span>
+              <span
+                style={{
+                  fontSize: 36,
+                  fontWeight: 1200,
+                  color: "#00e6ff",
+                }}
+              >
+                Boutique
+              </span>
+            </Link>
 
             {/* NAV */}
-            <nav
-              aria-label="Primary"
-              style={{ display: "flex", alignItems: "center", gap: 12 }}
-            >
-              <CapsuleLink
-                href="/store"
-                activeGlow={pathname === "/store"}
-              >
-                Shop
-              </CapsuleLink>
+            <nav style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <CapsuleLink href="/store">Shop</CapsuleLink>
 
               <div style={{ position: "relative" }}>
-                <CapsuleLink href="/wishlist">
-                  Wishlist
-                </CapsuleLink>
+                <CapsuleLink href="/wishlist">Wishlist</CapsuleLink>
                 <CountBadge n={wishlistCount} />
               </div>
 
               <Link
                 href="/cart"
                 className="kyCapsule"
-                aria-label="Cart"
                 style={{
                   position: "relative",
                   padding: "11px 16px",
@@ -184,26 +172,40 @@ export default function Header() {
                   border: "1px solid rgba(255,255,255,.18)",
                   color: "#fff",
                   fontWeight: 1100,
-                  boxShadow: "0 10px 26px rgba(0,0,0,.35)",
                 }}
               >
                 Cart
                 <CountBadge n={cartCount} />
               </Link>
 
+              {/* 🔐 AUTH */}
+              {!token && <CapsuleLink href="/login">Login</CapsuleLink>}
+
+              {token && <CapsuleLink href="/account">Account</CapsuleLink>}
+
+              {token && (
+                <button
+                  onClick={logout}
+                  className="kyCapsule"
+                  style={{
+                    padding: "11px 16px",
+                    borderRadius: 999,
+                    background:
+                      "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
+                    border: "1px solid rgba(255,255,255,.18)",
+                    color: "#fff",
+                    fontWeight: 1100,
+                    cursor: "pointer",
+                  }}
+                >
+                  Logout
+                </button>
+              )}
+
               <button
                 onClick={toggleSidebar}
                 className="kyBurger"
                 aria-label="Open menu"
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 14,
-                  fontSize: 18,
-                  background:
-                    "linear-gradient(180deg, rgba(8,14,28,.75), rgba(6,10,20,.75))",
-                  border: "1px solid rgba(255,255,255,.18)",
-                  boxShadow: "0 10px 26px rgba(0,0,0,.35)",
-                }}
               >
                 ☰
               </button>
