@@ -1,23 +1,23 @@
 /* =========================================================
-   GLOBAL STYLES — PRODUCTION SAFE
+   DESIGN TOKENS — ORIGINAL SIDEBAR COMPATIBLE
    ========================================================= */
 
 :root {
-  --sidebarW: 300px;
-  --gap: 24px;
-  --headerH: 96px;
-
-  --bg: #f5f7fb;
-  --bg2: #eef1f7;
+  --sidebarW: 320px;
+  --headerH: 92px;
 
   --text: rgba(12, 14, 20, 0.96);
-  --muted: rgba(12, 14, 20, 0.65);
-  --muted2: rgba(12, 14, 20, 0.45);
+  --muted: rgba(12, 14, 20, 0.62);
+  --muted2: rgba(12, 14, 20, 0.46);
 
-  --accent: #ff228c;
+  --bg1: #f6f8fc;
+  --bg2: #eef2f9;
 }
 
-/* Reset */
+/* =========================================================
+   RESET
+   ========================================================= */
+
 *,
 *::before,
 *::after {
@@ -28,31 +28,25 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont;
+  font-family: ui-sans-serif, system-ui, -apple-system;
   color: var(--text);
   background:
-    radial-gradient(900px 600px at 10% 8%, rgba(45, 72, 126, 0.15), transparent 60%),
-    radial-gradient(900px 600px at 92% 10%, rgba(214, 170, 92, 0.12), transparent 60%),
-    linear-gradient(180deg, var(--bg), var(--bg2));
+    radial-gradient(900px 600px at 12% 8%, rgba(45,72,126,.18), transparent 60%),
+    radial-gradient(900px 600px at 90% 10%, rgba(214,170,92,.14), transparent 60%),
+    linear-gradient(180deg, var(--bg1), var(--bg2));
   overflow-x: hidden;
 }
 
-/* Container */
-.container {
-  width: min(1200px, 92vw);
-  margin: 0 auto;
-}
-
 /* =========================================================
-   LAYOUT
+   LAYOUT (FIXES CONTENT STARTING TOO LOW)
    ========================================================= */
 
 .pageGrid {
   display: grid;
   grid-template-columns: var(--sidebarW) 1fr;
-  gap: var(--gap);
+  gap: 28px;
   align-items: start;
-  padding-top: 24px; /* ✅ SINGLE vertical offset */
+  padding-top: 24px; /* SINGLE vertical offset */
 }
 
 .pageContent {
@@ -66,49 +60,87 @@ body {
 }
 
 /* =========================================================
-   UI COMPONENTS (THIS FIXES “HTML LOOK”)
+   CORE UI CLASSES — REQUIRED BY SIDEBAR
    ========================================================= */
 
 .glass {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(14px);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.94),
+      rgba(246,248,252,.94)
+    );
+  backdrop-filter: blur(18px);
   border-radius: 28px;
-  border: 1px solid rgba(12, 14, 20, 0.10);
-  box-shadow: 0 24px 90px rgba(12, 14, 20, 0.12);
+  border: 1px solid rgba(12,14,20,.10);
+  box-shadow:
+    0 24px 90px rgba(12,14,20,.12),
+    inset 0 1px 0 rgba(255,255,255,.6);
 }
 
+/* Sidebar item base */
 .pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
-  border-radius: 999px;
+  border-radius: 18px;
+  border: 1px solid rgba(12,14,20,.10);
+  background: rgba(255,255,255,.92);
   font-weight: 1000;
-  background: rgba(255,255,255,0.92);
-  border: 1px solid rgba(12,14,20,0.12);
-  transition: background .15s ease, box-shadow .15s ease;
+  color: var(--text);
+  text-decoration: none;
+  transition:
+    background .16s ease,
+    box-shadow .16s ease,
+    transform .16s ease;
 }
 
 .pill:hover {
   background: rgba(246,248,252,1);
+  box-shadow: 0 12px 30px rgba(12,14,20,.10);
 }
 
+/* Buttons */
 .btn {
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 10px 16px;
-  font-weight: 900;
-  border: 1px solid rgba(12,14,20,0.14);
-  background: white;
+  border-radius: 999px;
+  font-weight: 1000;
+  border: 1px solid rgba(12,14,20,.12);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.98),
+      rgba(246,248,252,.98)
+    );
   cursor: pointer;
 }
 
+.btnIcon {
+  padding: 0;
+}
+
+.btnPrimary {
+  border-color: rgba(214,170,92,.38);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(236,203,140,.38),
+      rgba(255,255,255,.92)
+    );
+}
+
+/* Badges */
 .badge {
   font-size: 12px;
+  font-weight: 900;
   padding: 6px 10px;
   border-radius: 999px;
-  font-weight: 800;
-  border: 1px solid rgba(214, 170, 92, 0.38);
-  background: rgba(214, 170, 92, 0.14);
-  color: rgba(12,14,20,0.88);
+  border: 1px solid rgba(214,170,92,.34);
+  background: rgba(214,170,92,.14);
+  color: rgba(12,14,20,.88);
 }
