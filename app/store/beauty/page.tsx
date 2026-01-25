@@ -7,7 +7,7 @@ export default function BeautyStore() {
     .map((p) => ({
       ...p,
       category: p.category || "general", // 🔒 ProductCard safety
-      img: p.img || p.image || "/placeholder.png",
+      img: p.img || "/placeholder.png",  // ✅ FIXED: no p.image
     }));
 
   return (
@@ -35,8 +35,7 @@ export default function BeautyStore() {
               #f8fbff
             )
           `,
-          boxShadow:
-            "0 18px 50px rgba(15,23,42,0.14)",
+          boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
         }}
       >
         <h1
