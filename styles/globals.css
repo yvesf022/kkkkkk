@@ -1,3 +1,7 @@
+/* ===============================
+   RESET & BASE
+=============================== */
+
 *,
 *::before,
 *::after {
@@ -8,36 +12,62 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: linear-gradient(
-    120deg,
-    #eef1f7 0%,
-    #f8f9fd 45%,
-    #fff3ea 100%
-  );
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue",
     sans-serif;
+
+  background: radial-gradient(
+      1200px 600px at 10% -10%,
+      rgba(0, 153, 255, 0.15),
+      transparent 40%
+    ),
+    radial-gradient(
+      900px 500px at 90% 10%,
+      rgba(255, 80, 160, 0.18),
+      transparent 45%
+    ),
+    linear-gradient(
+      120deg,
+      #eef2f8 0%,
+      #f9fafe 45%,
+      #fff1f6 100%
+    );
 }
+
+/* ===============================
+   DESIGN TOKENS
+=============================== */
 
 :root {
   --headerH: 86px;
   --sidebarW: 300px;
-  --radius: 18px;
+
+  --pink: #ff4fa1;
+  --pink-soft: #ffb3dc;
+
+  --blue: #3aa9ff;
+  --blue-soft: #8fd3ff;
+  --cyan: #5fffd7;
+
+  --dark: #0f172a;
   --muted: rgba(12, 14, 20, 0.55);
+
+  --radius-xl: 22px;
+  --radius-pill: 999px;
 }
 
-/* =======================
+/* ===============================
    APP SHELL
-======================= */
+=============================== */
 
 .appShell {
   display: flex;
   align-items: flex-start;
 }
 
-/* =======================
-   SIDEBAR
-======================= */
+/* ===============================
+   SIDEBAR (CALM, PREMIUM)
+=============================== */
 
 .sidebar {
   position: fixed;
@@ -51,9 +81,11 @@ body {
 
 .sidebarCard {
   height: 100%;
-  background: #ffffff;
-  border-radius: var(--radius);
-  box-shadow: 0 12px 40px rgba(12, 14, 20, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    0 20px 60px rgba(12, 14, 20, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -76,19 +108,8 @@ body {
   color: var(--muted);
 }
 
-.sidebarClose {
-  border: none;
-  background: #f3f4f8;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 18px;
-}
-
 .sidebarNav {
   overflow-y: auto;
-  padding-right: 6px;
   display: grid;
   gap: 10px;
 }
@@ -98,40 +119,42 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: 16px;
   text-decoration: none;
   color: inherit;
-  background: #fafbff;
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff,
+      #f7faff
+    );
   border: 1px solid rgba(12, 14, 20, 0.06);
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
 .sidebarItem:hover {
-  background: #fff;
-  box-shadow: 0 8px 22px rgba(12, 14, 20, 0.08);
-}
-
-.sidebarItemTitle {
-  font-weight: 800;
-}
-
-.sidebarItemSubtitle {
-  font-size: 12px;
-  color: var(--muted);
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 28px rgba(58, 169, 255, 0.25),
+    0 6px 18px rgba(255, 79, 161, 0.25);
 }
 
 .sidebarBadge {
   font-size: 11px;
-  font-weight: 800;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #ffe7f2;
-  color: #c2185b;
+  font-weight: 900;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    135deg,
+    var(--blue),
+    var(--pink)
+  );
+  color: white;
 }
 
-/* =======================
+/* ===============================
    MAIN CONTENT
-======================= */
+=============================== */
 
 .pageContentWrap {
   padding-top: 24px;
@@ -142,16 +165,132 @@ body {
   min-height: calc(100vh - var(--headerH));
 }
 
-/* =======================
+/* ===============================
+   🔥 BUTTON SYSTEM — MAX LEVEL
+=============================== */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  padding: 14px 28px;
+  border-radius: var(--radius-pill);
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  color: white;
+
+  background: linear-gradient(
+    135deg,
+    var(--pink),
+    var(--blue),
+    var(--cyan)
+  );
+  background-size: 300% 300%;
+
+  box-shadow:
+    0 16px 45px rgba(58, 169, 255, 0.45),
+    0 10px 30px rgba(255, 79, 161, 0.45);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    background-position 0.8s ease;
+}
+
+/* NEON HALO */
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: linear-gradient(
+    120deg,
+    var(--blue),
+    var(--cyan),
+    var(--pink),
+    var(--blue)
+  );
+  filter: blur(10px);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.35s ease;
+}
+
+/* HOVER = CYBER FEEL */
+.btn:hover {
+  transform: translateY(-4px) scale(1.04);
+  background-position: 100% 0%;
+  box-shadow:
+    0 26px 70px rgba(58, 169, 255, 0.65),
+    0 20px 60px rgba(255, 79, 161, 0.65);
+}
+
+.btn:hover::before {
+  opacity: 1;
+}
+
+/* PRESS */
+.btn:active {
+  transform: scale(0.97);
+}
+
+/* FOCUS */
+.btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 4px rgba(58, 169, 255, 0.45),
+    0 26px 70px rgba(255, 79, 161, 0.65);
+}
+
+/* ===============================
+   VARIANTS
+=============================== */
+
+.btnPrimary {
+  background: linear-gradient(
+    135deg,
+    #ff4fa1,
+    #ff7cc9,
+    #3aa9ff
+  );
+}
+
+.btnTech {
+  background: linear-gradient(
+    135deg,
+    #020617,
+    #1e293b,
+    #0ea5e9
+  );
+}
+
+.btnGhost {
+  color: var(--dark);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 0 0 1px rgba(58, 169, 255, 0.35),
+    0 10px 30px rgba(12, 14, 20, 0.12);
+}
+
+/* ===============================
    MOBILE
-======================= */
+=============================== */
 
 @media (max-width: 980px) {
   .sidebar {
     transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    background: rgba(0, 0, 0, 0.25);
+    transition: transform 0.3s ease;
     width: 100%;
+    background: rgba(0, 0, 0, 0.35);
   }
 
   .sidebar.open {
