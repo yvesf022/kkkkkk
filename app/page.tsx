@@ -1,3 +1,7 @@
+"use client";
+
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import ProductCard from "@/components/store/ProductCard";
 import { getProducts, Product as ApiProduct } from "@/lib/api";
@@ -24,10 +28,10 @@ function normalizeForCard(p: ApiProduct) {
 
   return {
     ...p,
-    id,                               // ✅ required
+    id,
     img: p.img || p.image || "/placeholder.png",
     category: p.category || "general",
-    rating: 4.5,                      // ✅ DO NOT READ p.rating
+    rating: 4.5,
   };
 }
 

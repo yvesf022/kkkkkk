@@ -1,211 +1,81 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useUI } from "@/components/layout/uiStore";
-import { useStore } from "@/lib/store";
-
-type NavItem = {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  badge?: string;
-  hint?: string;
-};
-
-function IconWrap({
-  children,
-  active,
-}: {
-  children: React.ReactNode;
-  active?: boolean;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: 999,
-        display: "grid",
-        placeItems: "center",
-        flexShrink: 0,
-        border: active
-          ? "1px solid rgba(214, 170, 92, 0.42)"
-          : "1px solid rgba(45, 72, 126, 0.16)",
-        background: active
-          ? "linear-gradient(180deg, rgba(236,203,140,0.22), rgba(255,255,255,0.92))"
-          : "linear-gradient(180deg, rgba(246,248,252,0.96), rgba(255,255,255,0.92))",
-        boxShadow: active
-          ? "0 12px 28px rgba(12, 14, 20, 0.12)"
-          : "0 10px 22px rgba(12, 14, 20, 0.08)",
-        color: active ? "rgba(20,34,64,0.92)" : "rgba(20,34,64,0.70)",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function Badge({ text }: { text: string }) {
-  return (
-    <span
-      className="badge"
-      style={{
-        borderColor: "rgba(214, 170, 92, 0.34)",
-        background: "rgba(214, 170, 92, 0.14)",
-        color: "rgba(12,14,20,0.88)",
-      }}
-    >
-      {text}
-    </span>
-  );
-}
-
-function Divider({ label, collapsed }: { label: string; collapsed: boolean }) {
-  if (collapsed) return <div style={{ height: 8 }} />;
-  return (
-    <div
-      style={{
-        fontSize: 12,
-        letterSpacing: 0.18,
-        fontWeight: 1000,
-        color: "var(--muted2)",
-        marginTop: 2,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-      }}
-    >
-      <span>{label}</span>
-      <span style={{ height: 1, flex: 1, background: "rgba(12,14,20,0.10)" }} />
-    </div>
-  );
-}
-
-function CollapseChevron({ collapsed }: { collapsed: boolean }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path
-        d={collapsed ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"}
-        stroke="rgba(20,34,64,0.90)"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
+import { useUI } from "./uiStore";
 
 export default function Sidebar() {
-  const path = usePathname();
-  const { sidebarOpen, closeSidebar } = useUI();
-
-  const cartCount = useStore((s) => s.cartCount());
-  const wishlistCount = useStore((s) => s.wishlist.length);
-
-  const [collapsed, setCollapsed] = useState(false);
-  const autoCollapseRef = useRef<boolean | null>(null);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1180px)");
-    if (autoCollapseRef.current === null) {
-      autoCollapseRef.current = true;
-      setCollapsed(mq.matches);
-    }
-  }, []);
-
-  const nav = useMemo<NavItem[]>(() => [
-    {
-      label: "All Products",
-      href: "/store",
-      hint: "Browse everything",
-      icon: <span>🛍️</span>,
-    },
-    {
-      label: "Beauty Products",
-      href: "/store/beauty",
-      hint: "Glow, skincare, cosmetics",
-      badge: "Glow",
-      icon: <span>✨</span>,
-    },
-    {
-      label: "Mobile & Accessories",
-      href: "/store/mobile",
-      hint: "Cases, chargers, add-ons",
-      badge: "Tech",
-      icon: <span>📱</span>,
-    },
-    {
-      label: "Fashion Store",
-      href: "/store/fashion",
-      hint: "Streetwear & outfits",
-      badge: "Style",
-      icon: <span>👗</span>,
-    },
-  ], []);
-
-  const quickLinks = useMemo<NavItem[]>(() => [
-    {
-      label: "Wishlist",
-      href: "/wishlist",
-      badge: wishlistCount > 0 ? String(wishlistCount) : undefined,
-      icon: <span>❤️</span>,
-    },
-    {
-      label: "Cart",
-      href: "/cart",
-      badge: cartCount > 0 ? String(cartCount) : undefined,
-      icon: <span>🛒</span>,
-    },
-  ], [cartCount, wishlistCount]);
-
-  const Item = ({ item }: { item: NavItem }) => {
-    const active = path === item.href;
-    return (
-      <Link href={item.href} onClick={closeSidebar} className="pill">
-        <IconWrap active={active}>{item.icon}</IconWrap>
-        {!collapsed && item.label}
-        {!collapsed && item.badge && <Badge text={item.badge} />}
-      </Link>
-    );
-  };
+  const { sidebarOpen, toggleSidebar } = useUI();
 
   return (
-    <aside className="kyDesktopSidebar">
-      <SidebarShell
-        collapsed={collapsed}
-        setCollapsed={setCollapsed}
-        nav={nav}
-        quickLinks={quickLinks}
-        Item={Item}
-      />
+    <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+      <div className="sidebarCard">
+        <div className="sidebarHeader">
+          <div>
+            <div className="sidebarTitle">Sub-Stores</div>
+            <div className="sidebarSubtitle">Choose your store</div>
+          </div>
+
+          <button
+            className="sidebarClose"
+            onClick={toggleSidebar}
+            aria-label="Close sidebar"
+          >
+            ‹
+          </button>
+        </div>
+
+        <nav className="sidebarNav">
+          <SidebarItem
+            title="All Products"
+            subtitle="Browse everything"
+            href="/store"
+          />
+
+          <SidebarItem
+            title="Beauty Products"
+            subtitle="Glow, skincare, cosmetics"
+            badge="Glow"
+            href="/store/beauty"
+          />
+
+          <SidebarItem
+            title="Mobile & Accessories"
+            subtitle="Cases, chargers, add-ons"
+            badge="Tech"
+            href="/store/mobile"
+          />
+
+          <SidebarItem
+            title="Fashion Store"
+            subtitle="Streetwear & outfits"
+            badge="Style"
+            href="/store/fashion"
+          />
+        </nav>
+      </div>
     </aside>
   );
 }
 
-/* 🔧 ONLY NETLIFY FIX IS HERE */
-function SidebarShell({
-  collapsed,
-  setCollapsed,
-  nav,
-  quickLinks,
-  Item,
+function SidebarItem({
+  title,
+  subtitle,
+  badge,
+  href,
 }: {
-  collapsed: boolean;
-  setCollapsed: (v: boolean | ((s: boolean) => boolean)) => void;
-  nav: NavItem[];
-  quickLinks: NavItem[];
-  Item: React.ComponentType<{ item: NavItem }>;
+  title: string;
+  subtitle: string;
+  badge?: string;
+  href: string;
 }) {
   return (
-    <div className="glass">
-      {nav.map((item) => (
-        <Item key={item.href} item={item} />
-      ))}
-      {quickLinks.map((item) => (
-        <Item key={item.href} item={item} />
-      ))}
-    </div>
+    <Link href={href} className="sidebarItem">
+      <div className="sidebarItemText">
+        <div className="sidebarItemTitle">{title}</div>
+        <div className="sidebarItemSubtitle">{subtitle}</div>
+      </div>
+
+      {badge && <span className="sidebarBadge">{badge}</span>}
+    </Link>
   );
 }

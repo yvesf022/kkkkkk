@@ -16,16 +16,15 @@ export default function RootLayout({
       <body>
         <UIProvider>
           <CartProvider>
-            {/* Header */}
             <Header />
 
-            {/* Fixed Sidebar */}
-            <Sidebar />
+            <div className="appShell">
+              <Sidebar />
 
-            {/* Page Content */}
-            <main className="pageContentWrap">
-              {children}
-            </main>
+              <main className="pageContentWrap">
+                {children}
+              </main>
+            </div>
           </CartProvider>
         </UIProvider>
       </body>
