@@ -10,22 +10,15 @@ import { getProducts, Product as ApiProduct } from "@/lib/api";
    HELPERS
 ======================= */
 
-function shuffleArray<T>(arr: T[]): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
+function shuffle<T>(arr: T[]) {
+  return [...arr].sort(() => Math.random() - 0.5);
 }
 
 function normalizeForCard(p: ApiProduct) {
-  const id = p.id ?? p._id ?? "";
   return {
     ...p,
-    id,
+    id: p.id ?? p._id ?? "",
     img: p.img || p.image || "/placeholder.png",
-    category: p.category || "general",
     rating: 4.5,
   };
 }
@@ -40,63 +33,57 @@ export default async function HomePage() {
   try {
     products = await getProducts();
   } catch (e) {
-    console.error("❌ Products load failed", e);
+    console.error("Failed to load products", e);
   }
 
-  const featured = shuffleArray(products)
+  const featured = shuffle(products)
     .slice(0, 12)
     .map(normalizeForCard);
 
   return (
-    <div style={{ display: "grid", gap: 48, paddingBottom: 96 }}>
+    <div
+      style={{
+        display: "grid",
+        gap: 36,
+        paddingBottom: 72,
+      }}
+    >
       {/* ================= HERO ================= */}
       <section
         style={{
-          position: "relative",
-          borderRadius: 28,
-          padding: "56px 48px",
-          overflow: "hidden",
+          borderRadius: 24,
+          padding: "36px 40px",
           background: `
             radial-gradient(
-              900px 420px at 10% -10%,
-              rgba(58,169,255,0.22),
-              transparent 45%
+              500px 260px at 12% 0%,
+              rgba(96,165,250,0.25),
+              transparent 60%
             ),
             radial-gradient(
-              800px 380px at 90% 10%,
-              rgba(99,102,241,0.18),
-              transparent 45%
+              420px 220px at 90% 10%,
+              rgba(244,114,182,0.22),
+              transparent 60%
             ),
             linear-gradient(
               135deg,
-              #0b1220,
-              #0f1b2d,
-              #111827
+              #f8fbff,
+              #eef6ff,
+              #fff1f6
             )
           `,
-          boxShadow: "0 50px 120px rgba(2,6,23,0.65)",
-          color: "#e5e7eb",
+          boxShadow: `
+            0 20px 60px rgba(15,23,42,0.12),
+            inset 0 0 0 1px rgba(255,255,255,0.7)
+          `,
         }}
       >
-        {/* subtle tech noise overlay */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(120deg, rgba(255,255,255,0.04), rgba(255,255,255,0))",
-            pointerEvents: "none",
-          }}
-        />
-
-        <div style={{ position: "relative", zIndex: 1, maxWidth: 820 }}>
+        <div style={{ maxWidth: 720 }}>
           <h1
             style={{
-              fontSize: 44,
-              fontWeight: 1100,
-              lineHeight: 1.05,
-              letterSpacing: "-0.6px",
-              color: "#f8fafc",
+              fontSize: 32,
+              fontWeight: 900,
+              letterSpacing: "-0.4px",
+              color: "#0f172a",
             }}
           >
             Karabo’s Boutique
@@ -104,11 +91,10 @@ export default async function HomePage() {
 
           <p
             style={{
-              marginTop: 18,
-              fontSize: 18,
+              marginTop: 12,
+              fontSize: 16,
               fontWeight: 600,
-              maxWidth: 680,
-              color: "rgba(226,232,240,0.75)",
+              color: "rgba(15,23,42,0.65)",
             }}
           >
             Lesotho&apos;s premium online destination for beauty, fashion, and
@@ -118,56 +104,19 @@ export default async function HomePage() {
           <div
             style={{
               display: "flex",
-              gap: 18,
-              marginTop: 36,
+              gap: 14,
+              marginTop: 22,
               flexWrap: "wrap",
             }}
           >
-            {/* BLUE DOMINANT CTA */}
+            {/* SOFT BLUE SHINY BUTTON */}
             <Link href="/store" className="btn btnTech">
-              Shop the Collection →
+              Explore Store →
             </Link>
 
             <Link href="/store" className="btn btnGhost">
               Browse Categories
             </Link>
-          </div>
-
-          {/* trust indicators */}
-          <div
-            style={{
-              display: "flex",
-              gap: 42,
-              marginTop: 44,
-              flexWrap: "wrap",
-            }}
-          >
-            {[
-              ["500+", "Curated Products"],
-              ["Secure", "Payments & Checkout"],
-              ["Premium", "Quality Promise"],
-            ].map(([a, b]) => (
-              <div key={a}>
-                <div
-                  style={{
-                    fontSize: 26,
-                    fontWeight: 1000,
-                    color: "#f1f5f9",
-                  }}
-                >
-                  {a}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "rgba(226,232,240,0.6)",
-                  }}
-                >
-                  {b}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -176,47 +125,46 @@ export default async function HomePage() {
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: 24,
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 20,
         }}
       >
         {[
           {
-            title: "Beauty Store",
-            desc: "Skincare, glow & cosmetics",
-            bg: "linear-gradient(135deg,#0ea5e9,#2563eb)",
+            title: "Beauty",
+            desc: "Glow & skincare",
+            bg: "linear-gradient(135deg,#edf4ff,#ffeef6)",
           },
           {
-            title: "Mobile & Accessories",
-            desc: "Tech essentials & add-ons",
-            bg: "linear-gradient(135deg,#1e293b,#0f172a)",
+            title: "Mobile",
+            desc: "Accessories & tech",
+            bg: "linear-gradient(135deg,#eef6ff,#e9faff)",
           },
           {
-            title: "Fashion Store",
-            desc: "Modern outfits & streetwear",
-            bg: "linear-gradient(135deg,#312e81,#1e1b4b)",
+            title: "Fashion",
+            desc: "Style & outfits",
+            bg: "linear-gradient(135deg,#fff1f6,#f3ecff)",
           },
         ].map((c) => (
           <Link
             key={c.title}
             href="/store"
             style={{
-              padding: 28,
-              borderRadius: 22,
+              padding: 22,
+              borderRadius: 20,
               background: c.bg,
               textDecoration: "none",
-              color: "#f8fafc",
-              boxShadow: "0 24px 60px rgba(2,6,23,0.55)",
-              transition: "transform .25s ease, box-shadow .25s ease",
+              color: "#0f172a",
+              boxShadow: "0 14px 36px rgba(15,23,42,0.12)",
             }}
           >
-            <div style={{ fontSize: 20, fontWeight: 900 }}>{c.title}</div>
+            <div style={{ fontWeight: 800 }}>{c.title}</div>
             <div
               style={{
                 marginTop: 6,
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: 600,
-                color: "rgba(226,232,240,0.75)",
+                color: "rgba(15,23,42,0.6)",
               }}
             >
               {c.desc}
@@ -231,14 +179,13 @@ export default async function HomePage() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: 12,
         }}
       >
         <h2
           style={{
-            fontSize: 26,
-            fontWeight: 1000,
-            color: "#020617",
+            fontSize: 22,
+            fontWeight: 900,
+            color: "#0f172a",
           }}
         >
           Featured Products
@@ -252,20 +199,20 @@ export default async function HomePage() {
       {/* ================= PRODUCTS ================= */}
       <section
         style={{
-          borderRadius: 28,
-          padding: 28,
+          borderRadius: 24,
+          padding: 24,
           background:
-            "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(248,250,252,0.92))",
-          boxShadow: "0 32px 90px rgba(2,6,23,0.25)",
+            "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
         }}
       >
         {featured.length === 0 ? (
           <div
             style={{
-              padding: 40,
+              padding: 32,
               textAlign: "center",
-              fontWeight: 700,
-              color: "rgba(2,6,23,0.55)",
+              color: "rgba(15,23,42,0.55)",
+              fontWeight: 600,
             }}
           >
             Products will appear here soon.
@@ -276,7 +223,7 @@ export default async function HomePage() {
               display: "grid",
               gridTemplateColumns:
                 "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: 22,
+              gap: 20,
             }}
           >
             {featured.map((p) => (
