@@ -1,7 +1,10 @@
 import "@/styles/globals.css";
-import { UIProvider } from "@/components/layout/uiStore";
+
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
+
+import { UIProvider } from "@/components/layout/uiStore";
+import { CartProvider } from "./context/CartContext";
 
 export default function RootLayout({
   children,
@@ -11,18 +14,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {/* Client context provider */}
         <UIProvider>
-          {/* Header */}
-          <Header />
+          <CartProvider>
+            {/* Header */}
+            <Header />
 
-          {/* Fixed Sidebar */}
-          <Sidebar />
+            {/* Fixed Sidebar */}
+            <Sidebar />
 
-          {/* Page content */}
-          <main className="pageContentWrap">
-            {children}
-          </main>
+            {/* Page Content */}
+            <main className="pageContentWrap">
+              {children}
+            </main>
+          </CartProvider>
         </UIProvider>
       </body>
     </html>
