@@ -4,21 +4,23 @@ import Link from "next/link";
 import Image from "next/image";
 import { products } from "@/lib/products";
 import { useStore } from "@/lib/store";
+import { useCart } from "@/app/context/CartContext";
 
+/** Currency (India kept as-is) */
 const formatCurrency = (v: number) =>
   `₹ ${Math.round(v).toLocaleString("en-IN")}`;
 
 export default function WishlistPage() {
   const wishlist = useStore((s) => s.wishlist);
   const toggleWishlist = useStore((s) => s.toggleWishlist);
-  const addToCart = useStore((s) => s.addToCart);
+  const { addToCart } = useCart();
 
   const items = products
     .filter((p) => wishlist.includes(p.id))
     .map((p) => ({
       ...p,
       category: p.category || "general",
-      img: p.img || p.image || "/placeholder.png",
+      img: p.img || "/placeholder.png", // ✅ FIXED
     }));
 
   /* ================= EMPTY ================= */
@@ -53,13 +55,7 @@ export default function WishlistPage() {
           textAlign: "center",
         }}
       >
-        <h1
-          style={{
-            fontSize: 26,
-            fontWeight: 900,
-            color: "#0f172a",
-          }}
-        >
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
           Wishlist
         </h1>
 
@@ -114,13 +110,7 @@ export default function WishlistPage() {
           boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
         }}
       >
-        <h1
-          style={{
-            fontSize: 26,
-            fontWeight: 900,
-            color: "#0f172a",
-          }}
-        >
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
           Wishlist
         </h1>
 
@@ -142,7 +132,8 @@ export default function WishlistPage() {
           padding: 24,
           background:
             "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow: "0 26px 70px rgba(15,23,42,0.16)",
+          boxShadow:
+            "0 26px 70px rgba(15,23,42,0.16)",
         }}
       >
         <div
@@ -212,7 +203,15 @@ export default function WishlistPage() {
               >
                 <button
                   className="btn btnTech"
-                  onClick={() => addToCart(p.id, 1)}
+                  onClick={() =>
+                    addToCart({
+                      id: p.id,
+                      title: p.title,
+                      price: p.price,
+                      quantity: 1,
+                      img: p.img,
+                    })
+                  }
                 >
                   Add to Cart
                 </button>
