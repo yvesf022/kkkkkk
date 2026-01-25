@@ -23,7 +23,7 @@ function IconWrap({
 }) {
   return (
     <span
-      aria-hidden="true"
+      aria-hidden
       style={{
         width: 40,
         height: 40,
@@ -32,15 +32,14 @@ function IconWrap({
         placeItems: "center",
         flexShrink: 0,
         border: active
-          ? "1px solid rgba(214, 170, 92, 0.42)"
-          : "1px solid rgba(45, 72, 126, 0.16)",
+          ? "1px solid rgba(214,170,92,.42)"
+          : "1px solid rgba(45,72,126,.16)",
         background: active
-          ? "linear-gradient(180deg, rgba(236,203,140,0.22), rgba(255,255,255,0.92))"
-          : "linear-gradient(180deg, rgba(246,248,252,0.96), rgba(255,255,255,0.92))",
+          ? "linear-gradient(180deg, rgba(236,203,140,.22), rgba(255,255,255,.92))"
+          : "linear-gradient(180deg, rgba(246,248,252,.96), rgba(255,255,255,.92))",
         boxShadow: active
-          ? "0 12px 28px rgba(12, 14, 20, 0.12)"
-          : "0 10px 22px rgba(12, 14, 20, 0.08)",
-        color: active ? "rgba(20,34,64,0.92)" : "rgba(20,34,64,0.70)",
+          ? "0 12px 28px rgba(12,14,20,.12)"
+          : "0 10px 22px rgba(12,14,20,.08)",
       }}
     >
       {children}
@@ -50,14 +49,7 @@ function IconWrap({
 
 function Badge({ text }: { text: string }) {
   return (
-    <span
-      className="badge"
-      style={{
-        borderColor: "rgba(214,170,92,0.34)",
-        background: "rgba(214,170,92,0.14)",
-        color: "rgba(12,14,20,0.88)",
-      }}
-    >
+    <span className="badge">
       {text}
     </span>
   );
@@ -67,8 +59,8 @@ function CollapseChevron({ collapsed }: { collapsed: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
       <path
-        d={collapsed ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"}
-        stroke="rgba(20,34,64,0.9)"
+        d={collapsed ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"}
+        stroke="rgba(20,34,64,.9)"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -126,7 +118,15 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="kyDesktopSidebar">
+      {/* DESKTOP RIGHT SIDEBAR */}
+      <aside
+        className="kyDesktopSidebar"
+        style={{
+          width: collapsed ? 88 : 310,
+          right: "max(4vw, calc((100vw - 1200px)/2))",
+          transition: "width .28s cubic-bezier(.4,0,.2,1)",
+        }}
+      >
         <SidebarShell
           collapsed={collapsed}
           setCollapsed={setCollapsed}
@@ -136,6 +136,7 @@ export default function Sidebar() {
         />
       </aside>
 
+      {/* MOBILE OVERLAY */}
       <div
         className="kyMobileOverlay"
         onClick={closeSidebar}
@@ -145,10 +146,13 @@ export default function Sidebar() {
         }}
       />
 
+      {/* MOBILE DRAWER (RIGHT) */}
       <aside
         className="kyMobileDrawer"
         style={{
-          transform: sidebarOpen ? "translateX(0)" : "translateX(-110%)",
+          right: 12,
+          left: "auto",
+          transform: sidebarOpen ? "translateX(0)" : "translateX(110%)",
         }}
       >
         <SidebarShell
@@ -194,7 +198,7 @@ function SidebarShell({
         )}
       </div>
 
-      <div style={{ marginTop: 12 }}>
+      <div style={{ marginTop: 14 }}>
         {nav.map((item) => (
           <Item key={item.href} item={item} />
         ))}

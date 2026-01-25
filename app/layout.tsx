@@ -37,8 +37,11 @@ export default function RootLayout({
 
             <main className="container">
               <div className="pageGrid">
-                <Sidebar />
+                {/* MAIN CONTENT */}
                 <div>{children}</div>
+
+                {/* RIGHT SIDEBAR */}
+                <Sidebar />
               </div>
             </main>
 
