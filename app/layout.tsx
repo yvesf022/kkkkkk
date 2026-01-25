@@ -1,6 +1,5 @@
 import "@/styles/globals.css";
-import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
+import ClientShell from "@/components/layout/ClientShell";
 
 export default function RootLayout({
   children,
@@ -10,16 +9,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {/* Header */}
-        <Header />
-
-        {/* Fixed sidebar (NOT part of layout flow) */}
-        <Sidebar />
-
-        {/* Page content */}
-        <main className="pageContentWrap">
-          {children}
-        </main>
+        <ClientShell>
+          <main className="pageContentWrap">
+            {children}
+          </main>
+        </ClientShell>
       </body>
     </html>
   );
