@@ -30,10 +30,6 @@ function normalizeForCard(p: ApiProduct) {
   };
 }
 
-function pickRandom(all: ApiProduct[], count = 12) {
-  return shuffleArray(all).slice(0, count);
-}
-
 /* =======================
    PAGE
 ======================= */
@@ -47,49 +43,60 @@ export default async function HomePage() {
     console.error("❌ Products load failed", e);
   }
 
-  const featured = pickRandom(products, 12).map(normalizeForCard);
+  const featured = shuffleArray(products)
+    .slice(0, 12)
+    .map(normalizeForCard);
 
   return (
-    <div style={{ display: "grid", gap: 42, paddingBottom: 80 }}>
+    <div style={{ display: "grid", gap: 48, paddingBottom: 96 }}>
       {/* ================= HERO ================= */}
       <section
         style={{
           position: "relative",
           borderRadius: 28,
-          padding: "56px 42px",
+          padding: "56px 48px",
           overflow: "hidden",
           background: `
-            radial-gradient(800px 400px at 10% -10%, rgba(58,169,255,0.35), transparent 45%),
-            radial-gradient(700px 300px at 90% 10%, rgba(255,79,161,0.25), transparent 45%),
-            linear-gradient(135deg, #ffffff, #f7faff, #fff1f6)
+            radial-gradient(
+              900px 420px at 10% -10%,
+              rgba(58,169,255,0.22),
+              transparent 45%
+            ),
+            radial-gradient(
+              800px 380px at 90% 10%,
+              rgba(99,102,241,0.18),
+              transparent 45%
+            ),
+            linear-gradient(
+              135deg,
+              #0b1220,
+              #0f1b2d,
+              #111827
+            )
           `,
-          boxShadow: "0 40px 90px rgba(12,14,20,0.18)",
+          boxShadow: "0 50px 120px rgba(2,6,23,0.65)",
+          color: "#e5e7eb",
         }}
       >
-        {/* glow overlay */}
+        {/* subtle tech noise overlay */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(120deg, rgba(58,169,255,0.08), rgba(255,79,161,0.08))",
+              "linear-gradient(120deg, rgba(255,255,255,0.04), rgba(255,255,255,0))",
             pointerEvents: "none",
           }}
         />
 
-        <div
-          style={{
-            position: "relative",
-            zIndex: 1,
-            maxWidth: 760,
-          }}
-        >
+        <div style={{ position: "relative", zIndex: 1, maxWidth: 820 }}>
           <h1
             style={{
               fontSize: 44,
               fontWeight: 1100,
               lineHeight: 1.05,
-              letterSpacing: "-0.5px",
+              letterSpacing: "-0.6px",
+              color: "#f8fafc",
             }}
           >
             Karabo’s Boutique
@@ -97,27 +104,28 @@ export default async function HomePage() {
 
           <p
             style={{
-              marginTop: 16,
+              marginTop: 18,
               fontSize: 18,
               fontWeight: 600,
-              color: "rgba(12,14,20,0.65)",
-              maxWidth: 620,
+              maxWidth: 680,
+              color: "rgba(226,232,240,0.75)",
             }}
           >
-            A premium online destination for beauty, fashion, and accessories —
-            designed with elegance, powered by modern tech.
+            Lesotho&apos;s premium online destination for beauty, fashion, and
+            accessories — designed with elegance, powered by modern tech.
           </p>
 
           <div
             style={{
               display: "flex",
               gap: 18,
-              marginTop: 32,
+              marginTop: 36,
               flexWrap: "wrap",
             }}
           >
-            <Link href="/store" className="btn btnPrimary">
-              Shop Now →
+            {/* BLUE DOMINANT CTA */}
+            <Link href="/store" className="btn btnTech">
+              Shop the Collection →
             </Link>
 
             <Link href="/store" className="btn btnGhost">
@@ -125,27 +133,35 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          {/* trust stats */}
+          {/* trust indicators */}
           <div
             style={{
               display: "flex",
-              gap: 36,
-              marginTop: 40,
+              gap: 42,
+              marginTop: 44,
               flexWrap: "wrap",
             }}
           >
             {[
               ["500+", "Curated Products"],
-              ["24/7", "Online Shopping"],
+              ["Secure", "Payments & Checkout"],
               ["Premium", "Quality Promise"],
             ].map(([a, b]) => (
               <div key={a}>
-                <div style={{ fontSize: 26, fontWeight: 1000 }}>{a}</div>
+                <div
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 1000,
+                    color: "#f1f5f9",
+                  }}
+                >
+                  {a}
+                </div>
                 <div
                   style={{
                     fontSize: 13,
                     fontWeight: 700,
-                    color: "rgba(12,14,20,0.55)",
+                    color: "rgba(226,232,240,0.6)",
                   }}
                 >
                   {b}
@@ -156,41 +172,41 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ================= CATEGORIES ================= */}
+      {/* ================= CATEGORY STRIP ================= */}
       <section
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: 22,
+          gap: 24,
         }}
       >
         {[
           {
             title: "Beauty Store",
-            desc: "Glow, skincare & cosmetics",
-            gradient: "linear-gradient(135deg,#ffe0f0,#e6f3ff)",
+            desc: "Skincare, glow & cosmetics",
+            bg: "linear-gradient(135deg,#0ea5e9,#2563eb)",
           },
           {
             title: "Mobile & Accessories",
             desc: "Tech essentials & add-ons",
-            gradient: "linear-gradient(135deg,#e6f3ff,#eafff6)",
+            bg: "linear-gradient(135deg,#1e293b,#0f172a)",
           },
           {
             title: "Fashion Store",
-            desc: "Outfits & streetwear",
-            gradient: "linear-gradient(135deg,#fff1f6,#ffe8ff)",
+            desc: "Modern outfits & streetwear",
+            bg: "linear-gradient(135deg,#312e81,#1e1b4b)",
           },
         ].map((c) => (
           <Link
             key={c.title}
             href="/store"
             style={{
-              padding: 26,
+              padding: 28,
               borderRadius: 22,
-              background: c.gradient,
+              background: c.bg,
               textDecoration: "none",
-              color: "inherit",
-              boxShadow: "0 18px 45px rgba(12,14,20,0.14)",
+              color: "#f8fafc",
+              boxShadow: "0 24px 60px rgba(2,6,23,0.55)",
               transition: "transform .25s ease, box-shadow .25s ease",
             }}
           >
@@ -200,7 +216,7 @@ export default async function HomePage() {
                 marginTop: 6,
                 fontSize: 14,
                 fontWeight: 600,
-                color: "rgba(12,14,20,0.6)",
+                color: "rgba(226,232,240,0.75)",
               }}
             >
               {c.desc}
@@ -218,12 +234,18 @@ export default async function HomePage() {
           gap: 12,
         }}
       >
-        <h2 style={{ fontSize: 26, fontWeight: 1000 }}>
+        <h2
+          style={{
+            fontSize: 26,
+            fontWeight: 1000,
+            color: "#020617",
+          }}
+        >
           Featured Products
         </h2>
 
-        <Link href="/store" className="btn btnGhost">
-          View all
+        <Link href="/store" className="btn btnTech">
+          View all →
         </Link>
       </section>
 
@@ -232,8 +254,9 @@ export default async function HomePage() {
         style={{
           borderRadius: 28,
           padding: 28,
-          background: "rgba(255,255,255,0.9)",
-          boxShadow: "0 30px 80px rgba(12,14,20,0.16)",
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(248,250,252,0.92))",
+          boxShadow: "0 32px 90px rgba(2,6,23,0.25)",
         }}
       >
         {featured.length === 0 ? (
@@ -242,7 +265,7 @@ export default async function HomePage() {
               padding: 40,
               textAlign: "center",
               fontWeight: 700,
-              color: "rgba(12,14,20,0.55)",
+              color: "rgba(2,6,23,0.55)",
             }}
           >
             Products will appear here soon.
