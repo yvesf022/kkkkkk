@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUI } from "@/components/layout/uiStore";
-import { useStore } from "@/lib/store";
+import { useStore } from "@/lib/store"; // ✅ wishlist ONLY
+import { useCart } from "@/app/context/CartContext"; // ✅ cart ONLY
 
 /* ---------------------------------
    Helpers
@@ -82,9 +83,10 @@ export default function Header() {
   const router = useRouter();
   const { toggleSidebar } = useUI();
 
-  const cartCount = useStore((s) =>
-    s.cart.reduce((a, b) => a + b.qty, 0)
-  );
+  // ✅ CORRECT STATE SOURCES
+  const { items } = useCart();
+  const cartCount = items.reduce((a, b) => a + b.quantity, 0);
+
   const wishlistCount = useStore((s) => s.wishlist.length);
 
   // 🔐 AUTH STATE
