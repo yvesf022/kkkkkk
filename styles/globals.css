@@ -1,91 +1,96 @@
-"use client";
+/* =========================================================
+   Karabo’s Online Store — Global Styles
+   FLOW SIDEBAR LAYOUT (DEPLOY SAFE)
+   ========================================================= */
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMemo } from "react";
-import { useStore } from "@/lib/store";
+:root {
+  --sidebarW: 300px;
+  --gap: 24px;
+  --headerH: 96px;
 
-type NavItem = {
-  label: string;
-  href: string;
-  badge?: string;
-};
+  --bg: #f5f7fb;
+  --bg2: #eef1f7;
 
-export default function Sidebar() {
-  const path = usePathname();
-  const cartCount = useStore((s) => s.cartCount());
-  const wishlistCount = useStore((s) => s.wishlist.length);
+  --text: rgba(12, 14, 20, 0.96);
+  --muted: rgba(12, 14, 20, 0.65);
 
-  const nav: NavItem[] = useMemo(
-    () => [
-      { label: "All Products", href: "/store" },
-      { label: "Beauty Products", href: "/store/beauty", badge: "Glow" },
-      { label: "Mobile & Accessories", href: "/store/mobile", badge: "Tech" },
-      { label: "Fashion Store", href: "/store/fashion", badge: "Style" },
-    ],
-    []
-  );
+  --accent: #ff228c;
+}
 
-  const quick: NavItem[] = useMemo(
-    () => [
-      { label: "Wishlist", href: "/wishlist", badge: wishlistCount?.toString() },
-      { label: "Cart", href: "/cart", badge: cartCount?.toString() },
-    ],
-    [cartCount, wishlistCount]
-  );
+/* Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
-  return (
-    <aside className="glass" style={{ padding: 18 }}>
-      <div style={{ marginBottom: 16 }}>
-        <strong>Sub-Stores</strong>
-        <div style={{ fontSize: 13, opacity: 0.7 }}>
-          Choose your store
-        </div>
-      </div>
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont;
+  color: var(--text);
+  background:
+    radial-gradient(900px 600px at 10% 8%, rgba(45, 72, 126, 0.15), transparent 60%),
+    radial-gradient(900px 600px at 92% 10%, rgba(214, 170, 92, 0.12), transparent 60%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+  padding-top: var(--headerH);
+}
 
-      <div style={{ display: "grid", gap: 10 }}>
-        {nav.map((item) => {
-          const active = path === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 16,
-                fontWeight: 600,
-                background: active ? "rgba(255,34,140,0.12)" : "transparent",
-                display: "flex",
-                justifyContent: "space-between",
-              }}
-            >
-              {item.label}
-              {item.badge && <span className="badge">{item.badge}</span>}
-            </Link>
-          );
-        })}
-      </div>
+/* Container */
+.container {
+  width: min(1200px, 92vw);
+  margin: 0 auto;
+}
 
-      <hr style={{ margin: "18px 0", opacity: 0.2 }} />
+/* =========================================================
+   FLOW LAYOUT GRID (THIS IS THE KEY)
+   ========================================================= */
 
-      <div style={{ display: "grid", gap: 10 }}>
-        {quick.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 16,
-              fontWeight: 600,
-              display: "flex",
-              justifyContent: "space-between",
-            }}
-          >
-            {item.label}
-            {item.badge && <span className="badge">{item.badge}</span>}
-          </Link>
-        ))}
-      </div>
-    </aside>
-  );
+.pageGrid {
+  display: grid;
+  grid-template-columns: var(--sidebarW) 1fr;
+  gap: var(--gap);
+  align-items: start;
+}
+
+/* Content column */
+.pageContent {
+  min-width: 0;
+}
+
+/* Mobile */
+@media (max-width: 980px) {
+  .pageGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   UI ELEMENTS
+   ========================================================= */
+
+.glass {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  border-radius: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.btn {
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 34, 140, 0.14);
+  color: #ff228c;
+  font-weight: 700;
 }
