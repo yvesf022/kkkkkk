@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 const sections = [
@@ -95,7 +97,6 @@ export default function AccountPage() {
         <button
           className="btn"
           onClick={() => {
-            // later: clear auth + redirect
             alert("Logged out (demo)");
           }}
         >
