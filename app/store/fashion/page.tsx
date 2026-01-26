@@ -6,19 +6,14 @@ export default function FashionStore() {
     .filter((p) => p.category === "fashion")
     .map((p) => ({
       ...p,
-
-      // ✅ TEMPORARY DEFAULTS (STOCK NOT LIVE YET)
       stock: 0,
       in_stock: false,
-
-      // 🔒 SAFETY FALLBACKS
       category: p.category || "general",
       img: p.img || "/placeholder.png",
     }));
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
-      {/* HEADER */}
       <section
         style={{
           borderRadius: 22,
@@ -32,11 +27,10 @@ export default function FashionStore() {
           Fashion Store
         </h1>
         <p style={{ marginTop: 6, opacity: 0.6 }}>
-          Modern outfits, streetwear, and statement pieces.
+          Modern outfits and statement pieces.
         </p>
       </section>
 
-      {/* GRID */}
       <section
         style={{
           borderRadius: 24,
@@ -45,24 +39,18 @@ export default function FashionStore() {
           boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
         }}
       >
-        {list.length === 0 ? (
-          <div style={{ padding: 32, textAlign: "center" }}>
-            No fashion products available yet.
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: 18,
-            }}
-          >
-            {list.map((p) => (
-              <ProductCard key={p.id} p={p} />
-            ))}
-          </div>
-        )}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fill, minmax(220px, 1fr))",
+            gap: 18,
+          }}
+        >
+          {list.map((p) => (
+            <ProductCard key={p.id} p={p} />
+          ))}
+        </div>
       </section>
     </div>
   );
