@@ -6,8 +6,18 @@ export default function BeautyStore() {
     .filter((p) => p.category === "beauty")
     .map((p) => ({
       ...p,
-      category: p.category || "general", // 🔒 ProductCard safety
-      img: p.img || "/placeholder.png",  // ✅ FIXED: no p.image
+
+      // ✅ REQUIRED BY Product TYPE
+      stock:
+        typeof p.stock === "number" ? p.stock : 0,
+      in_stock:
+        typeof p.in_stock === "boolean"
+          ? p.in_stock
+          : false,
+
+      // 🔒 SAFETY FALLBACKS
+      category: p.category || "general",
+      img: p.img || "/placeholder.png",
     }));
 
   return (
