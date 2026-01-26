@@ -9,7 +9,7 @@ type Order = {
   id: string;
   user_email: string;
   total_amount: number;
-  status: string; // payment status
+  payment_status: string;
   shipping_status?: string;
   created_at: string;
 };
@@ -48,7 +48,7 @@ export default function AdminOrdersPage() {
     setUpdating(orderId);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/admin/${orderId}/shipping`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/admin/${orderId}/update`,
         {
           method: "POST",
           headers: {
@@ -116,7 +116,7 @@ export default function AdminOrdersPage() {
             </div>
 
             <div>
-              <b>Payment status:</b> {o.status}
+              <b>Payment status:</b> {o.payment_status}
             </div>
 
             <div>
@@ -148,11 +148,9 @@ export default function AdminOrdersPage() {
                 }
               >
                 <option value="created">Created</option>
-                <option value="pending">Pending</option>
                 <option value="processing">Processing</option>
                 <option value="shipped">Shipped</option>
                 <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
               </select>
             </div>
           </section>
