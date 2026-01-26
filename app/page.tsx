@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import ProductCard from "@/components/store/ProductCard";
-import { getProducts, Product as ApiProduct } from "@/lib/api";
+import { fetchProducts, Product as ApiProduct } from "@/lib/api";
 
 /* =======================
    HELPERS
@@ -34,7 +34,7 @@ export default async function HomePage() {
   let products: ApiProduct[] = [];
 
   try {
-    products = await getProducts();
+    products = await fetchProducts();
   } catch (e) {
     console.error("Failed to load products", e);
   }
