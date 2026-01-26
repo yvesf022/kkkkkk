@@ -3,16 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { getAdminOrders } from "@/lib/api";
-
-type Order = {
-  id: string;
-  user_email: string;
-  total_amount: number;
-  payment_status: string;
-  shipping_status?: string;
-  created_at: string;
-};
+import { getAdminOrders, Order } from "@/lib/api";
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -53,7 +44,9 @@ export default function AdminOrdersPage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${localStorage.getItem(
+              "access_token"
+            )}`,
           },
           body: JSON.stringify({ shipping_status }),
         }
@@ -65,7 +58,9 @@ export default function AdminOrdersPage() {
 
       setOrders((prev) =>
         prev.map((o) =>
-          o.id === orderId ? { ...o, shipping_status } : o
+          o.id === orderId
+            ? { ...o, shipping_status }
+            : o
         )
       );
     } catch {
@@ -108,7 +103,8 @@ export default function AdminOrdersPage() {
             </div>
 
             <div>
-              <b>User:</b> {o.user_email}
+              <b>User:</b>{" "}
+              {o.user_email ?? "—"}
             </div>
 
             <div>
@@ -116,7 +112,8 @@ export default function AdminOrdersPage() {
             </div>
 
             <div>
-              <b>Payment status:</b> {o.payment_status}
+              <b>Payment status:</b>{" "}
+              {o.payment_status}
             </div>
 
             <div>
@@ -144,13 +141,24 @@ export default function AdminOrdersPage() {
                 disabled={updating === o.id}
                 value={o.shipping_status || "created"}
                 onChange={(e) =>
-                  updateShippingStatus(o.id, e.target.value)
+                  updateShippingStatus(
+                    o.id,
+                    e.target.value
+                  )
                 }
               >
-                <option value="created">Created</option>
-                <option value="processing">Processing</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
+                <option value="created">
+                  Created
+                </option>
+                <option value="processing">
+                  Processing
+                </option>
+                <option value="shipped">
+                  Shipped
+                </option>
+                <option value="delivered">
+                  Delivered
+                </option>
               </select>
             </div>
           </section>
