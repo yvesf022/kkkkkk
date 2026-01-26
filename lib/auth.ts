@@ -6,6 +6,7 @@ interface AuthState {
   token: string | null;
   role: Role | null;
   isAuthenticated: boolean;
+  loading: boolean;
 
   login: (token: string, role: Role) => void;
   logout: () => void;
@@ -16,6 +17,7 @@ export const useAuth = create<AuthState>((set) => ({
   token: null,
   role: null,
   isAuthenticated: false,
+  loading: true,
 
   // =====================
   // LOGIN
@@ -28,6 +30,7 @@ export const useAuth = create<AuthState>((set) => ({
       token,
       role,
       isAuthenticated: true,
+      loading: false,
     });
   },
 
@@ -42,6 +45,7 @@ export const useAuth = create<AuthState>((set) => ({
       token: null,
       role: null,
       isAuthenticated: false,
+      loading: false,
     });
   },
 
@@ -57,6 +61,11 @@ export const useAuth = create<AuthState>((set) => ({
         token,
         role,
         isAuthenticated: true,
+        loading: false,
+      });
+    } else {
+      set({
+        loading: false,
       });
     }
   },
