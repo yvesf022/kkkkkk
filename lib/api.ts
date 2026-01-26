@@ -1,6 +1,18 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 /* =========================
+   TYPES (SINGLE SOURCE)
+========================= */
+export type Product = {
+  id: string;
+  title: string;
+  price: number;
+  img: string;
+  category: string;
+  rating: number;
+};
+
+/* =========================
    TOKEN HELPERS
 ========================= */
 function getToken() {
@@ -49,7 +61,7 @@ export async function getMe() {
 /* =========================
    PRODUCTS
 ========================= */
-export async function fetchProducts() {
+export async function fetchProducts(): Promise<Product[]> {
   const res = await fetch(`${API_BASE}/api/products`);
 
   if (!res.ok) {
@@ -59,7 +71,7 @@ export async function fetchProducts() {
   return res.json();
 }
 
-/* ✅ BACKWARD COMPATIBILITY */
+/* ✅ backward compatibility */
 export const getProducts = fetchProducts;
 
 export async function createProduct(formData: FormData) {
