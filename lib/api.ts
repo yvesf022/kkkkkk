@@ -1,77 +1,199 @@
-// lib/api.ts
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-if (!API_URL) {
-  throw new Error("NEXT_PUBLIC_API_URL is not defined");
+/* =========================
+   TOKEN HELPERS
+========================= */
+function getToken() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
 }
 
-/**
- * 🔒 SINGLE SOURCE OF TRUTH
- * This MUST match the locked Product model exactly
- */
-export type Product = {
-  id: string;
-  title: string;
-  price: number;
-  img: string;
-  category: string;
-  rating: number;
-};
-
-/**
- * Normalize backend product → frontend-safe Product
- * Handles Mongo-style `_id` without leaking it
- */
-function normalizeProduct(raw: any): Product {
-  return {
-    id: String(raw._id ?? raw.id),
-    title: String(raw.title),
-    price: Number(raw.price),
-    img: String(raw.img),
-    category: String(raw.category),
-    rating: Number(raw.rating),
-  };
+function authHeaders() {
+  const token = getToken();
+  return token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
 }
 
-/**
- * Fetch all products
- */
-export async function getProducts(): Promise<Product[]> {
-  const res = await fetch(`${API_URL}/api/products`, {
-    cache: "no-store",
+/* =========================
+   AUTH
+========================= */
+export async function login(email: string, password: string) {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch products (${res.status})`);
+    throw new Error("Invalid email or password");
   }
 
-  const data = await res.json();
-
-  if (!Array.isArray(data)) {
-    throw new Error("Invalid products response");
-  }
-
-  return data.map(normalizeProduct);
+  return res.json();
 }
 
-/**
- * Fetch single product by ID
- */
-export async function getProductById(id: string): Promise<Product> {
-  if (!id) {
-    throw new Error("Product ID is required");
-  }
-
-  const res = await fetch(`${API_URL}/api/products/${id}`, {
-    cache: "no-store",
+export async function getMe() {
+  const res = await fetch(`${API_BASE}/api/auth/me`, {
+    headers: {
+      ...authHeaders(),
+    },
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch product (${res.status})`);
+    throw new Error("Not authenticated");
   }
 
-  const data = await res.json();
+  return res.json();
+}
 
-  return normalizeProduct(data);
+/* =========================
+   PRODUCTS
+========================= */
+export async function fetchProducts() {
+  const res = await fetch(`${API_BASE}/api/products`);
+
+  if (!res.ok) {
+    throw new Error("Failed to load products");
+  }
+
+  return res.json();
+}
+
+export async function createProduct(formData: FormData) {
+  const res = await fetch(`${API_BASE}/api/products`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to create product");
+  }
+
+  return res.json();
+}
+
+export async function deleteProduct(productId: string) {
+  const res = await fetch(`${API_BASE}/api/products/${productId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to delete product");
+  }
+
+  return res.json();
+}
+
+/* =========================
+   ORDERS (USER)
+========================= */
+export async function createOrder(payload: any) {
+  const res = await fetch(`${API_BASE}/api/orders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to create order");
+  }
+
+  return res.json();
+}
+
+export async function fetchMyOrders() {
+  const res = await fetch(`${API_BASE}/api/orders/my`, {
+    headers: {
+      ...authHeaders(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load orders");
+  }
+
+  return res.json();
+}
+
+/* =========================
+   ORDERS (ADMIN) ✅ FIXED
+========================= */
+export async function fetchAdminOrders() {
+  const res = await fetch(`${API_BASE}/api/orders/admin`, {
+    headers: {
+      ...authHeaders(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load admin orders");
+  }
+
+  return res.json();
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  status: "created" | "pending" | "shipped" | "delivered" | "cancelled"
+) {
+  const res = await fetch(
+    `${API_BASE}/api/orders/admin/${orderId}/status`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(status),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to update order status");
+  }
+
+  return res.json();
+}
+
+/* =========================
+   PAYMENT SETTINGS (ADMIN)
+========================= */
+export async function fetchPaymentSettings() {
+  const res = await fetch(`${API_BASE}/api/admin/payment-settings`, {
+    headers: {
+      ...authHeaders(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load payment settings");
+  }
+
+  return res.json();
+}
+
+export async function savePaymentSettings(payload: any) {
+  const res = await fetch(`${API_BASE}/api/admin/payment-settings`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to save payment settings");
+  }
+
+  return res.json();
 }
