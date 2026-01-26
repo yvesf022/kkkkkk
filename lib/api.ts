@@ -1,95 +1,70 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL!
+const API = process.env.NEXT_PUBLIC_API_URL!;
+
+/* =========================
+   TYPES
+========================= */
 
 export type Product = {
-  id: string
-  title: string
-  price: number
-  img: string
-  category: string
-  rating: number
-}
+  id: string;
+  title: string;
+  price: number;
+  img: string;
+  category: string;
+  rating: number;
 
-/* ======================
-   TOKEN (FIXED)
-====================== */
+  // 🔥 INVENTORY (NEW – BACKEND ALIGNED)
+  stock: number;
+  in_stock: boolean;
+};
 
-function getToken() {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("access_token") // ✅ FIX
-}
+export type OrderItemPayload = {
+  product_id: string;
+  quantity: number;
+};
 
-/* ======================
-   CORE FETCH
-====================== */
+export type OrderPayload = {
+  items: OrderItemPayload[];
+  total_amount: number;
+};
 
-async function apiFetch(
-  path: string,
-  options: RequestInit = {}
-) {
-  const token = getToken()
+/* =========================
+   PRODUCTS
+========================= */
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  }
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`
-  }
-
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-  })
+export async function fetchProducts(): Promise<Product[]> {
+  const res = await fetch(`${API}/api/products`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({}))
-    throw new Error(error.detail || "API error")
+    throw new Error("Failed to fetch products");
   }
 
-  return res.json()
+  return res.json();
 }
 
-/* ======================
-   PRODUCTS
-====================== */
-
-export async function fetchProducts() {
-  return apiFetch("/api/products")
-}
-
-export const getProducts = fetchProducts
-
-/* ======================
-   AUTH
-====================== */
-
-export async function login(email: string, password: string) {
-  return apiFetch("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  })
-}
-
-export async function register(email: string, password: string) {
-  return apiFetch("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  })
-}
-
-export async function getMe() {
-  return apiFetch("/api/auth/me")
-}
-
-/* ======================
+/* =========================
    ORDERS
-====================== */
+========================= */
 
-export async function getMyOrders() {
-  return apiFetch("/api/orders/my")
-}
+export async function createOrder(
+  token: string,
+  payload: OrderPayload
+) {
+  const res = await fetch(`${API}/api/orders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
 
-export async function getAdminOrders() {
-  return apiFetch("/api/orders/admin")
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Order failed");
+  }
+
+  return data;
 }
