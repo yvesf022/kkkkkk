@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { getSession, logout } from "@/lib/auth";
 
@@ -14,28 +13,19 @@ type Order = {
   id: string;
   user_email: string;
   total_amount: number;
-  status: string; // payment status
+  status: string;
   shipping_status?: string;
   created_at: string;
 };
 
-type Tab = "orders";
-
 export default function AdminPage() {
-  const router = useRouter();
-
   /* ======================
-     AUTH
+     AUTH STATE
   ====================== */
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  /* ======================
-     UI
-  ====================== */
-  const [activeTab, setActiveTab] = useState<Tab>("orders");
 
   /* ======================
      ORDERS
@@ -45,15 +35,17 @@ export default function AdminPage() {
   const [updating, setUpdating] = useState<string | null>(null);
 
   /* ======================
-     SESSION CHECK
+     SESSION CHECK (ON LOAD)
   ====================== */
   useEffect(() => {
     const session = getSession();
     if (!session) return;
+
     if (session.role !== "admin") {
       logout("/login");
       return;
     }
+
     setToken(session.token);
   }, []);
 
@@ -61,7 +53,10 @@ export default function AdminPage() {
      LOGIN
   ====================== */
   async function handleLogin() {
-    if (!email || !password) return toast.error("Missing credentials");
+    if (!email || !password) {
+      toast.error("Missing credentials");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -79,8 +74,9 @@ export default function AdminPage() {
       localStorage.setItem("role", data.role);
       localStorage.setItem("email", data.email);
 
+      setToken(data.token); // ✅ CRITICAL FIX
+
       toast.success("Welcome admin");
-      router.refresh();
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -89,14 +85,20 @@ export default function AdminPage() {
   }
 
   /* ======================
-     FETCH ORDERS
+     FETCH ORDERS (ADMIN)
   ====================== */
   async function fetchOrders() {
+    if (!token) return; // ✅ CRITICAL FIX
+
     setLoadingOrders(true);
     try {
-      const res = await fetch(`${API}/api/admin/orders`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`${API}/api/orders/admin`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
+
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setOrders(data);
     } catch {
@@ -113,14 +115,13 @@ export default function AdminPage() {
   /* ======================
      UPDATE SHIPPING
   ====================== */
-  async function updateShipping(
-    orderId: string,
-    shipping_status: string
-  ) {
+  async function updateShipping(orderId: string, shipping_status: string) {
+    if (!token) return;
+
     setUpdating(orderId);
     try {
       const res = await fetch(
-        `${API}/api/admin/orders/${orderId}/shipping`,
+        `${API}/api/orders/admin/${orderId}/shipping`,
         {
           method: "POST",
           headers: {
@@ -132,13 +133,12 @@ export default function AdminPage() {
       );
 
       if (!res.ok) throw new Error();
+
       toast.success("Shipping status updated");
 
       setOrders((prev) =>
         prev.map((o) =>
-          o.id === orderId
-            ? { ...o, shipping_status }
-            : o
+          o.id === orderId ? { ...o, shipping_status } : o
         )
       );
     } catch {
@@ -156,13 +156,19 @@ export default function AdminPage() {
       <div style={{ minHeight: "70vh", display: "grid", placeItems: "center" }}>
         <div style={{ width: 420, padding: 32 }}>
           <h1>Admin Login</h1>
-          <input placeholder="Email" onChange={(e) => setEmail(e.target.value)} />
+
+          <input
+            placeholder="Email"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
           <input
             type="password"
             placeholder="Password"
             onChange={(e) => setPassword(e.target.value)}
           />
-          <button onClick={handleLogin}>
+
+          <button onClick={handleLogin} disabled={loading}>
             {loading ? "Signing in..." : "Login"}
           </button>
         </div>
@@ -201,25 +207,22 @@ export default function AdminPage() {
             <div>Total: ₹{o.total_amount}</div>
             <div>Payment: {o.status}</div>
             <div>
-              Shipping:{" "}
-              <b>{o.shipping_status || "pending"}</b>
+              Shipping: <b>{o.shipping_status || "pending"}</b>
             </div>
 
-            {o.status !== "cancelled" && (
-              <select
-                disabled={updating === o.id}
-                value={o.shipping_status || "pending"}
-                onChange={(e) =>
-                  updateShipping(o.id, e.target.value)
-                }
-              >
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            )}
+            <select
+              disabled={updating === o.id}
+              value={o.shipping_status || "pending"}
+              onChange={(e) =>
+                updateShipping(o.id, e.target.value)
+              }
+            >
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
           </div>
         ))}
       </div>
