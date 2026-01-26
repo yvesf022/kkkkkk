@@ -21,12 +21,6 @@ interface UserProfile {
   avatar_url: string | null;
 }
 
-interface UpdateProfilePayload {
-  full_name: string | null;
-  phone: string | null;
-  avatar_url: string | null;
-}
-
 /* ======================
    PAGE
 ====================== */
@@ -88,33 +82,24 @@ export default function ProfilePage() {
     setUploadingAvatar(true);
 
     try {
-      const res = await fetch(
-        `${API}/api/users/me/avatar`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem(
-              "access_token"
-            )}`,
-          },
-          body: formData,
-        }
-      );
+      const res = await fetch(`${API}/api/users/me/avatar`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+        body: formData,
+      });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(
-          data?.detail || "Avatar upload failed"
-        );
+        throw new Error(data?.detail || "Avatar upload failed");
       }
 
       setAvatarUrl(data.avatar_url);
       toast.success("Profile picture updated");
     } catch (err: any) {
-      toast.error(
-        err.message || "Failed to upload avatar"
-      );
+      toast.error(err.message || "Failed to upload avatar");
     } finally {
       setUploadingAvatar(false);
     }
@@ -127,20 +112,20 @@ export default function ProfilePage() {
   async function saveProfile() {
     setSaving(true);
 
-    const payload: UpdateProfilePayload = {
-      full_name: fullName.trim() || null,
-      phone: phone.trim() || null,
-      avatar_url: avatarUrl,
-    };
-
     try {
-      await updateMe(payload);
+      // 🔑 API expects name + phone ONLY
+      await updateMe({
+        name: fullName.trim(),
+        phone: phone.trim(),
+      });
 
       setProfile((prev) =>
         prev
           ? {
               ...prev,
-              ...payload,
+              full_name: fullName.trim(),
+              phone: phone.trim(),
+              avatar_url: avatarUrl,
             }
           : prev
       );
@@ -172,9 +157,7 @@ export default function ProfilePage() {
   return (
     <div style={{ maxWidth: 760 }}>
       <header>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-          Profile
-        </h1>
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Profile</h1>
         <p style={{ marginTop: 6, opacity: 0.6 }}>
           Manage your personal information
         </p>
@@ -201,24 +184,14 @@ export default function ProfilePage() {
               fontWeight: 600,
             }}
           >
-            Please complete your profile to enable
-            checkout and delivery.
+            Please complete your profile to enable checkout and delivery.
           </div>
         )}
 
         {/* AVATAR */}
-        <div
-          style={{
-            display: "flex",
-            gap: 18,
-            alignItems: "center",
-          }}
-        >
+        <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
           <img
-            src={
-              avatarUrl ||
-              "/avatar-placeholder.png"
-            }
+            src={avatarUrl || "/avatar-placeholder.png"}
             alt="Avatar"
             style={{
               width: 96,
@@ -229,26 +202,16 @@ export default function ProfilePage() {
             }}
           />
 
-          <label
-            style={{
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            {uploadingAvatar
-              ? "Uploading..."
-              : "Change photo"}
+          <label style={{ fontWeight: 700, cursor: "pointer" }}>
+            {uploadingAvatar ? "Uploading..." : "Change photo"}
             <input
               type="file"
               accept="image/*"
               hidden
               disabled={uploadingAvatar}
               onChange={(e) => {
-                const file =
-                  e.target.files?.[0];
-                if (file) {
-                  handleAvatarUpload(file);
-                }
+                const file = e.target.files?.[0];
+                if (file) handleAvatarUpload(file);
               }}
             />
           </label>
@@ -256,62 +219,34 @@ export default function ProfilePage() {
 
         {/* FULL NAME */}
         <div>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              opacity: 0.6,
-            }}
-          >
+          <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.6 }}>
             Full name
           </div>
           <input
             value={fullName}
-            onChange={(e) =>
-              setFullName(e.target.value)
-            }
+            onChange={(e) => setFullName(e.target.value)}
             placeholder="Your full name"
           />
         </div>
 
         {/* PHONE */}
         <div>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              opacity: 0.6,
-            }}
-          >
+          <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.6 }}>
             Phone number
           </div>
           <input
             value={phone}
-            onChange={(e) =>
-              setPhone(e.target.value)
-            }
+            onChange={(e) => setPhone(e.target.value)}
             placeholder="Phone number"
           />
         </div>
 
         {/* EMAIL */}
         <div>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              opacity: 0.6,
-            }}
-          >
+          <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.6 }}>
             Email address
           </div>
-          <div
-            style={{
-              marginTop: 6,
-              fontSize: 16,
-              fontWeight: 800,
-            }}
-          >
+          <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800 }}>
             {profile.email}
           </div>
         </div>
@@ -320,19 +255,12 @@ export default function ProfilePage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit,minmax(200px,1fr))",
+            gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))",
             gap: 16,
           }}
         >
           <div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                opacity: 0.6,
-              }}
-            >
+            <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.6 }}>
               Account type
             </div>
             <div
@@ -348,25 +276,11 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                opacity: 0.6,
-              }}
-            >
+            <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.6 }}>
               Member since
             </div>
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 16,
-                fontWeight: 800,
-              }}
-            >
-              {new Date(
-                profile.created_at
-              ).toLocaleDateString()}
+            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800 }}>
+              {new Date(profile.created_at).toLocaleDateString()}
             </div>
           </div>
         </div>
