@@ -33,8 +33,8 @@ export default function LoginPage() {
         throw new Error(data.detail || "Login failed");
       }
 
-      // ✅ CRITICAL FIXES
-      await login(data.access_token);
+      // ✅ FIXED: pass BOTH token and role
+      await login(data.access_token, data.role);
 
       toast.success("Welcome back 🎉");
 
