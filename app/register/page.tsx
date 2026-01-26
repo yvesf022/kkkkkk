@@ -6,16 +6,37 @@ import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
+type Status =
+  | { type: "idle" }
+  | { type: "success"; message: string }
+  | { type: "error"; message: string };
+
 export default function RegisterPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<Status>({ type: "idle" });
 
   async function register() {
-    if (!email || !password) {
-      toast.error("Email and password are required");
+    setStatus({ type: "idle" });
+
+    /* ---------- CLIENT VALIDATION ---------- */
+    if (!email || !password || !confirm) {
+      setStatus({
+        type: "error",
+        message: "All fields are required.",
+      });
+      return;
+    }
+
+    if (password !== confirm) {
+      setStatus({
+        type: "error",
+        message: "Passwords do not match.",
+      });
       return;
     }
 
@@ -28,16 +49,51 @@ export default function RegisterPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "Registration failed");
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        // backend crashed or returned non-JSON
       }
 
-      toast.success("Account created. You can now log in.");
-      router.push("/login");
-    } catch (err: any) {
-      toast.error(err.message || "Registration error");
+      /* ---------- BACKEND / DB ERRORS ---------- */
+      if (!res.ok) {
+        if (res.status >= 500) {
+          setStatus({
+            type: "error",
+            message:
+              "Server or database error. Please try again later.",
+          });
+        } else {
+          setStatus({
+            type: "error",
+            message:
+              data?.detail ||
+              "Registration failed due to invalid data.",
+          });
+        }
+        return;
+      }
+
+      /* ---------- SUCCESS ---------- */
+      setStatus({
+        type: "success",
+        message:
+          "Account created successfully. You can now log in.",
+      });
+
+      toast.success("Account created 🎉");
+
+      // Give user time to read
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
+    } catch (err) {
+      setStatus({
+        type: "error",
+        message:
+          "Network error. Please check your connection.",
+      });
     } finally {
       setLoading(false);
     }
@@ -71,6 +127,29 @@ export default function RegisterPage() {
           Create Account
         </h1>
 
+        {/* ---------- STATUS MESSAGE ---------- */}
+        {status.type !== "idle" && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 14,
+              borderRadius: 12,
+              fontWeight: 600,
+              textAlign: "center",
+              background:
+                status.type === "success"
+                  ? "#ecfdf5"
+                  : "#fef2f2",
+              color:
+                status.type === "success"
+                  ? "#065f46"
+                  : "#991b1b",
+            }}
+          >
+            {status.message}
+          </div>
+        )}
+
         <div style={{ display: "grid", gap: 14 }}>
           <input
             type="email"
@@ -84,6 +163,13 @@ export default function RegisterPage() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <input
+            type="password"
+            placeholder="Confirm password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
           />
 
           <button

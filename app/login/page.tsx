@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const login = useAuth((s) => s.login);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,15 +28,22 @@ export default function LoginPage() {
       );
 
       const data = await res.json();
+
       if (!res.ok) {
         throw new Error(data.detail || "Login failed");
       }
 
-      localStorage.setItem("token", data.token);
-      toast.success("Welcome back");
+      // ✅ CRITICAL FIXES
+      await login(data.access_token);
 
-      // 🔒 Keep consistent route
-      window.location.href = "/account";
+      toast.success("Welcome back 🎉");
+
+      // ✅ ROLE-BASED REDIRECT
+      if (data.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/account");
+      }
     } catch (err: any) {
       toast.error(err.message || "Login failed");
     } finally {
