@@ -7,13 +7,9 @@ export default function MobileStore() {
     .map((p) => ({
       ...p,
 
-      // ✅ REQUIRED BY Product TYPE
-      stock:
-        typeof p.stock === "number" ? p.stock : 0,
-      in_stock:
-        typeof p.in_stock === "boolean"
-          ? p.in_stock
-          : false,
+      // ✅ TEMPORARY DEFAULTS (STOCK NOT LIVE YET)
+      stock: 0,
+      in_stock: false,
 
       // 🔒 SAFETY FALLBACKS
       category: p.category || "general",
@@ -22,75 +18,35 @@ export default function MobileStore() {
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <section
         style={{
           borderRadius: 22,
           padding: 22,
-          background: `
-            radial-gradient(
-              420px 220px at 10% 0%,
-              rgba(96,165,250,0.25),
-              transparent 60%
-            ),
-            radial-gradient(
-              360px 200px at 90% 10%,
-              rgba(244,114,182,0.22),
-              transparent 60%
-            ),
-            linear-gradient(
-              135deg,
-              #f8fbff,
-              #eef6ff,
-              #fff1f6
-            )
-          `,
-          boxShadow:
-            "0 18px 50px rgba(15,23,42,0.14)",
+          background:
+            "linear-gradient(135deg,#eef6ff,#fff1f6,#f8fbff)",
+          boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
         }}
       >
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 900,
-            color: "#0f172a",
-          }}
-        >
+        <h1 style={{ fontSize: 24, fontWeight: 900 }}>
           Mobile & Accessories
         </h1>
-
-        <p
-          style={{
-            marginTop: 6,
-            fontSize: 14,
-            fontWeight: 600,
-            color: "rgba(15,23,42,0.6)",
-          }}
-        >
-          Cases, charging, and smart gear — fast, clean, and stylish.
+        <p style={{ marginTop: 6, opacity: 0.6 }}>
+          Cases, chargers, and smart mobile gear.
         </p>
       </section>
 
-      {/* ================= GRID ================= */}
+      {/* GRID */}
       <section
         style={{
           borderRadius: 24,
           padding: 22,
-          background:
-            "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow:
-            "0 22px 60px rgba(15,23,42,0.14)",
+          background: "#ffffff",
+          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
         }}
       >
         {list.length === 0 ? (
-          <div
-            style={{
-              padding: 32,
-              textAlign: "center",
-              fontWeight: 600,
-              color: "rgba(15,23,42,0.55)",
-            }}
-          >
+          <div style={{ padding: 32, textAlign: "center" }}>
             No mobile products available yet.
           </div>
         ) : (
