@@ -11,23 +11,36 @@ type Props = {
 
 export default function RequireAuth({ children, role }: Props) {
   const router = useRouter();
-  const { user, loading } = useAuth();
+
+  const isAuthenticated = useAuth((s) => s.isAuthenticated);
+  const userRole = useAuth((s) => s.role);
+  const loading = useAuth((s) => s.loading);
 
   useEffect(() => {
     if (loading) return;
 
-    if (!user) {
+    // Not logged in → login
+    if (!isAuthenticated) {
       router.replace("/login");
       return;
     }
 
-    if (role && user.role !== role) {
-      router.replace(user.role === "admin" ? "/admin" : "/account");
+    // Logged in but wrong role
+    if (role && userRole !== role) {
+      router.replace(userRole === "admin" ? "/admin" : "/account");
     }
-  }, [user, loading, role, router]);
+  }, [loading, isAuthenticated, userRole, role, router]);
 
-  if (loading || !user) {
+  if (loading) {
     return <div className="p-6 text-sm opacity-70">Checking access…</div>;
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  if (role && userRole !== role) {
+    return null;
   }
 
   return <>{children}</>;
