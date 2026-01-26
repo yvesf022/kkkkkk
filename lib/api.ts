@@ -59,6 +59,9 @@ export async function fetchProducts() {
   return res.json();
 }
 
+/* ✅ BACKWARD COMPATIBILITY */
+export const getProducts = fetchProducts;
+
 export async function createProduct(formData: FormData) {
   const res = await fetch(`${API_BASE}/api/products`, {
     method: "POST",
@@ -125,7 +128,7 @@ export async function fetchMyOrders() {
 }
 
 /* =========================
-   ORDERS (ADMIN) ✅ FIXED
+   ORDERS (ADMIN)
 ========================= */
 export async function fetchAdminOrders() {
   const res = await fetch(`${API_BASE}/api/orders/admin`, {
