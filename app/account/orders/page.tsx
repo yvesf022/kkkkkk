@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-
-const API = process.env.NEXT_PUBLIC_API_URL!;
+import { getMyOrders } from "@/lib/api";
 
 /* ======================
    TYPES
@@ -13,7 +12,7 @@ type Order = {
   id: string;
   total_amount: number;
   status: string; // payment status
-  shipping_status?: string; // NEW
+  shipping_status?: string;
   created_at: string;
 };
 
@@ -52,11 +51,7 @@ function PaymentStatusBadge({ status }: { status: string }) {
 /* ======================
    SHIPPING STATUS BADGE
 ====================== */
-function ShippingStatusBadge({
-  status,
-}: {
-  status?: string;
-}) {
+function ShippingStatusBadge({ status }: { status?: string }) {
   if (!status) {
     return (
       <span
@@ -111,40 +106,31 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      window.location.href = "/login";
-      return;
+    async function load() {
+      try {
+        const data = await getMyOrders();
+        setOrders(data);
+      } catch {
+        toast.error("Failed to load orders");
+      } finally {
+        setLoading(false);
+      }
     }
 
-    fetch(`${API}/api/orders/my`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then(setOrders)
-      .catch(() => toast.error("Failed to load orders"))
-      .finally(() => setLoading(false));
+    load();
   }, []);
 
   return (
-    <div style={{ display: "grid", gap: 26 }}>
+    <div style={{ display: "grid", gap: 24 }}>
       {/* HEADER */}
-      <section
-        style={{
-          borderRadius: 24,
-          padding: 24,
-          background:
-            "linear-gradient(135deg,#f8fbff,#eef6ff)",
-          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
-        }}
-      >
-        <h1 style={{ fontSize: 24, fontWeight: 900 }}>
+      <header>
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
           My Orders
         </h1>
-        <p style={{ marginTop: 6, color: "rgba(15,23,42,0.6)" }}>
+        <p style={{ marginTop: 6, opacity: 0.6 }}>
           Track payment and shipping status of your purchases
         </p>
-      </section>
+      </header>
 
       {/* CONTENT */}
       {loading && <p>Loading orders…</p>}
@@ -163,55 +149,38 @@ export default function OrdersPage() {
           <section
             key={o.id}
             style={{
-              borderRadius: 22,
+              borderRadius: 20,
               padding: 20,
-              background:
-                "linear-gradient(135deg,#ffffff,#f8fbff)",
-              boxShadow:
-                "0 18px 50px rgba(15,23,42,0.14)",
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
               display: "grid",
               gap: 14,
             }}
           >
             {/* HEADER */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 900 }}>
-                  Order #{o.id.slice(0, 8)}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "rgba(15,23,42,0.6)",
-                  }}
-                >
-                  {new Date(o.created_at).toLocaleString()}
-                </div>
+            <div>
+              <div style={{ fontWeight: 900 }}>
+                Order #{o.id.slice(0, 8)}
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  opacity: 0.6,
+                }}
+              >
+                {new Date(o.created_at).toLocaleString()}
               </div>
             </div>
 
             {/* STATUSES */}
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <PaymentStatusBadge status={o.status} />
               <ShippingStatusBadge status={o.shipping_status} />
             </div>
 
             {/* TOTAL */}
             <div style={{ fontWeight: 800 }}>
-              Total: M {o.total_amount.toLocaleString("en-ZA")}
+              Total: ₹{o.total_amount.toLocaleString("en-IN")}
             </div>
 
             {/* ACTIONS */}

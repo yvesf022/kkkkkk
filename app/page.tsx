@@ -14,7 +14,8 @@ function shuffle<T>(arr: T[]) {
 
 /**
  * 🔒 STRICT NORMALIZATION
- * - Matches ProductCard contract exactly
+ * - Preserve inventory fields
+ * - Match ProductCard contract
  */
 function normalizeForCard(p: ApiProduct) {
   return {
@@ -22,7 +23,9 @@ function normalizeForCard(p: ApiProduct) {
     id: p.id,
     img: p.img || "/placeholder.png",
     category: p.category || "general",
-    rating: 4.5,
+    rating: typeof p.rating === "number" ? p.rating : 4.5,
+    stock: p.stock ?? 0,
+    in_stock: p.in_stock ?? false,
   };
 }
 

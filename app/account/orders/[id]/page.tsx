@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import toast from "react-hot-toast";
+import OrderTimeline from "@/components/orders/OrderTimeline";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -20,11 +21,11 @@ type OrderItem = {
 type Order = {
   id: string;
   total_amount: number;
-  status: string; // payment status
+  payment_status: string;
   shipping_status?: string;
+  tracking_number?: string;
   created_at: string;
   items: OrderItem[];
-  payment_proof?: string;
 };
 
 type PaymentSettings = {
@@ -34,15 +35,9 @@ type PaymentSettings = {
 };
 
 /* ======================
-   STATUS BADGES
+   BADGES
 ====================== */
-function Badge({
-  label,
-  color,
-}: {
-  label: string;
-  color: string;
-}) {
+function Badge({ label, color }: { label: string; color: string }) {
   return (
     <span
       style={{
@@ -61,52 +56,40 @@ function Badge({
 
 function PaymentStatus({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string }> = {
-    pending: { label: "Awaiting Payment", color: "#f59e0b" },
+    on_hold: { label: "Awaiting Payment", color: "#f59e0b" },
     payment_submitted: {
       label: "Payment Under Review",
       color: "#3b82f6",
     },
-    confirmed: { label: "Payment Approved", color: "#22c55e" },
+    payment_received: {
+      label: "Payment Approved",
+      color: "#22c55e",
+    },
     rejected: { label: "Payment Rejected", color: "#ef4444" },
   };
 
-  const s = map[status] || {
-    label: status,
-    color: "#64748b",
-  };
-
-  return <Badge {...s} />;
+  return <Badge {...map[status]} />;
 }
 
 function ShippingStatus({ status }: { status?: string }) {
   if (!status)
-    return (
-      <Badge label="Not shipped yet" color="#9ca3af" />
-    );
+    return <Badge label="Not shipped yet" color="#9ca3af" />;
 
   const map: Record<string, { label: string; color: string }> = {
-    pending: { label: "Pending", color: "#f59e0b" },
+    created: { label: "Order Created", color: "#64748b" },
     processing: { label: "Processing", color: "#3b82f6" },
     shipped: { label: "Shipped", color: "#8b5cf6" },
     delivered: { label: "Delivered", color: "#22c55e" },
-    cancelled: { label: "Cancelled", color: "#ef4444" },
   };
 
-  const s = map[status] || {
-    label: status,
-    color: "#64748b",
-  };
-
-  return <Badge {...s} />;
+  return <Badge {...map[status]} />;
 }
 
 /* ======================
    PAGE
 ====================== */
 export default function OrderDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const orderId = params.id as string;
+  const { id } = useParams<{ id: string }>();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [payment, setPayment] =
@@ -116,49 +99,57 @@ export default function OrderDetailPage() {
   const [proof, setProof] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  /* ======================
-     FETCH DATA
-  ====================== */
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
 
-    Promise.all([
-      fetch(`${API}/api/orders/${orderId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-      fetch(`${API}/api/payment-settings`).then((r) =>
-        r.json()
-      ),
-    ])
-      .then(([orderData, paymentData]) => {
-        setOrder(orderData);
-        setPayment(paymentData);
-      })
-      .catch(() =>
-        toast.error("Failed to load order details")
-      )
-      .finally(() => setLoading(false));
-  }, [orderId]);
+  /* ======================
+     LOAD DATA
+  ====================== */
+  async function load() {
+    if (!token) return;
+
+    try {
+      const [orderRes, paymentRes] = await Promise.all([
+        fetch(`${API}/api/orders/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API}/api/payment-settings`),
+      ]);
+
+      if (!orderRes.ok) throw new Error();
+
+      setOrder(await orderRes.json());
+      setPayment(await paymentRes.json());
+    } catch {
+      toast.error("Failed to load order details");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, [id]);
 
   /* ======================
      UPLOAD PAYMENT PROOF
   ====================== */
   async function uploadProof() {
-    if (!proof) return toast.error("Select a file");
-    const token = localStorage.getItem("token");
+    if (!proof) {
+      toast.error("Please select a file");
+      return;
+    }
     if (!token) return;
 
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append("file", proof);
+      fd.append("proof", proof);
 
       const res = await fetch(
-        `${API}/api/orders/${orderId}/payment-proof`,
+        `${API}/api/orders/${id}/payment-proof`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -167,10 +158,12 @@ export default function OrderDetailPage() {
       );
 
       if (!res.ok) throw new Error();
+
       toast.success("Payment proof submitted");
-      router.refresh();
+      setProof(null);
+      await load();
     } catch {
-      toast.error("Upload failed");
+      toast.error("Failed to upload payment proof");
     } finally {
       setUploading(false);
     }
@@ -182,15 +175,7 @@ export default function OrderDetailPage() {
   return (
     <div style={{ display: "grid", gap: 26 }}>
       {/* HEADER */}
-      <section
-        style={{
-          borderRadius: 24,
-          padding: 24,
-          background:
-            "linear-gradient(135deg,#f8fbff,#eef6ff)",
-          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
-        }}
-      >
+      <section className="card">
         <h1 style={{ fontSize: 24, fontWeight: 900 }}>
           Order #{order.id.slice(0, 8)}
         </h1>
@@ -199,41 +184,27 @@ export default function OrderDetailPage() {
         </p>
       </section>
 
-      {/* STATUS */}
-      <section
-        style={{
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <PaymentStatus status={order.status} />
+      {/* STATUS BADGES */}
+      <section style={{ display: "flex", gap: 12 }}>
+        <PaymentStatus status={order.payment_status} />
         <ShippingStatus status={order.shipping_status} />
       </section>
 
+      {/* TIMELINE */}
+      <OrderTimeline
+        paymentStatus={order.payment_status}
+        shippingStatus={order.shipping_status || "created"}
+        trackingNumber={order.tracking_number}
+      />
+
       {/* ITEMS */}
-      <section
-        style={{
-          borderRadius: 22,
-          padding: 20,
-          background:
-            "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow:
-            "0 18px 50px rgba(15,23,42,0.14)",
-          display: "grid",
-          gap: 14,
-        }}
-      >
+      <section className="card">
         <h2 style={{ fontWeight: 900 }}>Items</h2>
 
         {order.items.map((i) => (
           <div
             key={i.id}
-            style={{
-              display: "flex",
-              gap: 14,
-              alignItems: "center",
-            }}
+            style={{ display: "flex", gap: 14, alignItems: "center" }}
           >
             <img
               src={i.img}
@@ -246,16 +217,12 @@ export default function OrderDetailPage() {
               }}
             />
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700 }}>
-                {i.title}
-              </div>
+              <div style={{ fontWeight: 700 }}>{i.title}</div>
               <div style={{ fontSize: 13, opacity: 0.6 }}>
                 Qty: {i.quantity}
               </div>
             </div>
-            <div style={{ fontWeight: 800 }}>
-              ₹{i.price}
-            </div>
+            <div style={{ fontWeight: 800 }}>₹{i.price}</div>
           </div>
         ))}
 
@@ -265,55 +232,39 @@ export default function OrderDetailPage() {
       </section>
 
       {/* PAYMENT */}
-      {(order.status === "pending" ||
-        order.status === "rejected") &&
-        payment && (
-          <section
-            style={{
-              borderRadius: 22,
-              padding: 20,
-              background:
-                "linear-gradient(135deg,#ffffff,#f8fbff)",
-              boxShadow:
-                "0 18px 50px rgba(15,23,42,0.14)",
-              display: "grid",
-              gap: 12,
-            }}
+      {order.payment_status === "on_hold" && payment && (
+        <section className="card">
+          <h2 style={{ fontWeight: 900 }}>
+            Payment Instructions
+          </h2>
+
+          <p>Transfer the amount to:</p>
+
+          <div style={{ fontWeight: 700 }}>
+            {payment.bank_name}
+            <br />
+            {payment.account_name}
+            <br />
+            {payment.account_number}
+          </div>
+
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={(e) =>
+              setProof(e.target.files?.[0] || null)
+            }
+          />
+
+          <button
+            className="btn btnTech"
+            onClick={uploadProof}
+            disabled={uploading}
           >
-            <h2 style={{ fontWeight: 900 }}>
-              Payment Instructions
-            </h2>
-
-            <p>
-              Transfer the amount to:
-            </p>
-
-            <div style={{ fontWeight: 700 }}>
-              {payment.bank_name}
-              <br />
-              {payment.account_name}
-              <br />
-              {payment.account_number}
-            </div>
-
-            <input
-              type="file"
-              onChange={(e) =>
-                setProof(e.target.files?.[0] || null)
-              }
-            />
-
-            <button
-              className="btn btnTech"
-              onClick={uploadProof}
-              disabled={uploading}
-            >
-              {uploading
-                ? "Uploading…"
-                : "Upload Payment Proof"}
-            </button>
-          </section>
-        )}
+            {uploading ? "Uploading…" : "Upload Payment Proof"}
+          </button>
+        </section>
+      )}
     </div>
   );
 }

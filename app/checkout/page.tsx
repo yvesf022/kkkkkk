@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useCart } from "../context/CartContext";
@@ -16,13 +16,11 @@ export default function CheckoutPage() {
 
   const [loading, setLoading] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
-
   const [proof, setProof] = useState<File | null>(null);
-  const [bank, setBank] = useState<any>(null);
 
   const token =
     typeof window !== "undefined"
-      ? localStorage.getItem("token")
+      ? localStorage.getItem("access_token")
       : null;
 
   const [address, setAddress] = useState({
@@ -50,9 +48,19 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (items.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const orderItems = items.map((i) => ({
+        product_id: i.id,
+        quantity: i.quantity,
+      }));
+
       const res = await fetch(`${API}/api/orders`, {
         method: "POST",
         headers: {
@@ -60,52 +68,40 @@ export default function CheckoutPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          items,
-          delivery_address: address,
+          items: orderItems,
           total_amount: total,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Order failed");
+      }
 
       setOrderId(data.order_id);
-
-      // fetch bank details
-      const payRes = await fetch(
-        `${API}/api/orders/${data.order_id}/payment-instructions`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      const payData = await payRes.json();
-      setBank(payData.bank_details);
-
-      toast.success("Order created. Please complete payment.");
-    } catch {
-      toast.error("Failed to create order");
+      toast.success("Order created. Please upload payment proof.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create order");
     } finally {
       setLoading(false);
     }
   }
 
   /* ======================
-     SUBMIT PROOF
+     SUBMIT PAYMENT PROOF
   ====================== */
   async function submitProof() {
-    if (!orderId || !proof) return;
+    if (!orderId || !proof || !token) return;
 
     setLoading(true);
 
     try {
       const fd = new FormData();
-      fd.append("amount", String(total));
-      fd.append("method", "bank_transfer");
       fd.append("proof", proof);
 
       const res = await fetch(
-        `${API}/api/orders/${orderId}/payments`,
+        `${API}/api/orders/${orderId}/payment-proof`,
         {
           method: "POST",
           headers: {
@@ -115,13 +111,18 @@ export default function CheckoutPage() {
         }
       );
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || "Upload failed");
+      }
 
       clearCart();
       toast.success("Payment proof submitted");
-      router.push("/account");
-    } catch {
-      toast.error("Failed to submit proof");
+
+      // 🔥 GO TO ORDER SUCCESS PAGE
+      router.push(`/order-success?orderId=${orderId}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit proof");
     } finally {
       setLoading(false);
     }
@@ -179,43 +180,37 @@ export default function CheckoutPage() {
       )}
 
       {/* PAYMENT */}
-      {orderId && bank && (
-        <>
-          <section>
-            <h3>Bank Transfer Details</h3>
-            <p><b>Bank:</b> {bank.bank_name}</p>
-            <p><b>Account Name:</b> {bank.account_name}</p>
-            <p><b>Account Number:</b> {bank.account_number}</p>
-            <p><b>Reference:</b> {orderId}</p>
-            <p>{bank.instructions}</p>
-          </section>
+      {orderId && (
+        <section>
+          <h3>Upload Proof of Payment</h3>
+          <input
+            type="file"
+            accept="image/*,.pdf"
+            onChange={(e) => setProof(e.target.files?.[0] || null)}
+          />
 
-          <section>
-            <h3>Upload Proof of Payment</h3>
-            <input
-              type="file"
-              accept="image/*,.pdf"
-              onChange={(e) => setProof(e.target.files?.[0] || null)}
-            />
-
-            <button
-              className="btn btnTech"
-              disabled={!proof || loading}
-              onClick={submitProof}
-            >
-              {loading ? "Submitting…" : "Submit Proof"}
-            </button>
-          </section>
-        </>
+          <button
+            className="btn btnTech"
+            disabled={!proof || loading}
+            onClick={submitProof}
+          >
+            {loading ? "Submitting…" : "Submit Proof"}
+          </button>
+        </section>
       )}
 
       {/* SUMMARY */}
       <section>
         <h3>Order Summary</h3>
         {items.map((i) => (
-          <div key={i.id} style={{ display: "flex", justifyContent: "space-between" }}>
-            <span>{i.title}</span>
-            <span>{fmtM(i.price)}</span>
+          <div
+            key={i.id}
+            style={{ display: "flex", justifyContent: "space-between" }}
+          >
+            <span>
+              {i.title} × {i.quantity}
+            </span>
+            <span>{fmtM(i.price * i.quantity)}</span>
           </div>
         ))}
         <b>Total: {fmtM(total)}</b>

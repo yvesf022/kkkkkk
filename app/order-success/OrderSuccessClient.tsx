@@ -16,7 +16,6 @@ export default function OrderSuccessClient() {
         margin: "48px auto 0",
       }}
     >
-      {/* SUCCESS CARD */}
       <section
         style={{
           borderRadius: 26,
@@ -80,8 +79,8 @@ export default function OrderSuccessClient() {
             maxWidth: 520,
           }}
         >
-          Thank you for your order. We’ve received your request and your payment
-          is being reviewed. You’ll be notified as soon as it’s confirmed.
+          Thank you for your order. Your payment is currently under review.
+          You’ll be notified as soon as it’s confirmed by our team.
         </p>
 
         {/* ORDER ID */}
@@ -98,7 +97,7 @@ export default function OrderSuccessClient() {
           }}
         >
           <span style={{ opacity: 0.7 }}>Order Reference:</span>{" "}
-          {orderId || "Check this in your account"}
+          {orderId ? orderId : "Available in your account"}
         </div>
 
         {/* ACTIONS */}

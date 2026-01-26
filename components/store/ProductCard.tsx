@@ -22,9 +22,9 @@ type Product = {
   category: string;
   rating: number;
 
-  /** INVENTORY */
-  stock?: number;
-  is_active?: boolean;
+  /** INVENTORY (BACKEND-TRUTH) */
+  stock: number;
+  in_stock: boolean;
 };
 
 export default function ProductCard({ p }: { p: Product }) {
@@ -38,8 +38,7 @@ export default function ProductCard({ p }: { p: Product }) {
 
   const productId = p.id || p._id;
 
-  const isOutOfStock =
-    p.is_active === false || (typeof p.stock === "number" && p.stock <= 0);
+  const isOutOfStock = p.in_stock === false;
 
   return (
     <>

@@ -11,6 +11,7 @@ export type CartItem = {
   title: string;
   price: number;
   quantity: number;
+  stock?: number;        // 🔥 OPTIONAL inventory limit
   img?: string;
   image?: string;
 };
@@ -21,13 +22,14 @@ type AddInput = {
   title: string;
   price: number;
   quantity?: number;
+  stock?: number;        // 🔥 OPTIONAL
   img?: string;
   image?: string;
 };
 
 type CartContextType = {
-  cart: CartItem[];      // expected by cart/page.tsx
-  items: CartItem[];     // backward compatibility
+  cart: CartItem[];
+  items: CartItem[];
   addToCart: (item: AddInput) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -60,12 +62,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const existing = prev.find((i) => i.id === id);
 
       if (existing) {
+        const nextQty = existing.quantity + 1;
+        const maxQty =
+          typeof existing.stock === "number"
+            ? existing.stock
+            : nextQty;
+
         return prev.map((i) =>
           i.id === id
-            ? { ...i, quantity: i.quantity + 1 }
+            ? {
+                ...i,
+                quantity: Math.min(nextQty, maxQty),
+              }
             : i
         );
       }
+
+      const initialQty = input.quantity ?? 1;
+      const maxQty =
+        typeof input.stock === "number"
+          ? Math.min(initialQty, input.stock)
+          : initialQty;
 
       return [
         ...prev,
@@ -73,7 +90,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
           id,
           title: input.title,
           price: input.price,
-          quantity: input.quantity ?? 1,
+          quantity: maxQty,
+          stock: input.stock,
           img: input.img,
           image: input.image,
         },
@@ -92,9 +110,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     setItems((prev) =>
-      prev.map((i) =>
-        i.id === id ? { ...i, quantity } : i
-      )
+      prev.map((i) => {
+        if (i.id !== id) return i;
+
+        const maxQty =
+          typeof i.stock === "number"
+            ? i.stock
+            : quantity;
+
+        return {
+          ...i,
+          quantity: Math.min(quantity, maxQty),
+        };
+      })
     );
   };
 
