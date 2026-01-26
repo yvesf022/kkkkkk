@@ -7,7 +7,7 @@ import { getMyOrders, Order } from "@/lib/api";
 import Link from "next/link";
 
 /* ======================
-   HELPERS
+   BADGES
 ====================== */
 function Badge({
   label,
@@ -32,64 +32,36 @@ function Badge({
   );
 }
 
-function PaymentBadge(status: string) {
-  const map: Record<string, any> = {
-    on_hold: {
-      label: "Awaiting Payment",
-      color: "#f59e0b",
-    },
-    payment_submitted: {
-      label: "Under Review",
-      color: "#3b82f6",
-    },
-    payment_received: {
-      label: "Paid",
-      color: "#22c55e",
-    },
-    rejected: {
-      label: "Payment Rejected",
-      color: "#ef4444",
-    },
+function PaymentBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; color: string }> = {
+    on_hold: { label: "Awaiting Payment", color: "#f59e0b" },
+    payment_submitted: { label: "Under Review", color: "#3b82f6" },
+    payment_received: { label: "Paid", color: "#22c55e" },
+    rejected: { label: "Payment Rejected", color: "#ef4444" },
   };
 
-  return (
-    <Badge
-      {...(map[status] || {
-        label: status,
-        color: "#64748b",
-      })}
-    />
-  );
+  const item = map[status] ?? {
+    label: status,
+    color: "#64748b",
+  };
+
+  return <Badge label={item.label} color={item.color} />;
 }
 
-function ShippingBadge(status?: string) {
-  const map: Record<string, any> = {
-    created: {
-      label: "Order Created",
-      color: "#64748b",
-    },
-    processing: {
-      label: "Processing",
-      color: "#3b82f6",
-    },
-    shipped: {
-      label: "Shipped",
-      color: "#8b5cf6",
-    },
-    delivered: {
-      label: "Delivered",
-      color: "#22c55e",
-    },
+function ShippingBadge({ status }: { status?: string }) {
+  const map: Record<string, { label: string; color: string }> = {
+    created: { label: "Order Created", color: "#64748b" },
+    processing: { label: "Processing", color: "#3b82f6" },
+    shipped: { label: "Shipped", color: "#8b5cf6" },
+    delivered: { label: "Delivered", color: "#22c55e" },
   };
 
-  return (
-    <Badge
-      {...(map[status || "created"] || {
-        label: status,
-        color: "#9ca3af",
-      })}
-    />
-  );
+  const item = map[status ?? "created"] ?? {
+    label: status ?? "Unknown",
+    color: "#9ca3af",
+  };
+
+  return <Badge label={item.label} color={item.color} />;
 }
 
 /* ======================
@@ -117,12 +89,9 @@ export default function AccountOrdersPage() {
   return (
     <RequireAuth>
       <div style={{ display: "grid", gap: 24 }}>
-        {/* HEADER */}
         <header>
-          <h1 style={{ fontSize: 28, fontWeight: 900 }}>
-            My Orders
-          </h1>
-          <p style={{ opacity: 0.6, marginTop: 4 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 900 }}>My Orders</h1>
+          <p style={{ opacity: 0.6 }}>
             Track payments, shipping, and delivery
           </p>
         </header>
@@ -181,18 +150,10 @@ export default function AccountOrdersPage() {
 
                 <div>
                   <b>Total:</b>{" "}
-                  <span style={{ fontWeight: 900 }}>
-                    M{o.total_amount.toLocaleString()}
-                  </span>
+                  <strong>M{o.total_amount.toLocaleString()}</strong>
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    flexWrap: "wrap",
-                  }}
-                >
+                <div style={{ display: "flex", gap: 10 }}>
                   <PaymentBadge status={o.payment_status} />
                   <ShippingBadge status={o.shipping_status} />
                 </div>
@@ -200,7 +161,6 @@ export default function AccountOrdersPage() {
                 {needsAction && (
                   <div
                     style={{
-                      marginTop: 6,
                       color: "#b45309",
                       fontWeight: 700,
                       fontSize: 13,
