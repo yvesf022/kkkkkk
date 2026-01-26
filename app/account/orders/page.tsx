@@ -62,7 +62,7 @@ function PaymentBadge(status: string) {
   );
 }
 
-function ShippingBadge(status: string) {
+function ShippingBadge(status?: string) {
   const map: Record<string, any> = {
     created: {
       label: "Order Created",
@@ -84,7 +84,7 @@ function ShippingBadge(status: string) {
 
   return (
     <Badge
-      {...(map[status] || {
+      {...(map[status || "created"] || {
         label: status,
         color: "#9ca3af",
       })}
@@ -137,10 +137,6 @@ export default function AccountOrdersPage() {
 
         <div style={{ display: "grid", gap: 16 }}>
           {orders.map((o) => {
-            const itemsCount = Array.isArray(o.items)
-              ? o.items.length
-              : 0;
-
             const needsAction =
               o.payment_status === "on_hold" ||
               o.payment_status === "rejected";
@@ -180,13 +176,7 @@ export default function AccountOrdersPage() {
 
                 <div>
                   <b>Date:</b>{" "}
-                  {new Date(
-                    o.created_at
-                  ).toLocaleDateString()}
-                </div>
-
-                <div>
-                  <b>Items:</b> {itemsCount}
+                  {new Date(o.created_at).toLocaleDateString()}
                 </div>
 
                 <div>
@@ -203,12 +193,8 @@ export default function AccountOrdersPage() {
                     flexWrap: "wrap",
                   }}
                 >
-                  <PaymentBadge
-                    status={o.payment_status}
-                  />
-                  <ShippingBadge
-                    status={o.shipping_status}
-                  />
+                  <PaymentBadge status={o.payment_status} />
+                  <ShippingBadge status={o.shipping_status} />
                 </div>
 
                 {needsAction && (
