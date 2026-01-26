@@ -1,52 +1,63 @@
-"use client"
+import { create } from "zustand";
 
-import { create } from "zustand"
-import { getMe } from "./api"
+type Role = "admin" | "user";
 
-type User = {
-  id: string
-  email: string
-  role: "user" | "admin"
-}
+interface AuthState {
+  token: string | null;
+  role: Role | null;
+  isAuthenticated: boolean;
 
-type AuthState = {
-  user: User | null
-  token: string | null
-  loading: boolean
-  login: (token: string) => Promise<void>
-  logout: () => void
-  hydrate: () => Promise<void>
+  login: (token: string, role: Role) => void;
+  logout: () => void;
+  hydrate: () => void;
 }
 
 export const useAuth = create<AuthState>((set) => ({
-  user: null,
   token: null,
-  loading: true,
+  role: null,
+  isAuthenticated: false,
 
-  login: async (token) => {
-    localStorage.setItem("token", token)
-    const user = await getMe()
-    set({ token, user, loading: false })
+  // =====================
+  // LOGIN
+  // =====================
+  login: (token, role) => {
+    localStorage.setItem("access_token", token);
+    localStorage.setItem("role", role);
+
+    set({
+      token,
+      role,
+      isAuthenticated: true,
+    });
   },
 
+  // =====================
+  // LOGOUT
+  // =====================
   logout: () => {
-    localStorage.removeItem("token")
-    set({ user: null, token: null, loading: false })
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("role");
+
+    set({
+      token: null,
+      role: null,
+      isAuthenticated: false,
+    });
   },
 
-  hydrate: async () => {
-    const token = localStorage.getItem("token")
-    if (!token) {
-      set({ loading: false })
-      return
-    }
+  // =====================
+  // HYDRATE ON REFRESH
+  // =====================
+  hydrate: () => {
+    const token = localStorage.getItem("access_token");
+    const role = localStorage.getItem("role") as Role | null;
 
-    try {
-      const user = await getMe()
-      set({ token, user, loading: false })
-    } catch {
-      localStorage.removeItem("token")
-      set({ user: null, token: null, loading: false })
+    if (token && role) {
+      set({
+        token,
+        role,
+        isAuthenticated: true,
+      });
     }
   },
-}))
+}));

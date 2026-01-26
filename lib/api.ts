@@ -9,10 +9,18 @@ export type Product = {
   rating: number
 }
 
+/* ======================
+   TOKEN (FIXED)
+====================== */
+
 function getToken() {
   if (typeof window === "undefined") return null
-  return localStorage.getItem("token")
+  return localStorage.getItem("access_token") // ✅ FIX
 }
+
+/* ======================
+   CORE FETCH
+====================== */
 
 async function apiFetch(
   path: string,
@@ -42,16 +50,19 @@ async function apiFetch(
   return res.json()
 }
 
-/* ---------------- PRODUCTS ---------------- */
+/* ======================
+   PRODUCTS
+====================== */
 
 export async function fetchProducts() {
   return apiFetch("/api/products")
 }
 
-// backward compatibility
 export const getProducts = fetchProducts
 
-/* ---------------- AUTH ---------------- */
+/* ======================
+   AUTH
+====================== */
 
 export async function login(email: string, password: string) {
   return apiFetch("/api/auth/login", {
@@ -71,7 +82,9 @@ export async function getMe() {
   return apiFetch("/api/auth/me")
 }
 
-/* ---------------- ORDERS ---------------- */
+/* ======================
+   ORDERS
+====================== */
 
 export async function getMyOrders() {
   return apiFetch("/api/orders/my")
