@@ -11,8 +11,6 @@ export type Product = {
   img: string;
   category: string;
   rating: number;
-
-  // 🔥 INVENTORY (NEW – BACKEND ALIGNED)
   stock: number;
   in_stock: boolean;
 };
@@ -26,6 +24,46 @@ export type OrderPayload = {
   items: OrderItemPayload[];
   total_amount: number;
 };
+
+export type Order = {
+  id: string;
+  total_amount: number;
+  payment_status: string;
+  shipping_status?: string;
+  created_at: string;
+  user_email?: string;
+};
+
+/* =========================
+   HELPERS
+========================= */
+
+function authHeaders() {
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
+
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+/* =========================
+   AUTH / USER
+========================= */
+
+export async function getMe() {
+  const res = await fetch(`${API}/api/auth/me`, {
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch user");
+  }
+
+  return res.json();
+}
 
 /* =========================
    PRODUCTS
@@ -44,18 +82,29 @@ export async function fetchProducts(): Promise<Product[]> {
 }
 
 /* =========================
-   ORDERS
+   ORDERS — USER
 ========================= */
 
+export async function getMyOrders(): Promise<Order[]> {
+  const res = await fetch(`${API}/api/orders/my`, {
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch orders");
+  }
+
+  return res.json();
+}
+
 export async function createOrder(
-  token: string,
   payload: OrderPayload
 ) {
   const res = await fetch(`${API}/api/orders`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      ...authHeaders(),
     },
     body: JSON.stringify(payload),
   });
@@ -67,4 +116,20 @@ export async function createOrder(
   }
 
   return data;
+}
+
+/* =========================
+   ORDERS — ADMIN
+========================= */
+
+export async function getAdminOrders(): Promise<Order[]> {
+  const res = await fetch(`${API}/api/orders/admin`, {
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch admin orders");
+  }
+
+  return res.json();
 }
