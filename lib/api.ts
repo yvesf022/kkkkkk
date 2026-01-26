@@ -34,33 +34,26 @@ export type Order = {
   user_email?: string;
 };
 
-export type Address = {
-  id: string;
-  full_name: string;
-  phone: string;
-  address_line_1: string;
-  address_line_2?: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-  is_default: boolean;
-};
-
-export type UserProfile = {
-  name: string;
-  phone: string;
-};
-
 /* =========================
-   HELPERS
+   AUTH HEADER (FIXED)
 ========================= */
 
+function getAccessToken(): string {
+  if (typeof window === "undefined") {
+    throw new Error("Auth token accessed on server");
+  }
+
+  const token = localStorage.getItem("access_token");
+
+  if (!token) {
+    throw new Error("Not authenticated");
+  }
+
+  return token;
+}
+
 function authHeaders() {
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
-      : null;
+  const token = getAccessToken();
 
   return {
     Authorization: `Bearer ${token}`,
@@ -81,84 +74,6 @@ export async function getMe() {
   }
 
   return res.json();
-}
-
-export async function updateMe(payload: UserProfile) {
-  const res = await fetch(`${API}/api/auth/me`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.detail || "Profile update failed");
-  }
-
-  return data;
-}
-
-/* =========================
-   ADDRESSES — USER
-========================= */
-
-export async function getMyAddresses(): Promise<Address[]> {
-  const res = await fetch(`${API}/api/addresses/my`, {
-    headers: authHeaders(),
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch addresses");
-  }
-
-  return res.json();
-}
-
-export async function createAddress(
-  payload: Omit<Address, "id" | "is_default">
-) {
-  const res = await fetch(`${API}/api/addresses`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.detail || "Failed to create address");
-  }
-
-  return data;
-}
-
-export async function deleteAddress(addressId: string) {
-  const res = await fetch(`${API}/api/addresses/${addressId}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to delete address");
-  }
-}
-
-export async function setDefaultAddress(addressId: string) {
-  const res = await fetch(`${API}/api/addresses/${addressId}/default`, {
-    method: "PUT",
-    headers: authHeaders(),
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to set default address");
-  }
 }
 
 /* =========================
