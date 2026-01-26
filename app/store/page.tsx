@@ -100,7 +100,6 @@ export default function StorePage() {
   const visibleProducts = useMemo(() => {
     let data = [...products];
 
-    // Search
     if (filters.q) {
       const q = filters.q.toLowerCase();
       data = data.filter((p) =>
@@ -108,14 +107,12 @@ export default function StorePage() {
       );
     }
 
-    // Category
     if (filters.category) {
       data = data.filter(
         (p) => p.category === filters.category
       );
     }
 
-    // Min / Max price (from FiltersBar)
     if (filters.min !== undefined) {
       data = data.filter((p) => p.price >= filters.min!);
     }
@@ -124,7 +121,6 @@ export default function StorePage() {
       data = data.filter((p) => p.price <= filters.max!);
     }
 
-    // Sort
     if (sort === "price_low") {
       data.sort((a, b) => a.price - b.price);
     } else if (sort === "price_high") {
@@ -142,7 +138,6 @@ export default function StorePage() {
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
-      {/* Top navigation */}
       <div
         style={{
           display: "flex",
@@ -156,21 +151,14 @@ export default function StorePage() {
         </Link>
       </div>
 
-      {/* Store Tabs */}
       <StoreTabs filters={filters} setFilters={setFilters} />
-
-      {/* Search */}
       <SearchBar filters={filters} setFilters={setFilters} />
-
-      {/* Filters + Sort */}
       <FiltersBar
         filters={filters}
         setFilters={setFilters}
         sort={sort}
         setSort={setSort}
       />
-
-      {/* Toolbar (optional summary / reset) */}
       <StoreToolbar
         filters={filters}
         setFilters={setFilters}
@@ -178,7 +166,6 @@ export default function StorePage() {
         setSort={setSort}
       />
 
-      {/* Products */}
       {loading ? (
         <div>Loading products…</div>
       ) : visibleProducts.length === 0 ? (
@@ -193,7 +180,15 @@ export default function StorePage() {
           }}
         >
           {visibleProducts.map((p) => (
-            <ProductCard key={p.id} p={p} />
+            <ProductCard
+              key={p.id}
+              p={{
+                ...p,
+                // ✅ TEMPORARY DEFAULTS (STOCK NOT LIVE YET)
+                stock: 0,
+                in_stock: false,
+              }}
+            />
           ))}
         </div>
       )}
