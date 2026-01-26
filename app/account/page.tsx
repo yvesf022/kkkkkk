@@ -3,14 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import RequireAuth from "@/components/auth/RequireAuth";
-import { getMyOrders } from "@/lib/api";
-
-type Order = {
-  id: string;
-  total_amount: number;
-  shipping_status: string;
-  created_at: string;
-};
+import { getMyOrders, Order } from "@/lib/api";
 
 export default function AccountPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -36,7 +29,10 @@ export default function AccountPage() {
   const totalOrders = orders.length;
 
   const totalSpent = useMemo(() => {
-    return orders.reduce((sum, o) => sum + o.total_amount, 0);
+    return orders.reduce(
+      (sum, o) => sum + o.total_amount,
+      0
+    );
   }, [orders]);
 
   const lastOrder = orders[0];
@@ -49,14 +45,16 @@ export default function AccountPage() {
           My Account
         </h1>
         <p style={{ marginTop: 6, opacity: 0.6 }}>
-          Welcome back. Here’s a quick overview of your account.
+          Welcome back. Here’s a quick overview of your
+          account.
         </p>
 
         {/* STATS */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 18,
             marginTop: 28,
           }}
@@ -88,7 +86,12 @@ export default function AccountPage() {
           {loading && <p>Loading orders…</p>}
 
           {!loading && orders.length === 0 && (
-            <p style={{ opacity: 0.6, marginTop: 12 }}>
+            <p
+              style={{
+                opacity: 0.6,
+                marginTop: 12,
+              }}
+            >
               You haven’t placed any orders yet.
             </p>
           )}
@@ -116,11 +119,18 @@ export default function AccountPage() {
                   Order #{o.id.slice(0, 8)}
                 </div>
 
-                <div style={{ display: "flex", gap: 12 }}>
-                  <span>Total: ₹{o.total_amount}</span>
+                <div
+                  style={{ display: "flex", gap: 12 }}
+                >
+                  <span>
+                    Total: ₹{o.total_amount}
+                  </span>
                   <span>
                     Status:{" "}
-                    <b>{o.shipping_status}</b>
+                    <b>
+                      {o.shipping_status ??
+                        "created"}
+                    </b>
                   </span>
                 </div>
 
@@ -130,7 +140,9 @@ export default function AccountPage() {
                     opacity: 0.6,
                   }}
                 >
-                  {new Date(o.created_at).toLocaleString()}
+                  {new Date(
+                    o.created_at
+                  ).toLocaleString()}
                 </div>
               </div>
             ))}
