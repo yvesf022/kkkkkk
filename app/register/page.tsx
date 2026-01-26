@@ -6,6 +6,26 @@ import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
+/* =========================
+   TYPES — BACKEND ALIGNED
+========================= */
+
+interface RegisterRequest {
+  email: string;
+  password: string;
+  full_name?: string;
+  phone?: string;
+}
+
+interface RegisterSuccessResponse {
+  id: string;
+  email: string;
+}
+
+interface FastAPIErrorResponse {
+  detail: string;
+}
+
 type Status =
   | { type: "idle" }
   | { type: "success"; message: string }
@@ -14,11 +34,19 @@ type Status =
 export default function RegisterPage() {
   const router = useRouter();
 
+  /* ---------- FORM STATE ---------- */
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<Status>({ type: "idle" });
+
+  /* =========================
+     REGISTER HANDLER
+  ========================= */
 
   async function register() {
     setStatus({ type: "idle" });
@@ -27,7 +55,15 @@ export default function RegisterPage() {
     if (!email || !password || !confirm) {
       setStatus({
         type: "error",
-        message: "All fields are required.",
+        message: "Email and password are required.",
+      });
+      return;
+    }
+
+    if (password.length < 8) {
+      setStatus({
+        type: "error",
+        message: "Password must be at least 8 characters.",
       });
       return;
     }
@@ -40,64 +76,61 @@ export default function RegisterPage() {
       return;
     }
 
+    const payload: RegisterRequest = {
+      email,
+      password,
+    };
+
+    if (fullName.trim()) payload.full_name = fullName.trim();
+    if (phone.trim()) payload.phone = phone.trim();
+
     setLoading(true);
 
     try {
       const res = await fetch(`${API}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(payload),
       });
 
-      let data: any = null;
-      try {
-        data = await res.json();
-      } catch {
-        // backend crashed or returned non-JSON
-      }
+      const data:
+        | RegisterSuccessResponse
+        | FastAPIErrorResponse = await res.json();
 
-      /* ---------- BACKEND / DB ERRORS ---------- */
       if (!res.ok) {
-        if (res.status >= 500) {
-          setStatus({
-            type: "error",
-            message:
-              "Server or database error. Please try again later.",
-          });
-        } else {
-          setStatus({
-            type: "error",
-            message:
-              data?.detail ||
-              "Registration failed due to invalid data.",
-          });
-        }
+        setStatus({
+          type: "error",
+          message:
+            "detail" in data
+              ? data.detail
+              : "Registration failed. Please try again.",
+        });
         return;
       }
 
-      /* ---------- SUCCESS ---------- */
       setStatus({
         type: "success",
-        message:
-          "Account created successfully. You can now log in.",
+        message: "Account created successfully. Redirecting to login…",
       });
 
-      toast.success("Account created 🎉");
+      toast.success("Welcome to Karabo’s Store 🎉");
 
-      // Give user time to read
       setTimeout(() => {
         router.push("/login");
-      }, 2000);
-    } catch (err) {
+      }, 1500);
+    } catch {
       setStatus({
         type: "error",
-        message:
-          "Network error. Please check your connection.",
+        message: "Network error. Please check your connection.",
       });
     } finally {
       setLoading(false);
     }
   }
+
+  /* =========================
+     UI
+  ========================= */
 
   return (
     <div
@@ -110,7 +143,7 @@ export default function RegisterPage() {
       <div
         style={{
           width: "100%",
-          maxWidth: 420,
+          maxWidth: 440,
           padding: 28,
           borderRadius: 22,
           background: "linear-gradient(135deg,#ffffff,#f8fbff)",
@@ -124,10 +157,9 @@ export default function RegisterPage() {
             marginBottom: 18,
           }}
         >
-          Create Account
+          Create Your Account
         </h1>
 
-        {/* ---------- STATUS MESSAGE ---------- */}
         {status.type !== "idle" && (
           <div
             style={{
@@ -152,15 +184,27 @@ export default function RegisterPage() {
 
         <div style={{ display: "grid", gap: 14 }}>
           <input
+            placeholder="Full name (optional)"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+
+          <input
             type="email"
-            placeholder="Email"
+            placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
 
           <input
+            placeholder="Phone number (optional)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+
+          <input
             type="password"
-            placeholder="Password"
+            placeholder="Password (min 8 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -177,7 +221,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="btn btnTech"
           >
-            {loading ? "Creating..." : "Register"}
+            {loading ? "Creating account..." : "Register"}
           </button>
         </div>
       </div>

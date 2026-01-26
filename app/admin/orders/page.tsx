@@ -1,169 +1,296 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { getAdminOrders, Order } from "@/lib/api";
 
-export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [updating, setUpdating] = useState<string | null>(null);
+const API = process.env.NEXT_PUBLIC_API_URL!;
+
+type OrderItem = {
+  product_id?: string;
+  title?: string;
+  price?: number;
+  quantity: number;
+};
+
+type Order = {
+  id: string;
+  user_email: string;
+  items: OrderItem[];
+  total_amount: number;
+  payment_status: string;
+  shipping_status: string;
+  tracking_number?: string;
+  payment_proof?: string | null;
+  created_at: string;
+};
+
+export default function AdminOrderDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
 
   /* ======================
-     LOAD ORDERS
+     LOAD ORDER
   ====================== */
-  async function loadOrders() {
-    setLoading(true);
+  async function load() {
     try {
-      const data = await getAdminOrders();
-      setOrders(data);
+      const res = await fetch(
+        `${API}/api/orders/admin/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error();
+
+      setOrder(await res.json());
     } catch {
-      toast.error("Failed to load orders");
+      toast.error("Failed to load order. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+    load();
+  }, [id]);
 
   /* ======================
-     UPDATE SHIPPING STATUS
+     UPDATE ORDER
   ====================== */
-  async function updateShippingStatus(
-    orderId: string,
-    shipping_status: string
-  ) {
-    setUpdating(orderId);
+  async function update(payload: Record<string, any>) {
+    setUpdating(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/admin/${orderId}/update`,
+        `${API}/api/orders/admin/${id}/update`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem(
-              "access_token"
-            )}`,
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ shipping_status }),
+          body: JSON.stringify(payload),
         }
       );
 
-      if (!res.ok) throw new Error();
+      const data = await res.json();
 
-      toast.success("Shipping status updated");
+      if (!res.ok) {
+        throw new Error(data?.detail || "Failed to update order. Please try again.");
+      }
 
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId
-            ? { ...o, shipping_status }
-            : o
-        )
-      );
-    } catch {
-      toast.error("Failed to update shipping status");
+      toast.success("Order updated successfully!");
+      load();
+    } catch (err: any) {
+      toast.error(err.message || "Unable to update. Please try again.");
     } finally {
-      setUpdating(null);
+      setUpdating(false);
     }
   }
+
+  if (loading) return <p>Loading order…</p>;
+  if (!order) return <p>No orders found. Please check back later.</p>;
+
+  const canReviewPayment =
+    order.payment_status === "payment_submitted";
+
+  const canShip =
+    order.payment_status === "payment_received";
+
+  // Utility function to determine badge class
+  const getStatusBadge = (status: string, type: string) => {
+    let badgeClass = "badge";
+
+    if (status === "payment_submitted" && type === "payment") {
+      badgeClass += " badge-warning"; // Urgency for payment review
+    } else if (status === "payment_received" && type === "payment") {
+      badgeClass += " badge-success"; // Payment received
+    } else if (status === "rejected" && type === "payment") {
+      badgeClass += " badge-danger"; // Payment rejected
+    }
+
+    if (status === "created" && type === "shipping") {
+      badgeClass += " badge-info"; // Shipping created
+    } else if (status === "processing" && type === "shipping") {
+      badgeClass += " badge-primary"; // Processing shipping
+    } else if (status === "shipped" && type === "shipping") {
+      badgeClass += " badge-secondary"; // Shipped
+    } else if (status === "delivered" && type === "shipping") {
+      badgeClass += " badge-dark"; // Delivered
+    }
+
+    return badgeClass;
+  };
 
   return (
     <div style={{ display: "grid", gap: 26 }}>
       {/* HEADER */}
       <header>
-        <h1 style={{ fontSize: 28, fontWeight: 900 }}>
-          Orders
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
+          Order #{order.id.slice(0, 8)}
         </h1>
-        <p style={{ marginTop: 6, opacity: 0.6 }}>
-          Review payments and manage shipping
+        <p style={{ opacity: 0.6 }}>
+          {new Date(order.created_at).toLocaleString()}
         </p>
       </header>
 
-      {loading && <p>Loading orders…</p>}
+      {/* META */}
+      <section className="card">
+        <div>
+          <b>User:</b> {order.user_email}
+        </div>
+        <div>
+          <b>Total:</b> M{order.total_amount.toLocaleString()}
+        </div>
+        <div>
+          <b>Payment status:</b>
+          <span className={getStatusBadge(order.payment_status, "payment")}>
+            {order.payment_status}
+          </span>
+        </div>
+        <div>
+          <b>Shipping status:</b>
+          <span className={getStatusBadge(order.shipping_status, "shipping")}>
+            {order.shipping_status}
+          </span>
+        </div>
+      </section>
 
-      {/* ORDERS */}
-      <div style={{ display: "grid", gap: 16 }}>
-        {orders.map((o) => (
-          <section
-            key={o.id}
+      {/* PAYMENT PROOF */}
+      {order.payment_proof && (
+        <section className="card">
+          <h2 style={{ fontWeight: 900 }}>
+            Payment Proof
+          </h2>
+
+          <a
+            href={order.payment_proof}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btnGhost"
+            style={{ marginTop: 10 }}
+          >
+            View Payment Proof
+          </a>
+        </section>
+      )}
+
+      {/* PAYMENT REVIEW */}
+      {canReviewPayment && (
+        <section className="card">
+          <h2 style={{ fontWeight: 900 }}>
+            Review Payment
+          </h2>
+
+          <div
             style={{
-              borderRadius: 18,
-              padding: 18,
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              display: "grid",
-              gap: 10,
+              display: "flex",
+              gap: 12,
+              marginTop: 10,
             }}
           >
-            <div style={{ fontWeight: 900 }}>
-              Order #{o.id.slice(0, 8)}
-            </div>
-
-            <div>
-              <b>User:</b>{" "}
-              {o.user_email ?? "—"}
-            </div>
-
-            <div>
-              <b>Total:</b> ₹{o.total_amount}
-            </div>
-
-            <div>
-              <b>Payment status:</b>{" "}
-              {o.payment_status}
-            </div>
-
-            <div>
-              <b>Shipping status:</b>{" "}
-              {o.shipping_status || "created"}
-            </div>
-
-            {/* ACTIONS */}
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-                marginTop: 6,
-              }}
+            <button
+              className="btn btnTech"
+              disabled={updating}
+              onClick={() =>
+                update({
+                  status: "payment_received",
+                })
+              }
+              title={!canReviewPayment ? "You cannot approve payment until it is submitted." : ""}
             >
-              <Link
-                href={`/admin/orders/${o.id}`}
-                className="btn btnGhost"
-              >
-                View Order
-              </Link>
+              Approve Payment
+            </button>
 
-              <select
-                disabled={updating === o.id}
-                value={o.shipping_status || "created"}
-                onChange={(e) =>
-                  updateShippingStatus(
-                    o.id,
-                    e.target.value
-                  )
-                }
-              >
-                <option value="created">
-                  Created
-                </option>
-                <option value="processing">
-                  Processing
-                </option>
-                <option value="shipped">
-                  Shipped
-                </option>
-                <option value="delivered">
-                  Delivered
-                </option>
-              </select>
-            </div>
-          </section>
+            <button
+              className="btn btnGhost"
+              disabled={updating}
+              onClick={() =>
+                update({ status: "rejected" })
+              }
+              title="You can reject the payment if necessary."
+            >
+              Reject Payment
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* SHIPPING */}
+      <section className="card">
+        <h2 style={{ fontWeight: 900 }}>
+          Shipping
+        </h2>
+
+        <select
+          disabled={!canShip || updating}
+          value={order.shipping_status}
+          onChange={(e) =>
+            update({
+              shipping_status: e.target.value,
+            })
+          }
+          title={!canShip ? "You cannot ship until payment is received." : ""}
+        >
+          <option value="created">Created</option>
+          <option value="processing">
+            Processing
+          </option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">
+            Delivered
+          </option>
+        </select>
+
+        <input
+          type="text"
+          placeholder="Tracking number (optional)"
+          value={order.tracking_number || ""}
+          disabled={!canShip || updating}
+          onChange={(e) =>
+            update({
+              tracking_number: e.target.value,
+            })
+          }
+          style={{ marginTop: 10 }}
+          title={!canShip ? "Please approve payment before updating shipping." : ""}
+        />
+      </section>
+
+      {/* ITEMS */}
+      <section className="card">
+        <h2 style={{ fontWeight: 900 }}>Items</h2>
+
+        {order.items.map((i, idx) => (
+          <div
+            key={idx}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>
+              {i.title || "Product"} × {i.quantity}
+            </span>
+            <span>
+              M{(
+                (i.price || 0) * i.quantity
+              ).toLocaleString()}
+            </span>
+          </div>
         ))}
-      </div>
+      </section>
     </div>
   );
 }

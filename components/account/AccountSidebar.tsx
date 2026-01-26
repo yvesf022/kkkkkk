@@ -16,7 +16,6 @@ const ITEMS: Item[] = [
   { label: "Addresses", href: "/account/addresses" },
   { label: "Payments", href: "/account/payments" },
   { label: "Security", href: "/account/security" },
-  { label: "Support", href: "/account/support" },
 ];
 
 export default function AccountSidebar() {
@@ -81,7 +80,9 @@ export default function AccountSidebar() {
                 fontWeight: 700,
                 fontSize: 14,
                 textDecoration: "none",
-                color: active ? "#0f172a" : "rgba(15,23,42,0.7)",
+                color: active
+                  ? "#0f172a"
+                  : "rgba(15,23,42,0.7)",
                 background: active
                   ? "rgba(37,99,235,0.08)"
                   : "transparent",

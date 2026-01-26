@@ -5,10 +5,15 @@ import Image from "next/image";
 import { useCart } from "../context/CartContext";
 
 /* Currency */
-const fmt = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
+const fmt = (v: number) =>
+  `M ${v.toLocaleString("en-ZA", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, total } = useCart();
+  const { cart, removeFromCart, updateQuantity, total } =
+    useCart();
 
   /* ================= EMPTY CART ================= */
 
@@ -46,7 +51,12 @@ export default function CartPage() {
           Your Cart is Empty
         </h1>
 
-        <p style={{ marginTop: 8, color: "rgba(15,23,42,0.6)" }}>
+        <p
+          style={{
+            marginTop: 8,
+            color: "rgba(15,23,42,0.6)",
+          }}
+        >
           Looks like you haven’t added anything yet.
         </p>
 
@@ -95,7 +105,12 @@ export default function CartPage() {
           Shopping Cart
         </h1>
 
-        <p style={{ marginTop: 6, color: "rgba(15,23,42,0.6)" }}>
+        <p
+          style={{
+            marginTop: 6,
+            color: "rgba(15,23,42,0.6)",
+          }}
+        >
           Review your items before checkout.
         </p>
       </section>
@@ -105,7 +120,8 @@ export default function CartPage() {
         style={{
           borderRadius: 26,
           padding: 24,
-          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          background:
+            "linear-gradient(135deg,#ffffff,#f8fbff)",
           boxShadow: "0 26px 70px rgba(15,23,42,0.16)",
         }}
       >
@@ -115,7 +131,8 @@ export default function CartPage() {
               key={item.id}
               style={{
                 display: "grid",
-                gridTemplateColumns: "86px 1fr auto",
+                gridTemplateColumns:
+                  "86px 1fr auto",
                 gap: 16,
                 alignItems: "center",
                 padding: 16,
@@ -161,7 +178,8 @@ export default function CartPage() {
                   style={{
                     marginTop: 4,
                     fontWeight: 700,
-                    color: "rgba(15,23,42,0.65)",
+                    color:
+                      "rgba(15,23,42,0.65)",
                   }}
                 >
                   {fmt(item.price)}
@@ -177,8 +195,15 @@ export default function CartPage() {
                 >
                   <button
                     className="btn btnGhost"
+                    disabled={item.quantity <= 1}
                     onClick={() =>
-                      updateQuantity(item.id, item.quantity - 1)
+                      updateQuantity(
+                        item.id,
+                        Math.max(
+                          1,
+                          item.quantity - 1
+                        )
+                      )
                     }
                   >
                     −
@@ -191,7 +216,10 @@ export default function CartPage() {
                   <button
                     className="btn btnGhost"
                     onClick={() =>
-                      updateQuantity(item.id, item.quantity + 1)
+                      updateQuantity(
+                        item.id,
+                        item.quantity + 1
+                      )
                     }
                   >
                     +
@@ -202,7 +230,9 @@ export default function CartPage() {
               {/* REMOVE */}
               <button
                 className="btn btnGhost"
-                onClick={() => removeFromCart(item.id)}
+                onClick={() =>
+                  removeFromCart(item.id)
+                }
               >
                 Remove
               </button>
@@ -216,8 +246,10 @@ export default function CartPage() {
         style={{
           borderRadius: 24,
           padding: 24,
-          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
+          background:
+            "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow:
+            "0 22px 60px rgba(15,23,42,0.14)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -225,16 +257,25 @@ export default function CartPage() {
           gap: 12,
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 900 }}>
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 900,
+          }}
+        >
           Total:{" "}
           <span style={{ color: "#2563eb" }}>
             {fmt(total)}
           </span>
         </div>
 
-        <Link href="/checkout" className="btn btnTech">
+        <button
+          className="btn btnTech"
+          disabled
+          title="Checkout will be enabled soon"
+        >
           Proceed to Checkout →
-        </Link>
+        </button>
       </section>
     </div>
   );
