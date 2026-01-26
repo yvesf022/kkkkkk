@@ -1,39 +1,52 @@
-type Session = {
-  token: string;
-  role: string;
-  email: string;
-};
+"use client"
 
-/* ======================
-   SAFE SESSION GETTER
-====================== */
-export function getSession(): Session | null {
-  if (typeof window === "undefined") return null;
+import { create } from "zustand"
+import { getMe } from "./api"
 
-  try {
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
-    const email = localStorage.getItem("email");
-
-    if (!token || !role || !email) return null;
-
-    return { token, role, email };
-  } catch {
-    return null;
-  }
+type User = {
+  id: string
+  email: string
+  role: "user" | "admin"
 }
 
-/* ======================
-   LOGOUT
-====================== */
-export function logout(redirectTo: string = "/") {
-  if (typeof window === "undefined") return;
-
-  try {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("email");
-  } finally {
-    window.location.href = redirectTo;
-  }
+type AuthState = {
+  user: User | null
+  token: string | null
+  loading: boolean
+  login: (token: string) => Promise<void>
+  logout: () => void
+  hydrate: () => Promise<void>
 }
+
+export const useAuth = create<AuthState>((set) => ({
+  user: null,
+  token: null,
+  loading: true,
+
+  login: async (token) => {
+    localStorage.setItem("token", token)
+    const user = await getMe()
+    set({ token, user, loading: false })
+  },
+
+  logout: () => {
+    localStorage.removeItem("token")
+    set({ user: null, token: null, loading: false })
+  },
+
+  hydrate: async () => {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      set({ loading: false })
+      return
+    }
+
+    try {
+      const user = await getMe()
+      set({ token, user, loading: false })
+    } catch {
+      localStorage.removeItem("token")
+      set({ user: null, token: null, loading: false })
+    }
+  },
+}))
