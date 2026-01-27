@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import "@/styles/globals.css";
 
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 
 import { UIProvider } from "@/components/layout/uiStore";
-import { CartProvider } from "./context/CartContext";
+import { CartProvider } from "../context/CartContext"; // ← derived directly from YOUR original layout
 import { useAuth } from "@/lib/auth";
 
 export default function RootLayout({
@@ -15,12 +16,21 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+
   const hydrate = useAuth((state) => state.hydrate);
   const loading = useAuth((state) => state.loading);
+  const user = useAuth((state) => state.user);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
 
   return (
     <html lang="en">
