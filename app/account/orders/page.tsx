@@ -2,66 +2,35 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import RequireAuth from "@/components/auth/RequireAuth";
 import { getMyOrders, Order } from "@/lib/api";
 import Link from "next/link";
 
 /* ======================
-   BADGES
+   STATUS CHIP
 ====================== */
-function Badge({
+function Chip({
   label,
-  color,
+  bg,
+  color = "#fff",
 }: {
   label: string;
-  color: string;
+  bg: string;
+  color?: string;
 }) {
   return (
     <span
       style={{
-        padding: "4px 10px",
+        padding: "6px 14px",
         borderRadius: 999,
         fontSize: 12,
-        fontWeight: 800,
-        background: color,
-        color: "#fff",
+        fontWeight: 900,
+        background: bg,
+        color,
       }}
     >
       {label}
     </span>
   );
-}
-
-function PaymentBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; color: string }> = {
-    on_hold: { label: "Awaiting Payment", color: "#f59e0b" },
-    payment_submitted: { label: "Under Review", color: "#3b82f6" },
-    payment_received: { label: "Paid", color: "#22c55e" },
-    rejected: { label: "Payment Rejected", color: "#ef4444" },
-  };
-
-  const item = map[status] ?? {
-    label: status,
-    color: "#64748b",
-  };
-
-  return <Badge label={item.label} color={item.color} />;
-}
-
-function ShippingBadge({ status }: { status?: string }) {
-  const map: Record<string, { label: string; color: string }> = {
-    created: { label: "Order Created", color: "#64748b" },
-    processing: { label: "Processing", color: "#3b82f6" },
-    shipped: { label: "Shipped", color: "#8b5cf6" },
-    delivered: { label: "Delivered", color: "#22c55e" },
-  };
-
-  const item = map[status ?? "created"] ?? {
-    label: status ?? "Unknown",
-    color: "#9ca3af",
-  };
-
-  return <Badge label={item.label} color={item.color} />;
 }
 
 /* ======================
@@ -76,7 +45,7 @@ export default function AccountOrdersPage() {
       const data = await getMyOrders();
       setOrders(data);
     } catch {
-      toast.error("Failed to load orders");
+      toast.error("Failed to load your orders");
     } finally {
       setLoading(false);
     }
@@ -87,93 +56,170 @@ export default function AccountOrdersPage() {
   }, []);
 
   return (
-    <RequireAuth>
-      <div style={{ display: "grid", gap: 24 }}>
-        <header>
-          <h1 style={{ fontSize: 28, fontWeight: 900 }}>My Orders</h1>
-          <p style={{ opacity: 0.6 }}>
-            Track payments, shipping, and delivery
+    <div style={{ display: "grid", gap: 28 }}>
+      {/* HEADER */}
+      <header>
+        <h1 style={{ fontSize: 30, fontWeight: 900 }}>
+          My Orders
+        </h1>
+        <p style={{ opacity: 0.65 }}>
+          Track payment confirmation and shipping progress.
+        </p>
+      </header>
+
+      {/* LOADING */}
+      {loading && <p>Loading your orders…</p>}
+
+      {/* EMPTY STATE */}
+      {!loading && orders.length === 0 && (
+        <section
+          style={{
+            padding: 32,
+            borderRadius: 22,
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <h3 style={{ fontWeight: 900 }}>
+            You haven’t placed any orders yet
+          </h3>
+          <p style={{ marginTop: 6, opacity: 0.7 }}>
+            Once you place an order, payment and shipping
+            updates will appear here.
           </p>
-        </header>
+        </section>
+      )}
 
-        {loading && <p>Loading orders…</p>}
+      {/* ORDERS */}
+      <div style={{ display: "grid", gap: 18 }}>
+        {orders.map((o) => {
+          const needsPayment =
+            o.payment_status === "on_hold" ||
+            o.payment_status === "rejected";
 
-        {!loading && orders.length === 0 && (
-          <section className="card">
-            <p>You have not placed any orders yet.</p>
-          </section>
-        )}
-
-        <div style={{ display: "grid", gap: 16 }}>
-          {orders.map((o) => {
-            const needsAction =
-              o.payment_status === "on_hold" ||
-              o.payment_status === "rejected";
-
-            return (
-              <section
-                key={o.id}
+          return (
+            <section
+              key={o.id}
+              style={{
+                borderRadius: 24,
+                padding: 22,
+                background: "#ffffff",
+                border: needsPayment
+                  ? "2px solid #f59e0b"
+                  : "1px solid #e5e7eb",
+                display: "grid",
+                gap: 14,
+              }}
+            >
+              {/* HEADER */}
+              <div
                 style={{
-                  borderRadius: 18,
-                  padding: 18,
-                  background: "#ffffff",
-                  border: needsAction
-                    ? "2px solid #f59e0b"
-                    : "1px solid #e5e7eb",
-                  display: "grid",
-                  gap: 12,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
+                <div style={{ fontWeight: 900 }}>
+                  Order #{o.id.slice(0, 8)}
+                </div>
+
+                <Link
+                  href={`/account/orders/${o.id}`}
+                  className="btn btnGhost"
+                >
+                  View details
+                </Link>
+              </div>
+
+              {/* META */}
+              <div style={{ fontSize: 14 }}>
+                <b>Date:</b>{" "}
+                {new Date(o.created_at).toLocaleDateString()}
+              </div>
+
+              <div style={{ fontSize: 15 }}>
+                <b>Total:</b>{" "}
+                <strong>
+                  M{o.total_amount.toLocaleString()}
+                </strong>
+              </div>
+
+              {/* STATUS */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                {o.payment_status === "on_hold" && (
+                  <Chip
+                    label="Awaiting payment"
+                    bg="#f59e0b"
+                  />
+                )}
+                {o.payment_status === "payment_submitted" && (
+                  <Chip
+                    label="Payment under review"
+                    bg="#3b82f6"
+                  />
+                )}
+                {o.payment_status === "payment_received" && (
+                  <Chip
+                    label="Payment confirmed"
+                    bg="#22c55e"
+                  />
+                )}
+                {o.payment_status === "rejected" && (
+                  <Chip
+                    label="Payment rejected"
+                    bg="#ef4444"
+                  />
+                )}
+
+                {o.shipping_status && (
+                  <Chip
+                    label={`Shipping: ${o.shipping_status.replace(
+                      "_",
+                      " "
+                    )}`}
+                    bg="#0ea5e9"
+                  />
+                )}
+              </div>
+
+              {/* GUIDANCE */}
+              {needsPayment && (
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
+                    marginTop: 6,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#b45309",
                   }}
                 >
-                  <div style={{ fontWeight: 900 }}>
-                    Order #{o.id.slice(0, 8)}
-                  </div>
-
-                  <Link
-                    href={`/account/orders/${o.id}`}
-                    className="btn btnGhost"
-                  >
-                    View
-                  </Link>
+                  Action required: complete payment and
+                  upload proof to continue processing
+                  this order.
                 </div>
+              )}
 
-                <div>
-                  <b>Date:</b>{" "}
-                  {new Date(o.created_at).toLocaleDateString()}
+              {o.shipping_status === "shipped" && (
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#1d4ed8",
+                  }}
+                >
+                  Your order has been shipped. Tracking
+                  details are available in the order view.
                 </div>
-
-                <div>
-                  <b>Total:</b>{" "}
-                  <strong>M{o.total_amount.toLocaleString()}</strong>
-                </div>
-
-                <div style={{ display: "flex", gap: 10 }}>
-                  <PaymentBadge status={o.payment_status} />
-                  <ShippingBadge status={o.shipping_status} />
-                </div>
-
-                {needsAction && (
-                  <div
-                    style={{
-                      color: "#b45309",
-                      fontWeight: 700,
-                      fontSize: 13,
-                    }}
-                  >
-                    Action required: upload payment proof
-                  </div>
-                )}
-              </section>
-            );
-          })}
-        </div>
+              )}
+            </section>
+          );
+        })}
       </div>
-    </RequireAuth>
+    </div>
   );
 }
