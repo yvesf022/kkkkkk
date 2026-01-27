@@ -10,6 +10,10 @@ type AuthState = {
   user: User | null;
   loading: boolean;
 
+  // 👇 expected by existing components
+  isAuthenticated: boolean;
+  role: "user" | "admin" | null;
+
   fetchMe: () => Promise<void>;
   hydrate: () => Promise<void>;
   login: () => Promise<void>;
@@ -18,9 +22,12 @@ type AuthState = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export const useAuth = create<AuthState>((set) => ({
+export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
+
+  isAuthenticated: false,
+  role: null,
 
   fetchMe: async () => {
     try {
@@ -29,24 +36,39 @@ export const useAuth = create<AuthState>((set) => ({
       });
 
       if (!res.ok) {
-        set({ user: null, loading: false });
+        set({
+          user: null,
+          isAuthenticated: false,
+          role: null,
+          loading: false,
+        });
         return;
       }
 
-      const user = await res.json();
-      set({ user, loading: false });
+      const user: User = await res.json();
+
+      set({
+        user,
+        isAuthenticated: true,
+        role: user.role,
+        loading: false,
+      });
     } catch {
-      set({ user: null, loading: false });
+      set({
+        user: null,
+        isAuthenticated: false,
+        role: null,
+        loading: false,
+      });
     }
   },
 
-  // ✅ KEEP EXISTING CONTRACT USED BY app/layout.tsx
   hydrate: async () => {
-    await useAuth.getState().fetchMe();
+    await get().fetchMe();
   },
 
   login: async () => {
-    await useAuth.getState().fetchMe();
+    await get().fetchMe();
   },
 
   logout: async () => {
@@ -56,7 +78,12 @@ export const useAuth = create<AuthState>((set) => ({
         credentials: "include",
       });
     } finally {
-      set({ user: null, loading: false });
+      set({
+        user: null,
+        isAuthenticated: false,
+        role: null,
+        loading: false,
+      });
     }
   },
 }));
