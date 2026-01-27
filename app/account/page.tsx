@@ -1,8 +1,8 @@
 "use client";
 
-import AccountSidebar from "@/components/account/AccountSidebar";
-import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import AccountSidebar from "@/components/account/AccountSidebar";
 
 export default function AccountDashboardPage() {
   const router = useRouter();
@@ -11,23 +11,23 @@ export default function AccountDashboardPage() {
   return (
     <div
       style={{
-        display: "grid",
+        display: "flex",
+        flexDirection: "column",
         gap: 32,
+        width: "100%",
       }}
     >
-      {/* ACCOUNT NAVIGATION (INLINE, NOT A COLUMN) */}
-      <section
+      {/* ACCOUNT NAVIGATION */}
+      <div
         style={{
           borderRadius: 24,
           padding: 20,
-          background:
-            "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow:
-            "0 18px 50px rgba(15,23,42,0.12)",
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 18px 50px rgba(15,23,42,0.12)",
         }}
       >
         <AccountSidebar />
-      </section>
+      </div>
 
       {/* HEADER */}
       <div>
@@ -49,7 +49,7 @@ export default function AccountDashboardPage() {
             fontWeight: 600,
           }}
         >
-          Manage your orders, settings, and continue shopping
+          View orders, manage your account, or continue shopping.
         </p>
       </div>
 
@@ -57,42 +57,25 @@ export default function AccountDashboardPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           gap: 18,
         }}
       >
         {[
-          { label: "Orders", value: "—", hint: "Your purchases" },
-          {
-            label: "Addresses",
-            value: "—",
-            hint: "Shipping locations",
-          },
-          {
-            label: "Payments",
-            value: "—",
-            hint: "Payment status",
-          },
+          { label: "Orders", hint: "Your purchases" },
+          { label: "Addresses", hint: "Shipping locations" },
+          { label: "Payments", hint: "Verification status" },
         ].map((card) => (
           <div
             key={card.label}
             style={{
               padding: 20,
               borderRadius: 22,
-              background:
-                "linear-gradient(135deg,#ffffff,#f8fbff)",
-              boxShadow:
-                "0 18px 50px rgba(15,23,42,0.12)",
+              background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+              boxShadow: "0 18px 50px rgba(15,23,42,0.12)",
             }}
           >
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 800,
-                opacity: 0.6,
-              }}
-            >
+            <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.6 }}>
               {card.label}
             </div>
 
@@ -104,28 +87,21 @@ export default function AccountDashboardPage() {
                 color: "#0f172a",
               }}
             >
-              {card.value}
+              —
             </div>
 
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: 12,
-                opacity: 0.55,
-              }}
-            >
+            <div style={{ marginTop: 4, fontSize: 12, opacity: 0.55 }}>
               {card.hint}
             </div>
           </div>
         ))}
       </div>
 
-      {/* PRIMARY ACTIONS */}
+      {/* ACTION CARDS */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(240px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
           gap: 18,
         }}
       >
@@ -133,19 +109,15 @@ export default function AccountDashboardPage() {
           style={{
             padding: 24,
             borderRadius: 24,
-            background:
-              "linear-gradient(135deg,#ffffff,#f8fbff)",
-            boxShadow:
-              "0 20px 60px rgba(15,23,42,0.14)",
+            background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+            boxShadow: "0 20px 60px rgba(15,23,42,0.14)",
             display: "grid",
             gap: 14,
           }}
         >
-          <h3 style={{ fontWeight: 900 }}>
-            Your orders
-          </h3>
+          <h3 style={{ fontWeight: 900 }}>Your orders</h3>
           <p style={{ fontSize: 13, opacity: 0.6 }}>
-            Track, return, or repurchase items
+            Track and manage your orders
           </p>
           <button
             className="btn btnTech"
@@ -159,19 +131,15 @@ export default function AccountDashboardPage() {
           style={{
             padding: 24,
             borderRadius: 24,
-            background:
-              "linear-gradient(135deg,#ffffff,#f8fbff)",
-            boxShadow:
-              "0 20px 60px rgba(15,23,42,0.14)",
+            background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+            boxShadow: "0 20px 60px rgba(15,23,42,0.14)",
             display: "grid",
             gap: 14,
           }}
         >
-          <h3 style={{ fontWeight: 900 }}>
-            Continue shopping
-          </h3>
+          <h3 style={{ fontWeight: 900 }}>Continue shopping</h3>
           <p style={{ fontSize: 13, opacity: 0.6 }}>
-            Browse products while staying logged in
+            Browse products while logged in
           </p>
           <button
             className="btn btnPrimary"
@@ -182,13 +150,20 @@ export default function AccountDashboardPage() {
         </div>
       </div>
 
-      {/* LOGOUT */}
+      {/* FOOTER ACTIONS */}
       <div
         style={{
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
         }}
       >
+        <div style={{ fontSize: 13, opacity: 0.6 }}>
+          You can safely log out anytime.
+        </div>
+
         <button
           className="btn btnDanger"
           onClick={() => {
