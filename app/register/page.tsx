@@ -4,133 +4,53 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
-const API = process.env.NEXT_PUBLIC_API_URL!;
-
-/* =========================
-   TYPES — BACKEND ALIGNED
-========================= */
-
-interface RegisterRequest {
-  email: string;
-  password: string;
-  full_name?: string;
-  phone?: string;
-}
-
-interface RegisterSuccessResponse {
-  id: string;
-  email: string;
-}
-
-interface FastAPIErrorResponse {
-  detail: string;
-}
-
-type Status =
-  | { type: "idle" }
-  | { type: "success"; message: string }
-  | { type: "error"; message: string };
-
 export default function RegisterPage() {
   const router = useRouter();
 
-  /* ---------- FORM STATE ---------- */
-  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<Status>({ type: "idle" });
 
-  /* =========================
-     REGISTER HANDLER
-  ========================= */
-
-  async function register() {
-    setStatus({ type: "idle" });
-
-    /* ---------- CLIENT VALIDATION ---------- */
-    if (!email || !password || !confirm) {
-      setStatus({
-        type: "error",
-        message: "Email and password are required.",
-      });
-      return;
-    }
-
-    if (password.length < 8) {
-      setStatus({
-        type: "error",
-        message: "Password must be at least 8 characters.",
-      });
-      return;
-    }
-
-    if (password !== confirm) {
-      setStatus({
-        type: "error",
-        message: "Passwords do not match.",
-      });
-      return;
-    }
-
-    const payload: RegisterRequest = {
-      email,
-      password,
-    };
-
-    if (fullName.trim()) payload.full_name = fullName.trim();
-    if (phone.trim()) payload.phone = phone.trim();
-
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch(`${API}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const payload = {
+        email,
+        password,
+        full_name: fullName.trim() || null,
+        phone: phone.trim() || null,
+      };
 
-      const data:
-        | RegisterSuccessResponse
-        | FastAPIErrorResponse = await res.json();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await res.json();
 
       if (!res.ok) {
-        setStatus({
-          type: "error",
-          message:
-            "detail" in data
-              ? data.detail
-              : "Registration failed. Please try again.",
-        });
-        return;
+        throw new Error(data.detail || "Registration failed");
       }
 
-      setStatus({
-        type: "success",
-        message: "Account created successfully. Redirecting to login…",
-      });
-
-      toast.success("Welcome to Karabo’s Store 🎉");
-
-      setTimeout(() => {
-        router.push("/login");
-      }, 1500);
-    } catch {
-      setStatus({
-        type: "error",
-        message: "Network error. Please check your connection.",
-      });
+      toast.success("Account created successfully");
+      router.push("/login");
+    } catch (err: any) {
+      toast.error(err.message || "Registration failed");
     } finally {
       setLoading(false);
     }
-  }
-
-  /* =========================
-     UI
-  ========================= */
+  };
 
   return (
     <div
@@ -140,91 +60,147 @@ export default function RegisterPage() {
         placeItems: "center",
       }}
     >
-      <div
+      <section
         style={{
           width: "100%",
           maxWidth: 440,
-          padding: 28,
-          borderRadius: 22,
-          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow: "0 24px 60px rgba(15,23,42,0.18)",
+          borderRadius: 26,
+          padding: "32px 30px",
+          background: `
+            radial-gradient(
+              420px 220px at 10% 0%,
+              rgba(96,165,250,0.28),
+              transparent 60%
+            ),
+            radial-gradient(
+              360px 200px at 90% 10%,
+              rgba(244,114,182,0.20),
+              transparent 60%
+            ),
+            linear-gradient(
+              135deg,
+              #f8fbff,
+              #eef6ff,
+              #fff1f6
+            )
+          `,
+          boxShadow: "0 28px 80px rgba(15,23,42,0.18)",
         }}
       >
         <h1
           style={{
             fontSize: 26,
             fontWeight: 900,
-            marginBottom: 18,
+            color: "#0f172a",
           }}
         >
-          Create Your Account
+          Create Account
         </h1>
 
-        {status.type !== "idle" && (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: 14,
-              borderRadius: 12,
-              fontWeight: 600,
-              textAlign: "center",
-              background:
-                status.type === "success"
-                  ? "#ecfdf5"
-                  : "#fef2f2",
-              color:
-                status.type === "success"
-                  ? "#065f46"
-                  : "#991b1b",
-            }}
-          >
-            {status.message}
-          </div>
-        )}
+        <p
+          style={{
+            marginTop: 6,
+            fontWeight: 600,
+            fontSize: 14,
+            color: "rgba(15,23,42,0.6)",
+          }}
+        >
+          Create your account to start shopping.
+        </p>
 
-        <div style={{ display: "grid", gap: 14 }}>
-          <input
-            placeholder="Full name (optional)"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-          />
-
+        <form
+          onSubmit={handleRegister}
+          style={{
+            marginTop: 22,
+            display: "grid",
+            gap: 14,
+          }}
+        >
           <input
             type="email"
             placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <input
-            placeholder="Phone number (optional)"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            required
+            style={{
+              padding: "14px 16px",
+              borderRadius: 14,
+              border: "1px solid rgba(15,23,42,0.12)",
+              fontWeight: 600,
+            }}
           />
 
           <input
             type="password"
-            placeholder="Password (min 8 characters)"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{
+              padding: "14px 16px",
+              borderRadius: 14,
+              border: "1px solid rgba(15,23,42,0.12)",
+              fontWeight: 600,
+            }}
           />
 
           <input
-            type="password"
-            placeholder="Confirm password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            type="text"
+            placeholder="Full name (optional)"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            style={{
+              padding: "14px 16px",
+              borderRadius: 14,
+              border: "1px solid rgba(15,23,42,0.12)",
+              fontWeight: 600,
+            }}
+          />
+
+          <input
+            type="text"
+            placeholder="Phone (optional)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            style={{
+              padding: "14px 16px",
+              borderRadius: 14,
+              border: "1px solid rgba(15,23,42,0.12)",
+              fontWeight: 600,
+            }}
           />
 
           <button
-            onClick={register}
-            disabled={loading}
             className="btn btnTech"
+            disabled={loading}
+            style={{ marginTop: 8 }}
           >
-            {loading ? "Creating account..." : "Register"}
+            {loading ? "Creating account…" : "Register"}
           </button>
+        </form>
+
+        <div
+          style={{
+            marginTop: 20,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "rgba(15,23,42,0.6)",
+            textAlign: "center",
+          }}
+        >
+          Already have an account?{" "}
+          <a
+            href="/login"
+            style={{
+              fontWeight: 800,
+              color: "#2563eb",
+              textDecoration: "none",
+            }}
+          >
+            Login
+          </a>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
