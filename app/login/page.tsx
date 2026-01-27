@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, user } = useAuth();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,17 +17,6 @@ export default function LoginPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // ✅ AUTH-DRIVEN REDIRECT (NO RACE CONDITIONS)
-  useEffect(() => {
-    if (!user) return;
-
-    if (user.role === "admin") {
-      router.replace("/admin");
-    } else {
-      router.replace("/account");
-    }
-  }, [user, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,11 +43,16 @@ export default function LoginPage() {
         throw new Error(data.detail || "Invalid email or password");
       }
 
-      setSuccess("Login successful. Redirecting…");
       toast.success("Welcome back 👋");
+      setSuccess("Login successful. Redirecting…");
 
-      // hydrate store — redirect happens in useEffect
-      await login();
+      const user = await login();
+
+      if (user?.role === "admin") {
+        router.replace("/admin");
+      } else {
+        router.replace("/account");
+      }
     } catch (err: any) {
       const message =
         err?.message || "Unable to sign in. Please try again.";
