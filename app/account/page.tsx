@@ -8,22 +8,8 @@ import { fetchProducts, Product as ApiProduct } from "@/lib/api";
    HELPERS
 ======================= */
 
-/**
- * Deterministic shuffle (seeded by day)
- * Prevents hydration mismatch while keeping variety
- */
-function seededShuffle<T>(arr: T[]) {
-  const seed = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  let hash = 0;
-
-  for (let i = 0; i < seed.length; i++) {
-    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  return [...arr].sort(() => {
-    hash = (hash * 9301 + 49297) % 233280;
-    return hash / 233280 - 0.5;
-  });
+function shuffle<T>(arr: T[]) {
+  return [...arr].sort(() => Math.random() - 0.5);
 }
 
 /**
@@ -32,10 +18,13 @@ function seededShuffle<T>(arr: T[]) {
 function normalizeForCard(p: ApiProduct) {
   return {
     id: p.id,
+
+    // 👇 ProductCard expects `title`, not `name`
     title: p.name,
+
     price: p.price,
 
-    // UI-only safe defaults
+    // UI-only fields with safe defaults
     img: p.image_url || "/placeholder.png",
     category: "general",
     rating: 4.5,
@@ -50,16 +39,14 @@ function normalizeForCard(p: ApiProduct) {
 
 export default async function HomePage() {
   let products: ApiProduct[] = [];
-  let hasError = false;
 
   try {
     products = await fetchProducts();
-  } catch (err) {
-    console.error("Failed to load products", err);
-    hasError = true;
+  } catch (e) {
+    console.error("Failed to load products", e);
   }
 
-  const featured = seededShuffle(products)
+  const featured = shuffle(products)
     .slice(0, 12)
     .map(normalizeForCard);
 
@@ -175,20 +162,7 @@ export default async function HomePage() {
           boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
         }}
       >
-        {hasError ? (
-          <div
-            style={{
-              padding: 32,
-              textAlign: "center",
-              fontWeight: 700,
-              color: "#b91c1c",
-            }}
-          >
-            We’re having trouble loading products right now.
-            <br />
-            Please try again shortly.
-          </div>
-        ) : featured.length === 0 ? (
+        {featured.length === 0 ? (
           <div
             style={{
               padding: 32,
