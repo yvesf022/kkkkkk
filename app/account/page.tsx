@@ -5,10 +5,14 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 import { getMyOrders } from "@/lib/api";
 
+/* ======================
+   TYPES
+====================== */
+
 type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
 type ShippingStatus = "awaiting_shipping" | "shipped" | null;
 
-type Order = {
+type UIOrder = {
   id: string;
   created_at: string;
   total_amount: number;
@@ -16,14 +20,28 @@ type Order = {
   shipping_status: ShippingStatus;
 };
 
+/* ======================
+   PAGE
+====================== */
+
 export default function AccountPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<UIOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function loadOrders() {
     try {
       const data = await getMyOrders();
-      setOrders(data);
+
+      // 🔐 Normalize backend → UI-safe
+      const normalized: UIOrder[] = data.map((o: any) => ({
+        id: o.id,
+        created_at: o.created_at,
+        total_amount: o.total_amount,
+        payment_status: o.payment_status ?? "pending",
+        shipping_status: o.shipping_status ?? null,
+      }));
+
+      setOrders(normalized);
     } catch {
       toast.error("Failed to load your account data");
     } finally {
@@ -52,7 +70,7 @@ export default function AccountPage() {
       {/* LOADING */}
       {loading && <p>Loading your account…</p>}
 
-      {/* EMPTY STATE */}
+      {/* EMPTY */}
       {!loading && orders.length === 0 && (
         <section
           style={{
@@ -121,7 +139,6 @@ export default function AccountPage() {
             {latestOrder.total_amount.toLocaleString()}
           </div>
 
-          {/* PAYMENT STATUS */}
           <StatusRow
             label="Payment"
             status={paymentLabel(latestOrder.payment_status)}
@@ -131,13 +148,11 @@ export default function AccountPage() {
             }
           />
 
-          {/* SHIPPING STATUS */}
           <StatusRow
             label="Shipping"
             status={shippingLabel(latestOrder.shipping_status)}
           />
 
-          {/* ACTION */}
           {(latestOrder.payment_status === "on_hold" ||
             latestOrder.payment_status === "rejected") && (
             <div
