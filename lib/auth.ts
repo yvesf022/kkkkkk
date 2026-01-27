@@ -25,8 +25,11 @@ export const useAuth = create<AuthState>((set) => ({
   // LOGIN
   // =====================
   login: (token, role) => {
-    localStorage.setItem("access_token", token);
-    localStorage.setItem("role", role);
+    // Ensure localStorage only accessed on client side
+    if (typeof window !== "undefined") {
+      localStorage.setItem("access_token", token);
+      localStorage.setItem("role", role);
+    }
 
     set({
       token,
@@ -40,8 +43,11 @@ export const useAuth = create<AuthState>((set) => ({
   // LOGOUT
   // =====================
   logout: () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("role");
+    // Ensure localStorage only accessed on client side
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("role");
+    }
 
     set({
       token: null,
@@ -55,20 +61,23 @@ export const useAuth = create<AuthState>((set) => ({
   // HYDRATE ON REFRESH
   // =====================
   hydrate: () => {
-    const token = localStorage.getItem("access_token");
-    const role = localStorage.getItem("role") as Role | null;
+    // Ensure this runs only on the client
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("access_token");
+      const role = localStorage.getItem("role") as Role | null;
 
-    if (token && role) {
-      set({
-        token,
-        role,
-        isAuthenticated: true,
-        loading: false,
-      });
-    } else {
-      set({
-        loading: false,
-      });
+      if (token && role) {
+        set({
+          token,
+          role,
+          isAuthenticated: true,
+          loading: false,
+        });
+      } else {
+        set({
+          loading: false,
+        });
+      }
     }
   },
 }));

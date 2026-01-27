@@ -1,149 +1,155 @@
-"use client";
+/* =========================================================
+   API CLIENT – PRODUCTION SAFE
+   Backend: FastAPI (Render)
+   Frontend: Next.js (Vercel)
+========================================================= */
 
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
-import {
-  getMyAddresses,
-  createAddress,
-  deleteAddress,
-  setDefaultAddress,
-  Address,
-} from "@/lib/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
-export default function AddressesPage() {
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [form, setForm] = useState({
-    full_name: "",
-    phone: "",
-    address_line_1: "",
-    city: "",
-    state: "",
-    postal_code: "",
-    country: "",
+/* ======================
+   CORE FETCH WRAPPER
+====================== */
+async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    credentials: "include", // REQUIRED for httpOnly cookies
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
   });
 
-  async function loadAddresses() {
-    try {
-      const data = await getMyAddresses();
-      setAddresses(data);
-    } catch {
-      toast.error("Failed to load addresses");
-    } finally {
-      setLoading(false);
-    }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "API request failed");
   }
 
-  useEffect(() => {
-    loadAddresses();
-  }, []);
+  return res.json() as Promise<T>;
+}
 
-  async function handleCreate() {
-    try {
-      await createAddress(form);
-      toast.success("Address added");
-      setForm({
-        full_name: "",
-        phone: "",
-        address_line_1: "",
-        city: "",
-        state: "",
-        postal_code: "",
-        country: "",
-      });
-      loadAddresses();
-    } catch {
-      toast.error("Failed to create address");
-    }
-  }
+/* ======================
+   AUTH
+====================== */
+export type AuthResponse = {
+  access_token: string;
+  role: "user" | "admin";
+};
 
-  async function handleDelete(id: string) {
-    try {
-      await deleteAddress(id);
-      toast.success("Address deleted");
-      loadAddresses();
-    } catch {
-      toast.error("Failed to delete address");
-    }
-  }
+export function login(email: string, password: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
 
-  async function handleDefault(id: string) {
-    try {
-      await setDefaultAddress(id);
-      toast.success("Default address updated");
-      loadAddresses();
-    } catch {
-      toast.error("Failed to update default address");
-    }
-  }
+export function register(payload: {
+  email: string;
+  password: string;
+  full_name?: string;
+  phone?: string;
+}) {
+  return apiFetch("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
 
-  if (loading) {
-    return <p className="p-6">Loading addresses...</p>;
-  }
+export function logout() {
+  return apiFetch("/api/auth/logout", {
+    method: "POST",
+  });
+}
 
-  return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-4">My Addresses</h1>
+/* ======================
+   USER
+====================== */
+export type User = {
+  id: string;
+  email: string;
+  full_name?: string;
+  phone?: string;
+  role: "user" | "admin";
+};
 
-      {addresses.map((a) => (
-        <div
-          key={a.id}
-          className="border rounded p-4 mb-3 flex justify-between items-start"
-        >
-          <div>
-            <p className="font-medium">{a.full_name}</p>
-            <p>{a.address_line_1}</p>
-            <p>
-              {a.city}, {a.state} {a.postal_code}
-            </p>
-            <p>{a.country}</p>
-            {a.is_default && (
-              <span className="text-sm text-green-600">Default</span>
-            )}
-          </div>
+export function getMe(): Promise<User> {
+  return apiFetch<User>("/api/auth/me");
+}
 
-          <div className="space-x-2">
-            {!a.is_default && (
-              <button
-                onClick={() => handleDefault(a.id)}
-                className="text-blue-600 text-sm"
-              >
-                Set Default
-              </button>
-            )}
-            <button
-              onClick={() => handleDelete(a.id)}
-              className="text-red-600 text-sm"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      ))}
+export function updateMe(payload: Partial<User>): Promise<User> {
+  return apiFetch<User>("/api/users/me", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
 
-      <div className="mt-6 border-t pt-4">
-        <h2 className="font-semibold mb-2">Add New Address</h2>
+/* ======================
+   PRODUCTS
+====================== */
+export type Product = {
+  id: string;
+  name: string;
+  price: number;
+  image_url?: string;
+};
 
-        {Object.keys(form).map((key) => (
-          <input
-            key={key}
-            placeholder={key.replaceAll("_", " ")}
-            value={(form as any)[key]}
-            onChange={(e) =>
-              setForm({ ...form, [key]: e.target.value })
-            }
-            className="w-full border rounded px-3 py-2 mb-2"
-          />
-        ))}
+export function fetchProducts(): Promise<Product[]> {
+  return apiFetch<Product[]>("/api/products");
+}
 
-        <button
-          onClick={handleCreate}
-          className="bg-black text-white px-4 py-2 rounded mt-2"
-        >
-          Add Address
-        </button>
-      </div>
-    </div>
-  );
+/* ======================
+   ORDERS
+====================== */
+export type Order = {
+  id: string;
+  total_amount: number;
+  created_at: string;
+  payment_status?: "pending" | "on_hold" | "paid" | "rejected";
+  shipping_status?: string;
+};
+
+export function getMyOrders(): Promise<Order[]> {
+  return apiFetch<Order[]>("/api/orders/my");
+}
+
+/* ======================
+   ADDRESSES
+====================== */
+export type Address = {
+  id: string;
+  full_name: string;
+  phone: string;
+  address_line_1: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  is_default: boolean;
+};
+
+export function getMyAddresses(): Promise<Address[]> {
+  return apiFetch<Address[]>("/api/users/addresses");
+}
+
+export function createAddress(
+  payload: Omit<Address, "id" | "is_default">
+): Promise<Address> {
+  return apiFetch<Address>("/api/users/addresses", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAddress(addressId: string): Promise<void> {
+  return apiFetch<void>(`/api/users/addresses/${addressId}`, {
+    method: "DELETE",
+  });
+}
+
+export function setDefaultAddress(addressId: string): Promise<void> {
+  return apiFetch<void>(`/api/users/addresses/${addressId}/default`, {
+    method: "PATCH",
+  });
 }
