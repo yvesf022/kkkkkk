@@ -1,180 +1,149 @@
-/* =========================================================
-   GLOBAL API CLIENT – PRODUCTION READY
-   Backend: Render (FastAPI)
-   Frontend: Next.js (Vercel)
-========================================================= */
+"use client";
 
-const API = process.env.NEXT_PUBLIC_API_URL!;
-if (!API) {
-  throw new Error("NEXT_PUBLIC_API_URL is not defined");
-}
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import {
+  getMyAddresses,
+  createAddress,
+  deleteAddress,
+  setDefaultAddress,
+  Address,
+} from "@/lib/api";
 
-/* ======================
-   TYPES
-====================== */
+export default function AddressesPage() {
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export interface User {
-  id: string;
-  email: string;
-  name?: string;
-  role?: "user" | "admin";
-}
-
-export interface Address {
-  id: string;
-  full_name: string;
-  phone: string;
-  address_line: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-  is_default: boolean;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  description?: string;
-  price: number;
-  image_url?: string;
-}
-
-export interface OrderItem {
-  product_id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-export interface Order {
-  id: string;
-  items: OrderItem[];
-  total_amount: number;
-  status: string;
-  payment_status?: "pending" | "paid" | "on_hold" | "rejected";
-  created_at: string;
-}
-
-/* ======================
-   HELPERS
-====================== */
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
-
-async function apiFetch<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const token = getToken();
-
-  const res = await fetch(`${API}${endpoint}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
+  const [form, setForm] = useState({
+    full_name: "",
+    phone: "",
+    address_line_1: "",
+    city: "",
+    state: "",
+    postal_code: "",
+    country: "",
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "API request failed");
+  async function loadAddresses() {
+    try {
+      const data = await getMyAddresses();
+      setAddresses(data);
+    } catch {
+      toast.error("Failed to load addresses");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  return res.json() as Promise<T>;
-}
+  useEffect(() => {
+    loadAddresses();
+  }, []);
 
-/* ======================
-   AUTH
-====================== */
-
-export async function register(data: {
-  email: string;
-  password: string;
-  name?: string;
-}): Promise<{ access_token: string }> {
-  return apiFetch("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function login(data: {
-  email: string;
-  password: string;
-}): Promise<{ access_token: string }> {
-  return apiFetch("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-export function logout() {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("token");
+  async function handleCreate() {
+    try {
+      await createAddress(form);
+      toast.success("Address added");
+      setForm({
+        full_name: "",
+        phone: "",
+        address_line_1: "",
+        city: "",
+        state: "",
+        postal_code: "",
+        country: "",
+      });
+      loadAddresses();
+    } catch {
+      toast.error("Failed to create address");
+    }
   }
-}
 
-/* ======================
-   USER PROFILE
-====================== */
+  async function handleDelete(id: string) {
+    try {
+      await deleteAddress(id);
+      toast.success("Address deleted");
+      loadAddresses();
+    } catch {
+      toast.error("Failed to delete address");
+    }
+  }
 
-export async function getMe(): Promise<User> {
-  return apiFetch("/api/users/me");
-}
+  async function handleDefault(id: string) {
+    try {
+      await setDefaultAddress(id);
+      toast.success("Default address updated");
+      loadAddresses();
+    } catch {
+      toast.error("Failed to update default address");
+    }
+  }
 
-export async function updateMe(data: Partial<User>): Promise<User> {
-  return apiFetch("/api/users/me", {
-    method: "PUT",
-    body: JSON.stringify(data),
-  });
-}
+  if (loading) {
+    return <p className="p-6">Loading addresses...</p>;
+  }
 
-/* ======================
-   ADDRESSES
-====================== */
+  return (
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-4">My Addresses</h1>
 
-export async function getMyAddresses(): Promise<Address[]> {
-  return apiFetch("/api/addresses");
-}
+      {addresses.map((a) => (
+        <div
+          key={a.id}
+          className="border rounded p-4 mb-3 flex justify-between items-start"
+        >
+          <div>
+            <p className="font-medium">{a.full_name}</p>
+            <p>{a.address_line_1}</p>
+            <p>
+              {a.city}, {a.state} {a.postal_code}
+            </p>
+            <p>{a.country}</p>
+            {a.is_default && (
+              <span className="text-sm text-green-600">Default</span>
+            )}
+          </div>
 
-export async function createAddress(
-  data: Omit<Address, "id" | "is_default">
-): Promise<Address> {
-  return apiFetch("/api/addresses", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
+          <div className="space-x-2">
+            {!a.is_default && (
+              <button
+                onClick={() => handleDefault(a.id)}
+                className="text-blue-600 text-sm"
+              >
+                Set Default
+              </button>
+            )}
+            <button
+              onClick={() => handleDelete(a.id)}
+              className="text-red-600 text-sm"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ))}
 
-export async function deleteAddress(addressId: string): Promise<void> {
-  await apiFetch(`/api/addresses/${addressId}`, {
-    method: "DELETE",
-  });
-}
+      <div className="mt-6 border-t pt-4">
+        <h2 className="font-semibold mb-2">Add New Address</h2>
 
-export async function setDefaultAddress(addressId: string): Promise<void> {
-  await apiFetch(`/api/addresses/${addressId}/default`, {
-    method: "PUT",
-  });
-}
+        {Object.keys(form).map((key) => (
+          <input
+            key={key}
+            placeholder={key.replaceAll("_", " ")}
+            value={(form as any)[key]}
+            onChange={(e) =>
+              setForm({ ...form, [key]: e.target.value })
+            }
+            className="w-full border rounded px-3 py-2 mb-2"
+          />
+        ))}
 
-/* ======================
-   PRODUCTS
-====================== */
-
-export async function fetchProducts(): Promise<Product[]> {
-  return apiFetch("/api/products");
-}
-
-/* ======================
-   ORDERS
-====================== */
-
-export async function getMyOrders(): Promise<Order[]> {
-  return apiFetch("/api/orders/my");
+        <button
+          onClick={handleCreate}
+          className="bg-black text-white px-4 py-2 rounded mt-2"
+        >
+          Add Address
+        </button>
+      </div>
+    </div>
+  );
 }
