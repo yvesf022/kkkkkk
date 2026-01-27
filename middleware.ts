@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
-function decodeJwtPayload(token: string) {
+/**
+ * Decode JWT payload without verifying signature.
+ * Safe for middleware routing decisions.
+ */
+function getJwtPayload(token: string): any | null {
   try {
-    const payload = token.split(".")[1];
-    const decoded = Buffer.from(payload, "base64url").toString("utf-8");
+    const base64Payload = token.split(".")[1];
+    const decoded = Buffer.from(base64Payload, "base64").toString("utf-8");
     return JSON.parse(decoded);
   } catch {
     return null;
@@ -13,36 +17,47 @@ function decodeJwtPayload(token: string) {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Only protect these paths
-  const isAccountRoute = pathname.startsWith("/account");
-  const isAdminRoute = pathname.startsWith("/admin");
+  const token = req.cookies.get("access_token")?.value;
 
-  if (!isAccountRoute && !isAdminRoute) {
+  // Public routes
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api")
+  ) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get("access_token")?.value;
-
-  // Not logged in
+  // Not logged in → redirect
   if (!token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  const payload = decodeJwtPayload(token);
+  const payload = getJwtPayload(token);
 
-  // Invalid token
-  if (!payload || !payload.role) {
+  if (!payload) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Admin-only protection
-  if (isAdminRoute && payload.role !== "admin") {
+  const role = payload.role;
+
+  // 🔐 Admin-only protection
+  if (pathname.startsWith("/admin") && role !== "admin") {
     return NextResponse.redirect(new URL("/account", req.url));
+  }
+
+  // Authenticated user routes
+  if (pathname.startsWith("/account")) {
+    return NextResponse.next();
   }
 
   return NextResponse.next();
 }
 
+/**
+ * Apply middleware only where needed
+ */
 export const config = {
   matcher: ["/account/:path*", "/admin/:path*"],
 };
