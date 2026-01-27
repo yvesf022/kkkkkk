@@ -4,7 +4,8 @@
    Frontend: Next.js (Vercel)
 ========================================================= */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
 /* ======================
    CORE FETCH WRAPPER
@@ -38,7 +39,10 @@ export type AuthResponse = {
   role: "user" | "admin";
 };
 
-export function login(email: string, password: string): Promise<AuthResponse> {
+export function login(
+  email: string,
+  password: string
+): Promise<AuthResponse> {
   return apiFetch<AuthResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
@@ -72,6 +76,10 @@ export type User = {
   full_name?: string;
   phone?: string;
   role: "user" | "admin";
+
+  // ---- fields required by profile page ----
+  created_at?: string;
+  avatar_url?: string;
 };
 
 export function getMe(): Promise<User> {
