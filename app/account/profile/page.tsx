@@ -2,31 +2,12 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { getMe, updateMe } from "@/lib/api";
+import { getMe, updateMe, User } from "@/lib/api";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
-/* ======================
-   BACKEND-ALIGNED TYPES
-====================== */
-
-interface UserProfile {
-  id: string;
-  email: string;
-  role: string;
-  created_at: string;
-
-  full_name: string | null;
-  phone: string | null;
-  avatar_url: string | null;
-}
-
-/* ======================
-   PAGE
-====================== */
-
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -45,12 +26,12 @@ export default function ProfilePage() {
   useEffect(() => {
     async function loadProfile() {
       try {
-        const data: UserProfile = await getMe();
+        const data = await getMe();
 
         setProfile(data);
         setFullName(data.full_name ?? "");
         setPhone(data.phone ?? "");
-        setAvatarUrl(data.avatar_url);
+        setAvatarUrl(data.avatar_url ?? null);
       } catch {
         toast.error("Failed to load profile information");
       } finally {
@@ -84,9 +65,7 @@ export default function ProfilePage() {
     try {
       const res = await fetch(`${API}/api/users/me/avatar`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
+        credentials: "include", // 🔐 httpOnly cookie auth
         body: formData,
       });
 
@@ -113,7 +92,6 @@ export default function ProfilePage() {
     setSaving(true);
 
     try {
-      // ✅ BACKEND EXPECTS full_name + phone
       await updateMe({
         full_name: fullName.trim(),
         phone: phone.trim(),
@@ -125,7 +103,7 @@ export default function ProfilePage() {
               ...prev,
               full_name: fullName.trim(),
               phone: phone.trim(),
-              avatar_url: avatarUrl,
+              avatar_url: avatarUrl ?? undefined,
             }
           : prev
       );
@@ -183,8 +161,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Avatar, inputs, meta unchanged */}
-        {/* Save button unchanged */}
+        {/* Avatar, inputs, meta, save button remain unchanged */}
       </section>
     </div>
   );
