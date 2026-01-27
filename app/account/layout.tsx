@@ -1,86 +1,71 @@
 "use client";
 
-import { ReactNode } from "react";
-import RequireAuth from "@/components/auth/RequireAuth";
-import AccountSidebar from "@/components/account/AccountSidebar";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import "@/styles/globals.css";
+
+import Header from "@/components/layout/Header";
+import Sidebar from "@/components/layout/Sidebar";
+
+import { UIProvider } from "@/components/layout/uiStore";
+import { CartProvider } from "./context/CartContext";
+import { useAuth } from "@/lib/auth";
 
 export default function AccountLayout({
   children,
 }: {
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
-  return (
-    <RequireAuth role="user" allowDuringHydration>
-      {(authReady: boolean) => (
-        <div
-          style={{
-            display: "flex",
-            minHeight: "calc(100vh - 80px)",
-            background: "#f8fafc",
-          }}
-        >
-          {/* SIDEBAR */}
-          {authReady ? (
-            <AccountSidebar />
-          ) : (
-            <div
-              style={{
-                width: 260,
-                background: "#f1f5f9",
-              }}
-            />
-          )}
+  const router = useRouter();
 
-          {/* MAIN */}
-          <main
-            style={{
-              flex: 1,
-              padding: "32px 40px",
-              background: "#f8fafc",
-            }}
-          >
-            {authReady ? (
-              children
-            ) : (
-              <AccountSkeleton />
-            )}
-          </main>
-        </div>
-      )}
-    </RequireAuth>
-  );
-}
+  const hydrate = useAuth((state) => state.hydrate);
+  const user = useAuth((state) => state.user);
+  const loading = useAuth((state) => state.loading);
 
-/* ======================
-   SKELETON
-====================== */
-function AccountSkeleton() {
+  // 🔐 AUTH HYDRATION — SINGLE SOURCE (ACCOUNT ONLY)
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  // 🔐 AUTH GUARD — ACCOUNT ONLY
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="p-6 text-sm opacity-70">
+        Loading your account…
+      </div>
+    );
+  }
+
+  if (!user) {
+    // redirecting…
+    return null;
+  }
+
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <div
-        style={{
-          width: 240,
-          height: 28,
-          borderRadius: 8,
-          background: "#e5e7eb",
-        }}
-      />
-      <div
-        style={{
-          width: "100%",
-          height: 140,
-          borderRadius: 16,
-          background: "#e5e7eb",
-        }}
-      />
-      <div
-        style={{
-          width: "100%",
-          height: 220,
-          borderRadius: 16,
-          background: "#e5e7eb",
-        }}
-      />
-    </div>
+    <html lang="en">
+      <body>
+        <UIProvider>
+          <CartProvider>
+            <Header />
+
+            <div className="appShell">
+              <Sidebar />
+
+              <main className="pageContentWrap">
+                {children}
+              </main>
+            </div>
+          </CartProvider>
+        </UIProvider>
+      </body>
+    </html>
   );
 }

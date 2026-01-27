@@ -1,231 +1,219 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
 import Link from "next/link";
-import { getMyOrders } from "@/lib/api";
+import ProductCard from "@/components/store/ProductCard";
+import { fetchProducts, Product as ApiProduct } from "@/lib/api";
 
-/* ======================
-   TYPES
-====================== */
+/* =======================
+   HELPERS
+======================= */
 
-type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
-type ShippingStatus = "awaiting_shipping" | "shipped" | null;
+/**
+ * Deterministic shuffle (seeded by day)
+ * Prevents hydration mismatch while keeping variety
+ */
+function seededShuffle<T>(arr: T[]) {
+  const seed = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  let hash = 0;
 
-type UIOrder = {
-  id: string;
-  created_at: string;
-  total_amount: number;
-  payment_status: PaymentStatus;
-  shipping_status: ShippingStatus;
-};
-
-/* ======================
-   PAGE
-====================== */
-
-export default function AccountPage() {
-  const [orders, setOrders] = useState<UIOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  async function loadOrders() {
-    try {
-      const data = await getMyOrders();
-
-      // 🔐 Normalize backend → UI-safe
-      const normalized: UIOrder[] = data.map((o: any) => ({
-        id: o.id,
-        created_at: o.created_at,
-        total_amount: o.total_amount,
-        payment_status: o.payment_status ?? "pending",
-        shipping_status: o.shipping_status ?? null,
-      }));
-
-      setOrders(normalized);
-    } catch {
-      toast.error("Failed to load your account data");
-    } finally {
-      setLoading(false);
-    }
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
   }
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
-
-  const latestOrder = orders[0];
-
-  return (
-    <div style={{ maxWidth: 1200, display: "grid", gap: 28 }}>
-      {/* HEADER */}
-      <header>
-        <h1 style={{ fontSize: 32, fontWeight: 900 }}>
-          My Account
-        </h1>
-        <p style={{ marginTop: 6, opacity: 0.65 }}>
-          Overview of your recent orders and delivery status.
-        </p>
-      </header>
-
-      {/* LOADING */}
-      {loading && <p>Loading your account…</p>}
-
-      {/* EMPTY */}
-      {!loading && orders.length === 0 && (
-        <section
-          style={{
-            padding: 32,
-            borderRadius: 24,
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <h3 style={{ fontWeight: 900 }}>
-            You haven’t placed any orders yet
-          </h3>
-          <p style={{ marginTop: 6, opacity: 0.7 }}>
-            Once you place an order, payment and shipping updates
-            will appear here.
-          </p>
-
-          <Link
-            href="/"
-            className="btn btnPrimary"
-            style={{ marginTop: 16, display: "inline-block" }}
-          >
-            Continue shopping
-          </Link>
-        </section>
-      )}
-
-      {/* LATEST ORDER */}
-      {!loading && latestOrder && (
-        <section
-          style={{
-            borderRadius: 24,
-            padding: 28,
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-            display: "grid",
-            gap: 14,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <h2 style={{ fontWeight: 900 }}>
-              Latest order
-            </h2>
-
-            <Link
-              href="/account/orders"
-              className="btn btnGhost"
-            >
-              View all orders
-            </Link>
-          </div>
-
-          <div style={{ fontSize: 14, opacity: 0.7 }}>
-            Order #{latestOrder.id.slice(0, 8)} ·{" "}
-            {new Date(latestOrder.created_at).toLocaleDateString()}
-          </div>
-
-          <div style={{ fontWeight: 800 }}>
-            Total: M
-            {latestOrder.total_amount.toLocaleString()}
-          </div>
-
-          <StatusRow
-            label="Payment"
-            status={paymentLabel(latestOrder.payment_status)}
-            highlight={
-              latestOrder.payment_status === "on_hold" ||
-              latestOrder.payment_status === "rejected"
-            }
-          />
-
-          <StatusRow
-            label="Shipping"
-            status={shippingLabel(latestOrder.shipping_status)}
-          />
-
-          {(latestOrder.payment_status === "on_hold" ||
-            latestOrder.payment_status === "rejected") && (
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#b45309",
-              }}
-            >
-              Action required: complete payment and upload proof
-              to continue processing this order.
-            </div>
-          )}
-
-          <Link
-            href={`/account/orders/${latestOrder.id}`}
-            className="btn btnPrimary"
-            style={{ marginTop: 10, width: "fit-content" }}
-          >
-            View order details
-          </Link>
-        </section>
-      )}
-    </div>
-  );
+  return [...arr].sort(() => {
+    hash = (hash * 9301 + 49297) % 233280;
+    return hash / 233280 - 0.5;
+  });
 }
 
-/* ======================
-   HELPERS
-====================== */
+/**
+ * Normalize API Product → ProductCard Product
+ */
+function normalizeForCard(p: ApiProduct) {
+  return {
+    id: p.id,
+    title: p.name,
+    price: p.price,
 
-function StatusRow({
-  label,
-  status,
-  highlight,
-}: {
-  label: string;
-  status: string;
-  highlight?: boolean;
-}) {
+    // UI-only safe defaults
+    img: p.image_url || "/placeholder.png",
+    category: "general",
+    rating: 4.5,
+    stock: 0,
+    in_stock: false,
+  };
+}
+
+/* =======================
+   PAGE (SERVER COMPONENT)
+======================= */
+
+export default async function HomePage() {
+  let products: ApiProduct[] = [];
+  let hasError = false;
+
+  try {
+    products = await fetchProducts();
+  } catch (err) {
+    console.error("Failed to load products", err);
+    hasError = true;
+  }
+
+  const featured = seededShuffle(products)
+    .slice(0, 12)
+    .map(normalizeForCard);
+
   return (
     <div
       style={{
-        display: "flex",
-        gap: 10,
-        alignItems: "center",
-        fontWeight: 700,
-        color: highlight ? "#b45309" : "#0f172a",
+        display: "grid",
+        gap: 36,
+        paddingBottom: 72,
       }}
     >
-      <span style={{ width: 80 }}>{label}</span>
-      <span>{status}</span>
+      {/* ================= HERO ================= */}
+      <section
+        style={{
+          borderRadius: 24,
+          padding: "36px 40px",
+          background: `
+            radial-gradient(
+              500px 260px at 12% 0%,
+              rgba(96,165,250,0.25),
+              transparent 60%
+            ),
+            radial-gradient(
+              420px 220px at 90% 10%,
+              rgba(244,114,182,0.22),
+              transparent 60%
+            ),
+            linear-gradient(
+              135deg,
+              #f8fbff,
+              #eef6ff,
+              #fff1f6
+            )
+          `,
+          boxShadow: `
+            0 20px 60px rgba(15,23,42,0.12),
+            inset 0 0 0 1px rgba(255,255,255,0.7)
+          `,
+        }}
+      >
+        <div style={{ maxWidth: 720 }}>
+          <h1
+            style={{
+              fontSize: 32,
+              fontWeight: 900,
+              letterSpacing: "-0.4px",
+              color: "#0f172a",
+            }}
+          >
+            Karabo’s Boutique
+          </h1>
+
+          <p
+            style={{
+              marginTop: 12,
+              fontSize: 16,
+              fontWeight: 600,
+              color: "rgba(15,23,42,0.65)",
+            }}
+          >
+            Lesotho&apos;s premium online destination for beauty, fashion, and
+            accessories.
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 14,
+              marginTop: 22,
+              flexWrap: "wrap",
+            }}
+          >
+            <Link href="/store" className="btn btnTech">
+              Explore Store →
+            </Link>
+
+            <Link href="/store" className="btn btnGhost">
+              Browse Categories
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= FEATURED ================= */}
+      <section
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 900,
+            color: "#0f172a",
+          }}
+        >
+          Featured Products
+        </h2>
+
+        <Link href="/store" className="btn btnTech">
+          View all →
+        </Link>
+      </section>
+
+      {/* ================= PRODUCTS ================= */}
+      <section
+        style={{
+          borderRadius: 24,
+          padding: 24,
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
+        }}
+      >
+        {hasError ? (
+          <div
+            style={{
+              padding: 32,
+              textAlign: "center",
+              fontWeight: 700,
+              color: "#b91c1c",
+            }}
+          >
+            We’re having trouble loading products right now.
+            <br />
+            Please try again shortly.
+          </div>
+        ) : featured.length === 0 ? (
+          <div
+            style={{
+              padding: 32,
+              textAlign: "center",
+              color: "rgba(15,23,42,0.55)",
+              fontWeight: 600,
+            }}
+          >
+            Products will appear here soon.
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: 20,
+            }}
+          >
+            {featured.map((p) => (
+              <ProductCard key={p.id} p={p} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
-}
-
-function paymentLabel(status: PaymentStatus) {
-  switch (status) {
-    case "pending":
-      return "Order placed";
-    case "on_hold":
-      return "Awaiting payment";
-    case "paid":
-      return "Payment confirmed";
-    case "rejected":
-      return "Payment rejected";
-  }
-}
-
-function shippingLabel(status: ShippingStatus) {
-  if (!status) return "Not shipped yet";
-  if (status === "awaiting_shipping") return "Preparing shipment";
-  if (status === "shipped") return "Shipped";
-  return "—";
 }
