@@ -23,6 +23,7 @@ export default function LoginPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // 🔴 REQUIRED FOR COOKIE AUTH
           body: JSON.stringify({ email, password }),
         }
       );
@@ -33,12 +34,13 @@ export default function LoginPage() {
         throw new Error(data.detail || "Login failed");
       }
 
-      // ✅ FIXED: pass BOTH token and role
-      await login(data.access_token, data.role);
+      // ✅ Cookie already set by backend
+      // ✅ Sync frontend auth state from /api/auth/me
+      await login();
 
       toast.success("Welcome back 🎉");
 
-      // ✅ ROLE-BASED REDIRECT
+      // ✅ ROLE-BASED REDIRECT (role comes from /me, not login)
       if (data.role === "admin") {
         router.push("/admin");
       } else {
