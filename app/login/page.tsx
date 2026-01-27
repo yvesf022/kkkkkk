@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const login = useAuth((state) => state.login);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,7 +46,11 @@ export default function LoginPage() {
       toast.success("Welcome back 👋");
       setSuccess("Login successful. Redirecting…");
 
-      const user = await login();
+      // hydrate auth store
+      await login();
+
+      // read from store (source of truth)
+      const user = useAuth.getState().user;
 
       if (user?.role === "admin") {
         router.replace("/admin");
