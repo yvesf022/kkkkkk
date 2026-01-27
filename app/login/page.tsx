@@ -1,17 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+
   const login = useAuth((s) => s.login);
+  const user = useAuth((s) => s.user);
+  const loadingAuth = useAuth((s) => s.loading);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // ✅ AMAZON-STYLE REDIRECT:
+  // redirect ONLY after auth state is hydrated
+  useEffect(() => {
+    if (!loadingAuth && user) {
+      if (user.role === "admin") {
+        router.replace("/admin");
+      } else {
+        router.replace("/account"); // user dashboard
+      }
+    }
+  }, [user, loadingAuth, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +38,7 @@ export default function LoginPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include", // 🔴 REQUIRED FOR COOKIE AUTH
+          credentials: "include",
           body: JSON.stringify({ email, password }),
         }
       );
@@ -34,18 +49,11 @@ export default function LoginPage() {
         throw new Error(data.detail || "Login failed");
       }
 
-      // ✅ Cookie already set by backend
-      // ✅ Sync frontend auth state from /api/auth/me
+      // ✅ hydrate auth store (cookie-based)
       await login();
 
       toast.success("Welcome back 🎉");
-
-      // ✅ ROLE-BASED REDIRECT (role comes from /me, not login)
-      if (data.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push("/account");
-      }
+      // ❌ NO router.push here — redirect is handled by useEffect
     } catch (err: any) {
       toast.error(err.message || "Login failed");
     } finally {
@@ -88,7 +96,6 @@ export default function LoginPage() {
           boxShadow: "0 28px 80px rgba(15,23,42,0.18)",
         }}
       >
-        {/* HEADER */}
         <h1
           style={{
             fontSize: 26,
@@ -110,7 +117,6 @@ export default function LoginPage() {
           Sign in to access your account and orders.
         </p>
 
-        {/* FORM */}
         <form
           onSubmit={handleLogin}
           style={{
@@ -156,7 +162,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* FOOTER */}
         <div
           style={{
             marginTop: 20,
