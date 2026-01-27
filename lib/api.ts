@@ -1,17 +1,81 @@
-const API_BASE = "https://karabo.onrender.com";
+/* =========================================================
+   GLOBAL API CLIENT – PRODUCTION READY
+   Backend: Render (FastAPI)
+   Frontend: Next.js (Vercel)
+========================================================= */
+
+const API = process.env.NEXT_PUBLIC_API_URL!;
+if (!API) {
+  throw new Error("NEXT_PUBLIC_API_URL is not defined");
+}
 
 /* ======================
-   CORE FETCH WRAPPER
+   TYPES
 ====================== */
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  role?: "user" | "admin";
+}
+
+export interface Address {
+  id: string;
+  full_name: string;
+  phone: string;
+  address_line: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  is_default: boolean;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  image_url?: string;
+}
+
+export interface OrderItem {
+  product_id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Order {
+  id: string;
+  items: OrderItem[];
+  total_amount: number;
+  status: string;
+  payment_status?: "pending" | "paid" | "on_hold" | "rejected";
+  created_at: string;
+}
+
+/* ======================
+   HELPERS
+====================== */
+
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+}
+
 async function apiFetch<T>(
-  path: string,
+  endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const token = getToken();
+
+  const res = await fetch(`${API}${endpoint}`, {
     ...options,
-    credentials: "include", // 🔐 REQUIRED FOR JWT COOKIES
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
   });
@@ -21,109 +85,96 @@ async function apiFetch<T>(
     throw new Error(text || "API request failed");
   }
 
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 /* ======================
    AUTH
 ====================== */
-export function login(email: string, password: string) {
-  return apiFetch<{
-    access_token: string;
-    role: "user" | "admin";
-  }>("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
-}
 
-export function register(payload: {
+export async function register(data: {
   email: string;
   password: string;
-  full_name?: string;
-  phone?: string;
-}) {
+  name?: string;
+}): Promise<{ access_token: string }> {
   return apiFetch("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(data),
   });
 }
 
-export function getMe() {
-  return apiFetch("/api/auth/me");
+export async function login(data: {
+  email: string;
+  password: string;
+}): Promise<{ access_token: string }> {
+  return apiFetch("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
-export function updateMe(payload: any) {
+export function logout() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("token");
+  }
+}
+
+/* ======================
+   USER PROFILE
+====================== */
+
+export async function getMe(): Promise<User> {
+  return apiFetch("/api/users/me");
+}
+
+export async function updateMe(data: Partial<User>): Promise<User> {
   return apiFetch("/api/users/me", {
     method: "PUT",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(data),
+  });
+}
+
+/* ======================
+   ADDRESSES
+====================== */
+
+export async function getMyAddresses(): Promise<Address[]> {
+  return apiFetch("/api/addresses");
+}
+
+export async function createAddress(
+  data: Omit<Address, "id" | "is_default">
+): Promise<Address> {
+  return apiFetch("/api/addresses", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteAddress(addressId: string): Promise<void> {
+  await apiFetch(`/api/addresses/${addressId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function setDefaultAddress(addressId: string): Promise<void> {
+  await apiFetch(`/api/addresses/${addressId}/default`, {
+    method: "PUT",
   });
 }
 
 /* ======================
    PRODUCTS
 ====================== */
-export type Product = {
-  id: string;
-  name: string;
-  price: number;
-  image_url?: string;
-};
 
-export function fetchProducts(): Promise<Product[]> {
-  return apiFetch<Product[]>("/api/products");
+export async function fetchProducts(): Promise<Product[]> {
+  return apiFetch("/api/products");
 }
 
 /* ======================
    ORDERS
 ====================== */
-export type Order = {
-  id: string;
-  total_amount: number;
-  created_at: string;
-};
 
-export function getMyOrders(): Promise<Order[]> {
-  return apiFetch<Order[]>("/api/orders/my");
-}
-
-/* ======================
-   ADDRESSES
-====================== */
-export type Address = {
-  id: string;
-  full_name: string;
-  phone: string;
-  address_line_1: string;
-  address_line_2?: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-  is_default: boolean;
-};
-
-export function getMyAddresses(): Promise<Address[]> {
-  return apiFetch<Address[]>("/api/users/addresses");
-}
-
-export function createAddress(
-  payload: Omit<Address, "id" | "is_default">
-): Promise<Address> {
-  return apiFetch<Address>("/api/users/addresses", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function deleteAddress(addressId: string): Promise<void> {
-  return apiFetch<void>(`/api/users/addresses/${addressId}`, {
-    method: "DELETE",
-  });
-}
-
-export function setDefaultAddress(addressId: string): Promise<void> {
-  return apiFetch<void>(`/api/users/addresses/${addressId}/default`, {
-    method: "PATCH",
-  });
+export async function getMyOrders(): Promise<Order[]> {
+  return apiFetch("/api/orders/my");
 }
