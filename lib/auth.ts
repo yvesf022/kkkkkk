@@ -1,83 +1,57 @@
-"use client";
-
 import { create } from "zustand";
 
-type Role = "admin" | "user";
+type User = {
+  id: string;
+  email: string;
+  role: "user" | "admin";
+};
 
-interface AuthState {
-  token: string | null;
-  role: Role | null;
-  isAuthenticated: boolean;
+type AuthState = {
+  user: User | null;
   loading: boolean;
 
-  login: (token: string, role: Role) => void;
-  logout: () => void;
-  hydrate: () => void;
-}
+  fetchMe: () => Promise<void>;
+  login: () => Promise<void>;   // 🔴 NO ARGUMENTS
+  logout: () => Promise<void>;
+};
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const useAuth = create<AuthState>((set) => ({
-  token: null,
-  role: null,
-  isAuthenticated: false,
+  user: null,
   loading: true,
 
-  // =====================
-  // LOGIN
-  // =====================
-  login: (token, role) => {
-    // Ensure localStorage only accessed on client side
-    if (typeof window !== "undefined") {
-      localStorage.setItem("access_token", token);
-      localStorage.setItem("role", role);
-    }
+  fetchMe: async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/me`, {
+        credentials: "include",
+      });
 
-    set({
-      token,
-      role,
-      isAuthenticated: true,
-      loading: false,
-    });
-  },
-
-  // =====================
-  // LOGOUT
-  // =====================
-  logout: () => {
-    // Ensure localStorage only accessed on client side
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("role");
-    }
-
-    set({
-      token: null,
-      role: null,
-      isAuthenticated: false,
-      loading: false,
-    });
-  },
-
-  // =====================
-  // HYDRATE ON REFRESH
-  // =====================
-  hydrate: () => {
-    // Ensure this runs only on the client
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("access_token");
-      const role = localStorage.getItem("role") as Role | null;
-
-      if (token && role) {
-        set({
-          token,
-          role,
-          isAuthenticated: true,
-          loading: false,
-        });
-      } else {
-        set({
-          loading: false,
-        });
+      if (!res.ok) {
+        set({ user: null, loading: false });
+        return;
       }
+
+      const user = await res.json();
+      set({ user, loading: false });
+    } catch {
+      set({ user: null, loading: false });
+    }
+  },
+
+  login: async () => {
+    // Cookie already set by backend
+    await useAuth.getState().fetchMe();
+  },
+
+  logout: async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      set({ user: null, loading: false });
     }
   },
 }));
