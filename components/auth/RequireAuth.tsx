@@ -4,21 +4,35 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
+type Role = "user" | "admin";
+
+type RenderProps = (authReady: boolean) => React.ReactNode;
+
 type Props = {
-  children: React.ReactNode;
-  role?: "user" | "admin";
+  role?: Role;
+  allowDuringHydration?: boolean;
+  children: React.ReactNode | RenderProps;
 };
 
-export default function RequireAuth({ children, role }: Props) {
+export default function RequireAuth({
+  children,
+  role,
+  allowDuringHydration = false,
+}: Props) {
   const router = useRouter();
 
   const isAuthenticated = useAuth((s) => s.isAuthenticated);
   const userRole = useAuth((s) => s.role);
   const loading = useAuth((s) => s.loading);
 
+  const authReady = !loading;
+
+  /* =========================
+     REDIRECT LOGIC (SAFE)
+  ========================= */
   useEffect(() => {
-    // 🚫 NEVER redirect while loading
-    if (loading) return;
+    // 🚫 Never redirect during hydration
+    if (!authReady) return;
 
     // ❌ Not logged in
     if (!isAuthenticated) {
@@ -30,23 +44,36 @@ export default function RequireAuth({ children, role }: Props) {
     if (role && userRole !== role) {
       router.replace(userRole === "admin" ? "/admin" : "/account");
     }
-  }, [loading, isAuthenticated, userRole, role, router]);
+  }, [authReady, isAuthenticated, userRole, role, router]);
 
-  // 🚫 Do not render anything while loading
-  if (loading) {
-    return <div className="p-6 text-sm opacity-70">Checking access…</div>;
+  /* =========================
+     RENDER LOGIC
+  ========================= */
+
+  // During hydration:
+  if (!authReady) {
+    // Allow layout to render skeletons
+    if (allowDuringHydration && typeof children === "function") {
+      return <>{children(false)}</>;
+    }
+
+    // Otherwise render nothing (but DO NOT redirect)
+    return null;
   }
 
-  // ❌ Block render if not authenticated
+  // Auth resolved but not allowed
   if (!isAuthenticated) {
     return null;
   }
 
-  // ❌ Block render if role mismatch
   if (role && userRole !== role) {
     return null;
   }
 
-  // ✅ Access granted
+  // Auth OK
+  if (typeof children === "function") {
+    return <>{children(true)}</>;
+  }
+
   return <>{children}</>;
 }
