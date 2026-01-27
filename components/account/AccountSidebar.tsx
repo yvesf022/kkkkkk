@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 type Item = {
@@ -20,12 +20,12 @@ const ITEMS: Item[] = [
 
 export default function AccountSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const logout = useAuth((s) => s.logout);
 
   function handleLogout() {
+    // 🔐 Only change auth state.
+    // Redirect is handled by RequireAuth.
     logout();
-    router.push("/login");
   }
 
   return (
@@ -38,11 +38,10 @@ export default function AccountSidebar() {
         padding: "24px 18px",
         display: "flex",
         flexDirection: "column",
-        gap: 6,
       }}
     >
       {/* HEADER */}
-      <div style={{ marginBottom: 18 }}>
+      <div style={{ marginBottom: 22 }}>
         <div
           style={{
             fontWeight: 900,
@@ -59,12 +58,12 @@ export default function AccountSidebar() {
             marginTop: 2,
           }}
         >
-          Manage your orders & profile
+          Orders, payments & settings
         </div>
       </div>
 
       {/* NAV */}
-      <nav style={{ display: "grid", gap: 4 }}>
+      <nav style={{ display: "grid", gap: 6 }}>
         {ITEMS.map((item) => {
           const active =
             pathname === item.href ||
@@ -74,10 +73,11 @@ export default function AccountSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 700,
+                padding: "11px 14px",
+                borderRadius: 14,
+                fontWeight: 800,
                 fontSize: 14,
                 textDecoration: "none",
                 color: active
@@ -89,6 +89,7 @@ export default function AccountSidebar() {
                 border: active
                   ? "1px solid rgba(37,99,235,0.25)"
                   : "1px solid transparent",
+                transition: "background 0.15s ease",
               }}
             >
               {item.label}
@@ -98,14 +99,14 @@ export default function AccountSidebar() {
       </nav>
 
       {/* FOOTER */}
-      <div style={{ marginTop: "auto", paddingTop: 18 }}>
+      <div style={{ marginTop: "auto", paddingTop: 24 }}>
         <button
           onClick={handleLogout}
           style={{
             width: "100%",
-            padding: "10px 12px",
-            borderRadius: 12,
-            fontWeight: 800,
+            padding: "11px 14px",
+            borderRadius: 14,
+            fontWeight: 900,
             fontSize: 14,
             background: "#fee2e2",
             color: "#991b1b",
@@ -115,6 +116,17 @@ export default function AccountSidebar() {
         >
           Log out
         </button>
+
+        <p
+          style={{
+            marginTop: 10,
+            fontSize: 11,
+            textAlign: "center",
+            opacity: 0.5,
+          }}
+        >
+          You can sign back in anytime
+        </p>
       </div>
     </aside>
   );

@@ -2,48 +2,46 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { getMyOrders, Order } from "@/lib/api";
 import Link from "next/link";
+import { getMyOrders } from "@/lib/api";
 
 /* ======================
-   STATUS CHIP
+   TYPES
 ====================== */
-function Chip({
-  label,
-  bg,
-  color = "#fff",
-}: {
-  label: string;
-  bg: string;
-  color?: string;
-}) {
-  return (
-    <span
-      style={{
-        padding: "6px 14px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 900,
-        background: bg,
-        color,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
+
+type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
+type ShippingStatus = "awaiting_shipping" | "shipped" | null;
+
+type UIOrder = {
+  id: string;
+  created_at: string;
+  total_amount: number;
+  payment_status: PaymentStatus;
+  shipping_status: ShippingStatus;
+};
 
 /* ======================
    PAGE
 ====================== */
-export default function AccountOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+
+export default function OrdersPage() {
+  const [orders, setOrders] = useState<UIOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function loadOrders() {
     try {
       const data = await getMyOrders();
-      setOrders(data);
+
+      // 🔐 Normalize backend data → UI-safe data
+      const normalized: UIOrder[] = data.map((o: any) => ({
+        id: o.id,
+        created_at: o.created_at,
+        total_amount: o.total_amount,
+        payment_status: o.payment_status ?? "pending",
+        shipping_status: o.shipping_status ?? null,
+      }));
+
+      setOrders(normalized);
     } catch {
       toast.error("Failed to load your orders");
     } finally {
@@ -55,171 +53,100 @@ export default function AccountOrdersPage() {
     loadOrders();
   }, []);
 
+  if (loading) {
+    return <p>Loading your orders…</p>;
+  }
+
   return (
-    <div style={{ display: "grid", gap: 28 }}>
-      {/* HEADER */}
-      <header>
-        <h1 style={{ fontSize: 30, fontWeight: 900 }}>
-          My Orders
-        </h1>
-        <p style={{ opacity: 0.65 }}>
-          Track payment confirmation and shipping progress.
-        </p>
-      </header>
+    <div style={{ maxWidth: 1000 }}>
+      <h1 style={{ fontSize: 26, fontWeight: 900 }}>
+        Orders
+      </h1>
+      <p style={{ marginTop: 6, opacity: 0.6 }}>
+        View and manage your orders
+      </p>
 
-      {/* LOADING */}
-      {loading && <p>Loading your orders…</p>}
-
-      {/* EMPTY STATE */}
-      {!loading && orders.length === 0 && (
-        <section
-          style={{
-            padding: 32,
-            borderRadius: 22,
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <h3 style={{ fontWeight: 900 }}>
-            You haven’t placed any orders yet
-          </h3>
-          <p style={{ marginTop: 6, opacity: 0.7 }}>
-            Once you place an order, payment and shipping
-            updates will appear here.
-          </p>
-        </section>
-      )}
-
-      {/* ORDERS */}
-      <div style={{ display: "grid", gap: 18 }}>
-        {orders.map((o) => {
-          const needsPayment =
-            o.payment_status === "on_hold" ||
-            o.payment_status === "rejected";
-
-          return (
-            <section
+      <section style={{ marginTop: 24, display: "grid", gap: 16 }}>
+        {orders.length === 0 ? (
+          <div
+            style={{
+              padding: 24,
+              borderRadius: 18,
+              background: "#f8fafc",
+              textAlign: "center",
+              opacity: 0.7,
+            }}
+          >
+            You have not placed any orders yet.
+          </div>
+        ) : (
+          orders.map((o) => (
+            <div
               key={o.id}
               style={{
-                borderRadius: 24,
-                padding: 22,
+                padding: 20,
+                borderRadius: 18,
+                border: "1px solid #e5e7eb",
                 background: "#ffffff",
-                border: needsPayment
-                  ? "2px solid #f59e0b"
-                  : "1px solid #e5e7eb",
-                display: "grid",
-                gap: 14,
               }}
             >
-              {/* HEADER */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <div style={{ fontWeight: 900 }}>
-                  Order #{o.id.slice(0, 8)}
-                </div>
-
-                <Link
-                  href={`/account/orders/${o.id}`}
-                  className="btn btnGhost"
-                >
-                  View details
-                </Link>
+              <div style={{ fontWeight: 900 }}>
+                Order #{o.id.slice(0, 8)}
               </div>
 
-              {/* META */}
-              <div style={{ fontSize: 14 }}>
-                <b>Date:</b>{" "}
+              <div style={{ fontSize: 13, opacity: 0.6 }}>
                 {new Date(o.created_at).toLocaleDateString()}
               </div>
 
-              <div style={{ fontSize: 15 }}>
-                <b>Total:</b>{" "}
-                <strong>
-                  M{o.total_amount.toLocaleString()}
-                </strong>
+              <div style={{ marginTop: 6, fontWeight: 800 }}>
+                Total: M{o.total_amount.toLocaleString()}
               </div>
 
-              {/* STATUS */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
+              <div style={{ marginTop: 10, fontSize: 14 }}>
+                <strong>Payment:</strong>{" "}
+                {paymentLabel(o.payment_status)}
+              </div>
+
+              <div style={{ fontSize: 14 }}>
+                <strong>Shipping:</strong>{" "}
+                {shippingLabel(o.shipping_status)}
+              </div>
+
+              <Link
+                href={`/account/orders/${o.id}`}
+                className="btn btnPrimary"
+                style={{ marginTop: 12, width: "fit-content" }}
               >
-                {o.payment_status === "on_hold" && (
-                  <Chip
-                    label="Awaiting payment"
-                    bg="#f59e0b"
-                  />
-                )}
-                {o.payment_status === "payment_submitted" && (
-                  <Chip
-                    label="Payment under review"
-                    bg="#3b82f6"
-                  />
-                )}
-                {o.payment_status === "payment_received" && (
-                  <Chip
-                    label="Payment confirmed"
-                    bg="#22c55e"
-                  />
-                )}
-                {o.payment_status === "rejected" && (
-                  <Chip
-                    label="Payment rejected"
-                    bg="#ef4444"
-                  />
-                )}
-
-                {o.shipping_status && (
-                  <Chip
-                    label={`Shipping: ${o.shipping_status.replace(
-                      "_",
-                      " "
-                    )}`}
-                    bg="#0ea5e9"
-                  />
-                )}
-              </div>
-
-              {/* GUIDANCE */}
-              {needsPayment && (
-                <div
-                  style={{
-                    marginTop: 6,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#b45309",
-                  }}
-                >
-                  Action required: complete payment and
-                  upload proof to continue processing
-                  this order.
-                </div>
-              )}
-
-              {o.shipping_status === "shipped" && (
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#1d4ed8",
-                  }}
-                >
-                  Your order has been shipped. Tracking
-                  details are available in the order view.
-                </div>
-              )}
-            </section>
-          );
-        })}
-      </div>
+                View details
+              </Link>
+            </div>
+          ))
+        )}
+      </section>
     </div>
   );
+}
+
+/* ======================
+   HELPERS
+====================== */
+
+function paymentLabel(status: PaymentStatus) {
+  switch (status) {
+    case "pending":
+      return "Order placed";
+    case "on_hold":
+      return "Awaiting payment";
+    case "paid":
+      return "Payment confirmed";
+    case "rejected":
+      return "Payment rejected";
+  }
+}
+
+function shippingLabel(status: ShippingStatus) {
+  if (!status) return "Not shipped yet";
+  if (status === "awaiting_shipping") return "Preparing shipment";
+  if (status === "shipped") return "Shipped";
+  return "—";
 }

@@ -1,151 +1,109 @@
 "use client";
 
-import toast from "react-hot-toast";
-import RequireAuth from "@/components/auth/RequireAuth";
-
-/*
-  NOTE:
-  This page is intentionally read-only.
-  No payment methods are stored yet.
-  Ready for Razorpay / Stripe / Paystack later.
-*/
+import Link from "next/link";
 
 export default function PaymentsPage() {
   return (
-    <RequireAuth>
-      <div style={{ maxWidth: 900, display: "grid", gap: 24 }}>
-        {/* HEADER */}
-        <header>
-          <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-            Payment Methods
-          </h1>
-          <p style={{ marginTop: 6, opacity: 0.6 }}>
-            Manage how you pay for your orders
-          </p>
-        </header>
+    <div style={{ maxWidth: 900, display: "grid", gap: 28 }}>
+      {/* HEADER */}
+      <header>
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
+          Payments
+        </h1>
+        <p style={{ marginTop: 6, opacity: 0.65 }}>
+          Learn how payments are processed for your orders.
+        </p>
+      </header>
 
-        {/* CONTENT */}
-        <section
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: 22,
-            padding: 24,
-            display: "grid",
-            gap: 22,
-          }}
-        >
-          {/* SAVED METHODS */}
-          <div>
-            <h3 style={{ fontSize: 16, fontWeight: 900 }}>
-              Saved payment methods
-            </h3>
-            <p
-              style={{
-                fontSize: 13,
-                opacity: 0.6,
-                marginTop: 4,
-              }}
-            >
-              You don’t have any saved payment methods yet.
-            </p>
-
-            <div
-              style={{
-                marginTop: 14,
-                padding: 18,
-                borderRadius: 16,
-                border: "1px dashed #cbd5f5",
-                background: "#f8fafc",
-                fontSize: 14,
-              }}
-            >
-              For security reasons, card details are never
-              stored directly on our servers.
-            </div>
-          </div>
-
-          <hr />
-
-          {/* AVAILABLE METHODS */}
-          <div>
-            <h3 style={{ fontSize: 16, fontWeight: 900 }}>
-              Available payment options
-            </h3>
-
-            <div
-              style={{
-                marginTop: 14,
-                display: "grid",
-                gap: 12,
-              }}
-            >
-              <PaymentOption
-                title="UPI / Wallets"
-                description="Pay using UPI apps or supported wallets"
-              />
-              <PaymentOption
-                title="Credit / Debit Cards"
-                description="Visa, Mastercard, RuPay"
-              />
-              <PaymentOption
-                title="Cash on Delivery"
-                description="Pay when your order is delivered"
-              />
-            </div>
-          </div>
-
-          <hr />
-
-          {/* ACTION */}
-          <div>
-            <button
-              className="btn btnTech"
-              onClick={() =>
-                toast(
-                  "Saved payment methods will be available soon"
-                )
-              }
-            >
-              + Add payment method
-            </button>
-          </div>
-        </section>
-      </div>
-    </RequireAuth>
-  );
-}
-
-/* ======================
-   COMPONENTS
-====================== */
-
-function PaymentOption({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div
-      style={{
-        padding: 16,
-        borderRadius: 16,
-        border: "1px solid #e5e7eb",
-        background: "#ffffff",
-      }}
-    >
-      <div style={{ fontWeight: 900 }}>{title}</div>
-      <div
+      {/* HOW PAYMENTS WORK */}
+      <section
         style={{
-          fontSize: 13,
-          opacity: 0.6,
-          marginTop: 4,
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 24,
+          padding: 28,
+          display: "grid",
+          gap: 14,
         }}
       >
-        {description}
-      </div>
+        <h3 style={{ fontWeight: 900 }}>
+          How payments work
+        </h3>
+
+        <ol
+          style={{
+            paddingLeft: 18,
+            display: "grid",
+            gap: 8,
+            fontSize: 14,
+          }}
+        >
+          <li>You place an order and it is marked as <b>Awaiting payment</b>.</li>
+          <li>
+            You complete the payment externally using the instructions
+            provided after checkout.
+          </li>
+          <li>
+            You upload a payment proof from your order details page.
+          </li>
+          <li>
+            Our team reviews the payment for verification.
+          </li>
+          <li>
+            Once confirmed, your order proceeds to shipping.
+          </li>
+        </ol>
+
+        <p style={{ fontSize: 13, opacity: 0.65 }}>
+          For security reasons, payment details are never stored
+          on your account.
+        </p>
+      </section>
+
+      {/* WHERE TO MANAGE PAYMENTS */}
+      <section
+        style={{
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 24,
+          padding: 28,
+          display: "grid",
+          gap: 12,
+        }}
+      >
+        <h3 style={{ fontWeight: 900 }}>
+          Manage payments
+        </h3>
+
+        <p style={{ fontSize: 14, opacity: 0.7 }}>
+          All payment actions are handled per order.
+          To upload payment proof or view payment status,
+          open the corresponding order.
+        </p>
+
+        <Link
+          href="/account/orders"
+          className="btn btnPrimary"
+          style={{ width: "fit-content", marginTop: 6 }}
+        >
+          View my orders
+        </Link>
+      </section>
+
+      {/* SUPPORT */}
+      <section
+        style={{
+          background: "#f8fafc",
+          border: "1px solid #e5e7eb",
+          borderRadius: 24,
+          padding: 24,
+          fontSize: 13,
+          opacity: 0.75,
+        }}
+      >
+        If you have questions about a payment,
+        please contact support with your order ID.
+      </section>
     </div>
   );
 }

@@ -27,7 +27,6 @@ export default function ProfilePage() {
     async function loadProfile() {
       try {
         const data = await getMe();
-
         setProfile(data);
         setFullName(data.full_name ?? "");
         setPhone(data.phone ?? "");
@@ -65,7 +64,7 @@ export default function ProfilePage() {
     try {
       const res = await fetch(`${API}/api/users/me/avatar`, {
         method: "POST",
-        credentials: "include", // 🔐 httpOnly cookie auth
+        credentials: "include",
         body: formData,
       });
 
@@ -116,10 +115,6 @@ export default function ProfilePage() {
     }
   }
 
-  /* ======================
-     STATES
-  ====================== */
-
   if (loading) return <p style={{ marginTop: 20 }}>Loading profile…</p>;
   if (!profile) return null;
 
@@ -132,7 +127,7 @@ export default function ProfilePage() {
       <header>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Profile</h1>
         <p style={{ marginTop: 6, opacity: 0.6 }}>
-          Manage your personal information
+          Manage your personal information for delivery and communication.
         </p>
       </header>
 
@@ -161,7 +156,83 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Avatar, inputs, meta, save button remain unchanged */}
+        {/* AVATAR */}
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              background: "#e5e7eb",
+              overflow: "hidden",
+            }}
+          >
+            {avatarUrl && (
+              <img
+                src={avatarUrl}
+                alt="Avatar"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            )}
+          </div>
+
+          <label
+            style={{
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: uploadingAvatar ? "not-allowed" : "pointer",
+              opacity: uploadingAvatar ? 0.6 : 1,
+            }}
+          >
+            Change profile picture
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              disabled={uploadingAvatar}
+              onChange={(e) =>
+                e.target.files &&
+                handleAvatarUpload(e.target.files[0])
+              }
+            />
+          </label>
+        </div>
+
+        {/* NAME */}
+        <div>
+          <label style={{ fontWeight: 700, fontSize: 13 }}>
+            Full name
+          </label>
+          <input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Your full name"
+            className="input"
+          />
+        </div>
+
+        {/* PHONE */}
+        <div>
+          <label style={{ fontWeight: 700, fontSize: 13 }}>
+            Phone number
+          </label>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Phone number for delivery updates"
+            className="input"
+          />
+        </div>
+
+        {/* SAVE */}
+        <button
+          onClick={saveProfile}
+          disabled={saving}
+          className="btn btnPrimary"
+          style={{ width: "fit-content" }}
+        >
+          {saving ? "Saving…" : "Save changes"}
+        </button>
       </section>
     </div>
   );

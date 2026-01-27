@@ -9,10 +9,6 @@ import {
   setDefaultAddress,
 } from "@/lib/api";
 
-/* ======================
-   TYPES
-====================== */
-
 type Address = {
   id: string;
   full_name: string;
@@ -26,17 +22,12 @@ type Address = {
   is_default: boolean;
 };
 
-/* ======================
-   PAGE
-====================== */
-
 export default function AddressesPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
-  /* ---------- FORM STATE ---------- */
-  const [form, setForm] = useState<Omit<Address, "id" | "is_default">>({
+  const [form, setForm] = useState({
     full_name: "",
     phone: "",
     address_line_1: "",
@@ -47,16 +38,12 @@ export default function AddressesPage() {
     country: "",
   });
 
-  /* ======================
-     LOAD ADDRESSES
-  ======================= */
-
   async function loadAddresses() {
     try {
       const data = await getMyAddresses();
       setAddresses(data);
     } catch {
-      toast.error("Failed to load addresses. Please try again.");
+      toast.error("Failed to load addresses");
     } finally {
       setLoading(false);
     }
@@ -65,10 +52,6 @@ export default function AddressesPage() {
   useEffect(() => {
     loadAddresses();
   }, []);
-
-  /* ======================
-     ACTIONS
-  ======================= */
 
   async function addAddress() {
     if (
@@ -80,15 +63,14 @@ export default function AddressesPage() {
       !form.postal_code ||
       !form.country
     ) {
-      toast.error("Please fill all required fields.");
+      toast.error("Please fill all required fields");
       return;
     }
 
     setAdding(true);
-
     try {
       await createAddress(form);
-      toast.success("Address added successfully.");
+      toast.success("Address added");
       setForm({
         full_name: "",
         phone: "",
@@ -101,7 +83,7 @@ export default function AddressesPage() {
       });
       loadAddresses();
     } catch {
-      toast.error("Failed to add address. Please try again.");
+      toast.error("Failed to add address");
     } finally {
       setAdding(false);
     }
@@ -110,48 +92,36 @@ export default function AddressesPage() {
   async function makeDefault(id: string) {
     try {
       await setDefaultAddress(id);
-      toast.success("Default address updated.");
+      toast.success("Default address updated");
       loadAddresses();
     } catch {
-      toast.error("Failed to update default address. Please try again.");
+      toast.error("Failed to update default address");
     }
   }
 
   async function remove(id: string) {
-    if (!confirm("Are you sure you want to delete this address?")) return;
+    if (!confirm("Delete this address? This cannot be undone.")) return;
 
     try {
       await deleteAddress(id);
-      toast.success("Address removed successfully.");
+      toast.success("Address removed");
       loadAddresses();
     } catch {
-      toast.error("Failed to delete address. Please try again.");
+      toast.error("Failed to delete address");
     }
   }
 
-  /* ======================
-     RENDER
-  ======================= */
-
-  if (loading) {
-    return <p style={{ marginTop: 20 }}>Loading addresses…</p>;
-  }
+  if (loading) return <p>Loading addresses…</p>;
 
   return (
     <div style={{ maxWidth: 900 }}>
       <h1 style={{ fontSize: 26, fontWeight: 900 }}>Addresses</h1>
-      <p style={{ marginTop: 6, opacity: 0.6 }}>Manage your shipping addresses</p>
+      <p style={{ marginTop: 6, opacity: 0.6 }}>
+        Manage your delivery addresses
+      </p>
 
-      {/* ======================
-          LIST
-      ======================= */}
-      <section
-        style={{
-          marginTop: 24,
-          display: "grid",
-          gap: 16,
-        }}
-      >
+      {/* LIST */}
+      <section style={{ marginTop: 24, display: "grid", gap: 16 }}>
         {addresses.length === 0 ? (
           <div
             style={{
@@ -162,7 +132,7 @@ export default function AddressesPage() {
               opacity: 0.7,
             }}
           >
-            No addresses saved yet. Please add an address to continue.
+            No addresses saved yet.
           </div>
         ) : (
           addresses.map((a) => (
@@ -175,65 +145,56 @@ export default function AddressesPage() {
                 background: a.is_default ? "#f0f9ff" : "#ffffff",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 800 }}>{a.full_name}</div>
-                  <div style={{ opacity: 0.7 }}>{a.phone}</div>
-                  <div style={{ marginTop: 6 }}>
-                    {a.address_line_1}
-                    {a.address_line_2 && (
-                      <>
-                        <br />
-                        {a.address_line_2}
-                      </>
-                    )}
-                    <br />
-                    {a.city}, {a.state}
-                    <br />
-                    {a.postal_code}, {a.country}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                  }}
-                >
-                  {!a.is_default && (
-                    <button
-                      className="btn btnGhost"
-                      onClick={() => makeDefault(a.id)}
-                      title="Set this address as default"
-                    >
-                      Set default
-                    </button>
-                  )}
-                  <button
-                    className="btn btnDanger"
-                    onClick={() => remove(a.id)}
-                    title="Delete this address permanently"
+              <div style={{ fontWeight: 900 }}>
+                {a.full_name}
+                {a.is_default && (
+                  <span
+                    style={{
+                      marginLeft: 10,
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: "#0369a1",
+                    }}
                   >
-                    Delete
+                    (Default)
+                  </span>
+                )}
+              </div>
+
+              <div style={{ opacity: 0.7 }}>{a.phone}</div>
+
+              <div style={{ marginTop: 6 }}>
+                {a.address_line_1}
+                {a.address_line_2 && <>, {a.address_line_2}</>}
+                <br />
+                {a.city}, {a.state}
+                <br />
+                {a.postal_code}, {a.country}
+              </div>
+
+              <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+                {!a.is_default && (
+                  <button
+                    className="btn btnGhost"
+                    onClick={() => makeDefault(a.id)}
+                  >
+                    Set as default
                   </button>
-                </div>
+                )}
+
+                <button
+                  className="btn btnDanger"
+                  onClick={() => remove(a.id)}
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))
         )}
       </section>
 
-      {/* ======================
-          ADD NEW
-      ======================= */}
+      {/* ADD NEW */}
       <section
         style={{
           marginTop: 32,
@@ -243,7 +204,9 @@ export default function AddressesPage() {
           border: "1px solid #e5e7eb",
         }}
       >
-        <h2 style={{ fontSize: 20, fontWeight: 900 }}>Add new address</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 900 }}>
+          Add new address
+        </h2>
 
         <div
           style={{
@@ -253,28 +216,69 @@ export default function AddressesPage() {
             gap: 14,
           }}
         >
-          {Object.entries(form).map(([key, value]) => (
-            <input
-              key={key}
-              placeholder={key.replaceAll("_", " ")}
-              value={value}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  [key]: e.target.value,
-                })
-              }
-              title={`Enter your ${key.replaceAll("_", " ")}`}
-            />
-          ))}
+          <input
+            placeholder="Full name"
+            value={form.full_name}
+            onChange={(e) =>
+              setForm({ ...form, full_name: e.target.value })
+            }
+          />
+          <input
+            placeholder="Phone number"
+            value={form.phone}
+            onChange={(e) =>
+              setForm({ ...form, phone: e.target.value })
+            }
+          />
+          <input
+            placeholder="Address line 1"
+            value={form.address_line_1}
+            onChange={(e) =>
+              setForm({ ...form, address_line_1: e.target.value })
+            }
+          />
+          <input
+            placeholder="Address line 2 (optional)"
+            value={form.address_line_2}
+            onChange={(e) =>
+              setForm({ ...form, address_line_2: e.target.value })
+            }
+          />
+          <input
+            placeholder="City"
+            value={form.city}
+            onChange={(e) =>
+              setForm({ ...form, city: e.target.value })
+            }
+          />
+          <input
+            placeholder="State / Region"
+            value={form.state}
+            onChange={(e) =>
+              setForm({ ...form, state: e.target.value })
+            }
+          />
+          <input
+            placeholder="Postal code"
+            value={form.postal_code}
+            onChange={(e) =>
+              setForm({ ...form, postal_code: e.target.value })
+            }
+          />
+          <input
+            placeholder="Country"
+            value={form.country}
+            onChange={(e) =>
+              setForm({ ...form, country: e.target.value })
+            }
+          />
         </div>
 
         <button
           onClick={addAddress}
           disabled={adding}
-          className="btn btnTech"
+          className="btn btnPrimary"
           style={{ marginTop: 18 }}
-          title={adding ? "Saving address..." : "Add your new address"}
         >
           {adding ? "Saving…" : "Add address"}
         </button>

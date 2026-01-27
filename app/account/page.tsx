@@ -1,20 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { getMyOrders, Order } from "@/lib/api";
+import Link from "next/link";
+import { getMyOrders } from "@/lib/api";
+
+type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
+type ShippingStatus = "awaiting_shipping" | "shipped" | null;
+
+type Order = {
+  id: string;
+  created_at: string;
+  total_amount: number;
+  payment_status: PaymentStatus;
+  shipping_status: ShippingStatus;
+};
 
 export default function AccountPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   async function loadOrders() {
-    setLoading(true);
     try {
       const data = await getMyOrders();
       setOrders(data);
     } catch {
-      toast.error("Failed to load your orders");
+      toast.error("Failed to load your account data");
     } finally {
       setLoading(false);
     }
@@ -24,28 +35,30 @@ export default function AccountPage() {
     loadOrders();
   }, []);
 
-  const totalOrders = orders.length;
-
-  const lastOrder = orders[0];
+  const latestOrder = orders[0];
 
   return (
-    <div style={{ maxWidth: 1200 }}>
+    <div style={{ maxWidth: 1200, display: "grid", gap: 28 }}>
       {/* HEADER */}
-      <h1 style={{ fontSize: 32, fontWeight: 900 }}>
-        My Account
-      </h1>
-      <p style={{ marginTop: 6, opacity: 0.65 }}>
-        Track your orders, payments, and shipping status.
-      </p>
+      <header>
+        <h1 style={{ fontSize: 32, fontWeight: 900 }}>
+          My Account
+        </h1>
+        <p style={{ marginTop: 6, opacity: 0.65 }}>
+          Overview of your recent orders and delivery status.
+        </p>
+      </header>
+
+      {/* LOADING */}
+      {loading && <p>Loading your account…</p>}
 
       {/* EMPTY STATE */}
       {!loading && orders.length === 0 && (
-        <div
+        <section
           style={{
-            marginTop: 32,
             padding: 32,
             borderRadius: 24,
-            background: "#fff",
+            background: "#ffffff",
             border: "1px solid #e5e7eb",
           }}
         >
@@ -53,136 +66,151 @@ export default function AccountPage() {
             You haven’t placed any orders yet
           </h3>
           <p style={{ marginTop: 6, opacity: 0.7 }}>
-            Once you place an order, you’ll see payment
-            and shipping updates here.
+            Once you place an order, payment and shipping updates
+            will appear here.
           </p>
-        </div>
+
+          <Link
+            href="/"
+            className="btn btnPrimary"
+            style={{ marginTop: 16, display: "inline-block" }}
+          >
+            Continue shopping
+          </Link>
+        </section>
       )}
 
-      {/* ORDERS */}
-      <div
-        style={{
-          marginTop: 36,
-          display: "grid",
-          gap: 20,
-        }}
-      >
-        {orders.map((o) => (
-          <OrderCard key={o.id} order={o} />
-        ))}
-      </div>
+      {/* LATEST ORDER */}
+      {!loading && latestOrder && (
+        <section
+          style={{
+            borderRadius: 24,
+            padding: 28,
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            display: "grid",
+            gap: 14,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <h2 style={{ fontWeight: 900 }}>
+              Latest order
+            </h2>
+
+            <Link
+              href="/account/orders"
+              className="btn btnGhost"
+            >
+              View all orders
+            </Link>
+          </div>
+
+          <div style={{ fontSize: 14, opacity: 0.7 }}>
+            Order #{latestOrder.id.slice(0, 8)} ·{" "}
+            {new Date(latestOrder.created_at).toLocaleDateString()}
+          </div>
+
+          <div style={{ fontWeight: 800 }}>
+            Total: M
+            {latestOrder.total_amount.toLocaleString()}
+          </div>
+
+          {/* PAYMENT STATUS */}
+          <StatusRow
+            label="Payment"
+            status={paymentLabel(latestOrder.payment_status)}
+            highlight={
+              latestOrder.payment_status === "on_hold" ||
+              latestOrder.payment_status === "rejected"
+            }
+          />
+
+          {/* SHIPPING STATUS */}
+          <StatusRow
+            label="Shipping"
+            status={shippingLabel(latestOrder.shipping_status)}
+          />
+
+          {/* ACTION */}
+          {(latestOrder.payment_status === "on_hold" ||
+            latestOrder.payment_status === "rejected") && (
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#b45309",
+              }}
+            >
+              Action required: complete payment and upload proof
+              to continue processing this order.
+            </div>
+          )}
+
+          <Link
+            href={`/account/orders/${latestOrder.id}`}
+            className="btn btnPrimary"
+            style={{ marginTop: 10, width: "fit-content" }}
+          >
+            View order details
+          </Link>
+        </section>
+      )}
     </div>
   );
 }
 
-/* ================== ORDER CARD ================== */
+/* ======================
+   HELPERS
+====================== */
 
-function OrderCard({ order }: { order: Order }) {
-  const status = order.shipping_status ?? "created";
-
-  return (
-    <div
-      style={{
-        borderRadius: 24,
-        padding: 24,
-        background: "#ffffff",
-        border: "1px solid #e5e7eb",
-        display: "grid",
-        gap: 12,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ fontWeight: 900 }}>
-          Order #{order.id.slice(0, 8)}
-        </div>
-        <div style={{ fontSize: 13, opacity: 0.7 }}>
-          {new Date(order.created_at).toLocaleString()}
-        </div>
-      </div>
-
-      <div style={{ fontWeight: 700 }}>
-        Order total: {order.total_amount}
-      </div>
-
-      {/* STATUS TIMELINE */}
-      <StatusTimeline status={status} />
-
-      {/* ACTIONS */}
-      <div
-        style={{
-          marginTop: 10,
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        {status === "on_hold" && (
-          <span style={{ fontWeight: 700 }}>
-            Awaiting payment confirmation
-          </span>
-        )}
-
-        {status === "awaiting_shipping" && (
-          <span style={{ fontWeight: 700 }}>
-            Payment confirmed · Preparing shipment
-          </span>
-        )}
-
-        {status === "shipped" && (
-          <span style={{ fontWeight: 700 }}>
-            Shipped · Tracking available
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ================== STATUS ================== */
-
-function StatusTimeline({ status }: { status: string }) {
-  const steps = [
-    "created",
-    "on_hold",
-    "payment_confirmed",
-    "awaiting_shipping",
-    "shipped",
-  ];
-
+function StatusRow({
+  label,
+  status,
+  highlight,
+}: {
+  label: string;
+  status: string;
+  highlight?: boolean;
+}) {
   return (
     <div
       style={{
         display: "flex",
         gap: 10,
-        flexWrap: "wrap",
+        alignItems: "center",
+        fontWeight: 700,
+        color: highlight ? "#b45309" : "#0f172a",
       }}
     >
-      {steps.map((s) => (
-        <div
-          key={s}
-          style={{
-            padding: "6px 12px",
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 800,
-            background:
-              steps.indexOf(s) <= steps.indexOf(status)
-                ? "#dcfce7"
-                : "#f1f5f9",
-            color:
-              steps.indexOf(s) <= steps.indexOf(status)
-                ? "#14532d"
-                : "#475569",
-          }}
-        >
-          {s.replace("_", " ")}
-        </div>
-      ))}
+      <span style={{ width: 80 }}>{label}</span>
+      <span>{status}</span>
     </div>
   );
+}
+
+function paymentLabel(status: PaymentStatus) {
+  switch (status) {
+    case "pending":
+      return "Order placed";
+    case "on_hold":
+      return "Awaiting payment";
+    case "paid":
+      return "Payment confirmed";
+    case "rejected":
+      return "Payment rejected";
+  }
+}
+
+function shippingLabel(status: ShippingStatus) {
+  if (!status) return "Not shipped yet";
+  if (status === "awaiting_shipping") return "Preparing shipment";
+  if (status === "shipped") return "Shipped";
+  return "—";
 }
