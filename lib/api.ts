@@ -28,7 +28,10 @@ async function apiFetch<T>(
    AUTH
 ====================== */
 export function login(email: string, password: string) {
-  return apiFetch("/api/auth/login", {
+  return apiFetch<{
+    access_token: string;
+    role: "user" | "admin";
+  }>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
@@ -68,7 +71,7 @@ export type Product = {
 };
 
 export function fetchProducts(): Promise<Product[]> {
-  return apiFetch("/api/products");
+  return apiFetch<Product[]>("/api/products");
 }
 
 /* ======================
@@ -81,31 +84,46 @@ export type Order = {
 };
 
 export function getMyOrders(): Promise<Order[]> {
-  return apiFetch("/api/orders/my");
+  return apiFetch<Order[]>("/api/orders/my");
 }
 
 /* ======================
    ADDRESSES
 ====================== */
-export function getMyAddresses() {
-  return apiFetch("/api/users/addresses");
+export type Address = {
+  id: string;
+  full_name: string;
+  phone: string;
+  address_line_1: string;
+  address_line_2?: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  is_default: boolean;
+};
+
+export function getMyAddresses(): Promise<Address[]> {
+  return apiFetch<Address[]>("/api/users/addresses");
 }
 
-export function createAddress(payload: any) {
-  return apiFetch("/api/users/addresses", {
+export function createAddress(
+  payload: Omit<Address, "id" | "is_default">
+): Promise<Address> {
+  return apiFetch<Address>("/api/users/addresses", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function deleteAddress(addressId: string) {
-  return apiFetch(`/api/users/addresses/${addressId}`, {
+export function deleteAddress(addressId: string): Promise<void> {
+  return apiFetch<void>(`/api/users/addresses/${addressId}`, {
     method: "DELETE",
   });
 }
 
-export function setDefaultAddress(addressId: string) {
-  return apiFetch(`/api/users/addresses/${addressId}/default`, {
+export function setDefaultAddress(addressId: string): Promise<void> {
+  return apiFetch<void>(`/api/users/addresses/${addressId}/default`, {
     method: "PATCH",
   });
 }
