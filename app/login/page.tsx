@@ -1,32 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-
   const login = useAuth((s) => s.login);
-  const user = useAuth((s) => s.user);
-  const loadingAuth = useAuth((s) => s.loading);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // ✅ AMAZON-STYLE REDIRECT:
-  // redirect ONLY after auth state is hydrated
-  useEffect(() => {
-    if (!loadingAuth && user) {
-      if (user.role === "admin") {
-        router.replace("/admin");
-      } else {
-        router.replace("/account"); // user dashboard
-      }
-    }
-  }, [user, loadingAuth, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,11 +34,17 @@ export default function LoginPage() {
         throw new Error(data.detail || "Login failed");
       }
 
-      // ✅ hydrate auth store (cookie-based)
+      // ✅ hydrate auth store
       await login();
 
       toast.success("Welcome back 🎉");
-      // ❌ NO router.push here — redirect is handled by useEffect
+
+      // ✅ AMAZON-STYLE REDIRECT (NO STATE RACE)
+      if (data.role === "admin") {
+        router.replace("/admin");
+      } else {
+        router.replace("/account");
+      }
     } catch (err: any) {
       toast.error(err.message || "Login failed");
     } finally {
@@ -106,17 +97,6 @@ export default function LoginPage() {
           Welcome Back
         </h1>
 
-        <p
-          style={{
-            marginTop: 6,
-            fontWeight: 600,
-            fontSize: 14,
-            color: "rgba(15,23,42,0.6)",
-          }}
-        >
-          Sign in to access your account and orders.
-        </p>
-
         <form
           onSubmit={handleLogin}
           style={{
@@ -131,12 +111,6 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={{
-              padding: "14px 16px",
-              borderRadius: 14,
-              border: "1px solid rgba(15,23,42,0.12)",
-              fontWeight: 600,
-            }}
           />
 
           <input
@@ -145,44 +119,12 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={{
-              padding: "14px 16px",
-              borderRadius: 14,
-              border: "1px solid rgba(15,23,42,0.12)",
-              fontWeight: 600,
-            }}
           />
 
-          <button
-            className="btn btnTech"
-            disabled={loading}
-            style={{ marginTop: 8 }}
-          >
+          <button disabled={loading}>
             {loading ? "Signing in…" : "Login"}
           </button>
         </form>
-
-        <div
-          style={{
-            marginTop: 20,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "rgba(15,23,42,0.6)",
-            textAlign: "center",
-          }}
-        >
-          Don’t have an account?{" "}
-          <a
-            href="/register"
-            style={{
-              fontWeight: 800,
-              color: "#2563eb",
-              textDecoration: "none",
-            }}
-          >
-            Create one
-          </a>
-        </div>
       </section>
     </div>
   );
