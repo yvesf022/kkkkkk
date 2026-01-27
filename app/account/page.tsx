@@ -37,7 +37,7 @@ export default function AccountDashboardPage() {
               color: "#0f172a",
             }}
           >
-            Hello{user?.name ? `, ${user.name}` : ""}
+            Hello
           </h1>
 
           <p
