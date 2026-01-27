@@ -14,18 +14,20 @@ function shuffle<T>(arr: T[]) {
 
 /**
  * 🔒 STRICT NORMALIZATION
- * - Preserve inventory fields
- * - Match ProductCard contract
+ * Convert API Product → ProductCard-compatible object
  */
 function normalizeForCard(p: ApiProduct) {
   return {
-    ...p,
     id: p.id,
-    img: p.img || "/placeholder.png",
-    category: p.category || "general",
-    rating: typeof p.rating === "number" ? p.rating : 4.5,
-    stock: p.stock ?? 0,
-    in_stock: p.in_stock ?? false,
+    name: p.name,
+    price: p.price,
+
+    // UI-only fields (safe defaults)
+    img: p.image_url || "/placeholder.png",
+    category: "general",
+    rating: 4.5,
+    stock: 0,
+    in_stock: false,
   };
 }
 
