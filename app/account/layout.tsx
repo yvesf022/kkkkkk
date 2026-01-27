@@ -8,7 +8,7 @@ import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 
 import { UIProvider } from "@/components/layout/uiStore";
-import { CartProvider } from "./context/CartContext";
+import { CartProvider } from "../context/CartContext"; // ✅ CORRECT ORIGINAL PATH
 import { useAuth } from "@/lib/auth";
 
 export default function AccountLayout({
@@ -22,18 +22,15 @@ export default function AccountLayout({
   const user = useAuth((state) => state.user);
   const loading = useAuth((state) => state.loading);
 
-  // 🔐 AUTH HYDRATION — SINGLE SOURCE (ACCOUNT ONLY)
+  // hydrate auth state (account only)
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
-  // 🔐 AUTH GUARD — ACCOUNT ONLY
+  // auth guard (account only)
   useEffect(() => {
     if (loading) return;
-
-    if (!user) {
-      router.replace("/login");
-    }
+    if (!user) router.replace("/login");
   }, [user, loading, router]);
 
   if (loading) {
@@ -45,7 +42,6 @@ export default function AccountLayout({
   }
 
   if (!user) {
-    // redirecting…
     return null;
   }
 
@@ -58,7 +54,6 @@ export default function AccountLayout({
 
             <div className="appShell">
               <Sidebar />
-
               <main className="pageContentWrap">
                 {children}
               </main>
