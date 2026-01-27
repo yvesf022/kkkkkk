@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import RequireAuth from "@/components/auth/RequireAuth";
 import { getMyOrders, Order } from "@/lib/api";
 
 export default function AccountPage() {
@@ -25,170 +24,165 @@ export default function AccountPage() {
     loadOrders();
   }, []);
 
-  // ---------- Dashboard calculations ----------
   const totalOrders = orders.length;
-
-  const totalSpent = useMemo(() => {
-    return orders.reduce(
-      (sum, o) => sum + o.total_amount,
-      0
-    );
-  }, [orders]);
 
   const lastOrder = orders[0];
 
   return (
-    <RequireAuth role="user">
-      <div style={{ padding: 40, maxWidth: 1100 }}>
-        {/* HEADER */}
-        <h1 style={{ fontSize: 30, fontWeight: 900 }}>
-          My Account
-        </h1>
-        <p style={{ marginTop: 6, opacity: 0.6 }}>
-          Welcome back. Here’s a quick overview of your
-          account.
-        </p>
+    <div style={{ maxWidth: 1200 }}>
+      {/* HEADER */}
+      <h1 style={{ fontSize: 32, fontWeight: 900 }}>
+        My Account
+      </h1>
+      <p style={{ marginTop: 6, opacity: 0.65 }}>
+        Track your orders, payments, and shipping status.
+      </p>
 
-        {/* STATS */}
+      {/* EMPTY STATE */}
+      {!loading && orders.length === 0 && (
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 18,
-            marginTop: 28,
+            marginTop: 32,
+            padding: 32,
+            borderRadius: 24,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
           }}
         >
-          <StatCard
-            label="Total Orders"
-            value={totalOrders}
-          />
-          <StatCard
-            label="Total Spent"
-            value={`₹${totalSpent}`}
-          />
-          <StatCard
-            label="Last Order"
-            value={
-              lastOrder
-                ? `#${lastOrder.id.slice(0, 8)}`
-                : "—"
-            }
-          />
+          <h3 style={{ fontWeight: 900 }}>
+            You haven’t placed any orders yet
+          </h3>
+          <p style={{ marginTop: 6, opacity: 0.7 }}>
+            Once you place an order, you’ll see payment
+            and shipping updates here.
+          </p>
         </div>
+      )}
 
-        {/* RECENT ORDERS */}
-        <div style={{ marginTop: 40 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 900 }}>
-            Recent Orders
-          </h2>
-
-          {loading && <p>Loading orders…</p>}
-
-          {!loading && orders.length === 0 && (
-            <p
-              style={{
-                opacity: 0.6,
-                marginTop: 12,
-              }}
-            >
-              You haven’t placed any orders yet.
-            </p>
-          )}
-
-          <div
-            style={{
-              display: "grid",
-              gap: 16,
-              marginTop: 16,
-            }}
-          >
-            {orders.slice(0, 5).map((o) => (
-              <div
-                key={o.id}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 18,
-                  padding: 18,
-                  background: "#fff",
-                  display: "grid",
-                  gap: 6,
-                }}
-              >
-                <div style={{ fontWeight: 900 }}>
-                  Order #{o.id.slice(0, 8)}
-                </div>
-
-                <div
-                  style={{ display: "flex", gap: 12 }}
-                >
-                  <span>
-                    Total: ₹{o.total_amount}
-                  </span>
-                  <span>
-                    Status:{" "}
-                    <b>
-                      {o.shipping_status ??
-                        "created"}
-                    </b>
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 12,
-                    opacity: 0.6,
-                  }}
-                >
-                  {new Date(
-                    o.created_at
-                  ).toLocaleString()}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* ORDERS */}
+      <div
+        style={{
+          marginTop: 36,
+          display: "grid",
+          gap: 20,
+        }}
+      >
+        {orders.map((o) => (
+          <OrderCard key={o.id} order={o} />
+        ))}
       </div>
-    </RequireAuth>
+    </div>
   );
 }
 
-/* ---------------- UI helpers ---------------- */
+/* ================== ORDER CARD ================== */
 
-function StatCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
+function OrderCard({ order }: { order: Order }) {
+  const status = order.shipping_status ?? "created";
+
   return (
     <div
       style={{
-        borderRadius: 20,
-        padding: 20,
+        borderRadius: 24,
+        padding: 24,
         background: "#ffffff",
         border: "1px solid #e5e7eb",
+        display: "grid",
+        gap: 12,
       }}
     >
       <div
         style={{
-          fontSize: 13,
-          opacity: 0.6,
-          fontWeight: 700,
+          display: "flex",
+          justifyContent: "space-between",
         }}
       >
-        {label}
+        <div style={{ fontWeight: 900 }}>
+          Order #{order.id.slice(0, 8)}
+        </div>
+        <div style={{ fontSize: 13, opacity: 0.7 }}>
+          {new Date(order.created_at).toLocaleString()}
+        </div>
       </div>
+
+      <div style={{ fontWeight: 700 }}>
+        Order total: {order.total_amount}
+      </div>
+
+      {/* STATUS TIMELINE */}
+      <StatusTimeline status={status} />
+
+      {/* ACTIONS */}
       <div
         style={{
-          marginTop: 6,
-          fontSize: 24,
-          fontWeight: 900,
+          marginTop: 10,
+          display: "flex",
+          gap: 12,
+          flexWrap: "wrap",
         }}
       >
-        {value}
+        {status === "on_hold" && (
+          <span style={{ fontWeight: 700 }}>
+            Awaiting payment confirmation
+          </span>
+        )}
+
+        {status === "awaiting_shipping" && (
+          <span style={{ fontWeight: 700 }}>
+            Payment confirmed · Preparing shipment
+          </span>
+        )}
+
+        {status === "shipped" && (
+          <span style={{ fontWeight: 700 }}>
+            Shipped · Tracking available
+          </span>
+        )}
       </div>
+    </div>
+  );
+}
+
+/* ================== STATUS ================== */
+
+function StatusTimeline({ status }: { status: string }) {
+  const steps = [
+    "created",
+    "on_hold",
+    "payment_confirmed",
+    "awaiting_shipping",
+    "shipped",
+  ];
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 10,
+        flexWrap: "wrap",
+      }}
+    >
+      {steps.map((s) => (
+        <div
+          key={s}
+          style={{
+            padding: "6px 12px",
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: 800,
+            background:
+              steps.indexOf(s) <= steps.indexOf(status)
+                ? "#dcfce7"
+                : "#f1f5f9",
+            color:
+              steps.indexOf(s) <= steps.indexOf(status)
+                ? "#14532d"
+                : "#475569",
+          }}
+        >
+          {s.replace("_", " ")}
+        </div>
+      ))}
     </div>
   );
 }
