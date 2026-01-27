@@ -13,16 +13,18 @@ function shuffle<T>(arr: T[]) {
 }
 
 /**
- * 🔒 STRICT NORMALIZATION
- * Convert API Product → ProductCard-compatible object
+ * Normalize API Product → ProductCard Product
  */
 function normalizeForCard(p: ApiProduct) {
   return {
     id: p.id,
-    name: p.name,
+
+    // 👇 ProductCard expects `title`, not `name`
+    title: p.name,
+
     price: p.price,
 
-    // UI-only fields (safe defaults)
+    // UI-only fields with safe defaults
     img: p.image_url || "/placeholder.png",
     category: "general",
     rating: 4.5,
@@ -106,7 +108,7 @@ export default async function HomePage() {
             }}
           >
             Lesotho&apos;s premium online destination for beauty, fashion, and
-            accessories — designed with elegance, powered by modern tech.
+            accessories.
           </p>
 
           <div
