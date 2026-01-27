@@ -11,7 +11,8 @@ type AuthState = {
   loading: boolean;
 
   fetchMe: () => Promise<void>;
-  login: () => Promise<void>;   // 🔴 NO ARGUMENTS
+  hydrate: () => Promise<void>;
+  login: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -39,8 +40,12 @@ export const useAuth = create<AuthState>((set) => ({
     }
   },
 
+  // ✅ KEEP EXISTING CONTRACT USED BY app/layout.tsx
+  hydrate: async () => {
+    await useAuth.getState().fetchMe();
+  },
+
   login: async () => {
-    // Cookie already set by backend
     await useAuth.getState().fetchMe();
   },
 
