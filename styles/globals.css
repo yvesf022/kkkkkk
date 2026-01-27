@@ -66,7 +66,7 @@ body {
 }
 
 /* ===============================
-   SIDEBAR
+   SIDEBAR — UNTOUCHED
 =============================== */
 
 .sidebar {
@@ -80,7 +80,7 @@ body {
 }
 
 /* ===============================
-   MAIN CONTENT (FIXED)
+   MAIN CONTENT — FIXED PROPERLY
 =============================== */
 
 .pageContentWrap {
@@ -88,17 +88,15 @@ body {
   padding-left: calc(var(--sidebarW) + 36px);
   padding-right: 36px;
 
-  width: 100%;
-  /* 🔥 REMOVED max-width — allows full stretch */
+  width: calc(100vw - var(--sidebarW));
+  max-width: none;
 
   min-height: calc(100vh - var(--headerH));
 }
 
 /* ===============================
-   BUTTON SYSTEM
+   MOBILE
 =============================== */
-
-/* (unchanged — rest of file continues exactly as before) */
 
 @media (max-width: 980px) {
   .sidebar {
@@ -118,6 +116,7 @@ body {
   }
 
   .pageContentWrap {
+    width: 100%;
     padding-left: 16px;
     padding-right: 16px;
   }
