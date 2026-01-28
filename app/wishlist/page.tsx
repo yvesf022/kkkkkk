@@ -1,135 +1,80 @@
 "use client";
 
-import Link from "next/link";
-import { useWishlist } from "@/lib/wishlist";
 import { useCart } from "@/lib/cart";
+import { useWishlist } from "@/lib/wishlist";
 import { products } from "@/lib/products";
+import Link from "next/link";
+
+type Product = {
+  id: string;
+  title: string;
+  price: number;
+  img: string;
+};
 
 export default function WishlistPage() {
   const { wishlist, removeFromWishlist } = useWishlist();
   const { addToCart } = useCart();
 
-  const wishlistProducts = products.filter((p) =>
+  const wishlistProducts: Product[] = products.filter((p) =>
     wishlist.includes(p.id)
   );
 
   if (wishlistProducts.length === 0) {
     return (
-      <div className="pageContentWrap">
-        <div className="emptyState">
-          <h1 className="pageTitle">Your wishlist is empty</h1>
-          <p className="pageSubtitle">
-            Save products to your wishlist to keep track of
-            items you like.
-          </p>
-
-          <Link href="/store" className="btn btnPrimary">
-            Browse products
-          </Link>
-        </div>
+      <div className="p-6">
+        <h1 className="text-xl font-semibold mb-4">Your Wishlist</h1>
+        <p>Your wishlist is empty.</p>
+        <Link href="/store" className="text-blue-600 underline">
+          Continue shopping
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="pageContentWrap">
-      {/* HEADER */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 className="pageTitle">Your wishlist</h1>
-        <p className="pageSubtitle">
-          Items you’ve saved for later. Prices and
-          availability may change.
-        </p>
-      </div>
+    <div className="p-6">
+      <h1 className="text-xl font-semibold mb-6">Your Wishlist</h1>
 
-      {/* GRID */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fill, minmax(220px, 1fr))",
-          gap: 22,
-        }}
-      >
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {wishlistProducts.map((p) => (
-          <div key={p.id} className="card">
-            {/* IMAGE */}
-            <div
-              style={{
-                height: 160,
-                background: "#f8fafc",
-                borderRadius: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-                marginBottom: 12,
-              }}
-            >
-              <img
-                src={p.img}
-                alt={p.title}
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  objectFit: "contain",
-                }}
-              />
-            </div>
+          <div
+            key={p.id}
+            className="border rounded-lg p-4 flex flex-col gap-3"
+          >
+            <img
+              src={p.img}
+              alt={p.title}
+              className="w-full h-48 object-cover rounded"
+            />
 
-            {/* INFO */}
-            <strong>{p.title}</strong>
+            <h2 className="font-medium">{p.title}</h2>
+            <p className="text-lg font-semibold">M {p.price}</p>
 
-            <div
-              style={{
-                fontWeight: 700,
-                margin: "6px 0 10px",
-              }}
-            >
-              M{p.price.toLocaleString()}
-            </div>
-
-            {/* ACTIONS */}
-            <div
-              style={{
-                display: "grid",
-                gap: 8,
-              }}
-            >
+            <div className="flex gap-2 mt-auto">
               <button
-                className="btn btnPrimary"
                 onClick={() =>
                   addToCart({
                     id: p.id,
                     title: p.title,
                     price: p.price,
                     image: p.img,
-                    stock: p.stock,
                   })
                 }
+                className="flex-1 bg-black text-white py-2 rounded"
               >
-                Add to cart
+                Add to Cart
               </button>
 
               <button
-                className="btn btnGhost"
-                onClick={() =>
-                  removeFromWishlist(p.id)
-                }
+                onClick={() => removeFromWishlist(p.id)}
+                className="flex-1 border py-2 rounded"
               >
                 Remove
               </button>
             </div>
           </div>
         ))}
-      </section>
-
-      {/* FOOTER NOTE */}
-      <div className="infoBox" style={{ marginTop: 28 }}>
-        💡 <strong>Good to know</strong>
-        <br />
-        Items in your wishlist are not reserved. Add them to
-        your cart when you’re ready to place an order.
       </div>
     </div>
   );
