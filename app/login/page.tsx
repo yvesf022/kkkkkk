@@ -51,10 +51,7 @@ export default function LoginPage() {
     >
       <section
         className="card"
-        style={{
-          maxWidth: 420,
-          width: "100%",
-        }}
+        style={{ maxWidth: 420, width: "100%" }}
       >
         {/* HEADER */}
         <div style={{ marginBottom: 24 }}>
@@ -67,10 +64,12 @@ export default function LoginPage() {
         {/* FORM */}
         <form
           onSubmit={handleSubmit}
+          className="formStack"
           style={{ display: "grid", gap: 16 }}
         >
           <input
             type="email"
+            className="input"
             placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -80,6 +79,7 @@ export default function LoginPage() {
           <div style={{ position: "relative" }}>
             <input
               type={showPassword ? "text" : "password"}
+              className="input"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -90,7 +90,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="btn btnGhost"
+              className="btn btnGhost passwordToggle"
               style={{
                 position: "absolute",
                 right: 4,
@@ -119,10 +119,7 @@ export default function LoginPage() {
             gap: 10,
           }}
         >
-          <Link
-            href="/register"
-            className="btn btnGhost"
-          >
+          <Link href="/register" className="btn btnGhost">
             Create an account
           </Link>
 

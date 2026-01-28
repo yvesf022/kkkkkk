@@ -62,13 +62,7 @@ export default function RegisterPage() {
         minHeight: "calc(100vh - var(--header-height, 72px))",
       }}
     >
-      <section
-        className="card"
-        style={{
-          maxWidth: 460,
-          width: "100%",
-        }}
-      >
+      <section className="card" style={{ maxWidth: 460, width: "100%" }}>
         {/* HEADER */}
         <div style={{ marginBottom: 24 }}>
           <h1 className="pageTitle">Create an account</h1>
@@ -78,12 +72,10 @@ export default function RegisterPage() {
         </div>
 
         {/* FORM */}
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: "grid", gap: 16 }}
-        >
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
           <input
             type="email"
+            className="input"
             placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -93,6 +85,7 @@ export default function RegisterPage() {
           <div style={{ position: "relative" }}>
             <input
               type={showPassword ? "text" : "password"}
+              className="input"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -117,11 +110,10 @@ export default function RegisterPage() {
 
           <input
             type={showPassword ? "text" : "password"}
+            className="input"
             placeholder="Confirm password"
             value={confirmPassword}
-            onChange={(e) =>
-              setConfirmPassword(e.target.value)
-            }
+            onChange={(e) => setConfirmPassword(e.target.value)}
             autoComplete="new-password"
           />
 
@@ -129,15 +121,9 @@ export default function RegisterPage() {
           <div className="infoBox">
             <strong>Password requirements</strong>
             <ul className="list" style={{ marginTop: 8 }}>
-              <li>
-                {passwordRules.length ? "✓" : "✕"} At least 8 characters
-              </li>
-              <li>
-                {passwordRules.number ? "✓" : "✕"} Contains a number
-              </li>
-              <li>
-                {passwordRules.letter ? "✓" : "✕"} Contains a letter
-              </li>
+              <li>{passwordRules.length ? "✓" : "✕"} At least 8 characters</li>
+              <li>{passwordRules.number ? "✓" : "✕"} Contains a number</li>
+              <li>{passwordRules.letter ? "✓" : "✕"} Contains a letter</li>
             </ul>
           </div>
 
@@ -151,17 +137,8 @@ export default function RegisterPage() {
         </form>
 
         {/* FOOTER */}
-        <div
-          style={{
-            marginTop: 20,
-            display: "grid",
-            gap: 10,
-          }}
-        >
-          <Link
-            href="/login"
-            className="btn btnGhost"
-          >
+        <div style={{ marginTop: 20, display: "grid", gap: 10 }}>
+          <Link href="/login" className="btn btnGhost">
             Already have an account? Sign in
           </Link>
 
