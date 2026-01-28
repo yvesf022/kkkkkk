@@ -16,7 +16,9 @@ async function apiFetch<T>(
     ...options,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(options.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
       ...(options.headers || {}),
     },
   });
@@ -84,7 +86,7 @@ export function updateMe(payload: Partial<User>): Promise<User> {
   });
 }
 
-/* ✅ REQUIRED BY PROFILE PAGE */
+/* REQUIRED BY PROFILE PAGE */
 export function uploadAvatar(file: File): Promise<User> {
   const formData = new FormData();
   formData.append("file", file);
@@ -113,7 +115,6 @@ export function fetchProducts(): Promise<Product[]> {
   return apiFetch<Product[]>("/api/products");
 }
 
-/* ✅ REQUIRED BY PRODUCT PAGE */
 export function getProductById(id: string): Promise<Product> {
   return apiFetch<Product>(`/api/products/${id}`);
 }
@@ -121,22 +122,28 @@ export function getProductById(id: string): Promise<Product> {
 /* ======================
    ORDERS
 ====================== */
+export type OrderItem = {
+  product_id: string;
+  quantity: number;
+};
+
 export type Order = {
   id: string;
   total_amount: number;
   created_at: string;
   payment_status?: "pending" | "on_hold" | "paid" | "rejected";
   shipping_status?: string;
+  items?: OrderItem[];
 };
 
 export function getMyOrders(): Promise<Order[]> {
   return apiFetch<Order[]>("/api/orders/my");
 }
 
-/* ✅ REQUIRED BY CHECKOUT */
+/* ✅ FIXED: items is OPTIONAL */
 export function createOrder(payload: {
   address_id: string;
-  items: Array<{ product_id: string; quantity: number }>;
+  items?: OrderItem[];
 }) {
   return apiFetch("/api/orders", {
     method: "POST",
