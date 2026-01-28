@@ -2,26 +2,21 @@
 
 import { useState } from "react";
 
-export type WishlistItem = {
-  id: string;
-};
-
 /* =========================================================
-   MINIMAL, IN-MEMORY WISHLIST
-   (Compatibility layer – not persisted)
+   WISHLIST – ID-BASED (PAGE CONTRACT)
 ========================================================= */
 
 export function useWishlist() {
-  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [wishlist, setWishlist] = useState<string[]>([]);
 
-  const addToWishlist = (item: WishlistItem) => {
+  const addToWishlist = (productId: string) => {
     setWishlist(prev =>
-      prev.some(w => w.id === item.id) ? prev : [...prev, item]
+      prev.includes(productId) ? prev : [...prev, productId]
     );
   };
 
-  const removeFromWishlist = (id: string) => {
-    setWishlist(prev => prev.filter(w => w.id !== id));
+  const removeFromWishlist = (productId: string) => {
+    setWishlist(prev => prev.filter(id => id !== productId));
   };
 
   return {
