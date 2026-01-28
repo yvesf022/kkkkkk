@@ -198,7 +198,7 @@ export default function ProductCard({ p }: { p: Product }) {
                     id: productId!,
                     title: p.title,
                     price: p.price,
-                    img: p.img,
+                    image: p.img, // ✅ FIXED
                   });
                   toast.success("Added to cart");
                 }}
