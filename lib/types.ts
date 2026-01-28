@@ -1,6 +1,5 @@
 /* =========================================================
    SHARED TYPES
-   (Used by pages for typing only)
 ========================================================= */
 
 export type User = {
@@ -30,6 +29,9 @@ export type Product = {
   name: string;
   price: number;
   image_url?: string;
+
+  /* ✅ OPTIONAL — used by wishlist & cart UI */
+  stock?: number;
 };
 
 export type OrderItem = {
