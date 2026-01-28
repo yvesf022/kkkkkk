@@ -13,10 +13,8 @@ type AuthState = {
   isAuthenticated: boolean;
   role: "user" | "admin" | null;
 
-  fetchMe: () => Promise<void>;
+  fetchMe: () => Promise<User | null>;
   hydrate: () => Promise<void>;
-
-  /* ✅ STORE CONTRACT EXPECTED BY PAGES */
   logout: () => Promise<void>;
 };
 
@@ -43,6 +41,8 @@ export const useAuth = create<AuthState>((set, get) => ({
         role: user.role,
         loading: false,
       });
+
+      return user;
     } catch {
       set({
         user: null,
@@ -50,6 +50,7 @@ export const useAuth = create<AuthState>((set, get) => ({
         role: null,
         loading: false,
       });
+      return null;
     }
   },
 
@@ -57,7 +58,6 @@ export const useAuth = create<AuthState>((set, get) => ({
     await get().fetchMe();
   },
 
-  /* ✅ ALIAS: pages call s.logout */
   logout: async () => {
     try {
       await fetch(`${API_URL}/api/auth/logout`, {
@@ -76,14 +76,17 @@ export const useAuth = create<AuthState>((set, get) => ({
 }));
 
 /* =========================================================
-   FUNCTION EXPORTS (USED BY LOGIN / REGISTER PAGES)
+   FUNCTION EXPORTS (PAGE CONTRACTS)
 ========================================================= */
 
+/* ✅ RETURNS USER */
 export async function login(email: string, password: string) {
   await api.login(email, password);
-  await useAuth.getState().fetchMe();
+  const user = await useAuth.getState().fetchMe();
+  return user;
 }
 
+/* ✅ RETURNS USER */
 export async function register(
   email: string,
   password: string,
@@ -91,9 +94,11 @@ export async function register(
   phone?: string
 ) {
   await api.register({ email, password, full_name, phone });
-  await useAuth.getState().fetchMe();
+  const user = await useAuth.getState().fetchMe();
+  return user;
 }
 
+/* ✅ VOID */
 export async function logout() {
   await useAuth.getState().logout();
 }
