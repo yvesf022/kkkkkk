@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import * as api from "@/lib/api";
 
 type User = {
   id: string;
@@ -14,8 +15,7 @@ type AuthState = {
 
   fetchMe: () => Promise<void>;
   hydrate: () => Promise<void>;
-  login: () => Promise<void>;
-  logout: () => Promise<void>;
+  logoutInternal: () => Promise<void>;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -55,11 +55,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     await get().fetchMe();
   },
 
-  login: async () => {
-    await get().fetchMe();
-  },
-
-  logout: async () => {
+  logoutInternal: async () => {
     try {
       await fetch(`${API_URL}/api/auth/logout`, {
         method: "POST",
@@ -76,16 +72,28 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 }));
 
-/* ✅ FUNCTION EXPORTS REQUIRED BY PAGES */
-export async function login() {
-  await useAuth.getState().login();
+/* =========================================================
+   FUNCTION EXPORTS (PAGE CONTRACTS)
+========================================================= */
+
+/* ✅ LOGIN expects (email, password) */
+export async function login(email: string, password: string) {
+  await api.login(email, password);
+  await useAuth.getState().fetchMe();
 }
 
+/* ✅ REGISTER expects payload handled elsewhere, then login */
+export async function register(
+  email: string,
+  password: string,
+  full_name?: string,
+  phone?: string
+) {
+  await api.register({ email, password, full_name, phone });
+  await useAuth.getState().fetchMe();
+}
+
+/* ✅ LOGOUT */
 export async function logout() {
-  await useAuth.getState().logout();
-}
-
-export async function register() {
-  // backend already handled in api.ts
-  await useAuth.getState().login();
+  await useAuth.getState().logoutInternal();
 }
