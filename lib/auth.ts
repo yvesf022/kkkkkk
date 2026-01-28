@@ -9,8 +9,6 @@ type User = {
 type AuthState = {
   user: User | null;
   loading: boolean;
-
-  // 👇 expected by existing components
   isAuthenticated: boolean;
   role: "user" | "admin" | null;
 
@@ -25,7 +23,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
-
   isAuthenticated: false,
   role: null,
 
@@ -35,18 +32,9 @@ export const useAuth = create<AuthState>((set, get) => ({
         credentials: "include",
       });
 
-      if (!res.ok) {
-        set({
-          user: null,
-          isAuthenticated: false,
-          role: null,
-          loading: false,
-        });
-        return;
-      }
+      if (!res.ok) throw new Error();
 
       const user: User = await res.json();
-
       set({
         user,
         isAuthenticated: true,
@@ -87,3 +75,17 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
   },
 }));
+
+/* ✅ FUNCTION EXPORTS REQUIRED BY PAGES */
+export async function login() {
+  await useAuth.getState().login();
+}
+
+export async function logout() {
+  await useAuth.getState().logout();
+}
+
+export async function register() {
+  // backend already handled in api.ts
+  await useAuth.getState().login();
+}

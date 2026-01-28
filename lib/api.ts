@@ -1,7 +1,5 @@
 /* =========================================================
    API CLIENT – PRODUCTION SAFE
-   Backend: FastAPI (Render)
-   Frontend: Next.js (Vercel)
 ========================================================= */
 
 const API_BASE =
@@ -16,7 +14,7 @@ async function apiFetch<T>(
 ): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    credentials: "include", // REQUIRED for httpOnly cookies
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -39,10 +37,7 @@ export type AuthResponse = {
   role: "user" | "admin";
 };
 
-export function login(
-  email: string,
-  password: string
-): Promise<AuthResponse> {
+export function login(email: string, password: string) {
   return apiFetch<AuthResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
@@ -62,9 +57,7 @@ export function register(payload: {
 }
 
 export function logout() {
-  return apiFetch("/api/auth/logout", {
-    method: "POST",
-  });
+  return apiFetch("/api/auth/logout", { method: "POST" });
 }
 
 /* ======================
@@ -76,8 +69,6 @@ export type User = {
   full_name?: string;
   phone?: string;
   role: "user" | "admin";
-
-  // ---- fields required by profile page ----
   created_at?: string;
   avatar_url?: string;
 };
@@ -90,6 +81,21 @@ export function updateMe(payload: Partial<User>): Promise<User> {
   return apiFetch<User>("/api/users/me", {
     method: "PUT",
     body: JSON.stringify(payload),
+  });
+}
+
+/* ✅ REQUIRED BY PROFILE PAGE */
+export function uploadAvatar(file: File): Promise<User> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return fetch(`${API_BASE}/api/users/me/avatar`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  }).then(res => {
+    if (!res.ok) throw new Error("Avatar upload failed");
+    return res.json();
   });
 }
 
@@ -107,6 +113,11 @@ export function fetchProducts(): Promise<Product[]> {
   return apiFetch<Product[]>("/api/products");
 }
 
+/* ✅ REQUIRED BY PRODUCT PAGE */
+export function getProductById(id: string): Promise<Product> {
+  return apiFetch<Product>(`/api/products/${id}`);
+}
+
 /* ======================
    ORDERS
 ====================== */
@@ -120,6 +131,17 @@ export type Order = {
 
 export function getMyOrders(): Promise<Order[]> {
   return apiFetch<Order[]>("/api/orders/my");
+}
+
+/* ✅ REQUIRED BY CHECKOUT */
+export function createOrder(payload: {
+  address_id: string;
+  items: Array<{ product_id: string; quantity: number }>;
+}) {
+  return apiFetch("/api/orders", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 /* ======================
