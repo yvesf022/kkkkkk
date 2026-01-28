@@ -21,7 +21,7 @@ export default function QuickViewModal({
   product: Product | null;
   onClose: () => void;
 }) {
-  const { addToCart } = useCart(); // ✅ CORRECT CART
+  const { addToCart } = useCart();
   const toggleWishlist = useStore((s) => s.toggleWishlist);
   const wishlist = useStore((s) => s.wishlist);
 
@@ -241,8 +241,7 @@ export default function QuickViewModal({
                         id: product.id,
                         title: product.title,
                         price: product.price,
-                        quantity: 1,
-                        img: product.img,
+                        image: product.img, // ✅ FIXED
                       });
                       toast.success("Added to cart");
                       onClose();
