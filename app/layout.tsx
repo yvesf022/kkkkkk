@@ -39,13 +39,36 @@ export default function RootLayout({
           <CartProvider>
             <Header />
 
-            <div className="appShell">
+            {/* APP SHELL */}
+            <div
+              className="appShell"
+              style={{
+                display: "flex",
+                width: "100%",
+                minHeight: "calc(100vh - var(--header-height, 72px))",
+                alignItems: "stretch",
+              }}
+            >
+              {/* SIDEBAR */}
               <Sidebar />
 
-              <main className="pageContentWrap">
+              {/* MAIN CONTENT */}
+              <main
+                className="pageContentWrap"
+                style={{
+                  flex: 1,
+                  minWidth: 0, // 🔑 critical: prevents squeeze
+                }}
+              >
                 {loading ? (
-                  <div className="p-6 text-sm opacity-70">
-                    Loading session…
+                  <div
+                    style={{
+                      padding: 24,
+                      fontSize: 14,
+                      opacity: 0.65,
+                    }}
+                  >
+                    Loading your session…
                   </div>
                 ) : (
                   children

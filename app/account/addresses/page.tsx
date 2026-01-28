@@ -1,286 +1,97 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import {
-  getMyAddresses,
-  createAddress,
-  deleteAddress,
-  setDefaultAddress,
-} from "@/lib/api";
+import { logout } from "@/lib/auth";
 
-type Address = {
-  id: string;
-  full_name: string;
-  phone: string;
-  address_line_1: string;
-  address_line_2?: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-  is_default: boolean;
-};
+export default function SecurityPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
-export default function AddressesPage() {
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
+  async function handleLogout() {
+    if (!confirm("Are you sure you want to log out?")) return;
 
-  const [form, setForm] = useState({
-    full_name: "",
-    phone: "",
-    address_line_1: "",
-    address_line_2: "",
-    city: "",
-    state: "",
-    postal_code: "",
-    country: "",
-  });
-
-  async function loadAddresses() {
+    setLoading(true);
     try {
-      const data = await getMyAddresses();
-      setAddresses(data);
+      await logout();
+      toast.success("You have been logged out");
+      router.replace("/login");
     } catch {
-      toast.error("Failed to load addresses");
+      toast.error("Failed to log out");
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    loadAddresses();
-  }, []);
-
-  async function addAddress() {
-    if (
-      !form.full_name ||
-      !form.phone ||
-      !form.address_line_1 ||
-      !form.city ||
-      !form.state ||
-      !form.postal_code ||
-      !form.country
-    ) {
-      toast.error("Please fill all required fields");
-      return;
-    }
-
-    setAdding(true);
-    try {
-      await createAddress(form);
-      toast.success("Address added");
-      setForm({
-        full_name: "",
-        phone: "",
-        address_line_1: "",
-        address_line_2: "",
-        city: "",
-        state: "",
-        postal_code: "",
-        country: "",
-      });
-      loadAddresses();
-    } catch {
-      toast.error("Failed to add address");
-    } finally {
-      setAdding(false);
-    }
-  }
-
-  async function makeDefault(id: string) {
-    try {
-      await setDefaultAddress(id);
-      toast.success("Default address updated");
-      loadAddresses();
-    } catch {
-      toast.error("Failed to update default address");
-    }
-  }
-
-  async function remove(id: string) {
-    if (!confirm("Delete this address? This cannot be undone.")) return;
-
-    try {
-      await deleteAddress(id);
-      toast.success("Address removed");
-      loadAddresses();
-    } catch {
-      toast.error("Failed to delete address");
-    }
-  }
-
-  if (loading) return <p>Loading addresses…</p>;
-
   return (
-    <div style={{ maxWidth: 900 }}>
-      <h1 style={{ fontSize: 26, fontWeight: 900 }}>Addresses</h1>
-      <p style={{ marginTop: 6, opacity: 0.6 }}>
-        Manage your delivery addresses
-      </p>
+    <div className="pageContentWrap">
+      {/* PAGE HEADER */}
+      <div style={{ marginBottom: 28 }}>
+        <div className="mutedText">Account › Security</div>
+        <h1 className="pageTitle">Security</h1>
+        <p className="pageSubtitle">
+          Manage your account security and active sessions.
+        </p>
+      </div>
 
-      {/* LIST */}
-      <section style={{ marginTop: 24, display: "grid", gap: 16 }}>
-        {addresses.length === 0 ? (
-          <div
-            style={{
-              padding: 24,
-              borderRadius: 18,
-              background: "#f8fafc",
-              textAlign: "center",
-              opacity: 0.7,
-            }}
-          >
-            No addresses saved yet.
+      {/* SECURITY OVERVIEW */}
+      <div className="infoBox">
+        🔒 <strong>Your account is protected.</strong>
+        <br />
+        We use secure authentication and HTTP-only cookies. Sensitive
+        actions always require verification.
+      </div>
+
+      {/* SECURITY SETTINGS */}
+      <section className="card" style={{ marginTop: 28 }}>
+        <h2 className="sectionTitle">Account access</h2>
+
+        {/* PASSWORD */}
+        <div className="settingsRow">
+          <div>
+            <strong>Password</strong>
+            <p className="mutedText">
+              Password changes will be available soon.
+            </p>
           </div>
-        ) : (
-          addresses.map((a) => (
-            <div
-              key={a.id}
-              style={{
-                padding: 20,
-                borderRadius: 18,
-                border: "1px solid #e5e7eb",
-                background: a.is_default ? "#f0f9ff" : "#ffffff",
-              }}
-            >
-              <div style={{ fontWeight: 900 }}>
-                {a.full_name}
-                {a.is_default && (
-                  <span
-                    style={{
-                      marginLeft: 10,
-                      fontSize: 12,
-                      fontWeight: 800,
-                      color: "#0369a1",
-                    }}
-                  >
-                    (Default)
-                  </span>
-                )}
-              </div>
-
-              <div style={{ opacity: 0.7 }}>{a.phone}</div>
-
-              <div style={{ marginTop: 6 }}>
-                {a.address_line_1}
-                {a.address_line_2 && <>, {a.address_line_2}</>}
-                <br />
-                {a.city}, {a.state}
-                <br />
-                {a.postal_code}, {a.country}
-              </div>
-
-              <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
-                {!a.is_default && (
-                  <button
-                    className="btn btnGhost"
-                    onClick={() => makeDefault(a.id)}
-                  >
-                    Set as default
-                  </button>
-                )}
-
-                <button
-                  className="btn btnDanger"
-                  onClick={() => remove(a.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </section>
-
-      {/* ADD NEW */}
-      <section
-        style={{
-          marginTop: 32,
-          padding: 24,
-          borderRadius: 22,
-          background: "#ffffff",
-          border: "1px solid #e5e7eb",
-        }}
-      >
-        <h2 style={{ fontSize: 20, fontWeight: 900 }}>
-          Add new address
-        </h2>
-
-        <div
-          style={{
-            marginTop: 18,
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-            gap: 14,
-          }}
-        >
-          <input
-            placeholder="Full name"
-            value={form.full_name}
-            onChange={(e) =>
-              setForm({ ...form, full_name: e.target.value })
-            }
-          />
-          <input
-            placeholder="Phone number"
-            value={form.phone}
-            onChange={(e) =>
-              setForm({ ...form, phone: e.target.value })
-            }
-          />
-          <input
-            placeholder="Address line 1"
-            value={form.address_line_1}
-            onChange={(e) =>
-              setForm({ ...form, address_line_1: e.target.value })
-            }
-          />
-          <input
-            placeholder="Address line 2 (optional)"
-            value={form.address_line_2}
-            onChange={(e) =>
-              setForm({ ...form, address_line_2: e.target.value })
-            }
-          />
-          <input
-            placeholder="City"
-            value={form.city}
-            onChange={(e) =>
-              setForm({ ...form, city: e.target.value })
-            }
-          />
-          <input
-            placeholder="State / Region"
-            value={form.state}
-            onChange={(e) =>
-              setForm({ ...form, state: e.target.value })
-            }
-          />
-          <input
-            placeholder="Postal code"
-            value={form.postal_code}
-            onChange={(e) =>
-              setForm({ ...form, postal_code: e.target.value })
-            }
-          />
-          <input
-            placeholder="Country"
-            value={form.country}
-            onChange={(e) =>
-              setForm({ ...form, country: e.target.value })
-            }
-          />
+          <button className="btn btnGhost" disabled>
+            Change password
+          </button>
         </div>
 
+        <hr className="divider" />
+
+        {/* SESSIONS */}
+        <div className="settingsRow">
+          <div>
+            <strong>Active sessions</strong>
+            <p className="mutedText">
+              You are currently logged in on this device. Session
+              management across devices will be available soon.
+            </p>
+          </div>
+          <button className="btn btnGhost" disabled>
+            Log out from all sessions
+          </button>
+        </div>
+      </section>
+
+      {/* LOGOUT */}
+      <section className="card" style={{ marginTop: 32 }}>
+        <h2 className="sectionTitle">Sign out</h2>
+        <p className="mutedText">
+          Signing out will end your current session and redirect you to
+          the login page.
+        </p>
+
         <button
-          onClick={addAddress}
-          disabled={adding}
-          className="btn btnPrimary"
-          style={{ marginTop: 18 }}
+          className="btn btnDanger"
+          style={{ marginTop: 16 }}
+          onClick={handleLogout}
+          disabled={loading}
         >
-          {adding ? "Saving…" : "Add address"}
+          {loading ? "Signing out…" : "Log out"}
         </button>
       </section>
     </div>

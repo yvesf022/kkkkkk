@@ -8,113 +8,98 @@ export default function OrderSuccessClient() {
   const orderId = searchParams.get("orderId");
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gap: 24,
-        maxWidth: 720,
-        margin: "48px auto 0",
-      }}
-    >
+    <div className="pageContentWrap">
       <section
+        className="card"
         style={{
-          borderRadius: 26,
-          padding: "32px 36px",
-          background: `
-            radial-gradient(
-              420px 220px at 10% 0%,
-              rgba(96,165,250,0.28),
-              transparent 60%
-            ),
-            radial-gradient(
-              360px 200px at 90% 10%,
-              rgba(244,114,182,0.22),
-              transparent 60%
-            ),
-            linear-gradient(
-              135deg,
-              #f8fbff,
-              #eef6ff,
-              #fff1f6
-            )
-          `,
-          boxShadow: "0 26px 70px rgba(15,23,42,0.18)",
+          maxWidth: 720,
+          margin: "0 auto",
+          textAlign: "center",
         }}
       >
-        {/* ICON */}
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            background:
-              "linear-gradient(135deg,#60a5fa,#93c5fd,#f472b6)",
-            boxShadow:
-              "0 12px 34px rgba(96,165,250,0.45)",
-            fontSize: 28,
-          }}
-        >
-          ✓
+        {/* HEADER */}
+        <div style={{ marginBottom: 24 }}>
+          <h1 className="pageTitle">
+            Order placed successfully
+          </h1>
+          <p className="pageSubtitle">
+            Thank you for your order. We’re preparing the
+            next steps.
+          </p>
         </div>
 
-        <h1
-          style={{
-            marginTop: 18,
-            fontSize: 28,
-            fontWeight: 900,
-            color: "#0f172a",
-          }}
-        >
-          Order Placed Successfully
-        </h1>
+        {/* ORDER REFERENCE */}
+        {orderId && (
+          <div className="infoBox" style={{ marginBottom: 20 }}>
+            <strong>Order reference:</strong>
+            <div>{orderId}</div>
+          </div>
+        )}
 
-        <p
+        {/* WHAT HAPPENS NEXT */}
+        <section
           style={{
-            marginTop: 10,
-            fontSize: 15,
-            fontWeight: 600,
-            color: "rgba(15,23,42,0.65)",
-            maxWidth: 520,
+            textAlign: "left",
+            marginBottom: 28,
           }}
         >
-          Thank you for your order. Your payment is currently under review.
-          You’ll be notified as soon as it’s confirmed by our team.
-        </p>
+          <h2 className="sectionTitle">
+            What happens next
+          </h2>
 
-        {/* ORDER ID */}
-        <div
-          style={{
-            marginTop: 16,
-            padding: "14px 18px",
-            borderRadius: 18,
-            background: "rgba(255,255,255,0.75)",
-            boxShadow:
-              "inset 0 0 0 1px rgba(15,23,42,0.06)",
-            fontWeight: 700,
-            color: "#0f172a",
-          }}
-        >
-          <span style={{ opacity: 0.7 }}>Order Reference:</span>{" "}
-          {orderId ? orderId : "Available in your account"}
+          <ul className="list">
+            <li>
+              Your order is now marked as{" "}
+              <strong>Awaiting payment</strong>.
+            </li>
+            <li>
+              Complete your payment externally using the
+              instructions provided.
+            </li>
+            <li>
+              Upload your payment proof from your order
+              details page.
+            </li>
+            <li>
+              Our team will verify the payment manually.
+            </li>
+            <li>
+              Once confirmed, your order will move to
+              shipping.
+            </li>
+          </ul>
+        </section>
+
+        {/* TRUST NOTE */}
+        <div className="infoBox" style={{ marginBottom: 24 }}>
+          🔒 <strong>Your security matters.</strong>
+          <br />
+          Payment details are never stored on your account.
+          All payments are verified manually for your
+          protection.
         </div>
 
         {/* ACTIONS */}
         <div
           style={{
-            marginTop: 28,
             display: "flex",
-            gap: 14,
+            gap: 12,
+            justifyContent: "center",
             flexWrap: "wrap",
           }}
         >
-          <Link href="/account" className="btn btnTech">
-            View My Orders →
+          <Link
+            href="/account/orders"
+            className="btn btnPrimary"
+          >
+            View my orders
           </Link>
 
-          <Link href="/" className="btn btnGhost">
-            Continue Shopping
+          <Link
+            href="/store"
+            className="btn btnGhost"
+          >
+            Continue shopping
           </Link>
         </div>
       </section>

@@ -24,17 +24,19 @@ export default function AccountSidebar() {
 
   function handleLogout() {
     // 🔐 Only change auth state.
-    // Redirect is handled by RequireAuth.
+    // Redirect is handled by the account layout guard.
     logout();
   }
 
   return (
     <aside
+      className="accountSidebar"
       style={{
-        width: 260,
-        minHeight: "100%",
+        minWidth: 220,
+        maxWidth: 260,
+        width: "100%",
         background: "#ffffff",
-        borderRight: "1px solid #e5e7eb",
+        borderRight: "1px solid var(--border)",
         padding: "24px 18px",
         display: "flex",
         flexDirection: "column",
@@ -42,22 +44,8 @@ export default function AccountSidebar() {
     >
       {/* HEADER */}
       <div style={{ marginBottom: 22 }}>
-        <div
-          style={{
-            fontWeight: 900,
-            fontSize: 18,
-            color: "#0f172a",
-          }}
-        >
-          My Account
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            opacity: 0.6,
-            marginTop: 2,
-          }}
-        >
+        <div className="sectionTitle">My Account</div>
+        <div className="mutedText">
           Orders, payments & settings
         </div>
       </div>
@@ -74,23 +62,9 @@ export default function AccountSidebar() {
               key={item.href}
               href={item.href}
               prefetch={false}
-              style={{
-                padding: "11px 14px",
-                borderRadius: 14,
-                fontWeight: 800,
-                fontSize: 14,
-                textDecoration: "none",
-                color: active
-                  ? "#0f172a"
-                  : "rgba(15,23,42,0.7)",
-                background: active
-                  ? "rgba(37,99,235,0.08)"
-                  : "transparent",
-                border: active
-                  ? "1px solid rgba(37,99,235,0.25)"
-                  : "1px solid transparent",
-                transition: "background 0.15s ease",
-              }}
+              className={`accountNavItem ${
+                active ? "active" : ""
+              }`}
             >
               {item.label}
             </Link>
@@ -102,29 +76,13 @@ export default function AccountSidebar() {
       <div style={{ marginTop: "auto", paddingTop: 24 }}>
         <button
           onClick={handleLogout}
-          style={{
-            width: "100%",
-            padding: "11px 14px",
-            borderRadius: 14,
-            fontWeight: 900,
-            fontSize: 14,
-            background: "#fee2e2",
-            color: "#991b1b",
-            border: "1px solid #fecaca",
-            cursor: "pointer",
-          }}
+          className="btn btnDanger"
+          style={{ width: "100%" }}
         >
           Log out
         </button>
 
-        <p
-          style={{
-            marginTop: 10,
-            fontSize: 11,
-            textAlign: "center",
-            opacity: 0.5,
-          }}
-        >
+        <p className="mutedText" style={{ textAlign: "center" }}>
           You can sign back in anytime
         </p>
       </div>

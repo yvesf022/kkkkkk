@@ -1,154 +1,149 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, ReactNode } from "react";
-
-/* =======================
-   Types
-======================= */
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  ReactNode,
+} from "react";
 
 export type CartItem = {
-  id: string;            // 🔒 REQUIRED internally
+  id: string;
   title: string;
   price: number;
+  image?: string;
   quantity: number;
-  stock?: number;        // 🔥 OPTIONAL inventory limit
-  img?: string;
-  image?: string;
-};
-
-type AddInput = {
-  id?: string;
-  _id?: string;
-  title: string;
-  price: number;
-  quantity?: number;
-  stock?: number;        // 🔥 OPTIONAL
-  img?: string;
-  image?: string;
+  stock?: number;
 };
 
 type CartContextType = {
-  cart: CartItem[];
   items: CartItem[];
-  addToCart: (item: AddInput) => void;
+
+  addToCart: (item: Omit<CartItem, "quantity">) => void;
   removeFromCart: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  increaseQty: (id: string) => void;
+  decreaseQty: (id: string) => void;
   clearCart: () => void;
+
   total: number;
+
+  /* ✅ AMAZON-LEVEL SAFE ADDITIONS */
+  itemCount: number;              // total quantity (badge-ready)
+  hasStockIssues: boolean;         // UX warning helper
+  formattedTotal: string;          // UI-ready currency string
 };
 
-/* =======================
-   Context
-======================= */
-
 const CartContext = createContext<CartContextType | null>(null);
-
-/* =======================
-   Provider
-======================= */
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  const addToCart = (input: AddInput) => {
-    const id = input.id ?? input._id;
-
-    if (!id) {
-      console.error("❌ addToCart called without id", input);
-      return;
-    }
+  function addToCart(input: Omit<CartItem, "quantity">) {
+    const id = input.id;
 
     setItems((prev) => {
       const existing = prev.find((i) => i.id === id);
 
-      if (existing) {
-        const nextQty = existing.quantity + 1;
-        const maxQty =
-          typeof existing.stock === "number"
-            ? existing.stock
-            : nextQty;
-
-        return prev.map((i) =>
-          i.id === id
-            ? {
-                ...i,
-                quantity: Math.min(nextQty, maxQty),
-              }
-            : i
-        );
+      if (!existing) {
+        return [...prev, { ...input, quantity: 1 }];
       }
 
-      const initialQty = input.quantity ?? 1;
+      const nextQty = existing.quantity + 1;
       const maxQty =
-        typeof input.stock === "number"
-          ? Math.min(initialQty, input.stock)
-          : initialQty;
+        typeof existing.stock === "number"
+          ? Math.min(existing.stock, nextQty)
+          : nextQty;
 
-      return [
-        ...prev,
-        {
-          id,
-          title: input.title,
-          price: input.price,
-          quantity: maxQty,
-          stock: input.stock,
-          img: input.img,
-          image: input.image,
-        },
-      ];
+      return prev.map((i) =>
+        i.id === id ? { ...i, quantity: maxQty } : i
+      );
     });
-  };
+  }
 
-  const removeFromCart = (id: string) => {
+  function removeFromCart(id: string) {
     setItems((prev) => prev.filter((i) => i.id !== id));
-  };
+  }
 
-  const updateQuantity = (id: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(id);
-      return;
-    }
-
+  function increaseQty(id: string) {
     setItems((prev) =>
       prev.map((i) => {
         if (i.id !== id) return i;
 
+        const nextQty = i.quantity + 1;
         const maxQty =
           typeof i.stock === "number"
-            ? i.stock
-            : quantity;
+            ? Math.min(i.stock, nextQty)
+            : nextQty;
 
-        return {
-          ...i,
-          quantity: Math.min(quantity, maxQty),
-        };
+        return { ...i, quantity: maxQty };
       })
     );
-  };
+  }
 
-  const clearCart = () => {
+  function decreaseQty(id: string) {
+    setItems((prev) =>
+      prev.flatMap((i) => {
+        if (i.id !== id) return i;
+
+        if (i.quantity <= 1) return [];
+        return [{ ...i, quantity: i.quantity - 1 }];
+      })
+    );
+  }
+
+  function clearCart() {
     setItems([]);
-  };
+  }
+
+  /* ===========================
+     DERIVED VALUES (SAFE)
+  =========================== */
 
   const total = useMemo(
     () =>
       items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
+        (sum, i) => sum + i.price * i.quantity,
         0
       ),
     [items]
   );
 
+  const itemCount = useMemo(
+    () => items.reduce((sum, i) => sum + i.quantity, 0),
+    [items]
+  );
+
+  const hasStockIssues = useMemo(
+    () =>
+      items.some(
+        (i) =>
+          typeof i.stock === "number" &&
+          i.quantity > i.stock
+      ),
+    [items]
+  );
+
+  const formattedTotal = useMemo(
+    () => `M${total.toLocaleString()}`,
+    [total]
+  );
+
   return (
     <CartContext.Provider
       value={{
-        cart: items,
         items,
         addToCart,
         removeFromCart,
-        updateQuantity,
+        increaseQty,
+        decreaseQty,
         clearCart,
         total,
+
+        /* new helpers */
+        itemCount,
+        hasStockIssues,
+        formattedTotal,
       }}
     >
       {children}
@@ -156,14 +151,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/* =======================
-   Hook
-======================= */
-
 export function useCart() {
   const ctx = useContext(CartContext);
   if (!ctx) {
-    throw new Error("useCart must be used within a CartProvider");
+    throw new Error(
+      "useCart must be used inside CartProvider"
+    );
   }
   return ctx;
 }

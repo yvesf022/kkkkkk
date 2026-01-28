@@ -1,105 +1,108 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
 export default function SupportPage() {
+  const [message, setMessage] = useState("");
+  const [orderId, setOrderId] = useState("");
+
+  function handleSubmit() {
+    toast("Support messaging will be available soon");
+  }
+
   return (
-    <div style={{ maxWidth: 800, display: "grid", gap: 24 }}>
-      {/* HEADER */}
-      <header>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-          Support
-        </h1>
-        <p style={{ marginTop: 6, opacity: 0.6 }}>
+    <div className="pageContentWrap">
+      {/* PAGE HEADER */}
+      <div style={{ marginBottom: 28 }}>
+        <div className="mutedText">Account › Support</div>
+        <h1 className="pageTitle">Support</h1>
+        <p className="pageSubtitle">
           Get help with your orders, payments, or account.
         </p>
-      </header>
+      </div>
 
       {/* HOW SUPPORT WORKS */}
-      <section
-        style={{
-          background: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 22,
-          padding: 24,
-          display: "grid",
-          gap: 14,
-        }}
-      >
-        <h3 style={{ fontWeight: 900 }}>
-          How support works
-        </h3>
+      <section className="card">
+        <h2 className="sectionTitle">How support works</h2>
 
-        <ul
-          style={{
-            paddingLeft: 18,
-            display: "grid",
-            gap: 8,
-            fontSize: 14,
-          }}
-        >
+        <ul className="list">
           <li>
-            For <b>payment or shipping issues</b>, open the relevant order
-            to view its status and next steps.
+            For <strong>payment or shipping issues</strong>, open the
+            related order to view its status and next steps.
           </li>
           <li>
-            For <b>delivery address</b> changes, update your saved addresses
-            before placing a new order.
+            For <strong>delivery address changes</strong>, update your
+            saved addresses before placing a new order.
           </li>
           <li>
-            For <b>account access</b> or profile issues, contact our support team
-            directly.
+            For <strong>account access or profile issues</strong>, you
+            can contact our support team using the form below.
           </li>
         </ul>
       </section>
 
-      {/* QUICK LINKS */}
-      <section
-        style={{
-          background: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 22,
-          padding: 24,
-          display: "grid",
-          gap: 12,
-        }}
-      >
-        <h3 style={{ fontWeight: 900 }}>
-          Quick actions
-        </h3>
+      {/* QUICK ACTIONS */}
+      <section className="card">
+        <h2 className="sectionTitle">Quick actions</h2>
 
-        <Link
-          href="/account/orders"
+        <div className="actionList">
+          <Link href="/account/orders" className="btn btnPrimary">
+            View my orders
+          </Link>
+
+          <Link href="/account/profile" className="btn btnGhost">
+            Update profile information
+          </Link>
+        </div>
+      </section>
+
+      {/* SUPPORT FORM */}
+      <section className="card">
+        <h2 className="sectionTitle">Contact support</h2>
+
+        <p className="mutedText">
+          Use this form for account-related questions or issues that
+          cannot be resolved from your order details page.
+        </p>
+
+        <div className="formGrid" style={{ marginTop: 16 }}>
+          <input
+            placeholder="Order ID (optional)"
+            value={orderId}
+            onChange={(e) => setOrderId(e.target.value)}
+          />
+
+          <textarea
+            placeholder="Describe your issue or question"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={5}
+          />
+        </div>
+
+        <button
           className="btn btnPrimary"
-          style={{ width: "fit-content" }}
+          style={{ marginTop: 18 }}
+          onClick={handleSubmit}
         >
-          View my orders
-        </Link>
+          Send message
+        </button>
 
-        <Link
-          href="/account/profile"
-          className="btn btnGhost"
-          style={{ width: "fit-content" }}
-        >
-          Update profile information
-        </Link>
+        <p className="mutedText" style={{ marginTop: 10 }}>
+          Support ticket submission is coming soon. For now, please
+          include your order ID when contacting support.
+        </p>
       </section>
 
-      {/* CONTACT */}
-      <section
-        style={{
-          background: "#f8fafc",
-          border: "1px solid #e5e7eb",
-          borderRadius: 22,
-          padding: 24,
-          fontSize: 13,
-          opacity: 0.75,
-        }}
-      >
-        If you need further assistance, please contact our support team
-        with your order ID. Support ticket submission will be available
-        in a future update.
-      </section>
+      {/* TRUST / REASSURANCE */}
+      <div className="infoBox">
+        💬 <strong>Response time:</strong>  
+        Our support team typically responds within 24–48 hours during
+        business days. Payment verification and shipping updates are
+        handled through your order page.
+      </div>
     </div>
   );
 }

@@ -1,273 +1,222 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
 
-import { products } from "@/lib/products"; // compatibility shim (OK)
-import { useStore } from "@/lib/store"; // wishlist ONLY
-import { useCart } from "@/app/context/CartContext"; // ✅ cart ONLY
-import ProductCard from "@/components/store/ProductCard";
-import { FadeIn, ScaleHover } from "@/components/ui/Motion";
+import { getProductById } from "@/lib/api";
+import { useCart } from "@/lib/cart";
 
-/* =======================
-   HELPERS
-======================= */
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  description?: string;
+  image_url?: string;
+  stock?: number;
+};
 
-const formatCurrency = (v: number) =>
-  `M ${Math.round(v).toLocaleString("en-LS")}`;
-
-/**
- * 🔒 Strict normalization
- * - NO legacy fields
- * - Netlify-safe
- */
-function normalize(p: any) {
-  return {
-    ...p,
-    id: p.id,
-    img: p.img || "/placeholder.png",
-    category: p.category || "general",
-    rating: p.rating ?? 4.5,
-  };
-}
-
-/* =======================
-   PAGE
-======================= */
-
-export default function ProductDetails({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function ProductDetailsPage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { id } = params;
-
-  // ✅ CORRECT STATE USAGE
   const { addToCart } = useCart();
-  const toggleWishlist = useStore((s) => s.toggleWishlist);
-  const wishlist = useStore((s) => s.wishlist);
 
-  const [activeImg, setActiveImg] = useState(0);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
 
-  const product = useMemo(
-    () => products.find((x) => x.id === id),
-    [id]
-  );
-
-  const safeProduct = product ? normalize(product) : null;
-
-  const gallery = useMemo(
-    () =>
-      safeProduct?.img
-        ? [safeProduct.img, safeProduct.img, safeProduct.img]
-        : [],
-    [safeProduct]
-  );
-
-  const related = useMemo(
-    () =>
-      safeProduct
-        ? products
-            .filter(
-              (x) =>
-                x.category === safeProduct.category &&
-                x.id !== safeProduct.id
-            )
-            .slice(0, 4)
-            .map(normalize)
-        : [],
-    [safeProduct]
-  );
-
-  const stock =
-    typeof (safeProduct as any)?.stock === "number"
-      ? (safeProduct as any).stock
-      : 0;
-
-  const inStock = stock > 0;
-  const inWish = safeProduct
-    ? wishlist.includes(safeProduct.id)
-    : false;
-
   useEffect(() => {
-    setQty(1);
-    setActiveImg(0);
-  }, [safeProduct?.id]);
+    async function load() {
+      try {
+        const data = await getProductById(id);
+        setProduct(data);
+      } catch {
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [id]);
 
-  if (!safeProduct) {
+  if (loading) {
     return (
-      <div
-        style={{
-          padding: 32,
-          borderRadius: 22,
-          background: "linear-gradient(135deg,#f8fbff,#eef6ff)",
-          boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
-        }}
-      >
-        Product not found.{" "}
-        <Link href="/store" className="btn btnTech">
-          Back to Store
-        </Link>
+      <div className="pageContentWrap">
+        <p className="mutedText">Loading product…</p>
       </div>
     );
   }
 
+  if (!product) {
+    return (
+      <div className="pageContentWrap">
+        <div className="emptyState">
+          <h1 className="pageTitle">Product not found</h1>
+          <Link href="/store" className="btn btnPrimary">
+            Back to store
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const inStock =
+    typeof product.stock === "number"
+      ? product.stock > 0
+      : true;
+
+  function handleAddToCart() {
+    addToCart({
+      id: product.id,
+      title: product.name,
+      price: product.price,
+      image: product.image_url,
+      stock: product.stock,
+    });
+  }
+
+  function handleBuyNow() {
+    handleAddToCart();
+    router.push("/cart");
+  }
+
   return (
-    <FadeIn>
-      <div style={{ display: "grid", gap: 32 }}>
-        {/* ================= PRODUCT ================= */}
-        <section
-          style={{
-            borderRadius: 26,
-            padding: 28,
-            background: `
-              radial-gradient(
-                420px 240px at 90% 0%,
-                rgba(96,165,250,0.22),
-                transparent 60%
-              ),
-              radial-gradient(
-                360px 200px at 10% 10%,
-                rgba(244,114,182,0.18),
-                transparent 60%
-              ),
-              linear-gradient(135deg,#ffffff,#f4f9ff)
-            `,
-            boxShadow: "0 26px 70px rgba(15,23,42,0.16)",
-          }}
-        >
-          {/* HEADER */}
-          <div style={{ display: "grid", gap: 6 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 900 }}>
-              {safeProduct.title}
-            </h1>
-
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "rgba(15,23,42,0.55)",
-              }}
-            >
-              {safeProduct.category.toUpperCase()} • ⭐{" "}
-              {safeProduct.rating}
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: "rgba(15,23,42,0.08)", margin: "18px 0" }} />
-
-          {/* GRID */}
+    <div className="pageContentWrap">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 40,
+          alignItems: "start",
+        }}
+      >
+        {/* IMAGE */}
+        <section className="card">
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "1.2fr 1fr",
-              gap: 24,
+              width: "100%",
+              aspectRatio: "1 / 1",
+              background: "#f8fafc",
+              borderRadius: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
             }}
           >
-            {/* IMAGE */}
-            <div
+            <img
+              src={product.image_url || "/placeholder.png"}
+              alt={product.name}
               style={{
-                borderRadius: 22,
-                overflow: "hidden",
-                background: "#fff",
-                boxShadow: "0 14px 40px rgba(15,23,42,0.14)",
+                maxWidth: "100%",
+                maxHeight: "100%",
+                objectFit: "contain",
               }}
-            >
-              <Image
-                src={gallery[activeImg]}
-                alt={safeProduct.title}
-                width={1200}
-                height={800}
-                priority
-                style={{ width: "100%", height: 360, objectFit: "cover" }}
-              />
-            </div>
-
-            {/* BUY PANEL */}
-            <div style={{ display: "grid", gap: 18 }}>
-              <div style={{ fontSize: 26, fontWeight: 900 }}>
-                {formatCurrency(safeProduct.price)}
-              </div>
-
-              <ScaleHover>
-                <button
-                  className="btn btnTech"
-                  disabled={!inStock}
-                  onClick={() => {
-                    addToCart({
-                      id: safeProduct.id,
-                      title: safeProduct.title,
-                      price: safeProduct.price,
-                      quantity: qty,
-                      img: safeProduct.img,
-                    });
-                    toast.success("Added to cart");
-                  }}
-                >
-                  Add to Cart
-                </button>
-              </ScaleHover>
-
-              <button
-                className="btn btnGhost"
-                onClick={() => {
-                  addToCart({
-                    id: safeProduct.id,
-                    title: safeProduct.title,
-                    price: safeProduct.price,
-                    quantity: qty,
-                    img: safeProduct.img,
-                  });
-                  router.push("/checkout");
-                }}
-              >
-                Buy Now
-              </button>
-
-              <button
-                className="btn btnGhost"
-                onClick={() => toggleWishlist(safeProduct.id)}
-              >
-                {inWish ? "Remove from Wishlist" : "Save to Wishlist"}
-              </button>
-            </div>
+            />
           </div>
         </section>
 
-        {/* ================= RELATED ================= */}
-        {related.length > 0 && (
-          <section
+        {/* DETAILS */}
+        <section className="card">
+          <h1 className="pageTitle">{product.name}</h1>
+
+          <div
             style={{
-              borderRadius: 24,
-              padding: 24,
-              background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-              boxShadow: "0 22px 60px rgba(15,23,42,0.14)",
+              fontSize: 22,
+              fontWeight: 700,
+              margin: "8px 0 16px",
             }}
           >
-            <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>
-              Related Products
-            </h3>
+            M{product.price.toLocaleString()}
+          </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 18,
-              }}
+          {product.description && (
+            <p className="mutedText">
+              {product.description}
+            </p>
+          )}
+
+          {/* STOCK */}
+          <div style={{ marginTop: 12 }}>
+            {inStock ? (
+              <span className="badgeSuccess">
+                In stock
+              </span>
+            ) : (
+              <span className="badgeDanger">
+                Out of stock
+              </span>
+            )}
+          </div>
+
+          {/* QUANTITY */}
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              marginTop: 20,
+            }}
+          >
+            <span>Quantity</span>
+            <button
+              className="btn btnGhost"
+              onClick={() =>
+                setQty((q) => Math.max(1, q - 1))
+              }
             >
-              {related.map((p) => (
-                <ProductCard key={p.id} p={p} />
-              ))}
-            </div>
-          </section>
-        )}
+              −
+            </button>
+            <strong>{qty}</strong>
+            <button
+              className="btn btnGhost"
+              onClick={() => setQty((q) => q + 1)}
+            >
+              +
+            </button>
+          </div>
+
+          {/* PAYMENT INFO */}
+          <div className="infoBox" style={{ marginTop: 20 }}>
+            💳 <strong>Payment note</strong>
+            <br />
+            Payment is completed externally after checkout.
+            Upload your payment proof for verification.
+          </div>
+
+          {/* ACTIONS */}
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              marginTop: 24,
+            }}
+          >
+            <button
+              className="btn btnPrimary"
+              disabled={!inStock}
+              onClick={handleAddToCart}
+            >
+              Add to cart
+            </button>
+
+            <button
+              className="btn btnGhost"
+              disabled={!inStock}
+              onClick={handleBuyNow}
+            >
+              Buy now
+            </button>
+
+            <Link
+              href="/store"
+              className="btn btnGhost"
+            >
+              Continue shopping
+            </Link>
+          </div>
+        </section>
       </div>
-    </FadeIn>
+    </div>
   );
 }

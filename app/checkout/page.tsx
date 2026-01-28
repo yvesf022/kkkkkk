@@ -2,16 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
+
+import { useCart } from "@/lib/cart";
+import { createOrder, getMyAddresses } from "@/lib/api";
 import RequireAuth from "@/components/auth/RequireAuth";
-import { useCart } from "../context/CartContext";
-import { getMyAddresses } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL!;
-
-/* ======================
-   TYPES (from Addresses)
-====================== */
 type Address = {
   id: string;
   full_name: string;
@@ -25,287 +22,222 @@ type Address = {
   is_default: boolean;
 };
 
-/* Currency (no rounding) */
-const fmtM = (v: number) =>
-  `M ${v.toLocaleString("en-ZA", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })}`;
-
 export default function CheckoutPage() {
+  return (
+    <RequireAuth>
+      <CheckoutContent />
+    </RequireAuth>
+  );
+}
+
+function CheckoutContent() {
   const router = useRouter();
-  const { cart, total, clearCart } = useCart();
+  const { items, total, clearCart } = useCart();
 
-  const [loading, setLoading] = useState(false);
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [selectedAddressId, setSelectedAddressId] =
-    useState<string | null>(null);
-  const [orderPlaced, setOrderPlaced] = useState(false);  // New state for showing confirmation
+  const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [placing, setPlacing] = useState(false);
 
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
-      : null;
-
-  /* ======================
-     LOAD ADDRESSES
-  ====================== */
   useEffect(() => {
-    async function loadAddresses() {
+    async function load() {
       try {
         const data = await getMyAddresses();
         setAddresses(data);
-
         const def = data.find((a) => a.is_default);
-        if (def) setSelectedAddressId(def.id);
+        if (def) setSelectedAddress(def.id);
       } catch {
         toast.error("Failed to load addresses");
+      } finally {
+        setLoading(false);
       }
     }
-
-    loadAddresses();
+    load();
   }, []);
 
-  /* ======================
-     PLACE ORDER
-  ====================== */
   async function placeOrder() {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    if (cart.length === 0) {
-      toast.error("Your cart is empty");
-      return;
-    }
-
-    if (!selectedAddressId) {
+    if (!selectedAddress) {
       toast.error("Please select a delivery address");
       return;
     }
 
-    setLoading(true);
-
+    setPlacing(true);
     try {
-      const orderItems = cart.map((i) => ({
-        product_id: i.id,
-        quantity: i.quantity,
-      }));
-
-      const res = await fetch(`${API}/api/orders`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          items: orderItems,
-          total_amount: total,
-          address_id: selectedAddressId,
-        }),
+      await createOrder({
+        address_id: selectedAddress,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data?.detail || "Failed to place order"
-        );
-      }
-
       clearCart();
-      setOrderPlaced(true);  // Set the order as placed successfully
       toast.success("Order placed successfully");
-      router.push("/account/orders");
-    } catch (err: any) {
-      toast.error(
-        err.message || "Order placement failed"
-      );
+      router.replace("/account/orders");
+    } catch {
+      toast.error("Failed to place order");
     } finally {
-      setLoading(false);
+      setPlacing(false);
     }
   }
 
-  /* ======================
-     EMPTY CART
-  ====================== */
-  if (cart.length === 0) {
+  if (loading) {
     return (
-      <RequireAuth>
-        <div
-          style={{
-            maxWidth: 640,
-            margin: "48px auto",
-            textAlign: "center",
-          }}
-        >
-          <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-            Checkout
-          </h1>
-          <p>Your cart is empty.</p>
-        </div>
-      </RequireAuth>
+      <div className="pageContentWrap">
+        <p className="mutedText">Loading checkout…</p>
+      </div>
     );
   }
 
-  /* ======================
-     UI
-  ====================== */
+  if (items.length === 0) {
+    return (
+      <div className="pageContentWrap">
+        <div className="emptyState">
+          <h1 className="pageTitle">Your cart is empty</h1>
+          <p className="pageSubtitle">
+            Add items to your cart before checking out.
+          </p>
+          <Link href="/store" className="btn btnPrimary">
+            Browse products
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <RequireAuth>
-      <div style={{ display: "grid", gap: 26 }}>
-        {orderPlaced ? (
-          <section
-            style={{
-              textAlign: "center",
-              padding: "20px",
-              borderRadius: 10,
-              background: "#e0f9e0",
-              border: "1px solid #green",
-            }}
-          >
-            <h2 style={{ fontWeight: 900 }}>Order Placed Successfully!</h2>
-            <p>
-              Your order has been placed. Please transfer the total amount to
-              the bank details provided on the order page. Once your payment is
-              complete, upload the payment proof.
-            </p>
-            <button
-              className="btn btnTech"
-              onClick={() => router.push("/account/orders")}
-            >
-              View My Orders
-            </button>
-          </section>
-        ) : (
-          <>
-            <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-              Checkout
-            </h1>
+    <div className="pageContentWrap">
+      {/* HEADER */}
+      <div style={{ marginBottom: 28 }}>
+        <div className="mutedText">Cart › Checkout</div>
+        <h1 className="pageTitle">Checkout</h1>
+        <p className="pageSubtitle">
+          Review your delivery details and place your order.
+        </p>
+      </div>
 
-            {/* ADDRESS SELECTION */}
-            <section
-              style={{
-                borderRadius: 22,
-                padding: 24,
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                display: "grid",
-                gap: 14,
-              }}
-            >
-              <h3 style={{ fontWeight: 900 }}>
-                Delivery Address
-              </h3>
+      {/* LAYOUT */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr minmax(280px, 360px)",
+          gap: 32,
+          alignItems: "start",
+        }}
+      >
+        {/* LEFT — ADDRESS */}
+        <section className="card">
+          <h2 className="sectionTitle">Delivery address</h2>
 
-              {addresses.length === 0 ? (
-                <p style={{ opacity: 0.7 }}>
-                  No saved addresses. Please add one in your
-                  account before checkout.
-                </p>
-              ) : (
-                addresses.map((a) => (
-                  <label
-                    key={a.id}
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      padding: 14,
-                      borderRadius: 16,
-                      border:
-                        selectedAddressId === a.id
-                          ? "2px solid #2563eb"
-                          : "1px solid #e5e7eb",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="address"
-                      checked={selectedAddressId === a.id}
-                      onChange={() =>
-                        setSelectedAddressId(a.id)
-                      }
-                    />
-                    <div>
-                      <div style={{ fontWeight: 800 }}>
-                        {a.full_name} ({a.phone})
-                      </div>
-                      <div style={{ fontSize: 14 }}>
-                        {a.address_line_1}
-                        {a.address_line_2 && (
-                          <> {a.address_line_2}</>
-                        )}
-                        <br />
-                        {a.city}, {a.state},{" "}
-                        {a.postal_code}
-                        <br />
-                        {a.country}
-                      </div>
-                    </div>
-                  </label>
-                ))
-              )}
-            </section>
-
-            {/* SUMMARY */}
-            <section
-              style={{
-                borderRadius: 22,
-                padding: 24,
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                display: "grid",
-                gap: 12,
-              }}
-            >
-              <h3 style={{ fontWeight: 900 }}>
-                Order Summary
-              </h3>
-
-              {cart.map((i) => (
-                <div
-                  key={i.id}
+          {addresses.length === 0 ? (
+            <div className="emptyState">
+              <p>You don’t have any saved addresses.</p>
+              <Link
+                href="/account/addresses"
+                className="btn btnPrimary"
+              >
+                Add an address
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 14 }}>
+              {addresses.map((a) => (
+                <label
+                  key={a.id}
+                  className="card"
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
+                    cursor: "pointer",
+                    border:
+                      selectedAddress === a.id
+                        ? "2px solid var(--primary)"
+                        : undefined,
                   }}
                 >
-                  <span>
-                    {i.title} × {i.quantity}
-                  </span>
-                  <span>
-                    {fmtM(i.price * i.quantity)}
-                  </span>
-                </div>
+                  <input
+                    type="radio"
+                    name="address"
+                    checked={selectedAddress === a.id}
+                    onChange={() => setSelectedAddress(a.id)}
+                    style={{ marginRight: 10 }}
+                  />
+
+                  <strong>{a.full_name}</strong>
+                  <div className="mutedText">{a.phone}</div>
+                  <div>
+                    {a.address_line_1}
+                    {a.address_line_2 && `, ${a.address_line_2}`}
+                    <br />
+                    {a.city}, {a.state}
+                    <br />
+                    {a.postal_code}, {a.country}
+                  </div>
+
+                  {a.is_default && (
+                    <span className="badgeSuccess">
+                      Default
+                    </span>
+                  )}
+                </label>
               ))}
+            </div>
+          )}
 
-              <div
-                style={{
-                  marginTop: 8,
-                  fontWeight: 900,
-                  fontSize: 16,
-                }}
-              >
-                Total:{" "}
-                <span style={{ color: "#2563eb" }}>
-                  {fmtM(total)}
-                </span>
-              </div>
-            </section>
+          <Link
+            href="/account/addresses"
+            className="btn btnGhost"
+            style={{ marginTop: 16 }}
+          >
+            Manage addresses
+          </Link>
+        </section>
 
-            {/* ACTION */}
-            <button
-              className="btn btnTech"
-              disabled={loading || addresses.length === 0}
-              onClick={placeOrder}
+        {/* RIGHT — SUMMARY */}
+        <aside className="card">
+          <h2 className="sectionTitle">Order summary</h2>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 10,
+              fontSize: 14,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+              }}
             >
-              {loading ? "Placing order…" : "Place Order"}
-            </button>
-          </>
-        )}
+              <span>Items total</span>
+              <strong>
+                M{total.toLocaleString()}
+              </strong>
+            </div>
+
+            <div className="mutedText">
+              Shipping will be calculated after payment
+              verification.
+            </div>
+          </div>
+
+          {/* PAYMENT INFO */}
+          <div className="infoBox" style={{ marginTop: 18 }}>
+            💳 <strong>Payment process</strong>
+            <br />
+            After placing your order, you’ll receive instructions
+            to complete payment externally. Upload your payment
+            proof from your order details page.
+          </div>
+
+          <button
+            className="btn btnPrimary"
+            style={{ marginTop: 18 }}
+            onClick={placeOrder}
+            disabled={placing}
+          >
+            {placing ? "Placing order…" : "Place order"}
+          </button>
+
+          <p className="mutedText" style={{ marginTop: 10 }}>
+            Orders are reviewed manually before shipping.
+          </p>
+        </aside>
       </div>
-    </RequireAuth>
+    </div>
   );
 }

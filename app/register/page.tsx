@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
-import { Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
+import { register } from "@/lib/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,351 +12,163 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
-  // ✅ Amazon-style password rules
-  const passwordRules = useMemo(() => {
-    return {
-      length: password.length >= 8,
-      number: /\d/.test(password),
-      letter: /[a-zA-Z]/.test(password),
-    };
-  }, [password]);
+  const passwordRules = {
+    length: password.length >= 8,
+    number: /\d/.test(password),
+    letter: /[a-zA-Z]/.test(password),
+  };
 
-  const passwordValid =
-    passwordRules.length &&
-    passwordRules.number &&
-    passwordRules.letter;
+  const allRulesPassed = Object.values(passwordRules).every(Boolean);
 
-  const passwordsMatch =
-    password.length > 0 &&
-    confirmPassword.length > 0 &&
-    password === confirmPassword;
-
-  const canSubmit =
-    email &&
-    passwordValid &&
-    passwordsMatch &&
-    !loading;
-
-  const handleRegister = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canSubmit) return;
+
+    if (!email || !password || !confirmPassword) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (!allRulesPassed) {
+      toast.error("Password does not meet requirements");
+      return;
+    }
 
     setLoading(true);
-    setError(null);
-    setSuccess(null);
-
     try {
-      const payload = {
-        email,
-        password,
-        full_name: fullName.trim() || null,
-        phone: phone.trim() || null,
-      };
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "Registration failed");
-      }
-
-      setSuccess("Account created successfully. Redirecting to login…");
-      toast.success("Account created 🎉");
-
-      setTimeout(() => {
-        router.push("/login");
-      }, 900);
-    } catch (err: any) {
-      const message =
-        err?.message || "Unable to create account. Please try again.";
-      setError(message);
-      toast.error(message);
+      await register(email, password);
+      toast.success("Account created successfully");
+      router.replace("/login");
+    } catch {
+      toast.error("Failed to create account");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <main
+      className="pageContentWrap"
       style={{
-        minHeight: "80vh",
         display: "grid",
         placeItems: "center",
-        padding: "24px",
+        minHeight: "calc(100vh - var(--header-height, 72px))",
       }}
     >
       <section
+        className="card"
         style={{
-          width: "100%",
           maxWidth: 460,
-          borderRadius: 28,
-          padding: "36px 32px",
-          background: `
-            radial-gradient(420px 220px at 10% 0%, rgba(96,165,250,0.25), transparent 60%),
-            radial-gradient(360px 200px at 90% 10%, rgba(244,114,182,0.22), transparent 60%),
-            linear-gradient(135deg, #f8fbff, #eef6ff, #fff1f6)
-          `,
-          boxShadow: "0 30px 90px rgba(15,23,42,0.18)",
+          width: "100%",
         }}
       >
-        <h1 style={{ fontSize: 24, fontWeight: 900 }}>
-          Create your account
-        </h1>
+        {/* HEADER */}
+        <div style={{ marginBottom: 24 }}>
+          <h1 className="pageTitle">Create an account</h1>
+          <p className="pageSubtitle">
+            Register to track orders, manage payments, and shop faster.
+          </p>
+        </div>
 
-        <p style={{ marginTop: 6, color: "#475569", fontWeight: 600 }}>
-          Create an account to track orders and shop faster.
-        </p>
-
-        {/* ERROR */}
-        {error && (
-          <div
-            style={{
-              marginTop: 16,
-              padding: "10px 12px",
-              borderRadius: 12,
-              background: "#fee2e2",
-              color: "#7f1d1d",
-              fontWeight: 600,
-            }}
-          >
-            ❌ {error}
-          </div>
-        )}
-
-        {/* SUCCESS */}
-        {success && (
-          <div
-            style={{
-              marginTop: 16,
-              padding: "10px 12px",
-              borderRadius: 12,
-              background: "#dcfce7",
-              color: "#14532d",
-              fontWeight: 600,
-            }}
-          >
-            ✅ {success}
-          </div>
-        )}
-
+        {/* FORM */}
         <form
-          onSubmit={handleRegister}
-          style={{
-            marginTop: 22,
-            display: "grid",
-            gap: 14,
-          }}
+          onSubmit={handleSubmit}
+          style={{ display: "grid", gap: 16 }}
         >
           <input
             type="email"
             placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{
-              padding: "14px 16px",
-              borderRadius: 14,
-              border: "1px solid rgba(15,23,42,0.15)",
-              fontSize: 15,
-            }}
+            autoComplete="email"
           />
 
-          {/* PASSWORD */}
           <div style={{ position: "relative" }}>
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "14px 44px 14px 16px",
-                borderRadius: 14,
-                border: "1px solid rgba(15,23,42,0.15)",
-                fontSize: 15,
-              }}
+              autoComplete="new-password"
+              style={{ paddingRight: 44 }}
             />
+
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
+              className="btn btnGhost"
               style={{
                 position: "absolute",
-                right: 12,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
+                right: 4,
+                top: 4,
+                padding: "6px 10px",
               }}
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword ? "Hide" : "Show"}
             </button>
           </div>
+
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Confirm password"
+            value={confirmPassword}
+            onChange={(e) =>
+              setConfirmPassword(e.target.value)
+            }
+            autoComplete="new-password"
+          />
 
           {/* PASSWORD RULES */}
-          <div style={{ fontSize: 13, display: "grid", gap: 6 }}>
-            {[
-              { ok: passwordRules.length, label: "At least 8 characters" },
-              { ok: passwordRules.number, label: "Contains a number" },
-              { ok: passwordRules.letter, label: "Contains a letter" },
-            ].map((rule) => (
-              <div
-                key={rule.label}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  color: rule.ok ? "#166534" : "#7f1d1d",
-                  fontWeight: 600,
-                }}
-              >
-                {rule.ok ? (
-                  <CheckCircle size={14} />
-                ) : (
-                  <XCircle size={14} />
-                )}
-                {rule.label}
-              </div>
-            ))}
+          <div className="infoBox">
+            <strong>Password requirements</strong>
+            <ul className="list" style={{ marginTop: 8 }}>
+              <li>
+                {passwordRules.length ? "✓" : "✕"} At least 8 characters
+              </li>
+              <li>
+                {passwordRules.number ? "✓" : "✕"} Contains a number
+              </li>
+              <li>
+                {passwordRules.letter ? "✓" : "✕"} Contains a letter
+              </li>
+            </ul>
           </div>
-
-          {/* CONFIRM PASSWORD */}
-          <div style={{ position: "relative" }}>
-            <input
-              type={showConfirm ? "text" : "password"}
-              placeholder="Confirm password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "14px 44px 14px 16px",
-                borderRadius: 14,
-                border: passwordsMatch
-                  ? "1px solid #22c55e"
-                  : "1px solid rgba(15,23,42,0.15)",
-                fontSize: 15,
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm((v) => !v)}
-              style={{
-                position: "absolute",
-                right: 12,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-
-          {!passwordsMatch && confirmPassword && (
-            <div
-              style={{
-                fontSize: 13,
-                color: "#7f1d1d",
-                fontWeight: 600,
-              }}
-            >
-              ❌ Passwords do not match
-            </div>
-          )}
-
-          <input
-            type="text"
-            placeholder="Full name (optional)"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            style={{
-              padding: "14px 16px",
-              borderRadius: 14,
-              border: "1px solid rgba(15,23,42,0.15)",
-              fontSize: 15,
-            }}
-          />
-
-          <input
-            type="tel"
-            placeholder="Phone number (optional)"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            style={{
-              padding: "14px 16px",
-              borderRadius: 14,
-              border: "1px solid rgba(15,23,42,0.15)",
-              fontSize: 15,
-            }}
-          />
 
           <button
             type="submit"
-            disabled={!canSubmit}
             className="btn btnPrimary"
-            style={{ marginTop: 6, opacity: canSubmit ? 1 : 0.6 }}
+            disabled={loading}
           >
             {loading ? "Creating account…" : "Create account"}
           </button>
         </form>
 
+        {/* FOOTER */}
         <div
           style={{
-            marginTop: 18,
+            marginTop: 20,
             display: "grid",
             gap: 10,
           }}
         >
-          <button
-            type="button"
+          <Link
+            href="/login"
             className="btn btnGhost"
-            onClick={() => router.push("/login")}
           >
             Already have an account? Sign in
-          </button>
+          </Link>
 
-          <button
-            type="button"
-            className="btn btnGhost"
-            onClick={() => router.push("/")}
-          >
-            Continue shopping as guest
-          </button>
+          <p className="mutedText" style={{ textAlign: "center" }}>
+            Your details are protected using secure, encrypted sessions.
+          </p>
         </div>
-
-        <p
-          style={{
-            marginTop: 22,
-            fontSize: 12,
-            color: "#64748b",
-            textAlign: "center",
-          }}
-        >
-          🔒 Secure registration · Your data is protected
-        </p>
       </section>
     </main>
   );

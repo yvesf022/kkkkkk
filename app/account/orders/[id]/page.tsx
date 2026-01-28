@@ -1,76 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import Link from "next/link";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 
-const API = process.env.NEXT_PUBLIC_API_URL!;
-
-/* ======================
-   TYPES
-====================== */
-type OrderItem = {
-  title?: string;
-  price?: number;
-  quantity: number;
-};
+type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
+type ShippingStatus = "awaiting_shipping" | "shipped" | null;
 
 type Order = {
   id: string;
-  total_amount: number;
-  payment_status: string;
-  shipping_status: string;
-  tracking_number?: string;
   created_at: string;
-  items: OrderItem[];
+  total_amount: number;
+  payment_status: PaymentStatus;
+  shipping_status: ShippingStatus;
+  tracking_number?: string | null;
 };
 
-/* ======================
-   STATUS CHIP
-====================== */
-function StatusChip({
-  label,
-  bg,
-}: {
-  label: string;
-  bg: string;
-}) {
-  return (
-    <span
-      style={{
-        padding: "6px 14px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 900,
-        background: bg,
-        color: "#fff",
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-/* ======================
-   PAGE
-====================== */
-export default function OrderDetailPage() {
+export default function OrderDetailsPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   async function loadOrder() {
     try {
-      const res = await fetch(`${API}/api/orders/${id}`, {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}`,
+        { credentials: "include" }
+      );
       if (!res.ok) throw new Error();
-      setOrder(await res.json());
+      const data = await res.json();
+
+      setOrder({
+        ...data,
+        payment_status: data.payment_status ?? "pending",
+        shipping_status: data.shipping_status ?? null,
+      });
     } catch {
-      toast.error("Failed to load order details");
+      toast.error("Unable to load order");
     } finally {
       setLoading(false);
     }
@@ -80,32 +51,41 @@ export default function OrderDetailPage() {
     loadOrder();
   }, [id]);
 
-  async function submitProof() {
-    if (!file) {
-      toast.error("Please select a file");
+  async function handleUpload(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files are allowed");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File must be under 5MB");
       return;
     }
 
     setUploading(true);
     try {
       const form = new FormData();
-      form.append("proof", file);
+      form.append("file", file);
 
       const res = await fetch(
-        `${API}/api/orders/${id}/payment-proof`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}/payment-proof`,
         {
           method: "POST",
-          credentials: "include",
           body: form,
+          credentials: "include",
         }
       );
 
       if (!res.ok) throw new Error();
-      toast.success("Payment proof submitted");
-      setFile(null);
-      loadOrder();
+      toast.success("Payment proof uploaded");
+      await loadOrder();
     } catch {
-      toast.error("Failed to upload payment proof");
+      toast.error("Upload failed");
     } finally {
       setUploading(false);
     }
@@ -114,72 +94,45 @@ export default function OrderDetailPage() {
   if (loading) return <p>Loading order…</p>;
   if (!order) return <p>Order not found</p>;
 
-  const canUpload =
-    order.payment_status === "on_hold" ||
-    order.payment_status === "rejected";
-
   return (
-    <div style={{ display: "grid", gap: 26 }}>
+    <div
+      style={{
+        maxWidth: 1100,
+        display: "grid",
+        gap: 28,
+      }}
+    >
+      {/* BREADCRUMB */}
+      <div style={{ fontSize: 13 }}>
+        <Link href="/account/orders">Orders</Link> ›{" "}
+        <strong>Order #{order.id.slice(0, 8)}</strong>
+      </div>
+
       {/* HEADER */}
-      <section className="card">
-        <h1 style={{ fontSize: 24, fontWeight: 900 }}>
+      <div>
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
           Order #{order.id.slice(0, 8)}
         </h1>
-        <p style={{ opacity: 0.6 }}>
-          {new Date(order.created_at).toLocaleString()}
+        <p style={{ fontSize: 14, opacity: 0.6 }}>
+          Placed on{" "}
+          {new Date(order.created_at).toLocaleDateString()}
         </p>
-      </section>
+      </div>
 
-      {/* STATUS */}
-      <section style={{ display: "flex", gap: 12 }}>
-        <StatusChip
-          label={order.payment_status.replace("_", " ")}
-          bg="#0ea5e9"
-        />
-        <StatusChip
-          label={order.shipping_status.replace("_", " ")}
-          bg="#8b5cf6"
-        />
-      </section>
-
-      {/* GUIDANCE */}
-      <section className="card">
-        {order.payment_status === "on_hold" && (
-          <p>
-            Your order is awaiting payment. Please complete
-            the payment using your chosen method and upload
-            the proof below to continue processing.
-          </p>
-        )}
-
-        {order.payment_status === "payment_submitted" && (
-          <p>
-            Your payment proof has been received and is
-            currently under review. We’ll notify you once
-            it’s confirmed.
-          </p>
-        )}
-
-        {order.payment_status === "payment_received" && (
-          <p>
-            Payment confirmed. Your order is being prepared
-            for shipment.
-          </p>
-        )}
-
-        {order.shipping_status === "shipped" && (
-          <p>
-            Your order has been shipped.
-            {order.tracking_number && (
-              <>
-                {" "}
-                Tracking number:{" "}
-                <b>{order.tracking_number}</b>
-              </>
-            )}
-          </p>
-        )}
-      </section>
+      {/* STATUS SUMMARY */}
+      <div
+        style={{
+          padding: 20,
+          borderRadius: 20,
+          background: "#f8fafc",
+          fontSize: 14,
+          lineHeight: 1.6,
+        }}
+      >
+        <strong>Current status:</strong>{" "}
+        {paymentLabel(order.payment_status)} ·{" "}
+        {shippingLabel(order.shipping_status)}
+      </div>
 
       {/* TIMELINE */}
       <OrderTimeline
@@ -188,68 +141,129 @@ export default function OrderDetailPage() {
         trackingNumber={order.tracking_number}
       />
 
-      {/* PAYMENT PROOF */}
-      {canUpload && (
-        <section className="card">
-          <h2 style={{ fontWeight: 900 }}>
-            Upload Payment Proof
-          </h2>
+      {/* ACTION PANEL */}
+      <div
+        style={{
+          padding: 24,
+          borderRadius: 24,
+          background:
+            "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow:
+            "0 18px 50px rgba(15,23,42,0.12)",
+          display: "grid",
+          gap: 16,
+        }}
+      >
+        <h3 style={{ fontWeight: 900 }}>
+          What’s happening now
+        </h3>
 
-          <input
-            type="file"
-            accept="image/*,.pdf"
-            onChange={(e) =>
-              setFile(e.target.files?.[0] || null)
-            }
-            style={{ marginTop: 12 }}
-          />
+        {order.payment_status === "on_hold" && (
+          <>
+            <p style={{ fontSize: 14 }}>
+              Your order is awaiting payment verification.
+              Please upload your payment proof below.
+            </p>
 
-          <button
-            className="btn btnPrimary"
-            disabled={uploading}
-            onClick={submitProof}
-            style={{ marginTop: 12 }}
-          >
-            {uploading
-              ? "Uploading…"
-              : "Submit payment proof"}
-          </button>
-        </section>
-      )}
+            <label
+              style={{
+                display: "inline-block",
+                fontWeight: 700,
+                cursor: uploading ? "default" : "pointer",
+                opacity: uploading ? 0.6 : 1,
+              }}
+            >
+              {uploading
+                ? "Uploading…"
+                : "Upload payment proof"}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleUpload}
+              />
+            </label>
 
-      {/* ITEMS */}
-      <section className="card">
-        <h2 style={{ fontWeight: 900 }}>Items</h2>
+            <div style={{ fontSize: 12, opacity: 0.6 }}>
+              Image only · Max 5MB · Secure upload
+            </div>
+          </>
+        )}
 
-        {order.items.map((i, idx) => (
-          <div
-            key={idx}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-            }}
-          >
-            <span>
-              {i.title || "Product"} × {i.quantity}
-            </span>
-            <span>
-              M{" "}
-              {(
-                (i.price || 0) * i.quantity
-              ).toLocaleString()}
-            </span>
-          </div>
-        ))}
+        {order.payment_status === "paid" && (
+          <p style={{ fontSize: 14 }}>
+            Payment confirmed. Your order will proceed to
+            shipping.
+          </p>
+        )}
 
-        <div
-          style={{
-            marginTop: 12,
-            fontWeight: 900,
-          }}
+        {order.payment_status === "rejected" && (
+          <p style={{ fontSize: 14, color: "#b91c1c" }}>
+            Payment was rejected. Please upload a valid proof.
+          </p>
+        )}
+      </div>
+
+      {/* TRUST NOTE */}
+      <div
+        style={{
+          fontSize: 13,
+          opacity: 0.6,
+          lineHeight: 1.6,
+        }}
+      >
+        🔒 Payments are completed externally. We never store
+        payment details on your account.
+      </div>
+
+      {/* FOOTER ACTIONS */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
+        <button
+          className="btn btnGhost"
+          onClick={() => router.push("/account/orders")}
         >
-          Total: M{order.total_amount.toLocaleString()}
-        </div>
-      </section>
+          Back to orders
+        </button>
+
+        <button
+          className="btn btnPrimary"
+          onClick={() => router.push("/store")}
+        >
+          Continue shopping
+        </button>
+      </div>
     </div>
   );
+}
+
+/* ======================
+   LABEL HELPERS
+====================== */
+
+function paymentLabel(status: PaymentStatus) {
+  switch (status) {
+    case "pending":
+      return "Order placed";
+    case "on_hold":
+      return "Awaiting payment verification";
+    case "paid":
+      return "Payment confirmed";
+    case "rejected":
+      return "Payment rejected";
+  }
+}
+
+function shippingLabel(status: ShippingStatus) {
+  if (!status) return "Not shipped yet";
+  if (status === "awaiting_shipping")
+    return "Preparing shipment";
+  if (status === "shipped") return "Shipped";
+  return "—";
 }

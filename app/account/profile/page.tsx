@@ -2,52 +2,59 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { getMe, updateMe, User } from "@/lib/api";
-
-const API = process.env.NEXT_PUBLIC_API_URL!;
+import { getMe, updateMe, uploadAvatar } from "@/lib/api";
+import { User } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const router = useRouter();
 
+  const [user, setUser] = useState<User | null>(null);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
-  const isProfileComplete =
-    fullName.trim().length > 0 && phone.trim().length > 0;
-
-  /* ======================
-     LOAD PROFILE
-  ====================== */
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    async function loadProfile() {
+    const load = async () => {
       try {
-        const data = await getMe();
-        setProfile(data);
-        setFullName(data.full_name ?? "");
-        setPhone(data.phone ?? "");
-        setAvatarUrl(data.avatar_url ?? null);
+        const me = await getMe();
+        setUser(me);
+        setFullName(me.full_name ?? "");
+        setPhone(me.phone ?? "");
       } catch {
-        toast.error("Failed to load profile information");
+        toast.error("Failed to load profile");
       } finally {
         setLoading(false);
       }
-    }
-
-    loadProfile();
+    };
+    load();
   }, []);
 
-  /* ======================
-     AVATAR UPLOAD
-  ====================== */
+  const profileComplete = Boolean(fullName && phone);
 
-  async function handleAvatarUpload(file: File) {
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await updateMe({ full_name: fullName, phone });
+      toast.success("Profile updated successfully");
+    } catch {
+      toast.error("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+      toast.error("Only image files are allowed");
       return;
     }
 
@@ -56,184 +63,187 @@ export default function ProfilePage() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
-
-    setUploadingAvatar(true);
-
+    setUploading(true);
     try {
-      const res = await fetch(`${API}/api/users/me/avatar`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.detail || "Avatar upload failed");
-      }
-
-      setAvatarUrl(data.avatar_url);
-      toast.success("Profile picture updated");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to upload avatar");
-    } finally {
-      setUploadingAvatar(false);
-    }
-  }
-
-  /* ======================
-     SAVE PROFILE
-  ====================== */
-
-  async function saveProfile() {
-    setSaving(true);
-
-    try {
-      await updateMe({
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-      });
-
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              full_name: fullName.trim(),
-              phone: phone.trim(),
-              avatar_url: avatarUrl ?? undefined,
-            }
-          : prev
-      );
-
-      toast.success("Profile updated successfully");
+      const updated = await uploadAvatar(file);
+      setUser(updated);
+      toast.success("Profile photo updated");
     } catch {
-      toast.error("Failed to update profile");
+      toast.error("Avatar upload failed");
     } finally {
-      setSaving(false);
+      setUploading(false);
     }
+  };
+
+  if (loading) {
+    return <div>Loading profile…</div>;
   }
-
-  if (loading) return <p style={{ marginTop: 20 }}>Loading profile…</p>;
-  if (!profile) return null;
-
-  /* ======================
-     UI
-  ====================== */
 
   return (
-    <div style={{ maxWidth: 760 }}>
-      <header>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Profile</h1>
-        <p style={{ marginTop: 6, opacity: 0.6 }}>
-          Manage your personal information for delivery and communication.
+    <div style={{ display: "grid", gap: 32, maxWidth: 900 }}>
+      {/* PAGE CONTEXT */}
+      <div>
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
+          Your profile
+        </h1>
+        <p style={{ fontSize: 14, opacity: 0.6 }}>
+          Manage your personal details used for delivery and support.
         </p>
-      </header>
+      </div>
 
-      <section
+      {/* TRUST / SECURITY BANNER */}
+      <div
         style={{
-          marginTop: 28,
-          background: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 22,
-          padding: 28,
-          display: "grid",
-          gap: 22,
+          padding: 16,
+          borderRadius: 16,
+          background: "#f8fafc",
+          fontSize: 13,
+          lineHeight: 1.6,
         }}
       >
-        {!isProfileComplete && (
-          <div
-            style={{
-              padding: 14,
-              borderRadius: 14,
-              background: "#fff7ed",
-              color: "#9a3412",
-              fontWeight: 600,
-            }}
-          >
-            Please complete your profile to enable checkout and delivery.
-          </div>
-        )}
+        🔒 <strong>Your privacy matters.</strong>  
+        We only use your profile details to process orders, deliveries,
+        and customer support.  
+        <br />
+        Payment information is <strong>never stored</strong> on your
+        account.
+      </div>
 
+      {/* PROFILE CARD */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "140px 1fr",
+          gap: 24,
+          padding: 24,
+          borderRadius: 24,
+          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+          boxShadow: "0 18px 50px rgba(15,23,42,0.12)",
+        }}
+      >
         {/* AVATAR */}
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+        <div style={{ textAlign: "center" }}>
           <div
             style={{
-              width: 72,
-              height: 72,
+              width: 120,
+              height: 120,
               borderRadius: "50%",
-              background: "#e5e7eb",
               overflow: "hidden",
+              background: "#e5e7eb",
+              margin: "0 auto",
             }}
           >
-            {avatarUrl && (
+            {user?.avatar_url && (
               <img
-                src={avatarUrl}
-                alt="Avatar"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                src={user.avatar_url}
+                alt="Profile"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
               />
             )}
           </div>
 
           <label
             style={{
-              fontWeight: 700,
-              fontSize: 14,
-              cursor: uploadingAvatar ? "not-allowed" : "pointer",
-              opacity: uploadingAvatar ? 0.6 : 1,
+              display: "inline-block",
+              marginTop: 10,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              opacity: uploading ? 0.6 : 1,
             }}
           >
-            Change profile picture
+            {uploading ? "Uploading…" : "Change photo"}
             <input
               type="file"
               accept="image/*"
               hidden
-              disabled={uploadingAvatar}
-              onChange={(e) =>
-                e.target.files &&
-                handleAvatarUpload(e.target.files[0])
-              }
+              onChange={handleAvatarUpload}
             />
           </label>
+
+          <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4 }}>
+            JPG or PNG · Max 5MB
+          </div>
         </div>
 
-        {/* NAME */}
-        <div>
-          <label style={{ fontWeight: 700, fontSize: 13 }}>
-            Full name
-          </label>
-          <input
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="Your full name"
-            className="input"
-          />
-        </div>
+        {/* FORM */}
+        <div style={{ display: "grid", gap: 16 }}>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 700 }}>
+              Full name
+            </label>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Enter your full name"
+              style={{ marginTop: 6 }}
+            />
+          </div>
 
-        {/* PHONE */}
-        <div>
-          <label style={{ fontWeight: 700, fontSize: 13 }}>
-            Phone number
-          </label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="Phone number for delivery updates"
-            className="input"
-          />
-        </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 700 }}>
+              Phone number
+            </label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Used for delivery contact"
+              style={{ marginTop: 6 }}
+            />
+          </div>
 
-        {/* SAVE */}
+          {!profileComplete && (
+            <div style={{ fontSize: 13, color: "#b45309" }}>
+              ⚠ Complete your profile to avoid delivery delays.
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button
+              className="btn btnPrimary"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+
+            <button
+              className="btn btnGhost"
+              onClick={() => router.push("/account/addresses")}
+            >
+              Manage addresses
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* NEXT ACTIONS */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 16,
+        }}
+      >
         <button
-          onClick={saveProfile}
-          disabled={saving}
-          className="btn btnPrimary"
-          style={{ width: "fit-content" }}
+          className="btn btnGhost"
+          onClick={() => router.push("/account/orders")}
         >
-          {saving ? "Saving…" : "Save changes"}
+          View orders
         </button>
-      </section>
+
+        <button
+          className="btn btnTech"
+          onClick={() => router.push("/store")}
+        >
+          Continue shopping
+        </button>
+      </div>
     </div>
   );
 }
