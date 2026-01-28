@@ -15,7 +15,9 @@ type AuthState = {
 
   fetchMe: () => Promise<void>;
   hydrate: () => Promise<void>;
-  logoutInternal: () => Promise<void>;
+
+  /* ✅ STORE CONTRACT EXPECTED BY PAGES */
+  logout: () => Promise<void>;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -55,7 +57,8 @@ export const useAuth = create<AuthState>((set, get) => ({
     await get().fetchMe();
   },
 
-  logoutInternal: async () => {
+  /* ✅ ALIAS: pages call s.logout */
+  logout: async () => {
     try {
       await fetch(`${API_URL}/api/auth/logout`, {
         method: "POST",
@@ -73,16 +76,14 @@ export const useAuth = create<AuthState>((set, get) => ({
 }));
 
 /* =========================================================
-   FUNCTION EXPORTS (PAGE CONTRACTS)
+   FUNCTION EXPORTS (USED BY LOGIN / REGISTER PAGES)
 ========================================================= */
 
-/* ✅ LOGIN expects (email, password) */
 export async function login(email: string, password: string) {
   await api.login(email, password);
   await useAuth.getState().fetchMe();
 }
 
-/* ✅ REGISTER expects payload handled elsewhere, then login */
 export async function register(
   email: string,
   password: string,
@@ -93,7 +94,6 @@ export async function register(
   await useAuth.getState().fetchMe();
 }
 
-/* ✅ LOGOUT */
 export async function logout() {
-  await useAuth.getState().logoutInternal();
+  await useAuth.getState().logout();
 }
