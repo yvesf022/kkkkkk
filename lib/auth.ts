@@ -1,69 +1,100 @@
-"use client";
-
 import { create } from "zustand";
-import * as api from "@/lib/api";
+import {
+  login as apiLogin,
+  logout as apiLogout,
+  getMe,
+  updateMe as apiUpdateMe,
+} from "@/lib/api";
 
-export type User = api.User;
+/* ======================
+   TYPES
+====================== */
+
+export type User = {
+  id: string;
+  email: string;
+  full_name?: string;
+  phone?: string;
+  role: "user" | "admin";
+  avatar_url?: string;
+  created_at?: string;
+};
 
 type AuthState = {
   user: User | null;
   loading: boolean;
 
-  hydrate: () => Promise<void>;
+  // actions
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshMe: () => Promise<void>;
+  updateUser: (payload: Partial<User>) => Promise<void>;
 };
+
+/* ======================
+   STORE
+====================== */
 
 export const useAuth = create<AuthState>((set) => ({
   user: null,
   loading: true,
 
-  // 🔑 AMAZON-LEVEL HYDRATION (ONLY TRUST /me)
-  hydrate: async () => {
+  /* ---------- LOGIN ---------- */
+  async login(email, password) {
+    set({ loading: true });
+
+    const res = await apiLogin(email, password);
+
+    // token handled by backend cookie (Amazon-style)
+    localStorage.setItem("role", res.role);
+
+    const me = await getMe();
+
+    set({
+      user: me,
+      loading: false,
+    });
+  },
+
+  /* ---------- LOGOUT ---------- */
+  async logout() {
+    set({ loading: true });
+
     try {
-      const user = await api.getMe();
-      set({ user, loading: false });
+      await apiLogout();
+    } catch {
+      // ignore network errors on logout
+    }
+
+    localStorage.removeItem("role");
+
+    set({
+      user: null,
+      loading: false,
+    });
+  },
+
+  /* ---------- REFRESH /ME ---------- */
+  async refreshMe() {
+    set({ loading: true });
+
+    try {
+      const me = await getMe();
+      set({ user: me, loading: false });
     } catch {
       set({ user: null, loading: false });
     }
   },
 
-  // 🔐 LOGIN → identity → redirect
-  login: async (email, password) => {
-    const res = await api.login(email, password);
+  /* ---------- UPDATE USER (PROFILE) ---------- */
+  async updateUser(payload) {
+    set({ loading: true });
 
-    // Fetch verified identity after login
-    const user = await api.getMe();
-    set({ user });
+    const updated = await apiUpdateMe(payload);
 
-    if (user.role === "admin") {
-      window.location.replace("/admin");
-    } else {
-      window.location.replace("/account");
-    }
-  },
-
-  // 🚪 LOGOUT = destroy identity
-  logout: async () => {
-    try {
-      await api.logout();
-    } catch {}
-
-    set({ user: null });
+    set({
+      user: updated,
+      loading: false,
+    });
   },
 }));
-
-/* -------------------------------------------------
-   ✅ BACKWARD-COMPATIBLE NAMED EXPORTS
--------------------------------------------------- */
-
-// These fix existing imports like:
-// import { login } from "@/lib/auth";
-
-export async function login(email: string, password: string) {
-  return useAuth.getState().login(email, password);
-}
-
-export async function logout() {
-  return useAuth.getState().logout();
-}
