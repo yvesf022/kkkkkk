@@ -19,7 +19,7 @@ export default function ProfilePage() {
     try {
       setUploading(true);
       await uploadAvatar(file);
-      router.refresh(); // re-fetch /me
+      router.refresh();
     } catch {
       alert("Avatar upload failed");
     } finally {
@@ -29,13 +29,13 @@ export default function ProfilePage() {
 
   return (
     <div style={{ maxWidth: 900 }}>
-      {/* IDENTITY CARD */}
+      {/* PROFILE IDENTITY CARD */}
       <div
         style={{
           display: "flex",
-          gap: 32,
-          padding: 32,
-          borderRadius: 20,
+          gap: 36,
+          padding: 36,
+          borderRadius: 22,
           background: "#fff",
           boxShadow: "0 20px 60px rgba(0,0,0,.08)",
           marginBottom: 48,
@@ -45,15 +45,15 @@ export default function ProfilePage() {
         <div style={{ textAlign: "center" }}>
           <div
             style={{
-              width: 120,
-              height: 120,
+              width: 124,
+              height: 124,
               borderRadius: "50%",
               background: user.avatar_url
                 ? `url(${user.avatar_url}) center/cover`
                 : "linear-gradient(135deg,#ff2fa0,#00e6ff)",
               display: "grid",
               placeItems: "center",
-              fontSize: 46,
+              fontSize: 48,
               fontWeight: 900,
               color: "#fff",
               marginBottom: 12,
@@ -68,7 +68,7 @@ export default function ProfilePage() {
             disabled={uploading}
             style={linkButton}
           >
-            {uploading ? "Uploading..." : "Change photo"}
+            {uploading ? "Uploading…" : "Change photo"}
           </button>
 
           <input
@@ -88,21 +88,47 @@ export default function ProfilePage() {
             {user.full_name || "Your account"}
           </h1>
 
-          <p style={{ opacity: 0.75, marginTop: 4 }}>{user.email}</p>
+          {/* EMAIL + VERIFIED BADGE */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginTop: 6,
+            }}
+          >
+            <span style={{ opacity: 0.75 }}>{user.email}</span>
+
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                padding: "4px 8px",
+                borderRadius: 999,
+                background: "#e6f4ea",
+                color: "#137333",
+              }}
+            >
+              Verified
+            </span>
+          </div>
 
           {user.phone && (
-            <p style={{ opacity: 0.6, marginTop: 4 }}>{user.phone}</p>
+            <p style={{ opacity: 0.65, marginTop: 6 }}>{user.phone}</p>
           )}
 
-          <div style={{ marginTop: 16, fontSize: 13, opacity: 0.55 }}>
-            Account type: {user.role} <br />
+          {/* METADATA */}
+          <div style={{ marginTop: 18, fontSize: 13, opacity: 0.55 }}>
+            Account type: {user.role}
+            <br />
             Member since:{" "}
             {user.created_at
               ? new Date(user.created_at).toDateString()
               : "—"}
           </div>
 
-          <div style={{ marginTop: 22, display: "flex", gap: 14 }}>
+          {/* ACTIONS */}
+          <div style={{ marginTop: 26, display: "flex", gap: 14 }}>
             <button
               onClick={() => router.push("/account/profile/edit")}
               style={primaryButton}
@@ -115,7 +141,7 @@ export default function ProfilePage() {
                 logout();
                 router.replace("/login");
               }}
-              style={dangerButton}
+              style={secondaryButton}
             >
               Log out
             </button>
@@ -138,12 +164,11 @@ const primaryButton: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const dangerButton: React.CSSProperties = {
+const secondaryButton: React.CSSProperties = {
   padding: "12px 20px",
   borderRadius: 10,
   border: "1px solid rgba(0,0,0,.15)",
   background: "#fff",
-  color: "#b00020",
   fontWeight: 800,
   cursor: "pointer",
 };
