@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,13 +27,14 @@ export default function AdminLoginPage() {
         throw new Error(data?.detail || "Login failed");
       }
 
-      // ✅ TOKEN + ROLE
+      // ✅ SAVE ADMIN SESSION
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("role", "admin");
 
       toast.success("Admin login successful");
-      router.replace("/admin");
-      router.refresh();
+
+      // ✅ FORCE FULL RELOAD (CRITICAL)
+      window.location.href = "/admin";
     } catch (err: any) {
       toast.error(err.message || "Login failed");
     } finally {
