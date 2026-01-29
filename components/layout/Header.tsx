@@ -1,26 +1,215 @@
-<form
-  onSubmit={(e) => {
-    e.preventDefault();
-    const q = e.currentTarget.search.value.trim();
-    if (q) {
-      router.push(`/store?search=${encodeURIComponent(q)}`);
-    } else {
-      router.push("/store");
-    }
-  }}
->
-  <input
-    name="search"
-    placeholder="Search products"
-    defaultValue=""
-    style={{
-      padding: "10px 14px",
-      borderRadius: 999,
-      border: "1px solid rgba(255,255,255,.25)",
-      background: "rgba(8,14,28,.6)",
-      color: "#fff",
-      outline: "none",
-      minWidth: 220,
-    }}
-  />
-</form>
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useUI } from "@/components/layout/uiStore";
+import { useStore } from "@/lib/store"; // wishlist
+import { useCart } from "@/app/context/CartContext"; // cart
+
+/* ---------------------------------
+   Helpers
+---------------------------------- */
+
+function CountBadge({ n }: { n: number }) {
+  if (n <= 0) return null;
+
+  return (
+    <span
+      aria-label={`${n} items`}
+      style={{
+        position: "absolute",
+        top: -10,
+        right: -10,
+        minWidth: 22,
+        height: 22,
+        padding: "0 7px",
+        display: "grid",
+        placeItems: "center",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 900,
+        color: "#fff",
+        background:
+          "linear-gradient(180deg, rgba(10,16,30,0.98), rgba(4,8,18,0.98))",
+        boxShadow:
+          "0 10px 28px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)",
+        pointerEvents: "none",
+      }}
+    >
+      {n}
+    </span>
+  );
+}
+
+function CapsuleLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        position: "relative",
+        padding: "11px 16px",
+        borderRadius: 999,
+        fontWeight: 900,
+        letterSpacing: 0.3,
+        fontSize: 14,
+        textDecoration: "none",
+        color: "#f8fbff",
+        background:
+          "linear-gradient(180deg, rgba(8,14,28,.75), rgba(6,10,20,.75))",
+        border: "1px solid rgba(255,255,255,.18)",
+        boxShadow: "0 10px 26px rgba(0,0,0,.35)",
+        backdropFilter: "blur(6px)",
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/* ---------------------------------
+   Header
+---------------------------------- */
+
+export default function Header() {
+  const router = useRouter();
+  const { toggleSidebar } = useUI();
+
+  // Cart & wishlist
+  const { items } = useCart();
+  const cartCount = items.reduce((a, b) => a + b.quantity, 0);
+  const wishlistCount = useStore((s) => s.wishlist.length);
+
+  // Auth state (simple & stable)
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    setIsAuthenticated(Boolean(localStorage.getItem("token")));
+  }, []);
+
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    router.replace("/login");
+    router.refresh();
+  }
+
+  return (
+    <header className="kyFixedHeader">
+      <div className="kyHeaderGlass">
+        <div style={{ padding: "18px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 18,
+            }}
+          >
+            {/* LOGO — ALWAYS GO TO STORE */}
+            <Link
+              href="/store"
+              aria-label="Go to shop"
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 14,
+                padding: "10px 18px",
+                borderRadius: 18,
+                background:
+                  "linear-gradient(180deg, rgba(4,8,20,.85), rgba(4,8,16,.75))",
+                border: "1px solid rgba(255,255,255,.14)",
+                textDecoration: "none",
+                lineHeight: 1,
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 36,
+                  fontWeight: 900,
+                  color: "#ff2fa0",
+                }}
+              >
+                Karabo’s
+              </span>
+              <span
+                style={{
+                  fontSize: 32,
+                  fontWeight: 800,
+                  color: "#00e6ff",
+                }}
+              >
+                Boutique
+              </span>
+            </Link>
+
+            {/* NAV */}
+            <nav style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <CapsuleLink href="/store">Shop</CapsuleLink>
+
+              <div style={{ position: "relative" }}>
+                <CapsuleLink href="/wishlist">Wishlist</CapsuleLink>
+                <CountBadge n={wishlistCount} />
+              </div>
+
+              <div style={{ position: "relative" }}>
+                <CapsuleLink href="/cart">Cart</CapsuleLink>
+                <CountBadge n={cartCount} />
+              </div>
+
+              {!isAuthenticated && (
+                <CapsuleLink href="/login">Login</CapsuleLink>
+              )}
+
+              {isAuthenticated && (
+                <CapsuleLink href="/account">Account</CapsuleLink>
+              )}
+
+              {isAuthenticated && (
+                <button
+                  onClick={logout}
+                  style={{
+                    padding: "11px 16px",
+                    borderRadius: 999,
+                    background:
+                      "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
+                    border: "1px solid rgba(255,255,255,.18)",
+                    color: "#fff",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  Logout
+                </button>
+              )}
+
+              {/* Mobile */}
+              <button
+                onClick={toggleSidebar}
+                aria-label="Open menu"
+                style={{
+                  fontSize: 20,
+                  padding: "8px 12px",
+                  borderRadius: 12,
+                  background: "transparent",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                ☰
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
