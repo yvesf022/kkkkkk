@@ -1,7 +1,7 @@
 "use client";
 
 import RequireAuth from "@/components/auth/RequireAuth";
-import Sidebar from "@/components/layout/Sidebar";
+import AccountSidebar from "@/components/account/AccountSidebar";
 import { useAuth } from "@/lib/auth";
 
 export default function AccountLayout({
@@ -21,8 +21,8 @@ export default function AccountLayout({
           minHeight: "calc(100vh - var(--header-height, 72px))",
         }}
       >
-        {/* SIDEBAR */}
-        <Sidebar />
+        {/* ACCOUNT SIDEBAR */}
+        <AccountSidebar />
 
         {/* MAIN CONTENT */}
         <main
