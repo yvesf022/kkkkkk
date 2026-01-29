@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUI } from "@/components/layout/uiStore";
 import { useStore } from "@/lib/store";
 import { useCart } from "@/app/context/CartContext";
@@ -80,6 +80,7 @@ function CapsuleLink({
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const { toggleSidebar } = useUI();
 
   const { items } = useCart();
@@ -88,6 +89,8 @@ export default function Header() {
 
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
+
+  const isStoreRoute = pathname.startsWith("/store");
 
   function handleLogout() {
     logout();
@@ -138,19 +141,19 @@ export default function Header() {
               <CapsuleLink href="/store">Shop</CapsuleLink>
 
               <div style={{ position: "relative" }}>
-                <CapsuleLink href="/wishlist">Wishlist</CapsuleLink>
+                <CapsuleLink href="/store/wishlist">Wishlist</CapsuleLink>
                 <CountBadge n={wishlistCount} />
               </div>
 
               <div style={{ position: "relative" }}>
-                <CapsuleLink href="/cart">Cart</CapsuleLink>
+                <CapsuleLink href="/store/cart">Cart</CapsuleLink>
                 <CountBadge n={cartCount} />
               </div>
 
               {!user && <CapsuleLink href="/login">Login</CapsuleLink>}
 
               {user && (
-                <CapsuleLink href="/account">
+                <CapsuleLink href="/account/profile">
                   Hello, {user.full_name || user.email}
                 </CapsuleLink>
               )}
@@ -173,21 +176,24 @@ export default function Header() {
                 </button>
               )}
 
-              <button
-                onClick={toggleSidebar}
-                aria-label="Open menu"
-                style={{
-                  fontSize: 20,
-                  padding: "8px 12px",
-                  borderRadius: 12,
-                  background: "transparent",
-                  color: "#fff",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                ☰
-              </button>
+              {/* Mobile menu — STORE ONLY */}
+              {isStoreRoute && (
+                <button
+                  onClick={toggleSidebar}
+                  aria-label="Open menu"
+                  style={{
+                    fontSize: 20,
+                    padding: "8px 12px",
+                    borderRadius: 12,
+                    background: "transparent",
+                    color: "#fff",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  ☰
+                </button>
+              )}
             </nav>
           </div>
         </div>
