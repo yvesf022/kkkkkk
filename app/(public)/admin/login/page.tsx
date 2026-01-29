@@ -15,25 +15,37 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
+      // 1️⃣ LOGIN (COOKIE-BASED)
       const res = await fetch(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        throw new Error(data?.detail || "Login failed");
+        const err = await res.json();
+        throw new Error(err?.detail || "Login failed");
       }
 
-      // ✅ SAVE ADMIN SESSION
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("role", "admin");
+      // 2️⃣ VERIFY ADMIN ROLE
+      const meRes = await fetch(`${API}/api/auth/me`, {
+        credentials: "include",
+      });
+
+      if (!meRes.ok) {
+        throw new Error("Failed to verify session");
+      }
+
+      const user = await meRes.json();
+
+      if (user.role !== "admin") {
+        throw new Error("Not an admin account");
+      }
 
       toast.success("Admin login successful");
 
-      // ✅ FORCE FULL RELOAD (CRITICAL)
+      // 3️⃣ HARD REDIRECT
       window.location.href = "/admin";
     } catch (err: any) {
       toast.error(err.message || "Login failed");
