@@ -4,7 +4,11 @@ import { login, logout, getMe } from "./api";
 export type User = {
   id: string;
   email: string;
+  full_name?: string;
+  phone?: string;
   role: "user" | "admin";
+  created_at?: string;
+  avatar_url?: string;
 };
 
 type AuthState = {

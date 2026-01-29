@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { updateMe } from "@/lib/api";
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -21,11 +22,12 @@ export default function EditProfilePage() {
     setSaving(true);
 
     try {
-      await updateUser({
+      const updatedUser = await updateMe({
         full_name: fullName || undefined,
         phone: phone || undefined,
       });
 
+      updateUser(updatedUser);
       router.replace("/account/profile");
     } finally {
       setSaving(false);
@@ -38,7 +40,6 @@ export default function EditProfilePage() {
         Edit profile
       </h1>
 
-      {/* FULL NAME */}
       <Field label="Full name">
         <input
           value={fullName}
@@ -48,12 +49,10 @@ export default function EditProfilePage() {
         />
       </Field>
 
-      {/* EMAIL (READ ONLY – AMAZON RULE) */}
       <Field label="Email address">
         <input value={user.email} disabled style={disabledInput} />
       </Field>
 
-      {/* PHONE */}
       <Field label="Phone number">
         <input
           value={phone}
@@ -63,7 +62,6 @@ export default function EditProfilePage() {
         />
       </Field>
 
-      {/* ACTIONS */}
       <div style={{ display: "flex", gap: 12, marginTop: 28 }}>
         <button
           onClick={handleSave}
@@ -73,10 +71,7 @@ export default function EditProfilePage() {
           {saving ? "Saving…" : "Save changes"}
         </button>
 
-        <button
-          onClick={() => router.back()}
-          style={secondary}
-        >
+        <button onClick={() => router.back()} style={secondary}>
           Cancel
         </button>
       </div>
