@@ -1,45 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import "@/styles/globals.css"; // ✅ CRITICAL
+import { useEffect } from "react";
+import RequireAuth from "@/components/auth/RequireAuth";
+import { useAuth } from "@/lib/auth";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import "@/styles/globals.css";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const hydrate = useAuth((s) => s.hydrate);
+  const loading = useAuth((s) => s.loading);
 
+  // 🔑 hydrate auth from cookie (ADMIN + USER)
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
-
-    if (!token || role !== "admin") {
-      router.replace("/admin/login");
-      return;
-    }
-
-    setReady(true);
-  }, [router]);
-
-  if (!ready) return null;
+    hydrate();
+  }, [hydrate]);
 
   return (
-    <div
-      className="appShell"
-      style={{ display: "flex", width: "100%" }}
-    >
-      <AdminSidebar />
-
-      <main
-        className="pageContentWrap"
-        style={{ flex: 1, minWidth: 0 }}
-      >
-        {children}
-      </main>
-    </div>
+    <RequireAuth role="admin">
+      {loading ? null : (
+        <div className="appShell" style={{ display: "flex", width: "100%" }}>
+          <AdminSidebar />
+          <main className="pageContentWrap" style={{ flex: 1, minWidth: 0 }}>
+            {children}
+          </main>
+        </div>
+      )}
+    </RequireAuth>
   );
 }
