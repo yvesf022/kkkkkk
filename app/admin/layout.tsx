@@ -1,36 +1,35 @@
 "use client";
 
 import { useEffect } from "react";
-import RequireAuth from "@/components/auth/RequireAuth";
 import { useAuth } from "@/lib/auth";
 import AdminSidebar from "@/components/admin/AdminSidebar";
-import "@/styles/globals.css";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const hydrate = useAuth((s) => s.hydrate);
+  const refreshMe = useAuth((s) => s.refreshMe);
   const loading = useAuth((s) => s.loading);
+  const user = useAuth((s) => s.user);
 
   // 🔑 hydrate auth from cookie (ADMIN + USER)
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    refreshMe();
+  }, [refreshMe]);
 
   if (loading) {
-    return null;
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (!user || user.role !== "admin") {
+    return <div className="p-6">Unauthorized</div>;
   }
 
   return (
-    <RequireAuth role="admin">
-      <div className="appShell" style={{ display: "flex", width: "100%" }}>
-        <AdminSidebar />
-        <main className="pageContentWrap" style={{ flex: 1, minWidth: 0 }}>
-          {children}
-        </main>
-      </div>
-    </RequireAuth>
+    <div className="flex min-h-screen">
+      <AdminSidebar />
+      <main className="flex-1 p-6">{children}</main>
+    </div>
   );
 }
