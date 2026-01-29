@@ -2,24 +2,24 @@
 
 import "@/styles/globals.css";
 
+import { useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import { UIProvider } from "@/components/layout/uiStore";
 import { CartProvider } from "./context/CartContext";
 import { useAuth } from "@/lib/auth";
-import { useEffect } from "react";
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const hydrate = useAuth((state) => state.hydrate);
+  const refreshMe = useAuth((state) => state.refreshMe);
 
   // ✅ hydrate auth ONCE — NO redirects here
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    refreshMe();
+  }, [refreshMe]);
 
   return (
     <html lang="en">
