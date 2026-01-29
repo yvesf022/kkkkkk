@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import "@/styles/globals.css";
 
-import Header from "@/components/layout/Header";
+import { Header } from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 
 import { UIProvider } from "@/components/layout/uiStore";
@@ -57,7 +57,7 @@ export default function RootLayout({
                 className="pageContentWrap"
                 style={{
                   flex: 1,
-                  minWidth: 0, // 🔑 critical: prevents squeeze
+                  minWidth: 0,
                 }}
               >
                 {loading ? (
