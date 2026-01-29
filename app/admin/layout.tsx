@@ -19,16 +19,18 @@ export default function AdminLayout({
     hydrate();
   }, [hydrate]);
 
+  if (loading) {
+    return null;
+  }
+
   return (
     <RequireAuth role="admin">
-      {loading ? null : (
-        <div className="appShell" style={{ display: "flex", width: "100%" }}>
-          <AdminSidebar />
-          <main className="pageContentWrap" style={{ flex: 1, minWidth: 0 }}>
-            {children}
-          </main>
-        </div>
-      )}
+      <div className="appShell" style={{ display: "flex", width: "100%" }}>
+        <AdminSidebar />
+        <main className="pageContentWrap" style={{ flex: 1, minWidth: 0 }}>
+          {children}
+        </main>
+      </div>
     </RequireAuth>
   );
 }
