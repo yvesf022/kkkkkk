@@ -1,249 +1,173 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
-import { getMe, updateMe, uploadAvatar } from "@/lib/api";
-import { User } from "@/lib/types";
+import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
+  const user = useAuth((s) => s.user);
+  const logout = useAuth((s) => s.logout);
   const router = useRouter();
 
-  const [user, setUser] = useState<User | null>(null);
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  if (!user) return null;
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const me = await getMe();
-        setUser(me);
-        setFullName(me.full_name ?? "");
-        setPhone(me.phone ?? "");
-      } catch {
-        toast.error("Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  const profileComplete = Boolean(fullName && phone);
-
-  const handleSave = async () => {
-    if (saving) return;
-    setSaving(true);
-    try {
-      await updateMe({ full_name: fullName, phone });
-      toast.success("Profile updated successfully");
-    } catch {
-      toast.error("Failed to update profile");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAvatarUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Only image files are allowed");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5MB");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const updated = await uploadAvatar(file);
-      setUser(updated);
-      toast.success("Profile photo updated");
-    } catch {
-      toast.error("Avatar upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  if (loading) {
-    return <div>Loading profile…</div>;
+  function handleLogout() {
+    logout();
+    router.replace("/login");
   }
 
   return (
-    <div style={{ display: "grid", gap: 32, maxWidth: 900 }}>
-      {/* PAGE CONTEXT */}
-      <div>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-          Your profile
-        </h1>
-        <p style={{ fontSize: 14, opacity: 0.6 }}>
-          Manage your personal details used for delivery and support.
-        </p>
-      </div>
-
-      {/* TRUST / SECURITY BANNER */}
-      <div
-        style={{
-          padding: 16,
-          borderRadius: 16,
-          background: "#f8fafc",
-          fontSize: 13,
-          lineHeight: 1.6,
-        }}
-      >
-        🔒 <strong>Your privacy matters.</strong>  
-        We only use your profile details to process orders, deliveries,
-        and customer support.  
-        <br />
-        Payment information is <strong>never stored</strong> on your
-        account.
-      </div>
-
-      {/* PROFILE CARD */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "140px 1fr",
-          gap: 24,
-          padding: 24,
-          borderRadius: 24,
-          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow: "0 18px 50px rgba(15,23,42,0.12)",
-        }}
-      >
-        {/* AVATAR */}
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              width: 120,
-              height: 120,
-              borderRadius: "50%",
-              overflow: "hidden",
-              background: "#e5e7eb",
-              margin: "0 auto",
-            }}
-          >
-            {user?.avatar_url && (
-              <img
-                src={user.avatar_url}
-                alt="Profile"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
-              />
-            )}
-          </div>
-
-          <label
-            style={{
-              display: "inline-block",
-              marginTop: 10,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              opacity: uploading ? 0.6 : 1,
-            }}
-          >
-            {uploading ? "Uploading…" : "Change photo"}
-            <input
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={handleAvatarUpload}
-            />
-          </label>
-
-          <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4 }}>
-            JPG or PNG · Max 5MB
-          </div>
-        </div>
-
-        {/* FORM */}
-        <div style={{ display: "grid", gap: 16 }}>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 700 }}>
-              Full name
-            </label>
-            <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Enter your full name"
-              style={{ marginTop: 6 }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 700 }}>
-              Phone number
-            </label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Used for delivery contact"
-              style={{ marginTop: 6 }}
-            />
-          </div>
-
-          {!profileComplete && (
-            <div style={{ fontSize: 13, color: "#b45309" }}>
-              ⚠ Complete your profile to avoid delivery delays.
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <button
-              className="btn btnPrimary"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? "Saving…" : "Save changes"}
-            </button>
-
-            <button
-              className="btn btnGhost"
-              onClick={() => router.push("/account/addresses")}
-            >
-              Manage addresses
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* NEXT ACTIONS */}
+    <div style={{ maxWidth: 900 }}>
+      {/* PROFILE IDENTITY CARD */}
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 16,
+          gap: 28,
+          padding: 32,
+          background: "#fff",
+          borderRadius: 20,
+          boxShadow: "0 20px 60px rgba(0,0,0,.08)",
+          marginBottom: 40,
         }}
       >
-        <button
-          className="btn btnGhost"
-          onClick={() => router.push("/account/orders")}
+        {/* AVATAR */}
+        <div
+          style={{
+            width: 104,
+            height: 104,
+            borderRadius: "50%",
+            background: "linear-gradient(135deg,#ff2fa0,#00e6ff)",
+            display: "grid",
+            placeItems: "center",
+            fontSize: 42,
+            fontWeight: 900,
+            color: "#fff",
+            flexShrink: 0,
+          }}
         >
-          View orders
-        </button>
+          {user.full_name?.[0]?.toUpperCase() ||
+            user.email[0].toUpperCase()}
+        </div>
 
+        {/* USER DETAILS */}
+        <div style={{ flex: 1 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 6 }}>
+            {user.full_name || "Your Profile"}
+          </h1>
+
+          <p style={{ fontSize: 15, opacity: 0.75 }}>{user.email}</p>
+
+          {user.phone && (
+            <p style={{ fontSize: 14, opacity: 0.6, marginTop: 4 }}>
+              {user.phone}
+            </p>
+          )}
+
+          <div
+            style={{
+              marginTop: 14,
+              fontSize: 13,
+              opacity: 0.55,
+            }}
+          >
+            Account type: {user.role}
+          </div>
+
+          {/* EDIT PROFILE */}
+          <button
+            onClick={() => router.push("/account/profile/edit")}
+            style={{
+              marginTop: 18,
+              padding: "10px 18px",
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,.12)",
+              background: "#fff",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Edit profile
+          </button>
+        </div>
+      </div>
+
+      {/* ACCOUNT SECTIONS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))",
+          gap: 20,
+        }}
+      >
+        <SectionCard
+          title="Orders"
+          desc="Track, return or buy again"
+          onClick={() => router.push("/account/orders")}
+        />
+
+        <SectionCard
+          title="Addresses"
+          desc="Manage delivery locations"
+          onClick={() => router.push("/account/addresses")}
+        />
+
+        <SectionCard
+          title="Payments"
+          desc="Cards, refunds & billing"
+          onClick={() => router.push("/account/payments")}
+        />
+
+        <SectionCard
+          title="Security"
+          desc="Password & account safety"
+          onClick={() => router.push("/account/security")}
+        />
+      </div>
+
+      {/* LOGOUT (QUIET) */}
+      <div style={{ marginTop: 48 }}>
         <button
-          className="btn btnTech"
-          onClick={() => router.push("/store")}
+          onClick={handleLogout}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "#b00020",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
         >
-          Continue shopping
+          Log out
         </button>
       </div>
     </div>
+  );
+}
+
+/* --------------------------------- */
+
+function SectionCard({
+  title,
+  desc,
+  onClick,
+}: {
+  title: string;
+  desc: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        textAlign: "left",
+        padding: 24,
+        borderRadius: 16,
+        background: "#fff",
+        border: "none",
+        cursor: "pointer",
+        boxShadow: "0 14px 40px rgba(0,0,0,.08)",
+      }}
+    >
+      <h3 style={{ fontWeight: 800, marginBottom: 6 }}>{title}</h3>
+      <p style={{ opacity: 0.65, fontSize: 14 }}>{desc}</p>
+    </button>
   );
 }
