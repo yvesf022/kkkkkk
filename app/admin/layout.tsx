@@ -11,23 +11,14 @@ export default function AdminLayout({
   return (
     <RequireAuth role="admin">
       <div
-        style={{
-          display: "flex",
-          minHeight: "calc(100vh - 80px)", // space for global header if any
-          background: "#f1f5f9",
-        }}
+        className="appShell"
+        style={{ display: "flex", width: "100%" }}
       >
-        {/* SIDEBAR */}
         <AdminSidebar />
 
-        {/* MAIN CONTENT */}
         <main
-          style={{
-            flex: 1,
-            padding: "32px 40px",
-            background: "#f1f5f9",
-            overflowX: "auto",
-          }}
+          className="pageContentWrap"
+          style={{ flex: 1, minWidth: 0 }}
         >
           {children}
         </main>
