@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUI } from "@/components/layout/uiStore";
 import { useStore } from "@/lib/store"; // wishlist
 import { useCart } from "@/app/context/CartContext"; // cart
+import { useAuth } from "@/lib/auth";
 
 /* ---------------------------------
    Helpers
@@ -86,18 +87,20 @@ export default function Header() {
   const cartCount = items.reduce((a, b) => a + b.quantity, 0);
   const wishlistCount = useStore((s) => s.wishlist.length);
 
-  // Auth state (simple & stable)
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // ✅ REAL AUTH STATE (single source of truth)
+  const user = useAuth((s) => s.user);
+  const loading = useAuth((s) => s.loading);
+  const logout = useAuth((s) => s.logout);
 
-  useEffect(() => {
-    setIsAuthenticated(Boolean(localStorage.getItem("token")));
-  }, []);
+  const isAuthenticated = Boolean(user);
 
-  function logout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
+  function handleLogout() {
+    logout();
     router.replace("/login");
-    router.refresh();
+  }
+
+  if (loading) {
+    return null;
   }
 
   return (
@@ -169,25 +172,25 @@ export default function Header() {
               )}
 
               {isAuthenticated && (
-                <CapsuleLink href="/account">Account</CapsuleLink>
-              )}
+                <>
+                  <CapsuleLink href="/account">Account</CapsuleLink>
 
-              {isAuthenticated && (
-                <button
-                  onClick={logout}
-                  style={{
-                    padding: "11px 16px",
-                    borderRadius: 999,
-                    background:
-                      "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
-                    border: "1px solid rgba(255,255,255,.18)",
-                    color: "#fff",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  Logout
-                </button>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      padding: "11px 16px",
+                      borderRadius: 999,
+                      background:
+                        "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
+                      border: "1px solid rgba(255,255,255,.18)",
+                      color: "#fff",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Logout
+                  </button>
+                </>
               )}
 
               {/* Mobile */}
