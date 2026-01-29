@@ -13,18 +13,13 @@ export default function AdminLayout({
   const loading = useAuth((s) => s.loading);
   const user = useAuth((s) => s.user);
 
-  // 🔑 hydrate auth from cookie (ADMIN + USER)
   useEffect(() => {
     refreshMe();
   }, [refreshMe]);
 
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
-
-  if (!user || user.role !== "admin") {
+  if (loading) return <div className="p-6">Loading...</div>;
+  if (!user || user.role !== "admin")
     return <div className="p-6">Unauthorized</div>;
-  }
 
   return (
     <div className="flex min-h-screen">

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api } from "./api";
+import { login, logout, getMe } from "./api";
 
 export type User = {
   id: string;
@@ -23,22 +23,22 @@ export const useAuth = create<AuthState>((set) => ({
 
   login: async (email, password) => {
     set({ loading: true });
-    await api.post("/auth/login", { email, password });
+    await login(email, password);
     await useAuth.getState().refreshMe();
     set({ loading: false });
   },
 
   logout: async () => {
     set({ loading: true });
-    await api.post("/auth/logout");
+    await logout();
     set({ user: null, loading: false });
   },
 
   refreshMe: async () => {
     try {
       set({ loading: true });
-      const res = await api.get("/auth/me");
-      set({ user: res.data, loading: false });
+      const user = await getMe();
+      set({ user, loading: false });
     } catch {
       set({ user: null, loading: false });
     }
