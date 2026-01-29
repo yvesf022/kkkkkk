@@ -1,13 +1,14 @@
 "use client";
 
-import { useAuth } from "@/lib/auth";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { updateMe } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 export default function EditProfilePage() {
-  const user = useAuth((s) => s.user);
-  const updateMe = useAuth((s) => s.updateMe);
   const router = useRouter();
+  const user = useAuth((s) => s.user);
+  const setUser = useAuth((s) => s.setUser);
 
   const [fullName, setFullName] = useState(user?.full_name || "");
   const [phone, setPhone] = useState(user?.phone || "");
@@ -18,11 +19,19 @@ export default function EditProfilePage() {
   async function handleSave() {
     try {
       setSaving(true);
-      await updateMe({
+
+      const updatedUser = await updateMe({
         full_name: fullName,
         phone,
       });
+
+      // keep auth store in sync
+      setUser(updatedUser);
+
       router.replace("/account/profile");
+    } catch (err) {
+      console.error("Failed to update profile", err);
+      alert("Failed to save profile changes");
     } finally {
       setSaving(false);
     }
