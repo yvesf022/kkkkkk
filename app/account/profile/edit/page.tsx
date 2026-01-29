@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth";
 export default function EditProfilePage() {
   const router = useRouter();
   const user = useAuth((s) => s.user);
-  const setUser = useAuth((s) => s.setUser);
 
   const [fullName, setFullName] = useState(user?.full_name || "");
   const [phone, setPhone] = useState(user?.phone || "");
@@ -20,15 +19,14 @@ export default function EditProfilePage() {
     try {
       setSaving(true);
 
-      const updatedUser = await updateMe({
+      await updateMe({
         full_name: fullName,
         phone,
       });
 
-      // keep auth store in sync
-      setUser(updatedUser);
-
+      // Let auth re-hydrate naturally
       router.replace("/account/profile");
+      router.refresh();
     } catch (err) {
       console.error("Failed to update profile", err);
       alert("Failed to save profile changes");
