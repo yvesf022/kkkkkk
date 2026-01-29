@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import "@/styles/globals.css"; // ✅ CRITICAL
 import AdminSidebar from "@/components/admin/AdminSidebar";
 
 export default function AdminLayout({
