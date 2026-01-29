@@ -8,29 +8,27 @@ export default function StoreLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <div
-        className="appShell"
+    <div
+      className="appShell"
+      style={{
+        display: "flex",
+        width: "100%",
+        minHeight: "calc(100vh - var(--header-height, 72px))",
+      }}
+    >
+      {/* STORE SIDEBAR — STORE ONLY */}
+      <Sidebar />
+
+      {/* STORE CONTENT */}
+      <main
+        className="pageContentWrap"
         style={{
-          display: "flex",
-          width: "100%",
-          minHeight: "calc(100vh - var(--header-height, 72px))",
+          flex: 1,
+          minWidth: 0,
         }}
       >
-        {/* OPTIONAL SIDEBAR (categories / filters) */}
-        <Sidebar />
-
-        {/* MAIN STORE CONTENT */}
-        <main
-          className="pageContentWrap"
-          style={{
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          {children}
-        </main>
-      </div>
-    </>
+        {children}
+      </main>
+    </div>
   );
 }
