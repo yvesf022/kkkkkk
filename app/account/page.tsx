@@ -2,178 +2,101 @@
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import AccountSidebar from "@/components/account/AccountSidebar";
 
-export default function AccountDashboardPage() {
+export default function AccountPage() {
   const router = useRouter();
+  const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
+
+  function handleLogout() {
+    logout();
+    router.replace("/login");
+  }
 
   return (
     <div
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 32,
-        width: "100%",
+        maxWidth: 520,
+        margin: "0 auto",
+        background: "#ffffff",
+        borderRadius: 18,
+        padding: 32,
+        boxShadow:
+          "0 20px 60px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.6)",
       }}
     >
-      {/* ACCOUNT NAVIGATION */}
-      <div
-        style={{
-          borderRadius: 24,
-          padding: 20,
-          background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow: "0 18px 50px rgba(15,23,42,0.12)",
-        }}
-      >
-        <AccountSidebar />
-      </div>
-
       {/* HEADER */}
-      <div>
-        <h1
-          style={{
-            fontSize: 26,
-            fontWeight: 900,
-            color: "#0f172a",
-          }}
-        >
-          Your account
-        </h1>
+      <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>
+        My Account
+      </h1>
 
-        <p
-          style={{
-            marginTop: 6,
-            fontSize: 14,
-            color: "rgba(15,23,42,0.6)",
-            fontWeight: 600,
-          }}
-        >
-          View orders, manage your account, or continue shopping.
-        </p>
-      </div>
+      <p style={{ opacity: 0.7, marginBottom: 24 }}>
+        Orders, payments & settings
+      </p>
 
-      {/* STATS */}
+      {/* NAV LINKS */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 18,
-        }}
-      >
-        {[
-          { label: "Orders", hint: "Your purchases" },
-          { label: "Addresses", hint: "Shipping locations" },
-          { label: "Payments", hint: "Verification status" },
-        ].map((card) => (
-          <div
-            key={card.label}
-            style={{
-              padding: 20,
-              borderRadius: 22,
-              background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-              boxShadow: "0 18px 50px rgba(15,23,42,0.12)",
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.6 }}>
-              {card.label}
-            </div>
-
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 28,
-                fontWeight: 900,
-                color: "#0f172a",
-              }}
-            >
-              —
-            </div>
-
-            <div style={{ marginTop: 4, fontSize: 12, opacity: 0.55 }}>
-              {card.hint}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ACTION CARDS */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: 18,
-        }}
-      >
-        <div
-          style={{
-            padding: 24,
-            borderRadius: 24,
-            background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-            boxShadow: "0 20px 60px rgba(15,23,42,0.14)",
-            display: "grid",
-            gap: 14,
-          }}
-        >
-          <h3 style={{ fontWeight: 900 }}>Your orders</h3>
-          <p style={{ fontSize: 13, opacity: 0.6 }}>
-            Track and manage your orders
-          </p>
-          <button
-            className="btn btnTech"
-            onClick={() => router.push("/account/orders")}
-          >
-            View orders
-          </button>
-        </div>
-
-        <div
-          style={{
-            padding: 24,
-            borderRadius: 24,
-            background: "linear-gradient(135deg,#ffffff,#f8fbff)",
-            boxShadow: "0 20px 60px rgba(15,23,42,0.14)",
-            display: "grid",
-            gap: 14,
-          }}
-        >
-          <h3 style={{ fontWeight: 900 }}>Continue shopping</h3>
-          <p style={{ fontSize: 13, opacity: 0.6 }}>
-            Browse products while logged in
-          </p>
-          <button
-            className="btn btnPrimary"
-            onClick={() => router.push("/store")}
-          >
-            Browse store
-          </button>
-        </div>
-      </div>
-
-      {/* FOOTER ACTIONS */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
           gap: 12,
+          marginBottom: 28,
         }}
       >
-        <div style={{ fontSize: 13, opacity: 0.6 }}>
-          You can safely log out anytime.
-        </div>
+        <button
+          className="btn btnPrimary"
+          onClick={() => router.push("/account/orders")}
+        >
+          My Orders
+        </button>
 
         <button
-          className="btn btnDanger"
-          onClick={() => {
-            logout();
-            router.replace("/login");
-          }}
+          className="btn btnGlow"
+          onClick={() => router.push("/account/profile")}
         >
-          Log out
+          Profile
+        </button>
+
+        <button
+          className="btn btnTech"
+          onClick={() => router.push("/account/addresses")}
+        >
+          Addresses
+        </button>
+
+        <button
+          className="btn btnStyle"
+          onClick={() => router.push("/account/payments")}
+        >
+          Payments
+        </button>
+
+        <button
+          className="btn btnSecondary"
+          onClick={() => router.push("/account/security")}
+        >
+          Security
         </button>
       </div>
+
+      {/* LOGOUT */}
+      <button
+        onClick={handleLogout}
+        className="btn btnDanger"
+        style={{ width: "100%" }}
+      >
+        Log out
+      </button>
+
+      <p
+        style={{
+          marginTop: 14,
+          fontSize: 13,
+          opacity: 0.6,
+          textAlign: "center",
+        }}
+      >
+        You can sign back in anytime
+      </p>
     </div>
   );
 }
