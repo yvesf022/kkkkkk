@@ -2,14 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/lib/auth";
 
-type Item = {
-  label: string;
-  href: string;
-};
-
-const ITEMS: Item[] = [
+const navItems = [
   { label: "Dashboard", href: "/account" },
   { label: "My Orders", href: "/account/orders" },
   { label: "Profile", href: "/account/profile" },
@@ -20,72 +14,59 @@ const ITEMS: Item[] = [
 
 export default function AccountSidebar() {
   const pathname = usePathname();
-  const logout = useAuth((s) => s.logout);
-
-  function handleLogout() {
-    // 🔐 Only change auth state.
-    // Redirect is handled by the account layout guard.
-    logout();
-  }
 
   return (
     <aside
-      className="accountSidebar"
       style={{
-        minWidth: 220,
-        maxWidth: 260,
-        width: "100%",
+        width: 260,
         background: "#ffffff",
-        borderRight: "1px solid var(--border)",
-        padding: "24px 18px",
-        display: "flex",
-        flexDirection: "column",
+        borderRight: "1px solid rgba(0,0,0,0.06)",
+        padding: "32px 20px",
       }}
     >
-      {/* HEADER */}
-      <div style={{ marginBottom: 22 }}>
-        <div className="sectionTitle">My Account</div>
-        <div className="mutedText">
+      {/* TITLE */}
+      <div style={{ marginBottom: 28 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700 }}>My Account</h3>
+        <p style={{ fontSize: 13, opacity: 0.6 }}>
           Orders, payments & settings
-        </div>
+        </p>
       </div>
 
       {/* NAV */}
-      <nav style={{ display: "grid", gap: 6 }}>
-        {ITEMS.map((item) => {
+      <nav
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        {navItems.map((item) => {
           const active =
             pathname === item.href ||
-            pathname.startsWith(item.href + "/");
+            (item.href !== "/account" &&
+              pathname.startsWith(item.href));
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              prefetch={false}
-              className={`accountNavItem ${
-                active ? "active" : ""
-              }`}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: active ? 700 : 500,
+                textDecoration: "none",
+                color: active ? "#111" : "#444",
+                background: active
+                  ? "rgba(0,0,0,0.05)"
+                  : "transparent",
+              }}
             >
               {item.label}
             </Link>
           );
         })}
       </nav>
-
-      {/* FOOTER */}
-      <div style={{ marginTop: "auto", paddingTop: 24 }}>
-        <button
-          onClick={handleLogout}
-          className="btn btnDanger"
-          style={{ width: "100%" }}
-        >
-          Log out
-        </button>
-
-        <p className="mutedText" style={{ textAlign: "center" }}>
-          You can sign back in anytime
-        </p>
-      </div>
     </aside>
   );
 }
