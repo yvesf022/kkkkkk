@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { login } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const login = useAuth((s) => s.login);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,9 +20,9 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success("Welcome back");
-      router.replace("/store");
-    } catch {
-      toast.error("Invalid email or password");
+      router.replace("/account/profile");
+    } catch (err: any) {
+      toast.error(err?.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -41,19 +42,12 @@ export default function LoginPage() {
     >
       {/* HEADER */}
       <header style={{ textAlign: "center" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-          Welcome back
-        </h1>
-        <p style={{ opacity: 0.65 }}>
-          Sign in to your account
-        </p>
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Welcome back</h1>
+        <p style={{ opacity: 0.65 }}>Sign in to your account</p>
       </header>
 
       {/* FORM */}
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "grid", gap: 16 }}
-      >
+      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
         <input
           type="email"
           placeholder="Email address"
@@ -74,9 +68,18 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          className="btn btnPrimary"
           disabled={loading}
-          style={{ width: "100%", marginTop: 8 }}
+          style={{
+            width: "100%",
+            marginTop: 8,
+            padding: "14px",
+            borderRadius: 999,
+            border: "none",
+            fontWeight: 900,
+            background: "#111",
+            color: "#fff",
+            cursor: "pointer",
+          }}
         >
           {loading ? "Signing in…" : "Login"}
         </button>
