@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
@@ -23,6 +23,22 @@ export default function RequireAuth({
 
   const user = useAuth((s) => s.user);
   const loading = useAuth((s) => s.loading);
+  const refreshMe = useAuth((s) => s.refreshMe);
+
+  // 🧠 ensure we hydrate only once per mount
+  const hasHydratedRef = useRef(false);
+
+  /* =========================
+     AUTH HYDRATION (ON-DEMAND)
+  ========================= */
+  useEffect(() => {
+    if (hasHydratedRef.current) return;
+
+    if (!user && !loading) {
+      hasHydratedRef.current = true;
+      refreshMe();
+    }
+  }, [user, loading, refreshMe]);
 
   const authReady = !loading;
   const isAuthenticated = Boolean(user);
@@ -34,13 +50,11 @@ export default function RequireAuth({
   useEffect(() => {
     if (!authReady) return;
 
-    // 🚫 Not logged in
     if (!isAuthenticated) {
       router.replace(role === "admin" ? "/admin/login" : "/login");
       return;
     }
 
-    // 🚫 Logged in but wrong role
     if (role && userRole !== role) {
       router.replace(role === "admin" ? "/admin/login" : "/account");
       return;
