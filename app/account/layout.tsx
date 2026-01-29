@@ -1,52 +1,26 @@
-"use client";
-
-import RequireAuth from "@/components/auth/RequireAuth";
+import Header from "@/components/layout/Header";
 import AccountSidebar from "@/components/account/AccountSidebar";
-import { useAuth } from "@/lib/auth";
 
 export default function AccountLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const loading = useAuth((s) => s.loading);
-
   return (
-    <RequireAuth role="user">
+    <>
+      <Header />
       <div
-        className="appShell"
         style={{
           display: "flex",
-          width: "100%",
-          minHeight: "calc(100vh - var(--header-height, 72px))",
+          gap: 40,
+          maxWidth: 1200,
+          margin: "40px auto",
+          padding: "0 24px",
         }}
       >
-        {/* ACCOUNT SIDEBAR */}
         <AccountSidebar />
-
-        {/* MAIN CONTENT */}
-        <main
-          className="pageContentWrap"
-          style={{
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          {loading ? (
-            <div
-              style={{
-                padding: 24,
-                fontSize: 14,
-                opacity: 0.65,
-              }}
-            >
-              Loading your session…
-            </div>
-          ) : (
-            children
-          )}
-        </main>
+        <main style={{ flex: 1 }}>{children}</main>
       </div>
-    </RequireAuth>
+    </>
   );
 }
