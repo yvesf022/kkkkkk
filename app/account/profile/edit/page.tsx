@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { updateMe } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { updateMe, getMe } from "@/lib/api";
 
 export default function EditProfilePage() {
   const router = useRouter();
   const user = useAuth((s) => s.user);
 
-  const [fullName, setFullName] = useState(user?.full_name || "");
-  const [phone, setPhone] = useState(user?.phone || "");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setFullName(user.full_name || "");
+    setPhone(user.phone || "");
+  }, [user]);
 
   if (!user) return null;
 
@@ -24,19 +30,20 @@ export default function EditProfilePage() {
         phone,
       });
 
-      // Let auth re-hydrate naturally
+      // 🔁 Re-sync identity (Amazon pattern)
+      await getMe();
+
       router.replace("/account/profile");
       router.refresh();
     } catch (err) {
-      console.error("Failed to update profile", err);
-      alert("Failed to save profile changes");
+      alert("Failed to update profile");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: 640 }}>
+    <div style={{ maxWidth: 720 }}>
       <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 24 }}>
         Edit profile
       </h1>
@@ -44,66 +51,44 @@ export default function EditProfilePage() {
       <div
         style={{
           background: "#fff",
-          borderRadius: 20,
-          padding: 32,
+          padding: 28,
+          borderRadius: 18,
           boxShadow: "0 20px 60px rgba(0,0,0,.08)",
         }}
       >
-        <label style={{ display: "block", marginBottom: 18 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Full name</div>
+        {/* FULL NAME */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontWeight: 700, fontSize: 14 }}>Full name</label>
           <input
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,.15)",
-            }}
+            style={inputStyle}
           />
-        </label>
+        </div>
 
-        <label style={{ display: "block", marginBottom: 18 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Phone</div>
+        {/* PHONE */}
+        <div style={{ marginBottom: 28 }}>
+          <label style={{ fontWeight: 700, fontSize: 14 }}>Phone</label>
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,.15)",
-            }}
+            style={inputStyle}
           />
-        </label>
+        </div>
 
-        <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+        {/* ACTIONS */}
+        <div style={{ display: "flex", gap: 14 }}>
           <button
             onClick={handleSave}
             disabled={saving}
-            style={{
-              padding: "12px 18px",
-              borderRadius: 10,
-              border: "none",
-              background: "linear-gradient(135deg,#ff2fa0,#00e6ff)",
-              color: "#fff",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
+            style={primaryBtn}
           >
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? "Saving..." : "Save changes"}
           </button>
 
           <button
             onClick={() => router.back()}
-            style={{
-              padding: "12px 18px",
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,.15)",
-              background: "#fff",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
+            style={secondaryBtn}
           >
             Cancel
           </button>
@@ -112,3 +97,33 @@ export default function EditProfilePage() {
     </div>
   );
 }
+
+/* ================= STYLES ================= */
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  marginTop: 6,
+  padding: "12px 14px",
+  borderRadius: 10,
+  border: "1px solid rgba(0,0,0,.15)",
+  fontSize: 15,
+};
+
+const primaryBtn: React.CSSProperties = {
+  padding: "12px 22px",
+  borderRadius: 12,
+  background: "linear-gradient(135deg,#ff2fa0,#00e6ff)",
+  border: "none",
+  color: "#fff",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const secondaryBtn: React.CSSProperties = {
+  padding: "12px 22px",
+  borderRadius: 12,
+  background: "#fff",
+  border: "1px solid rgba(0,0,0,.15)",
+  fontWeight: 700,
+  cursor: "pointer",
+};

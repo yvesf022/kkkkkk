@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 import AccountSidebar from "@/components/account/AccountSidebar";
 
 export default function AccountLayout({
@@ -5,6 +10,18 @@ export default function AccountLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const user = useAuth((s) => s.user);
+  const loading = useAuth((s) => s.loading);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
+
+  if (loading || !user) return null;
+
   return (
     <div
       style={{
@@ -16,10 +33,7 @@ export default function AccountLayout({
         alignItems: "flex-start",
       }}
     >
-      {/* Account navigation ONLY */}
       <AccountSidebar />
-
-      {/* Account content */}
       <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
     </div>
   );
