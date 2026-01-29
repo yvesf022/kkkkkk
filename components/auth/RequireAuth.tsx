@@ -21,11 +21,12 @@ export default function RequireAuth({
 }: Props) {
   const router = useRouter();
 
-  const isAuthenticated = useAuth((s) => s.isAuthenticated);
-  const userRole = useAuth((s) => s.role);
+  const user = useAuth((s) => s.user);
   const loading = useAuth((s) => s.loading);
 
   const authReady = !loading;
+  const isAuthenticated = Boolean(user);
+  const userRole = user?.role;
 
   /* =========================
      REDIRECT LOGIC (SECURE)
@@ -41,10 +42,7 @@ export default function RequireAuth({
 
     // 🚫 Logged in but wrong role
     if (role && userRole !== role) {
-      // Admin routes must NEVER fall back to user dashboard
-      router.replace(
-        role === "admin" ? "/admin/login" : "/account"
-      );
+      router.replace(role === "admin" ? "/admin/login" : "/account");
       return;
     }
   }, [authReady, isAuthenticated, userRole, role, router]);
