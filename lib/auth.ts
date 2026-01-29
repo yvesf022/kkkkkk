@@ -1,14 +1,9 @@
 "use client";
 
 import { create } from "zustand";
-import { api } from "@/lib/api";
+import * as api from "@/lib/api";
 
-export type User = {
-  id: string;
-  email: string;
-  full_name: string | null;
-  role: "user" | "admin";
-};
+export type User = api.User;
 
 type AuthState = {
   user: User | null;
@@ -23,44 +18,24 @@ export const useAuth = create<AuthState>((set) => ({
   user: null,
   loading: true,
 
-  // 🔑 AMAZON-LEVEL AUTH HYDRATION
+  // 🔑 AMAZON-LEVEL HYDRATION (ONLY TRUST /me)
   hydrate: async () => {
     try {
-      const res = await api.get("/auth/me", {
-        withCredentials: true,
-      });
-
-      set({
-        user: res.data,
-        loading: false,
-      });
+      const user = await api.getMe();
+      set({ user, loading: false });
     } catch {
-      // ❌ No identity → not logged in
-      set({
-        user: null,
-        loading: false,
-      });
+      set({ user: null, loading: false });
     }
   },
 
-  // 🔐 LOGIN = get identity, then route
+  // 🔐 LOGIN → identity → redirect
   login: async (email, password) => {
-    const res = await api.post(
-      "/auth/login",
-      { email, password },
-      { withCredentials: true }
-    );
+    const res = await api.login(email, password);
 
-    const user: User = {
-      id: res.data.id,
-      email: res.data.email,
-      full_name: res.data.full_name,
-      role: res.data.role,
-    };
-
+    // Fetch verified identity after login
+    const user = await api.getMe();
     set({ user });
 
-    // 🎯 ROLE-BASED REDIRECT (FINAL)
     if (user.role === "admin") {
       window.location.replace("/admin");
     } else {
@@ -71,11 +46,24 @@ export const useAuth = create<AuthState>((set) => ({
   // 🚪 LOGOUT = destroy identity
   logout: async () => {
     try {
-      await api.post("/auth/logout", {}, { withCredentials: true });
-    } catch {
-      // ignore
-    }
+      await api.logout();
+    } catch {}
 
     set({ user: null });
   },
 }));
+
+/* -------------------------------------------------
+   ✅ BACKWARD-COMPATIBLE NAMED EXPORTS
+-------------------------------------------------- */
+
+// These fix existing imports like:
+// import { login } from "@/lib/auth";
+
+export async function login(email: string, password: string) {
+  return useAuth.getState().login(email, password);
+}
+
+export async function logout() {
+  return useAuth.getState().logout();
+}
