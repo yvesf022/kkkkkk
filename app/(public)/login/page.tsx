@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import toast from "react-hot-toast";
 import { login } from "@/lib/auth";
 
@@ -12,27 +11,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
-    if (!email || !password) {
-      toast.error("Please enter your email and password");
-      return;
-    }
-
     setLoading(true);
+
     try {
-      const user = await login(email, password);
-
-      toast.success("Signing you in…");
-
-      if (user?.role === "admin") {
-        router.replace("/admin");
-      } else {
-        router.replace("/account");
-      }
+      await login(email, password);
+      toast.success("Welcome back");
+      router.replace("/store");
     } catch {
       toast.error("Invalid email or password");
     } finally {
@@ -41,93 +28,93 @@ export default function LoginPage() {
   }
 
   return (
-    <main
-      className="pageContentWrap"
+    <div
       style={{
+        background: "rgba(255,255,255,.94)",
+        borderRadius: 22,
+        padding: 32,
         display: "grid",
-        placeItems: "center",
-        minHeight: "calc(100vh - var(--header-height, 72px))",
+        gap: 22,
+        boxShadow:
+          "0 30px 80px rgba(12,14,20,.18), inset 0 0 0 1px rgba(255,255,255,.6)",
       }}
     >
-      <section
-        className="card"
-        style={{ maxWidth: 420, width: "100%" }}
+      {/* HEADER */}
+      <header style={{ textAlign: "center" }}>
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
+          Welcome back
+        </h1>
+        <p style={{ opacity: 0.65 }}>
+          Sign in to your account
+        </p>
+      </header>
+
+      {/* FORM */}
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "grid", gap: 16 }}
       >
-        {/* HEADER */}
-        <div style={{ marginBottom: 24 }}>
-          <h1 className="pageTitle">Sign in</h1>
-          <p className="pageSubtitle">
-            Access your account, orders, and settings.
-          </p>
-        </div>
+        <input
+          type="email"
+          placeholder="Email address"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={inputStyle}
+        />
 
-        {/* FORM */}
-        <form
-          onSubmit={handleSubmit}
-          className="formStack"
-          style={{ display: "grid", gap: 16 }}
+        <input
+          type="password"
+          placeholder="Password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={inputStyle}
+        />
+
+        <button
+          type="submit"
+          className="btn btnPrimary"
+          disabled={loading}
+          style={{ width: "100%", marginTop: 8 }}
         >
-          <input
-            type="email"
-            className="input"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
+          {loading ? "Signing in…" : "Login"}
+        </button>
+      </form>
 
-          <div style={{ position: "relative" }}>
-            <input
-              type={showPassword ? "text" : "password"}
-              className="input"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              style={{ paddingRight: 44 }}
-            />
-
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="btn btnGhost passwordToggle"
-              style={{
-                position: "absolute",
-                right: 4,
-                top: 4,
-                padding: "6px 10px",
-              }}
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
-          </div>
-
-          <button
-            type="submit"
-            className="btn btnPrimary"
-            disabled={loading}
-          >
-            {loading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-
-        {/* FOOTER */}
-        <div
+      {/* FOOTER */}
+      <footer
+        style={{
+          textAlign: "center",
+          fontSize: 14,
+          opacity: 0.7,
+        }}
+      >
+        Don’t have an account?{" "}
+        <a
+          href="/register"
           style={{
-            marginTop: 20,
-            display: "grid",
-            gap: 10,
+            fontWeight: 900,
+            color: "#ff4fa1",
+            textDecoration: "none",
           }}
         >
-          <Link href="/register" className="btn btnGhost">
-            Create an account
-          </Link>
-
-          <p className="mutedText" style={{ textAlign: "center" }}>
-            Your session is secured using encrypted cookies.
-          </p>
-        </div>
-      </section>
-    </main>
+          Register
+        </a>
+      </footer>
+    </div>
   );
 }
+
+/* -------------------------
+   Local input styling
+-------------------------- */
+
+const inputStyle: React.CSSProperties = {
+  padding: "14px 16px",
+  borderRadius: 999,
+  border: "1px solid rgba(12,14,20,.18)",
+  fontSize: 15,
+  outline: "none",
+  background: "#fff",
+};
