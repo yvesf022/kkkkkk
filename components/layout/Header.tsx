@@ -87,20 +87,15 @@ export default function Header() {
   const cartCount = items.reduce((a, b) => a + b.quantity, 0);
   const wishlistCount = useStore((s) => s.wishlist.length);
 
-  // ✅ REAL AUTH STATE (single source of truth)
+  // ✅ SINGLE SOURCE OF TRUTH (NO DESIGN CHANGE)
   const user = useAuth((s) => s.user);
-  const loading = useAuth((s) => s.loading);
   const logout = useAuth((s) => s.logout);
-
   const isAuthenticated = Boolean(user);
 
   function handleLogout() {
     logout();
     router.replace("/login");
-  }
-
-  if (loading) {
-    return null;
+    router.refresh();
   }
 
   return (
@@ -115,7 +110,7 @@ export default function Header() {
               gap: 18,
             }}
           >
-            {/* LOGO — ALWAYS GO TO STORE */}
+            {/* LOGO — ALWAYS GO TO STORE (UNCHANGED) */}
             <Link
               href="/store"
               aria-label="Go to shop"
@@ -153,7 +148,7 @@ export default function Header() {
               </span>
             </Link>
 
-            {/* NAV */}
+            {/* NAV (UNCHANGED STRUCTURE) */}
             <nav style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <CapsuleLink href="/store">Shop</CapsuleLink>
 
@@ -172,25 +167,25 @@ export default function Header() {
               )}
 
               {isAuthenticated && (
-                <>
-                  <CapsuleLink href="/account">Account</CapsuleLink>
+                <CapsuleLink href="/account">Account</CapsuleLink>
+              )}
 
-                  <button
-                    onClick={handleLogout}
-                    style={{
-                      padding: "11px 16px",
-                      borderRadius: 999,
-                      background:
-                        "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
-                      border: "1px solid rgba(255,255,255,.18)",
-                      color: "#fff",
-                      fontWeight: 900,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Logout
-                  </button>
-                </>
+              {isAuthenticated && (
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    padding: "11px 16px",
+                    borderRadius: 999,
+                    background:
+                      "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
+                    border: "1px solid rgba(255,255,255,.18)",
+                    color: "#fff",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  Logout
+                </button>
               )}
 
               {/* Mobile */}
