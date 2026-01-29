@@ -23,13 +23,22 @@ type AuthState = {
 
 export const useAuth = create<AuthState>((set) => ({
   user: null,
-  loading: true,
+  loading: false,
 
+  // ⚡ FAST LOGIN (non-blocking hydration)
   login: async (email, password) => {
     set({ loading: true });
+
+    // 1️⃣ Authenticate (sets cookie)
     await login(email, password);
-    await useAuth.getState().refreshMe();
+
+    // 2️⃣ Immediately unblock UI
     set({ loading: false });
+
+    // 3️⃣ Hydrate user in background (DO NOT AWAIT)
+    getMe()
+      .then((user) => set({ user }))
+      .catch(() => set({ user: null }));
   },
 
   logout: async () => {
