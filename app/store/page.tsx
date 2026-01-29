@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 
 import ProductCard from "@/components/store/ProductCard";
 import StoreToolbar, {
@@ -10,7 +10,6 @@ import StoreToolbar, {
 } from "@/components/store/StoreToolbar";
 
 import StoreTabs from "@/components/store/StoreTabs";
-import SearchBar from "@/components/store/SearchBar";
 import FiltersBar from "@/components/store/FiltersBar";
 
 /* =======================
@@ -26,7 +25,6 @@ type Filters = BaseFilters & {
 type BackendProduct = {
   _id: string;
   title: string;
-  description: string;
   price: number;
   category?: string;
   varieties?: string[];
@@ -37,7 +35,6 @@ type UIProduct = {
   id: string;
   title: string;
   price: number;
-  oldPrice?: number;
   rating: number;
   tags: string[];
   category: string;
@@ -49,17 +46,33 @@ type UIProduct = {
 ======================= */
 
 export default function StorePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const searchQuery = searchParams.get("search") ?? "";
+
   const [products, setProducts] = useState<UIProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [filters, setFilters] = useState<Filters>({
-    q: "",
+    q: searchQuery,
     minRating: 0,
     priceMax: 5000,
     onlyDiscount: false,
   });
 
   const [sort, setSort] = useState<SortMode>("featured");
+
+  /* =======================
+     Sync URL → Filters
+  ======================= */
+
+  useEffect(() => {
+    setFilters((f) => ({
+      ...f,
+      q: searchQuery,
+    }));
+  }, [searchQuery]);
 
   /* =======================
      Fetch products
@@ -69,24 +82,20 @@ export default function StorePage() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`)
       .then((res) => res.json())
       .then((data: BackendProduct[]) => {
-        const mapped: UIProduct[] = data.map((p) => {
-          const img = p.image
+        const mapped: UIProduct[] = data.map((p) => ({
+          id: p._id,
+          title: p.title,
+          price: p.price,
+          rating: 4.5,
+          tags: [
+            ...(p.category ? [p.category] : []),
+            ...(p.varieties ?? []),
+          ],
+          category: p.category ?? "general",
+          img: p.image
             ? `${process.env.NEXT_PUBLIC_API_URL}/uploads/products/${p.image}`
-            : "/placeholder.png";
-
-          return {
-            id: p._id,
-            title: p.title,
-            price: p.price,
-            rating: 4.5,
-            tags: [
-              ...(p.category ? [p.category] : []),
-              ...(p.varieties ?? []),
-            ],
-            category: p.category ?? "general",
-            img,
-          };
-        });
+            : "/placeholder.png",
+        }));
 
         setProducts(mapped);
         setLoading(false);
@@ -108,9 +117,7 @@ export default function StorePage() {
     }
 
     if (filters.category) {
-      data = data.filter(
-        (p) => p.category === filters.category
-      );
+      data = data.filter((p) => p.category === filters.category);
     }
 
     if (filters.min !== undefined) {
@@ -138,27 +145,15 @@ export default function StorePage() {
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
-        <Link href="/" className="btn btnGhost">
-          ← Home
-        </Link>
-      </div>
-
       <StoreTabs filters={filters} setFilters={setFilters} />
-      <SearchBar filters={filters} setFilters={setFilters} />
+
       <FiltersBar
         filters={filters}
         setFilters={setFilters}
         sort={sort}
         setSort={setSort}
       />
+
       <StoreToolbar
         filters={filters}
         setFilters={setFilters}
@@ -184,7 +179,6 @@ export default function StorePage() {
               key={p.id}
               p={{
                 ...p,
-                // ✅ TEMPORARY DEFAULTS (STOCK NOT LIVE YET)
                 stock: 0,
                 in_stock: false,
               }}

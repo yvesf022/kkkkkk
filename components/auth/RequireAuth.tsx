@@ -28,7 +28,7 @@ export default function RequireAuth({
   const authReady = !loading;
 
   /* =========================
-     REDIRECT LOGIC (SAFE)
+     REDIRECT LOGIC (AMAZON-LEVEL)
   ========================= */
   useEffect(() => {
     // 🚫 Never redirect during hydration
@@ -36,7 +36,7 @@ export default function RequireAuth({
 
     // ❌ Not logged in
     if (!isAuthenticated) {
-      router.replace("/login");
+      router.replace(role === "admin" ? "/admin/login" : "/login");
       return;
     }
 
@@ -50,14 +50,11 @@ export default function RequireAuth({
      RENDER LOGIC
   ========================= */
 
-  // During hydration:
+  // During hydration
   if (!authReady) {
-    // Allow layout to render skeletons
     if (allowDuringHydration && typeof children === "function") {
       return <>{children(false)}</>;
     }
-
-    // Otherwise render nothing (but DO NOT redirect)
     return null;
   }
 

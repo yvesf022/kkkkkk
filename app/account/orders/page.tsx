@@ -1,232 +1,230 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getMyOrders } from "@/lib/api";
+import Link from "next/link";
+import toast from "react-hot-toast";
 
-/* ======================
-   TYPES
-====================== */
+const API = process.env.NEXT_PUBLIC_API_URL!;
 
-type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
-type ShippingStatus = "awaiting_shipping" | "shipped" | null;
-
-type UIOrder = {
+type Order = {
   id: string;
-  created_at: string;
+  user_email: string;
   total_amount: number;
-  payment_status: PaymentStatus;
-  shipping_status: ShippingStatus;
+  payment_status: string;
+  shipping_status: string;
+  created_at: string;
 };
 
-/* ======================
-   PAGE
-====================== */
+type Filter =
+  | "all"
+  | "needs_review"
+  | "paid"
+  | "shipped";
 
-export default function OrdersPage() {
+export default function AdminOrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<UIOrder[]>([]);
+
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
 
-  async function loadOrders() {
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
+
+  /* ======================
+     AUTH GUARD
+  ====================== */
+  useEffect(() => {
+    if (!token) {
+      router.replace("/admin/login");
+    }
+  }, [token, router]);
+
+  /* ======================
+     LOAD ORDERS
+  ====================== */
+  async function load() {
     try {
-      const data = await getMyOrders();
+      const res = await fetch(`${API}/api/orders`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      const normalized: UIOrder[] = data.map((o: any) => ({
-        id: o.id,
-        created_at: o.created_at,
-        total_amount: o.total_amount,
-        payment_status: o.payment_status ?? "pending",
-        shipping_status: o.shipping_status ?? null,
-      }));
+      if (!res.ok) throw new Error();
 
-      setOrders(normalized);
+      setOrders(await res.json());
     } catch {
-      toast.error("Failed to load your orders");
+      toast.error("Failed to load orders");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadOrders();
+    load();
   }, []);
 
-  if (loading) {
-    return <p>Loading your orders…</p>;
-  }
+  /* ======================
+     FILTERING
+  ====================== */
+  const visibleOrders = useMemo(() => {
+    if (filter === "needs_review") {
+      return orders.filter(
+        (o) => o.payment_status === "payment_submitted"
+      );
+    }
+    if (filter === "paid") {
+      return orders.filter(
+        (o) => o.payment_status === "payment_received"
+      );
+    }
+    if (filter === "shipped") {
+      return orders.filter(
+        (o) => o.shipping_status === "shipped"
+      );
+    }
+    return orders;
+  }, [orders, filter]);
+
+  if (loading) return <p>Loading orders…</p>;
 
   return (
-    <div style={{ maxWidth: 1100, display: "grid", gap: 28 }}>
+    <div style={{ display: "grid", gap: 24 }}>
       {/* HEADER */}
-      <div>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-          Your orders
+      <header>
+        <h1 style={{ fontSize: 28, fontWeight: 900 }}>
+          Orders
         </h1>
-        <p style={{ marginTop: 6, fontSize: 14, opacity: 0.6 }}>
-          Track payments, verification, and delivery status.
+        <p style={{ opacity: 0.6 }}>
+          Manage payments and shipping
         </p>
+      </header>
+
+      {/* FILTERS */}
+      <div style={{ display: "flex", gap: 10 }}>
+        <FilterBtn
+          label="All"
+          active={filter === "all"}
+          onClick={() => setFilter("all")}
+        />
+        <FilterBtn
+          label="Needs review"
+          active={filter === "needs_review"}
+          onClick={() => setFilter("needs_review")}
+        />
+        <FilterBtn
+          label="Paid"
+          active={filter === "paid"}
+          onClick={() => setFilter("paid")}
+        />
+        <FilterBtn
+          label="Shipped"
+          active={filter === "shipped"}
+          onClick={() => setFilter("shipped")}
+        />
       </div>
 
-      {/* TRUST NOTE */}
-      <div
-        style={{
-          padding: 16,
-          borderRadius: 16,
-          background: "#f8fafc",
-          fontSize: 13,
-          lineHeight: 1.6,
-        }}
-      >
-        ℹ️ Payments are completed <strong>externally</strong>.
-        Upload your payment proof after checkout.  
-        <br />
-        Payment details are <strong>never stored</strong> on your account.
-      </div>
-
-      {/* ORDERS LIST */}
-      <section style={{ display: "grid", gap: 16 }}>
-        {orders.length === 0 ? (
-          <div
-            style={{
-              padding: 28,
-              borderRadius: 20,
-              background: "#f8fafc",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontWeight: 900 }}>
-              You haven’t placed any orders yet
-            </div>
-            <p style={{ marginTop: 6, fontSize: 14, opacity: 0.6 }}>
-              Browse products, place an order, and pay externally
-              using the provided instructions.
-            </p>
-
-            <button
-              className="btn btnPrimary"
-              style={{ marginTop: 16 }}
-              onClick={() => router.push("/store")}
-            >
-              Start shopping
-            </button>
-          </div>
-        ) : (
-          orders.map((o) => (
-            <div
+      {/* LIST */}
+      {visibleOrders.length === 0 ? (
+        <div className="card">No orders found.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 14 }}>
+          {visibleOrders.map((o) => (
+            <Link
               key={o.id}
+              href={`/admin/orders/${o.id}`}
+              className="card"
               style={{
-                padding: 22,
-                borderRadius: 22,
-                background:
-                  "linear-gradient(135deg,#ffffff,#f8fbff)",
-                boxShadow:
-                  "0 18px 50px rgba(15,23,42,0.12)",
                 display: "grid",
-                gap: 12,
+                gap: 6,
+                textDecoration: "none",
               }}
             >
-              {/* TOP ROW */}
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: 12,
                 }}
               >
-                <div>
-                  <div style={{ fontWeight: 900 }}>
-                    Order #{o.id.slice(0, 8)}
-                  </div>
-                  <div
-                    style={{ fontSize: 13, opacity: 0.6 }}
-                  >
-                    {new Date(
-                      o.created_at
-                    ).toLocaleDateString()}
-                  </div>
-                </div>
-
-                <div style={{ fontWeight: 900 }}>
+                <strong>
+                  Order #{o.id.slice(0, 8)}
+                </strong>
+                <strong>
                   M{o.total_amount.toLocaleString()}
-                </div>
+                </strong>
               </div>
 
-              {/* STATUS */}
+              <div style={{ fontSize: 13, opacity: 0.7 }}>
+                {o.user_email}
+              </div>
+
               <div
                 style={{
                   display: "flex",
-                  gap: 16,
-                  flexWrap: "wrap",
-                  fontSize: 14,
+                  gap: 14,
+                  fontSize: 13,
                 }}
               >
-                <div>
-                  <strong>Payment:</strong>{" "}
-                  {paymentLabel(o.payment_status)}
-                </div>
-
-                <div>
-                  <strong>Shipping:</strong>{" "}
-                  {shippingLabel(o.shipping_status)}
-                </div>
+                <span>
+                  Payment:{" "}
+                  <b>{o.payment_status}</b>
+                </span>
+                <span>
+                  Shipping:{" "}
+                  <b>{o.shipping_status}</b>
+                </span>
               </div>
 
-              {/* ACTION GUIDANCE */}
-              {o.payment_status === "on_hold" && (
+              {o.payment_status ===
+                "payment_submitted" && (
                 <div
                   style={{
                     fontSize: 13,
                     color: "#92400e",
+                    fontWeight: 700,
                   }}
                 >
-                  ⚠ Payment awaiting verification.
-                  Upload your payment proof from the order
-                  details page.
+                  ⚠ Needs payment review
                 </div>
               )}
-
-              {/* ACTIONS */}
-              <div>
-                <Link
-                  href={`/account/orders/${o.id}`}
-                  className="btn btnTech"
-                >
-                  View order details
-                </Link>
-              </div>
-            </div>
-          ))
-        )}
-      </section>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ======================
-   HELPERS
+   UI
 ====================== */
 
-function paymentLabel(status: PaymentStatus) {
-  switch (status) {
-    case "pending":
-      return "Order placed";
-    case "on_hold":
-      return "Awaiting payment";
-    case "paid":
-      return "Payment confirmed";
-    case "rejected":
-      return "Payment rejected";
-  }
-}
-
-function shippingLabel(status: ShippingStatus) {
-  if (!status) return "Not shipped yet";
-  if (status === "awaiting_shipping")
-    return "Preparing shipment";
-  if (status === "shipped") return "Shipped";
-  return "—";
+function FilterBtn({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="btn"
+      style={{
+        fontWeight: 700,
+        background: active
+          ? "var(--primary)"
+          : "#e5e7eb",
+        color: active ? "#fff" : "#000",
+      }}
+    >
+      {label}
+    </button>
+  );
 }

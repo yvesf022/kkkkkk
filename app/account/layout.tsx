@@ -1,47 +1,52 @@
 "use client";
 
-import { useEffect } from "react";
-import "@/styles/globals.css";
-
+import RequireAuth from "@/components/auth/RequireAuth";
 import Sidebar from "@/components/layout/Sidebar";
-
-import { UIProvider } from "@/components/layout/uiStore";
-import { CartProvider } from "../context/CartContext";
 import { useAuth } from "@/lib/auth";
 
-export default function RootLayout({
+export default function AccountLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const hydrate = useAuth((state) => state.hydrate);
-  const loading = useAuth((state) => state.loading);
-
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+  const loading = useAuth((s) => s.loading);
 
   return (
-    <html lang="en">
-      <body>
-        <UIProvider>
-          <CartProvider>
-            <div className="appShell">
-              <Sidebar />
+    <RequireAuth role="user">
+      <div
+        className="appShell"
+        style={{
+          display: "flex",
+          width: "100%",
+          minHeight: "calc(100vh - var(--header-height, 72px))",
+        }}
+      >
+        {/* SIDEBAR */}
+        <Sidebar />
 
-              <main className="pageContentWrap">
-                {loading ? (
-                  <div className="p-6 text-sm opacity-70">
-                    Loading session…
-                  </div>
-                ) : (
-                  children
-                )}
-              </main>
+        {/* MAIN CONTENT */}
+        <main
+          className="pageContentWrap"
+          style={{
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          {loading ? (
+            <div
+              style={{
+                padding: 24,
+                fontSize: 14,
+                opacity: 0.65,
+              }}
+            >
+              Loading your session…
             </div>
-          </CartProvider>
-        </UIProvider>
-      </body>
-    </html>
+          ) : (
+            children
+          )}
+        </main>
+      </div>
+    </RequireAuth>
   );
 }

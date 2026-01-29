@@ -1,62 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
-type OrderItem = {
-  product_id?: string;
-  title?: string;
-  price?: number;
-  quantity: number;
-};
-
 type Order = {
   id: string;
   user_email: string;
-  items: OrderItem[];
   total_amount: number;
   payment_status: string;
   shipping_status: string;
-  tracking_number?: string;
-  payment_proof?: string | null;
   created_at: string;
 };
 
-export default function AdminOrderDetailPage() {
-  const { id } = useParams<{ id: string }>();
+type Filter =
+  | "all"
+  | "needs_review"
+  | "paid"
+  | "shipped";
+
+export default function AdminOrdersPage() {
   const router = useRouter();
 
-  const [order, setOrder] = useState<Order | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const [filter, setFilter] = useState<Filter>("all");
 
   const token =
     typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
+      ? localStorage.getItem("token")
       : null;
 
   /* ======================
-     LOAD ORDER
+     AUTH GUARD
+  ====================== */
+  useEffect(() => {
+    if (!token) {
+      router.replace("/admin/login");
+    }
+  }, [token, router]);
+
+  /* ======================
+     LOAD ORDERS (ADMIN)
   ====================== */
   async function load() {
     try {
-      const res = await fetch(
-        `${API}/api/orders/admin/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await fetch(`${API}/api/orders/admin`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!res.ok) throw new Error();
 
-      setOrder(await res.json());
+      setOrders(await res.json());
     } catch {
-      toast.error("Failed to load order. Please try again.");
+      toast.error("Failed to load orders");
     } finally {
       setLoading(false);
     }
@@ -64,233 +66,162 @@ export default function AdminOrderDetailPage() {
 
   useEffect(() => {
     load();
-  }, [id]);
+  }, []);
 
   /* ======================
-     UPDATE ORDER
+     FILTERING
   ====================== */
-  async function update(payload: Record<string, any>) {
-    setUpdating(true);
-    try {
-      const res = await fetch(
-        `${API}/api/orders/admin/${id}/update`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
+  const visibleOrders = useMemo(() => {
+    if (filter === "needs_review") {
+      return orders.filter(
+        (o) => o.payment_status === "payment_submitted"
       );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.detail || "Failed to update order. Please try again.");
-      }
-
-      toast.success("Order updated successfully!");
-      load();
-    } catch (err: any) {
-      toast.error(err.message || "Unable to update. Please try again.");
-    } finally {
-      setUpdating(false);
     }
-  }
-
-  if (loading) return <p>Loading order…</p>;
-  if (!order) return <p>No orders found. Please check back later.</p>;
-
-  const canReviewPayment =
-    order.payment_status === "payment_submitted";
-
-  const canShip =
-    order.payment_status === "payment_received";
-
-  // Utility function to determine badge class
-  const getStatusBadge = (status: string, type: string) => {
-    let badgeClass = "badge";
-
-    if (status === "payment_submitted" && type === "payment") {
-      badgeClass += " badge-warning"; // Urgency for payment review
-    } else if (status === "payment_received" && type === "payment") {
-      badgeClass += " badge-success"; // Payment received
-    } else if (status === "rejected" && type === "payment") {
-      badgeClass += " badge-danger"; // Payment rejected
+    if (filter === "paid") {
+      return orders.filter(
+        (o) => o.payment_status === "payment_received"
+      );
     }
-
-    if (status === "created" && type === "shipping") {
-      badgeClass += " badge-info"; // Shipping created
-    } else if (status === "processing" && type === "shipping") {
-      badgeClass += " badge-primary"; // Processing shipping
-    } else if (status === "shipped" && type === "shipping") {
-      badgeClass += " badge-secondary"; // Shipped
-    } else if (status === "delivered" && type === "shipping") {
-      badgeClass += " badge-dark"; // Delivered
+    if (filter === "shipped") {
+      return orders.filter(
+        (o) => o.shipping_status === "shipped"
+      );
     }
+    return orders;
+  }, [orders, filter]);
 
-    return badgeClass;
-  };
+  if (loading) return <p>Loading orders…</p>;
 
   return (
-    <div style={{ display: "grid", gap: 26 }}>
+    <div style={{ display: "grid", gap: 24 }}>
       {/* HEADER */}
       <header>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-          Order #{order.id.slice(0, 8)}
+        <h1 style={{ fontSize: 28, fontWeight: 900 }}>
+          Orders
         </h1>
         <p style={{ opacity: 0.6 }}>
-          {new Date(order.created_at).toLocaleString()}
+          Manage payments and shipping
         </p>
       </header>
 
-      {/* META */}
-      <section className="card">
-        <div>
-          <b>User:</b> {order.user_email}
-        </div>
-        <div>
-          <b>Total:</b> M{order.total_amount.toLocaleString()}
-        </div>
-        <div>
-          <b>Payment status:</b>
-          <span className={getStatusBadge(order.payment_status, "payment")}>
-            {order.payment_status}
-          </span>
-        </div>
-        <div>
-          <b>Shipping status:</b>
-          <span className={getStatusBadge(order.shipping_status, "shipping")}>
-            {order.shipping_status}
-          </span>
-        </div>
-      </section>
-
-      {/* PAYMENT PROOF */}
-      {order.payment_proof && (
-        <section className="card">
-          <h2 style={{ fontWeight: 900 }}>
-            Payment Proof
-          </h2>
-
-          <a
-            href={order.payment_proof}
-            target="_blank"
-            rel="noreferrer"
-            className="btn btnGhost"
-            style={{ marginTop: 10 }}
-          >
-            View Payment Proof
-          </a>
-        </section>
-      )}
-
-      {/* PAYMENT REVIEW */}
-      {canReviewPayment && (
-        <section className="card">
-          <h2 style={{ fontWeight: 900 }}>
-            Review Payment
-          </h2>
-
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              marginTop: 10,
-            }}
-          >
-            <button
-              className="btn btnTech"
-              disabled={updating}
-              onClick={() =>
-                update({
-                  status: "payment_received",
-                })
-              }
-              title={!canReviewPayment ? "You cannot approve payment until it is submitted." : ""}
-            >
-              Approve Payment
-            </button>
-
-            <button
-              className="btn btnGhost"
-              disabled={updating}
-              onClick={() =>
-                update({ status: "rejected" })
-              }
-              title="You can reject the payment if necessary."
-            >
-              Reject Payment
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* SHIPPING */}
-      <section className="card">
-        <h2 style={{ fontWeight: 900 }}>
-          Shipping
-        </h2>
-
-        <select
-          disabled={!canShip || updating}
-          value={order.shipping_status}
-          onChange={(e) =>
-            update({
-              shipping_status: e.target.value,
-            })
-          }
-          title={!canShip ? "You cannot ship until payment is received." : ""}
-        >
-          <option value="created">Created</option>
-          <option value="processing">
-            Processing
-          </option>
-          <option value="shipped">Shipped</option>
-          <option value="delivered">
-            Delivered
-          </option>
-        </select>
-
-        <input
-          type="text"
-          placeholder="Tracking number (optional)"
-          value={order.tracking_number || ""}
-          disabled={!canShip || updating}
-          onChange={(e) =>
-            update({
-              tracking_number: e.target.value,
-            })
-          }
-          style={{ marginTop: 10 }}
-          title={!canShip ? "Please approve payment before updating shipping." : ""}
+      {/* FILTERS */}
+      <div style={{ display: "flex", gap: 10 }}>
+        <FilterBtn
+          label="All"
+          active={filter === "all"}
+          onClick={() => setFilter("all")}
         />
-      </section>
+        <FilterBtn
+          label="Needs review"
+          active={filter === "needs_review"}
+          onClick={() => setFilter("needs_review")}
+        />
+        <FilterBtn
+          label="Paid"
+          active={filter === "paid"}
+          onClick={() => setFilter("paid")}
+        />
+        <FilterBtn
+          label="Shipped"
+          active={filter === "shipped"}
+          onClick={() => setFilter("shipped")}
+        />
+      </div>
 
-      {/* ITEMS */}
-      <section className="card">
-        <h2 style={{ fontWeight: 900 }}>Items</h2>
+      {/* LIST */}
+      {visibleOrders.length === 0 ? (
+        <div className="card">No orders found.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 14 }}>
+          {visibleOrders.map((o) => (
+            <Link
+              key={o.id}
+              href={`/admin/orders/${o.id}`}
+              className="card"
+              style={{
+                display: "grid",
+                gap: 6,
+                textDecoration: "none",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
+              >
+                <strong>
+                  Order #{o.id.slice(0, 8)}
+                </strong>
+                <strong>
+                  M{o.total_amount.toLocaleString()}
+                </strong>
+              </div>
 
-        {order.items.map((i, idx) => (
-          <div
-            key={idx}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-            }}
-          >
-            <span>
-              {i.title || "Product"} × {i.quantity}
-            </span>
-            <span>
-              M{(
-                (i.price || 0) * i.quantity
-              ).toLocaleString()}
-            </span>
-          </div>
-        ))}
-      </section>
+              <div style={{ fontSize: 13, opacity: 0.7 }}>
+                {o.user_email}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 14,
+                  fontSize: 13,
+                }}
+              >
+                <span>
+                  Payment: <b>{o.payment_status}</b>
+                </span>
+                <span>
+                  Shipping: <b>{o.shipping_status}</b>
+                </span>
+              </div>
+
+              {o.payment_status === "payment_submitted" && (
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "#92400e",
+                    fontWeight: 700,
+                  }}
+                >
+                  ⚠ Needs payment review
+                </div>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+/* ======================
+   UI
+====================== */
+
+function FilterBtn({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="btn"
+      style={{
+        fontWeight: 700,
+        background: active
+          ? "var(--primary)"
+          : "#e5e7eb",
+        color: active ? "#fff" : "#000",
+      }}
+    >
+      {label}
+    </button>
   );
 }
