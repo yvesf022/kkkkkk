@@ -72,7 +72,7 @@ export default function Header() {
         {user && (
           <>
             <span style={{ fontWeight: 700 }}>
-              Hello, {user.name}
+              Hello, {user.full_name || user.email}
             </span>
 
             <Link href="/account">Account</Link>
