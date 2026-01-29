@@ -1,110 +1,47 @@
-export const dynamic = "force-dynamic";
-
-import Link from "next/link";
-import ProductCard from "@/components/store/ProductCard";
-import { fetchProducts, Product as ApiProduct } from "@/lib/api";
-
-/* =======================
-   HELPERS
-======================= */
-
-function shuffle<T>(arr: T[]) {
-  return [...arr].sort(() => Math.random() - 0.5);
-}
-
-function normalizeForCard(p: ApiProduct) {
-  return {
-    id: p.id,
-    title: p.name,
-    price: p.price,
-    img: p.image_url || "/placeholder.png",
-    category: "general",
-    rating: 4.5,
-    stock: 0,
-    in_stock: false,
-  };
-}
-
-/* =======================
-   PAGE
-======================= */
-
-export default async function HomePage() {
-  let products: ApiProduct[] = [];
-
-  try {
-    products = await fetchProducts();
-  } catch (e) {
-    console.error("Failed to load products", e);
-  }
-
-  const featured = shuffle(products)
-    .slice(0, 12)
-    .map(normalizeForCard);
-
+export default function HomePage() {
   return (
-    <div
-      style={{
-        display: "grid",
-        gap: 48,
-        paddingBottom: 80,
-      }}
-    >
+    <div style={{ display: "grid", gap: 48 }}>
       {/* HERO */}
-      <section className="heroSection">
-        <div className="heroInner">
-          <h1 className="heroTitle">
-            Karabo’s Boutique
-          </h1>
+      <section
+        style={{
+          display: "grid",
+          gap: 18,
+          maxWidth: 720,
+        }}
+      >
+        <h1 style={{ fontSize: 40, fontWeight: 900 }}>
+          Karabo’s Boutique
+        </h1>
 
-          <p className="heroSubtitle">
-            Lesotho’s premium online destination for beauty, fashion,
-            and accessories.
-          </p>
+        <p style={{ fontSize: 18, opacity: 0.75 }}>
+          Lesotho’s premium online destination for beauty, fashion,
+          and accessories.
+        </p>
 
-          <div className="heroActions">
-            <Link href="/store" className="btn btnTech">
-              Explore store →
-            </Link>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+          <a href="/store" className="btn btnPrimary">
+            Explore store →
+          </a>
 
-            <Link href="/store" className="btn btnGhost">
-              Browse categories
-            </Link>
-          </div>
+          <a href="/store" className="btn btnGhost">
+            Browse categories
+          </a>
         </div>
       </section>
 
-      {/* FEATURED HEADER */}
-      <section className="sectionHeader">
-        <h2 className="sectionTitle">
+      {/* FEATURED */}
+      <section style={{ display: "grid", gap: 18 }}>
+        <h2 style={{ fontSize: 26, fontWeight: 900 }}>
           Featured products
         </h2>
 
-        <Link href="/store" className="btn btnTech">
+        <a href="/store" className="btn btnTech" style={{ width: "fit-content" }}>
           View all →
-        </Link>
-      </section>
+        </a>
 
-      {/* PRODUCTS */}
-      <section className="card">
-        {featured.length === 0 ? (
-          <div className="emptyState">
-            Products will appear here soon.
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: 22,
-            }}
-          >
-            {featured.map((p) => (
-              <ProductCard key={p.id} p={p} />
-            ))}
-          </div>
-        )}
+        <p style={{ opacity: 0.6 }}>
+          Products will appear here soon.
+        </p>
       </section>
     </div>
   );

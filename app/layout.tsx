@@ -4,15 +4,23 @@ import "@/styles/globals.css";
 
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
-
 import { UIProvider } from "@/components/layout/uiStore";
 import { CartProvider } from "./context/CartContext";
+import { useAuth } from "@/lib/auth";
+import { useEffect } from "react";
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const hydrate = useAuth((state) => state.hydrate);
+
+  // ✅ hydrate auth ONCE — NO redirects here
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
   return (
     <html lang="en">
       <body>
@@ -20,7 +28,6 @@ export default function RootLayout({
           <CartProvider>
             <Header />
 
-            {/* APP SHELL */}
             <div
               className="appShell"
               style={{
@@ -30,10 +37,8 @@ export default function RootLayout({
                 alignItems: "stretch",
               }}
             >
-              {/* SIDEBAR */}
               <Sidebar />
 
-              {/* MAIN CONTENT */}
               <main
                 className="pageContentWrap"
                 style={{
