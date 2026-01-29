@@ -28,21 +28,24 @@ export default function RequireAuth({
   const authReady = !loading;
 
   /* =========================
-     REDIRECT LOGIC (AMAZON-LEVEL)
+     REDIRECT LOGIC (SECURE)
   ========================= */
   useEffect(() => {
-    // 🚫 Never redirect during hydration
     if (!authReady) return;
 
-    // ❌ Not logged in
+    // 🚫 Not logged in
     if (!isAuthenticated) {
       router.replace(role === "admin" ? "/admin/login" : "/login");
       return;
     }
 
-    // ❌ Logged in but wrong role
+    // 🚫 Logged in but wrong role
     if (role && userRole !== role) {
-      router.replace(userRole === "admin" ? "/admin" : "/account");
+      // Admin routes must NEVER fall back to user dashboard
+      router.replace(
+        role === "admin" ? "/admin/login" : "/account"
+      );
+      return;
     }
   }, [authReady, isAuthenticated, userRole, role, router]);
 
@@ -50,7 +53,6 @@ export default function RequireAuth({
      RENDER LOGIC
   ========================= */
 
-  // During hydration
   if (!authReady) {
     if (allowDuringHydration && typeof children === "function") {
       return <>{children(false)}</>;
@@ -58,16 +60,10 @@ export default function RequireAuth({
     return null;
   }
 
-  // Auth resolved but not allowed
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
-  if (role && userRole !== role) {
-    return null;
-  }
+  if (role && userRole !== role) return null;
 
-  // Auth OK
   if (typeof children === "function") {
     return <>{children(true)}</>;
   }
