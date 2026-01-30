@@ -1,25 +1,15 @@
-const API = process.env.NEXT_PUBLIC_API_URL!;
+// ⚠️ COMPATIBILITY SHIM
+// This file exists ONLY to satisfy legacy imports.
+// All real product data comes from the backend API.
 
-export async function getProducts() {
-  const res = await fetch(`${API}/api/products`, {
-    cache: "no-store",
-  });
+export type Product = {
+  id: string;
+  title: string;
+  price: number;
+  img: string;
+  category: string;
+  rating?: number;
+};
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch products");
-  }
-
-  return res.json();
-}
-
-export async function getProduct(id: string) {
-  const res = await fetch(`${API}/api/products/${id}`, {
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error("Product not found");
-  }
-
-  return res.json();
-}
+// Legacy fallback (do NOT remove)
+export const products: Product[] = [];
