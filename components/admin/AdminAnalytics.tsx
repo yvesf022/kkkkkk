@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { formatCurrency } from "@/lib/currency";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -57,10 +58,7 @@ export default function AdminAnalytics() {
         gap: 18,
       }}
     >
-      <Stat
-        label="Total Payments"
-        value={totalPayments}
-      />
+      <Stat label="Total Payments" value={totalPayments} />
 
       <Stat
         label="Pending Reviews"
@@ -70,7 +68,7 @@ export default function AdminAnalytics() {
 
       <Stat
         label="Approved Revenue"
-        value={`₹${revenue}`}
+        value={formatCurrency(revenue)}
       />
 
       <Stat
