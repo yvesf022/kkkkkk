@@ -29,14 +29,20 @@ export default function AdminLayout({
     });
   }, [refresh]);
 
+  // 🚫 redirect ONLY as a side effect (Amazon rule)
+  useEffect(() => {
+    if (checked && !loading && !admin) {
+      router.replace("/admin/login");
+    }
+  }, [checked, loading, admin, router]);
+
   // ⏳ Still checking session
   if (!checked || loading) {
     return <div className="p-6">Checking admin session…</div>;
   }
 
-  // 🚫 Not admin → redirect (SIDE EFFECT)
+  // ⛔ block render while redirecting
   if (!admin) {
-    router.replace("/admin/login");
     return null;
   }
 
