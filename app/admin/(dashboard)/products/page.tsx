@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import toast from "react-hot-toast";
-import ProductImageUploader from "@/components/admin/ProductImageUploader";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -13,240 +13,145 @@ type Product = {
   img: string;
   category: string;
   rating: number;
+  stock: number;
+  in_stock: boolean;
 };
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // form state
-  const [title, setTitle] = useState("");
-  const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("");
-  const [img, setImg] = useState("");
-
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
-      : null;
-
-  /* ======================
-     LOAD PRODUCTS
-  ====================== */
-  async function loadProducts() {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API}/api/products`);
-      const data = await res.json();
-      setProducts(data);
-    } catch {
-      toast.error("Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadProducts();
+    fetch(`${API}/api/products`, {
+      credentials: "include", // 🔐 admin cookie
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then(setProducts)
+      .catch(() =>
+        toast.error("Failed to load products")
+      )
+      .finally(() => setLoading(false));
   }, []);
 
-  /* ======================
-     ADD PRODUCT
-  ====================== */
-  async function addProduct(e: React.FormEvent) {
-    e.preventDefault();
-    if (!token) return;
-
-    if (!img) {
-      toast.error("Please upload or provide an image");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const res = await fetch(`${API}/api/products`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title,
-          price: Number(price),
-          category,
-          img,
-        }),
-      });
-
-      if (!res.ok) throw new Error();
-
-      toast.success("Product added");
-      setTitle("");
-      setPrice("");
-      setCategory("");
-      setImg("");
-      loadProducts();
-    } catch {
-      toast.error("Failed to add product");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  /* ======================
-     DELETE PRODUCT
-  ====================== */
-  async function deleteProduct(id: string) {
-    if (!token) return;
-
-    if (!confirm("Delete this product?")) return;
-
-    try {
-      const res = await fetch(`${API}/api/products/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) throw new Error();
-
-      toast.success("Product deleted");
-      setProducts((prev) => prev.filter((p) => p.id !== id));
-    } catch {
-      toast.error("Failed to delete product");
-    }
-  }
+  if (loading) return <p>Loading products…</p>;
 
   return (
-    <div style={{ display: "grid", gap: 32 }}>
+    <div style={{ display: "grid", gap: 24 }}>
       {/* HEADER */}
-      <header>
-        <h1 style={{ fontSize: 28, fontWeight: 900 }}>
-          Products
-        </h1>
-        <p style={{ opacity: 0.6 }}>
-          Manage store products
-        </p>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 900 }}>
+            Products
+          </h1>
+          <p style={{ opacity: 0.6 }}>
+            Manage catalog and inventory
+          </p>
+        </div>
+
+        <Link
+          href="/admin/products/new"
+          className="btn btnTech"
+        >
+          + Add Product
+        </Link>
       </header>
 
-      {/* ADD PRODUCT */}
-      <section className="card">
-        <h3>Add Product</h3>
-
-        <form
-          onSubmit={addProduct}
-          style={{
-            display: "grid",
-            gap: 12,
-            maxWidth: 420,
-          }}
-        >
-          <input
-            placeholder="Product title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-
-          <input
-            type="number"
-            placeholder="Price"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            required
-          />
-
-          <input
-            placeholder="Category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            required
-          />
-
-          {/* IMAGE UPLOAD */}
-          <ProductImageUploader
-            value={img}
-            onChange={setImg}
-          />
-
-          {/* FALLBACK URL INPUT */}
-          <input
-            placeholder="Or paste image URL"
-            value={img}
-            onChange={(e) => setImg(e.target.value)}
-          />
-
-          <button
-            className="btn btnTech"
-            disabled={saving}
+      {/* TABLE */}
+      {products.length === 0 ? (
+        <div className="card">No products found.</div>
+      ) : (
+        <div className="card" style={{ overflowX: "auto" }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: 14,
+            }}
           >
-            {saving ? "Saving…" : "Add Product"}
-          </button>
-        </form>
-      </section>
+            <thead>
+              <tr>
+                <th align="left">Product</th>
+                <th align="left">Category</th>
+                <th align="left">Price</th>
+                <th align="left">Stock</th>
+                <th align="left">Status</th>
+                <th />
+              </tr>
+            </thead>
 
-      {/* PRODUCT LIST */}
-      <section>
-        <h3>All Products</h3>
+            <tbody>
+              {products.map((p) => (
+                <tr
+                  key={p.id}
+                  style={{
+                    borderTop: "1px solid #e5e7eb",
+                  }}
+                >
+                  <td style={{ padding: "12px 0" }}>
+                    <div style={{ fontWeight: 800 }}>
+                      {p.title}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        opacity: 0.6,
+                      }}
+                    >
+                      Rating: {p.rating}
+                    </div>
+                  </td>
 
-        {loading && <p>Loading products…</p>}
+                  <td>{p.category}</td>
 
-        <div
-          style={{
-            display: "grid",
-            gap: 14,
-            marginTop: 14,
-          }}
-        >
-          {products.map((p) => (
-            <div
-              key={p.id}
-              style={{
-                display: "flex",
-                gap: 14,
-                alignItems: "center",
-                padding: 14,
-                borderRadius: 14,
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-              }}
-            >
-              <img
-                src={p.img}
-                alt={p.title}
-                style={{
-                  width: 64,
-                  height: 64,
-                  objectFit: "cover",
-                  borderRadius: 10,
-                }}
-              />
+                  <td>M{p.price.toLocaleString()}</td>
 
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800 }}>
-                  {p.title}
-                </div>
-                <div style={{ fontSize: 13, opacity: 0.6 }}>
-                  {p.category}
-                </div>
-              </div>
+                  <td>{p.stock}</td>
 
-              <div style={{ fontWeight: 900 }}>
-                ₹{p.price}
-              </div>
+                  <td>
+                    {p.in_stock ? (
+                      <span
+                        style={{
+                          color: "#166534",
+                          fontWeight: 700,
+                        }}
+                      >
+                        In stock
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          color: "#991b1b",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Out of stock
+                      </span>
+                    )}
+                  </td>
 
-              <button
-                className="btn btnGhost"
-                onClick={() => deleteProduct(p.id)}
-              >
-                Delete
-              </button>
-            </div>
-          ))}
+                  <td>
+                    <Link
+                      href={`/admin/products/${p.id}`}
+                      className="btn btnGhost"
+                    >
+                      Edit
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </section>
+      )}
     </div>
   );
 }
