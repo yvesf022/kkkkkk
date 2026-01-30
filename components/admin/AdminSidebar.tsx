@@ -9,17 +9,20 @@ type Item = {
   href: string;
 };
 
-const ITEMS: Item[] = [
+const PRIMARY: Item[] = [
   { label: "Dashboard", href: "/admin" },
   { label: "Orders", href: "/admin/orders" },
-  { label: "Payment Settings", href: "/admin/payment-settings" },
+  { label: "Payments", href: "/admin/payments" },
+];
+
+const CATALOG: Item[] = [
   { label: "Products", href: "/admin/products" },
+  { label: "Payment Settings", href: "/admin/payment-settings" },
 ];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-
   const logout = useAdminAuth((s) => s.logout);
 
   function handleLogout() {
@@ -27,21 +30,52 @@ export default function AdminSidebar() {
     router.replace("/admin/login");
   }
 
+  function renderItems(items: Item[]) {
+    return items.map((item) => {
+      const active =
+        pathname === item.href ||
+        pathname.startsWith(item.href + "/");
+
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          style={{
+            padding: "10px 12px",
+            borderRadius: 12,
+            fontWeight: 700,
+            fontSize: 14,
+            textDecoration: "none",
+            color: active ? "#ffffff" : "#cbd5f5",
+            background: active
+              ? "rgba(99,102,241,0.25)"
+              : "transparent",
+            border: active
+              ? "1px solid rgba(99,102,241,0.4)"
+              : "1px solid transparent",
+          }}
+        >
+          {item.label}
+        </Link>
+      );
+    });
+  }
+
   return (
     <aside
       style={{
         width: 260,
-        minHeight: "100%",
+        minHeight: "100vh",
         background: "#0f172a",
         color: "#e5e7eb",
-        padding: "24px 18px",
+        padding: "22px 18px",
         display: "flex",
         flexDirection: "column",
-        gap: 8,
+        gap: 20,
       }}
     >
-      {/* HEADER */}
-      <div style={{ marginBottom: 18 }}>
+      {/* BRAND */}
+      <div>
         <div
           style={{
             fontWeight: 900,
@@ -49,53 +83,54 @@ export default function AdminSidebar() {
             color: "#ffffff",
           }}
         >
-          Admin Panel
+          Karabo Admin
         </div>
         <div
           style={{
             fontSize: 12,
-            opacity: 0.7,
+            opacity: 0.65,
             marginTop: 2,
           }}
         >
-          Manage orders & store
+          Store control center
         </div>
       </div>
 
-      {/* NAV */}
+      {/* PRIMARY NAV */}
       <nav style={{ display: "grid", gap: 6 }}>
-        {ITEMS.map((item) => {
-          const active =
-            pathname === item.href ||
-            pathname.startsWith(item.href + "/");
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 700,
-                fontSize: 14,
-                textDecoration: "none",
-                color: active ? "#ffffff" : "#cbd5f5",
-                background: active
-                  ? "rgba(99,102,241,0.25)"
-                  : "transparent",
-                border: active
-                  ? "1px solid rgba(99,102,241,0.4)"
-                  : "1px solid transparent",
-              }}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+        {renderItems(PRIMARY)}
       </nav>
 
+      {/* DIVIDER */}
+      <div
+        style={{
+          height: 1,
+          background: "#1e293b",
+          margin: "10px 0",
+        }}
+      />
+
+      {/* CATALOG */}
+      <div>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: 0.5,
+            opacity: 0.6,
+            marginBottom: 8,
+          }}
+        >
+          CATALOG
+        </div>
+
+        <nav style={{ display: "grid", gap: 6 }}>
+          {renderItems(CATALOG)}
+        </nav>
+      </div>
+
       {/* FOOTER */}
-      <div style={{ marginTop: "auto", paddingTop: 18 }}>
+      <div style={{ marginTop: "auto" }}>
         <button
           onClick={handleLogout}
           style={{
