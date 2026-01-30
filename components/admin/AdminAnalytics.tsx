@@ -16,26 +16,26 @@ export default function AdminAnalytics() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
-      : null;
-
   useEffect(() => {
-    if (!token) return;
-
     fetch(`${API}/api/orders/admin`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include", // 🔐 admin cookie auth
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to load admin analytics");
+        }
+        return res.json();
+      })
       .then(setOrders)
-      .catch(() =>
-        toast.error("Failed to load analytics data")
-      )
+      .catch(() => {
+        toast.error("Failed to load analytics data");
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p>Loading analytics…</p>;
+  if (loading) {
+    return <p>Loading analytics…</p>;
+  }
 
   const totalOrders = orders.length;
   const paidOrders = orders.filter(
@@ -45,7 +45,9 @@ export default function AdminAnalytics() {
     (o) => o.payment_status !== "payment_received"
   );
   const shipped = orders.filter(
-    (o) => o.shipping_status === "shipped" || o.shipping_status === "delivered"
+    (o) =>
+      o.shipping_status === "shipped" ||
+      o.shipping_status === "delivered"
   );
 
   const revenue = paidOrders.reduce(
