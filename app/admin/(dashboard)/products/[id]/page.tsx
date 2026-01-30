@@ -11,17 +11,13 @@ type Product = {
   id: string;
   title: string;
   price: number;
-  img: string[];
+  img: string; // ✅ stays string
   category: string;
-  rating: number;
+  rating?: number;
   stock: number;
-  description: string;
-  brand: string;
-  sku: string;
-  shipping_weight: number;
-  tax_rate: number;
-  discount_price: number;
-  in_stock: boolean;
+  sku?: string;
+  brand?: string;
+  description?: string;
 };
 
 export default function AdminProductEditorPage() {
@@ -33,15 +29,16 @@ export default function AdminProductEditorPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API}/api/products/${id}`, { credentials: "include" })
+    fetch(`${API}/api/products`, { credentials: "include" })
       .then((res) => res.json())
-      .then((foundProduct) => {
-        if (!foundProduct) {
+      .then((products: Product[]) => {
+        const found = products.find((p) => p.id === id);
+        if (!found) {
           toast.error("Product not found");
           router.replace("/admin/products");
           return;
         }
-        setProduct(foundProduct);
+        setProduct(found);
       })
       .catch(() => toast.error("Failed to load product"))
       .finally(() => setLoading(false));
@@ -80,34 +77,16 @@ export default function AdminProductEditorPage() {
       </header>
 
       <section className="card" style={{ display: "grid", gap: 14 }}>
-        <input value={product.title} onChange={(e) => setProduct({ ...product, title: e.target.value })} placeholder="Product title" />
+        <input value={product.title} onChange={(e) => setProduct({ ...product, title: e.target.value })} />
+        <input type="number" value={product.price} onChange={(e) => setProduct({ ...product, price: Number(e.target.value) })} />
+        <input value={product.category} onChange={(e) => setProduct({ ...product, category: e.target.value })} />
+        <input type="number" value={product.stock} onChange={(e) => setProduct({ ...product, stock: Number(e.target.value) })} />
+        <input placeholder="SKU" value={product.sku || ""} onChange={(e) => setProduct({ ...product, sku: e.target.value })} />
+        <input placeholder="Brand" value={product.brand || ""} onChange={(e) => setProduct({ ...product, brand: e.target.value })} />
+        <input type="number" placeholder="Rating" value={product.rating ?? ""} onChange={(e) => setProduct({ ...product, rating: Number(e.target.value) })} />
+        <textarea placeholder="Description" value={product.description || ""} onChange={(e) => setProduct({ ...product, description: e.target.value })} />
 
-        <input type="number" value={product.price} onChange={(e) => setProduct({ ...product, price: Number(e.target.value) })} placeholder="Price" />
-
-        <input value={product.category} onChange={(e) => setProduct({ ...product, category: e.target.value })} placeholder="Category" />
-
-        <textarea value={product.description} onChange={(e) => setProduct({ ...product, description: e.target.value })} placeholder="Description" />
-
-        <input value={product.brand} onChange={(e) => setProduct({ ...product, brand: e.target.value })} placeholder="Brand" />
-
-        <input value={product.sku} onChange={(e) => setProduct({ ...product, sku: e.target.value })} placeholder="SKU" />
-
-        <input type="number" value={product.rating} onChange={(e) => setProduct({ ...product, rating: Number(e.target.value) })} placeholder="Rating" />
-
-        <input type="number" value={product.stock} onChange={(e) => setProduct({ ...product, stock: Number(e.target.value) })} placeholder="Stock" />
-
-        <ProductImageUploader value={product.img} onChange={(urls) => setProduct({ ...product, img: urls })} />
-
-        <input type="number" value={product.shipping_weight} onChange={(e) => setProduct({ ...product, shipping_weight: Number(e.target.value) })} placeholder="Shipping weight" />
-
-        <input type="number" value={product.tax_rate} onChange={(e) => setProduct({ ...product, tax_rate: Number(e.target.value) })} placeholder="Tax rate" />
-
-        <input type="number" value={product.discount_price} onChange={(e) => setProduct({ ...product, discount_price: Number(e.target.value) })} placeholder="Discount price" />
-
-        <label>
-          In Stock
-          <input type="checkbox" checked={product.in_stock} onChange={() => setProduct({ ...product, in_stock: !product.in_stock })} />
-        </label>
+        <ProductImageUploader value={product.img} onChange={(url) => setProduct({ ...product, img: url })} />
 
         <button className="btn btnTech" disabled={saving} onClick={save}>
           {saving ? "Saving…" : "Save Changes"}
