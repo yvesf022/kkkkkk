@@ -1,35 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Authoritative auth middleware
- * -----------------------------
- * - Enforces ADMIN isolation
- * - Enforces USER isolation
- * - Runs BEFORE React renders
- * - No role mixing, no leaks
+ * Middleware scope
+ * ----------------
+ * - Does NOT enforce admin auth (cross-domain cookies)
+ * - Admin auth is enforced in app/admin/layout.tsx
+ * - User auth remains enforced here (same-domain cookie)
  */
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const userToken = req.cookies.get("access_token")?.value;
-  const adminToken = req.cookies.get("admin_access_token")?.value;
 
   /* =========================
      ADMIN ROUTES
+     (ALLOW THROUGH)
   ========================= */
 
-  // Allow admin login page ALWAYS
-  if (pathname === "/admin/login") {
-    return NextResponse.next();
-  }
-
-  // Any other /admin route requires admin cookie
   if (pathname.startsWith("/admin")) {
-    if (!adminToken) {
-      const url = req.nextUrl.clone();
-      url.pathname = "/admin/login";
-      return NextResponse.redirect(url);
-    }
     return NextResponse.next();
   }
 
@@ -43,17 +31,11 @@ export function middleware(req: NextRequest) {
       url.pathname = "/login";
       return NextResponse.redirect(url);
     }
-    return NextResponse.next();
   }
 
   return NextResponse.next();
 }
 
-/**
- * Explicit matcher
- * ----------------
- * Keep scope tight and predictable
- */
 export const config = {
   matcher: ["/admin/:path*", "/account/:path*"],
 };
