@@ -1,22 +1,25 @@
 import StoreToolbar from "@/components/store/StoreToolbar";
 import FiltersBar from "@/components/store/FiltersBar";
 import ProductCard from "@/components/store/ProductCard";
-import { getProducts } from "@/lib/products";
+import { products } from "@/lib/products";
 
 export const dynamic = "force-dynamic";
 
-export default async function StorePage() {
-  const products = await getProducts();
-
+export default function StorePage() {
   return (
-    <div style={{ display: "grid", gap: 24 }}>
-      {/* Toolbar: search, sort, tabs */}
+    <div
+      style={{
+        display: "grid",
+        gap: 24,
+      }}
+    >
+      {/* STORE TOOLBAR (SEARCH / SORT / TABS) */}
       <StoreToolbar />
 
-      {/* Filters */}
+      {/* FILTERS */}
       <FiltersBar />
 
-      {/* Products */}
+      {/* PRODUCT GRID */}
       {products.length === 0 ? (
         <div
           style={{
@@ -26,9 +29,9 @@ export default async function StorePage() {
           }}
         >
           <h3 style={{ fontSize: 20, fontWeight: 700 }}>
-            No products found
+            No products available
           </h3>
-          <p>Try adjusting filters or check back later.</p>
+          <p>Please check back later.</p>
         </div>
       ) : (
         <div
@@ -39,7 +42,10 @@ export default async function StorePage() {
           }}
         >
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard
+              key={product.id}
+              product={product}
+            />
           ))}
         </div>
       )}
