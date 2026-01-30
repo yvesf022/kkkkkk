@@ -1,19 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Passive middleware
- * -------------------
- * Auth is handled ONLY in React layouts (app/account/layout.tsx).
- * Middleware is kept for future edge use but performs no auth logic.
+ * Authoritative auth middleware
+ * -----------------------------
+ * - Enforces ADMIN isolation
+ * - Enforces USER isolation
+ * - Runs BEFORE React renders
+ * - No role mixing, no leaks
  */
-export function middleware(_req: NextRequest) {
+export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  const userToken = req.cookies.get("access_token")?.value;
+  const adminToken = req.cookies.get("admin_access_token")?.value;
+
+  /* =========================
+     ADMIN ROUTES
+  ========================= */
+
+  // Allow admin login page ALWAYS
+  if (pathname === "/admin/login") {
+    return NextResponse.next();
+  }
+
+  // Any other /admin route requires admin cookie
+  if (pathname.startsWith("/admin")) {
+    if (!adminToken) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/admin/login";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
+  /* =========================
+     USER ACCOUNT ROUTES
+  ========================= */
+
+  if (pathname.startsWith("/account")) {
+    if (!userToken) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
   return NextResponse.next();
 }
 
 /**
- * Keep matcher narrow and explicit.
- * This ensures middleware does not interfere with public routes or APIs.
+ * Explicit matcher
+ * ----------------
+ * Keep scope tight and predictable
  */
 export const config = {
-  matcher: ["/account/:path*", "/admin/:path*"],
+  matcher: ["/admin/:path*", "/account/:path*"],
 };
