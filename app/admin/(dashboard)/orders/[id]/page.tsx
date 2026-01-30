@@ -19,6 +19,9 @@ type Order = {
   shipping_status: string;
   tracking_number?: string;
   created_at: string;
+  payment?: {
+    proof_url?: string;
+  };
 };
 
 export default function AdminOrderDetailPage() {
@@ -28,32 +31,39 @@ export default function AdminOrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+
+  const [shippingStatus, setShippingStatus] = useState("");
   const [tracking, setTracking] = useState("");
 
   /* ======================
      LOAD ORDER
   ====================== */
+  async function load() {
+    try {
+      const res = await fetch(`${API}/api/orders/${id}`, {
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      setOrder(data);
+      setShippingStatus(data.shipping_status);
+      setTracking(data.tracking_number || "");
+    } catch {
+      toast.error("Failed to load order");
+      router.replace("/admin/orders");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    fetch(`${API}/api/orders/${id}`, {
-      credentials: "include",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => {
-        setOrder(data);
-        setTracking(data.tracking_number || "");
-      })
-      .catch(() => {
-        toast.error("Failed to load order");
-        router.replace("/admin/orders");
-      })
-      .finally(() => setLoading(false));
-  }, [id, router]);
+    load();
+  }, [id]);
 
   /* ======================
-     ADMIN UPDATE
+     UPDATE ORDER
   ====================== */
   async function update(payload: any) {
     if (!order) return;
@@ -65,9 +75,7 @@ export default function AdminOrderDetailPage() {
         {
           method: "POST",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         }
       );
@@ -75,14 +83,7 @@ export default function AdminOrderDetailPage() {
       if (!res.ok) throw new Error();
 
       toast.success("Order updated");
-
-      // refresh
-      const refreshed = await fetch(
-        `${API}/api/orders/${order.id}`,
-        { credentials: "include" }
-      ).then((r) => r.json());
-
-      setOrder(refreshed);
+      await load();
     } catch {
       toast.error("Failed to update order");
     } finally {
@@ -94,50 +95,76 @@ export default function AdminOrderDetailPage() {
   if (!order) return null;
 
   return (
-    <div style={{ display: "grid", gap: 24, maxWidth: 800 }}>
+    <div style={{ display: "grid", gap: 24, maxWidth: 900 }}>
       {/* HEADER */}
       <header>
         <h1 style={{ fontSize: 28, fontWeight: 900 }}>
           Order #{order.id.slice(0, 8)}
         </h1>
         <p style={{ opacity: 0.6 }}>
-          Created on {new Date(order.created_at).toLocaleString()}
+          Created {new Date(order.created_at).toLocaleString()}
         </p>
       </header>
 
       {/* SUMMARY */}
       <section className="card">
-        <div><b>Total:</b> M{order.total_amount}</div>
-        <div><b>Payment:</b> {order.payment_status}</div>
-        <div><b>Shipping:</b> {order.shipping_status}</div>
+        <div>
+          <b>Total:</b> M{" "}
+          {order.total_amount.toLocaleString()}
+        </div>
+        <div>
+          <b>Payment:</b> {order.payment_status}
+        </div>
+        <div>
+          <b>Shipping:</b> {order.shipping_status}
+        </div>
       </section>
 
-      {/* PAYMENT ACTIONS */}
-      {order.payment_status === "payment_submitted" && (
+      {/* PAYMENT PROOF */}
+      {order.payment?.proof_url && (
         <section className="card">
-          <h3>Payment Review</h3>
+          <h3>Payment Proof</h3>
 
-          <div style={{ display: "flex", gap: 12 }}>
-            <button
-              className="btn btnTech"
-              disabled={updating}
-              onClick={() =>
-                update({ status: "payment_received" })
-              }
-            >
-              Approve Payment
-            </button>
+          <img
+            src={`${API}${order.payment.proof_url}`}
+            alt="Payment proof"
+            style={{
+              maxWidth: "100%",
+              borderRadius: 12,
+              marginTop: 12,
+              border: "1px solid #e5e7eb",
+            }}
+          />
 
-            <button
-              className="btn btnGhost"
-              disabled={updating}
-              onClick={() =>
-                update({ status: "rejected" })
-              }
+          {order.payment_status === "payment_submitted" && (
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                marginTop: 14,
+              }}
             >
-              Reject Payment
-            </button>
-          </div>
+              <button
+                className="btn btnTech"
+                disabled={updating}
+                onClick={() =>
+                  update({ status: "payment_received" })
+                }
+              >
+                Approve Payment
+              </button>
+
+              <button
+                className="btn btnGhost"
+                disabled={updating}
+                onClick={() =>
+                  update({ status: "rejected" })
+                }
+              >
+                Reject Payment
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -147,9 +174,9 @@ export default function AdminOrderDetailPage() {
           <h3>Shipping</h3>
 
           <select
-            value={order.shipping_status}
+            value={shippingStatus}
             onChange={(e) =>
-              update({ shipping_status: e.target.value })
+              setShippingStatus(e.target.value)
             }
           >
             <option value="created">Created</option>
@@ -168,10 +195,13 @@ export default function AdminOrderDetailPage() {
             className="btn btnTech"
             disabled={updating}
             onClick={() =>
-              update({ tracking_number: tracking })
+              update({
+                shipping_status: shippingStatus,
+                tracking_number: tracking,
+              })
             }
           >
-            Save Tracking
+            Update Shipping
           </button>
         </section>
       )}
@@ -179,7 +209,6 @@ export default function AdminOrderDetailPage() {
       {/* ITEMS */}
       <section className="card">
         <h3>Items</h3>
-
         <ul style={{ marginTop: 8 }}>
           {order.items.map((i, idx) => (
             <li key={idx}>
