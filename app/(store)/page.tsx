@@ -1,5 +1,3 @@
-import StoreToolbar from "@/components/store/StoreToolbar";
-import FiltersBar from "@/components/store/FiltersBar";
 import ProductCard from "@/components/store/ProductCard";
 import { products } from "@/lib/products";
 
@@ -13,11 +11,22 @@ export default function StorePage() {
         gap: 24,
       }}
     >
-      {/* STORE TOOLBAR (SEARCH / SORT / TABS) */}
-      <StoreToolbar />
+      {/* STORE HEADER */}
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h1 style={{ fontSize: 28, fontWeight: 900 }}>
+          Store
+        </h1>
 
-      {/* FILTERS */}
-      <FiltersBar />
+        <span style={{ opacity: 0.6 }}>
+          {products.length} products
+        </span>
+      </header>
 
       {/* PRODUCT GRID */}
       {products.length === 0 ? (
