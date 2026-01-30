@@ -27,21 +27,27 @@ export default function AdminOrdersPage() {
   const [filter, setFilter] = useState<Filter>("all");
 
   /* ======================
-     LOAD ORDERS (COOKIE AUTH)
+     LOAD ORDERS (ADMIN)
   ====================== */
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${API}/api/orders/admin`,
+        { credentials: "include" } // 🔐 ADMIN COOKIE AUTH
+      );
+
+      if (!res.ok) throw new Error();
+      setOrders(await res.json());
+    } catch {
+      toast.error("Failed to load orders");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    fetch(`${API}/api/orders/admin`, {
-      credentials: "include", // 🔐 admin_access_token
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then(setOrders)
-      .catch(() =>
-        toast.error("Failed to load orders")
-      )
-      .finally(() => setLoading(false));
+    load();
   }, []);
 
   /* ======================
@@ -60,7 +66,9 @@ export default function AdminOrdersPage() {
     }
     if (filter === "shipped") {
       return orders.filter(
-        (o) => o.shipping_status === "shipped"
+        (o) =>
+          o.shipping_status === "shipped" ||
+          o.shipping_status === "delivered"
       );
     }
     return orders;
@@ -130,7 +138,7 @@ export default function AdminOrdersPage() {
                   Order #{o.id.slice(0, 8)}
                 </strong>
                 <strong>
-                  M{o.total_amount.toLocaleString()}
+                  M {o.total_amount.toLocaleString()}
                 </strong>
               </div>
 
@@ -173,9 +181,8 @@ export default function AdminOrdersPage() {
 }
 
 /* ======================
-   UI
+   FILTER BUTTON
 ====================== */
-
 function FilterBtn({
   label,
   active,
