@@ -81,6 +81,10 @@ function CapsuleLink({
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
+
+  // 🔒 NEVER render header in admin area
+  if (pathname.startsWith("/admin")) return null;
+
   const { toggleSidebar } = useUI();
 
   const { items } = useCart();

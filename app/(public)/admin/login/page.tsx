@@ -3,60 +3,29 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-
-const API = process.env.NEXT_PUBLIC_API_URL!;
+import { useAdminAuth } from "@/lib/adminAuth";
 
 export default function AdminLoginPage() {
   const router = useRouter();
 
+  const login = useAdminAuth((s) => s.login);
+  const loading = useAdminAuth((s) => s.loading);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
 
     try {
-      // 🔑 LOGIN — COOKIE BASED (REQUIRED)
-      const res = await fetch(`${API}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // ✅ CRITICAL (fixes 401)
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.detail || "Login failed");
-      }
-
-      // 🔐 VERIFY SESSION + ROLE
-      const meRes = await fetch(`${API}/api/auth/me`, {
-        credentials: "include", // ✅ REQUIRED
-      });
-
-      if (!meRes.ok) {
-        throw new Error("Failed to verify session");
-      }
-
-      const user = await meRes.json();
-
-      if (user.role !== "admin") {
-        throw new Error("This account is not an admin");
-      }
+      await login(email, password);
 
       toast.success("Admin login successful");
 
-      // 🚀 HARD REDIRECT (bypasses Next router edge cases)
+      // 🚀 Hard redirect → admin area
       window.location.href = "/admin";
     } catch (err: any) {
       toast.error(err.message || "Admin login failed");
-    } finally {
-      setLoading(false);
     }
   }
 
