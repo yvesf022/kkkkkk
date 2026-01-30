@@ -20,12 +20,9 @@ export default function ProductImageUploader({
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
-      : null;
-
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileSelect(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
     const f = e.target.files?.[0];
     if (!f) return;
 
@@ -38,7 +35,6 @@ export default function ProductImageUploader({
       toast.error("Please select an image first");
       return;
     }
-    if (!token) return;
 
     setUploading(true);
 
@@ -50,14 +46,14 @@ export default function ProductImageUploader({
         `${API}/api/admin/products/upload-image`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          credentials: "include", // 🔐 admin cookie auth
           body: fd,
         }
       );
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error("Upload failed");
+      }
 
       const data = await res.json();
 
