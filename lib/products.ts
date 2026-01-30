@@ -1,16 +1,25 @@
-// ⚠️ COMPATIBILITY SHIM
-// This file exists ONLY to satisfy legacy imports
-// Real product data now comes from the backend API
+const API = process.env.NEXT_PUBLIC_API_URL!;
 
-export type Product = {
-  id: string;
-  title: string;
-  price: number;
-  img: string;
-  category: string;
-  rating: number;
-};
+export async function getProducts() {
+  const res = await fetch(`${API}/api/products`, {
+    cache: "no-store",
+  });
 
-// Empty fallback — pages that still import this
-// should not crash Netlify build
-export const products: Product[] = [];
+  if (!res.ok) {
+    throw new Error("Failed to fetch products");
+  }
+
+  return res.json();
+}
+
+export async function getProduct(id: string) {
+  const res = await fetch(`${API}/api/products/${id}`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error("Product not found");
+  }
+
+  return res.json();
+}
