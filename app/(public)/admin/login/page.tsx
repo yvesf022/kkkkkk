@@ -22,8 +22,8 @@ export default function AdminLoginPage() {
 
       toast.success("Admin login successful");
 
-      // 🚀 Hard redirect → admin area
-      window.location.href = "/admin";
+      // ✅ App Router navigation (Amazon-level)
+      router.replace("/admin");
     } catch (err: any) {
       toast.error(err.message || "Admin login failed");
     }
