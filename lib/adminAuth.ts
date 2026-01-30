@@ -22,7 +22,7 @@ export const useAdminAuth = create<AdminAuthState>((set) => ({
   admin: null,
   loading: false,
 
-  // 🔐 ADMIN LOGIN
+  // 🔐 ADMIN LOGIN (SYNC, AMAZON-LEVEL)
   login: async (email, password) => {
     set({ loading: true });
 
@@ -39,22 +39,24 @@ export const useAdminAuth = create<AdminAuthState>((set) => ({
       throw new Error(data?.detail || "Admin login failed");
     }
 
-    // ⚡ unblock UI immediately
-    set({ loading: false });
-
-    // hydrate admin in background
-    fetch(`${API}/api/admin/auth/me`, {
+    // ✅ immediately hydrate admin (NO background race)
+    const meRes = await fetch(`${API}/api/admin/auth/me`, {
       credentials: "include",
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((admin) => {
-        if (admin?.role === "admin") {
-          set({ admin });
-        } else {
-          set({ admin: null });
-        }
-      })
-      .catch(() => set({ admin: null }));
+    });
+
+    if (!meRes.ok) {
+      set({ admin: null, loading: false });
+      throw new Error("Failed to load admin session");
+    }
+
+    const admin = await meRes.json();
+
+    if (admin?.role !== "admin") {
+      set({ admin: null, loading: false });
+      throw new Error("Admin access denied");
+    }
+
+    set({ admin, loading: false });
   },
 
   // 🔓 ADMIN LOGOUT
