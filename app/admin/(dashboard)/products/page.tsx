@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import toast from "react-hot-toast";
+import ProductImageUploader from "@/components/admin/ProductImageUploader";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -12,146 +12,222 @@ type Product = {
   price: number;
   img: string;
   category: string;
-  rating: number;
-  stock: number;
-  in_stock: boolean;
 };
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // form state
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [category, setCategory] = useState("");
+  const [img, setImg] = useState("");
+
+  /* ======================
+     LOAD PRODUCTS
+  ====================== */
+  async function loadProducts() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/products`);
+      if (!res.ok) throw new Error();
+      setProducts(await res.json());
+    } catch {
+      toast.error("Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    fetch(`${API}/api/products`, {
-      credentials: "include", // 🔐 admin cookie
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then(setProducts)
-      .catch(() =>
-        toast.error("Failed to load products")
-      )
-      .finally(() => setLoading(false));
+    loadProducts();
   }, []);
 
-  if (loading) return <p>Loading products…</p>;
+  /* ======================
+     ADD PRODUCT (ADMIN)
+  ====================== */
+  async function addProduct(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!img) {
+      toast.error("Please upload an image");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/api/products`, {
+        method: "POST",
+        credentials: "include", // 🔐 ADMIN COOKIE AUTH
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title,
+          price: Number(price),
+          category,
+          img,
+        }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Product added");
+      setTitle("");
+      setPrice("");
+      setCategory("");
+      setImg("");
+      loadProducts();
+    } catch {
+      toast.error("Failed to add product");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* ======================
+     DELETE PRODUCT
+  ====================== */
+  async function deleteProduct(id: string) {
+    if (!confirm("Delete this product?")) return;
+
+    try {
+      const res = await fetch(`${API}/api/products/${id}`, {
+        method: "DELETE",
+        credentials: "include", // 🔐 ADMIN COOKIE AUTH
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Product deleted");
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      toast.error("Failed to delete product");
+    }
+  }
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gap: 32 }}>
       {/* HEADER */}
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 900 }}>
-            Products
-          </h1>
-          <p style={{ opacity: 0.6 }}>
-            Manage catalog and inventory
-          </p>
-        </div>
-
-        <Link
-          href="/admin/products/new"
-          className="btn btnTech"
-        >
-          + Add Product
-        </Link>
+      <header>
+        <h1 style={{ fontSize: 28, fontWeight: 900 }}>
+          Products
+        </h1>
+        <p style={{ opacity: 0.6 }}>
+          Manage store products
+        </p>
       </header>
 
-      {/* TABLE */}
-      {products.length === 0 ? (
-        <div className="card">No products found.</div>
-      ) : (
-        <div className="card" style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 14,
-            }}
+      {/* ADD PRODUCT */}
+      <section className="card">
+        <h3>Add Product</h3>
+
+        <form
+          onSubmit={addProduct}
+          style={{
+            display: "grid",
+            gap: 12,
+            maxWidth: 420,
+          }}
+        >
+          <input
+            placeholder="Product title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+
+          <input
+            type="number"
+            placeholder="Price (M)"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            required
+          />
+
+          <input
+            placeholder="Category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            required
+          />
+
+          <ProductImageUploader
+            value={img}
+            onChange={setImg}
+          />
+
+          <button
+            className="btn btnTech"
+            disabled={saving}
           >
-            <thead>
-              <tr>
-                <th align="left">Product</th>
-                <th align="left">Category</th>
-                <th align="left">Price</th>
-                <th align="left">Stock</th>
-                <th align="left">Status</th>
-                <th />
-              </tr>
-            </thead>
+            {saving ? "Saving…" : "Add Product"}
+          </button>
+        </form>
+      </section>
 
-            <tbody>
-              {products.map((p) => (
-                <tr
-                  key={p.id}
-                  style={{
-                    borderTop: "1px solid #e5e7eb",
-                  }}
-                >
-                  <td style={{ padding: "12px 0" }}>
-                    <div style={{ fontWeight: 800 }}>
-                      {p.title}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        opacity: 0.6,
-                      }}
-                    >
-                      Rating: {p.rating}
-                    </div>
-                  </td>
+      {/* PRODUCT LIST */}
+      <section>
+        <h3>All Products</h3>
 
-                  <td>{p.category}</td>
+        {loading && <p>Loading products…</p>}
 
-                  <td>M{p.price.toLocaleString()}</td>
+        <div
+          style={{
+            display: "grid",
+            gap: 14,
+            marginTop: 14,
+          }}
+        >
+          {products.map((p) => (
+            <div
+              key={p.id}
+              style={{
+                display: "flex",
+                gap: 14,
+                alignItems: "center",
+                padding: 14,
+                borderRadius: 14,
+                background: "#ffffff",
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <img
+                src={p.img}
+                alt={p.title}
+                style={{
+                  width: 64,
+                  height: 64,
+                  objectFit: "cover",
+                  borderRadius: 10,
+                }}
+              />
 
-                  <td>{p.stock}</td>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800 }}>
+                  {p.title}
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.6 }}>
+                  {p.category}
+                </div>
+              </div>
 
-                  <td>
-                    {p.in_stock ? (
-                      <span
-                        style={{
-                          color: "#166534",
-                          fontWeight: 700,
-                        }}
-                      >
-                        In stock
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          color: "#991b1b",
-                          fontWeight: 700,
-                        }}
-                      >
-                        Out of stock
-                      </span>
-                    )}
-                  </td>
+              <div style={{ fontWeight: 900 }}>
+                M {p.price.toLocaleString()}
+              </div>
 
-                  <td>
-                    <Link
-                      href={`/admin/products/${p.id}`}
-                      className="btn btnGhost"
-                    >
-                      Edit
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              <button
+                className="btn btnGhost"
+                onClick={() => deleteProduct(p.id)}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
         </div>
-      )}
+      </section>
     </div>
   );
 }
