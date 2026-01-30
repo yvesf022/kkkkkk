@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -23,49 +22,26 @@ type Filter =
   | "shipped";
 
 export default function AdminOrdersPage() {
-  const router = useRouter();
-
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
 
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("token")
-      : null;
-
   /* ======================
-     AUTH GUARD
+     LOAD ORDERS (COOKIE AUTH)
   ====================== */
   useEffect(() => {
-    if (!token) {
-      router.replace("/admin/login");
-    }
-  }, [token, router]);
-
-  /* ======================
-     LOAD ORDERS (ADMIN)
-  ====================== */
-  async function load() {
-    try {
-      const res = await fetch(`${API}/api/orders/admin`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) throw new Error();
-
-      setOrders(await res.json());
-    } catch {
-      toast.error("Failed to load orders");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
+    fetch(`${API}/api/orders/admin`, {
+      credentials: "include", // 🔐 admin_access_token
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then(setOrders)
+      .catch(() =>
+        toast.error("Failed to load orders")
+      )
+      .finally(() => setLoading(false));
   }, []);
 
   /* ======================
