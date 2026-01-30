@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { useAdminAuth } from "@/lib/adminAuth";
-import { useRouter } from "next/navigation";
 
 export default function AdminLayout({
   children,
@@ -16,41 +16,39 @@ export default function AdminLayout({
   const loading = useAdminAuth((s) => s.loading);
   const refresh = useAdminAuth((s) => s.refresh);
 
-  // 🔒 ensure refresh runs ONLY once
-  const didCheckRef = useRef(false);
+  const checkedRef = useRef(false);
   const [checked, setChecked] = useState(false);
 
+  // 🔐 SINGLE auth check (Amazon-style)
   useEffect(() => {
-    if (didCheckRef.current) return;
-    didCheckRef.current = true;
+    if (checkedRef.current) return;
+    checkedRef.current = true;
 
-    refresh().finally(() => {
-      setChecked(true);
-    });
+    refresh().finally(() => setChecked(true));
   }, [refresh]);
 
-  // 🚫 redirect ONLY as a side effect (Amazon rule)
-  useEffect(() => {
-    if (checked && !loading && !admin) {
-      router.replace("/admin/login");
-    }
-  }, [checked, loading, admin, router]);
-
-  // ⏳ Still checking session
   if (!checked || loading) {
-    return <div className="p-6">Checking admin session…</div>;
+    return (
+      <div className="p-6">
+        Loading admin console…
+      </div>
+    );
   }
 
-  // ⛔ block render while redirecting
   if (!admin) {
+    router.replace("/admin/login");
     return null;
   }
 
-  // ✅ Authenticated admin
   return (
     <div className="flex min-h-screen">
+      {/* LEFT SIDEBAR */}
       <AdminSidebar />
-      <main className="flex-1 p-6">{children}</main>
+
+      {/* RIGHT CONTENT */}
+      <main className="flex-1 bg-gray-50 p-6 overflow-y-auto">
+        {children}
+      </main>
     </div>
   );
 }
