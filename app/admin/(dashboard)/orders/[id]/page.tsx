@@ -11,6 +11,13 @@ type OrderItem = {
   quantity: number;
 };
 
+type Product = {
+  id: string;
+  title: string;
+  img: string;
+  price: number;
+};
+
 type Order = {
   id: string;
   items: OrderItem[];
@@ -29,6 +36,7 @@ export default function AdminOrderDetailPage() {
   const router = useRouter();
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [products, setProducts] = useState<Record<string, Product>>({});
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -36,20 +44,27 @@ export default function AdminOrderDetailPage() {
   const [tracking, setTracking] = useState("");
 
   /* ======================
-     LOAD ORDER
+     LOAD ORDER + PRODUCTS
   ====================== */
   async function load() {
     try {
-      const res = await fetch(`${API}/api/orders/${id}`, {
-        credentials: "include",
-      });
+      const [orderRes, productsRes] = await Promise.all([
+        fetch(`${API}/api/orders/${id}`, { credentials: "include" }),
+        fetch(`${API}/api/products`),
+      ]);
 
-      if (!res.ok) throw new Error();
+      if (!orderRes.ok || !productsRes.ok) throw new Error();
 
-      const data = await res.json();
-      setOrder(data);
-      setShippingStatus(data.shipping_status);
-      setTracking(data.tracking_number || "");
+      const orderData = await orderRes.json();
+      const productsData: Product[] = await productsRes.json();
+
+      const map: Record<string, Product> = {};
+      productsData.forEach((p) => (map[p.id] = p));
+
+      setProducts(map);
+      setOrder(orderData);
+      setShippingStatus(orderData.shipping_status);
+      setTracking(orderData.tracking_number || "");
     } catch {
       toast.error("Failed to load order");
       router.replace("/admin/orders");
@@ -109,8 +124,7 @@ export default function AdminOrderDetailPage() {
       {/* SUMMARY */}
       <section className="card">
         <div>
-          <b>Total:</b> M{" "}
-          {order.total_amount.toLocaleString()}
+          <b>Total:</b> M {order.total_amount.toLocaleString()}
         </div>
         <div>
           <b>Payment:</b> {order.payment_status}
@@ -124,7 +138,6 @@ export default function AdminOrderDetailPage() {
       {order.payment?.proof_url && (
         <section className="card">
           <h3>Payment Proof</h3>
-
           <img
             src={`${API}${order.payment.proof_url}`}
             alt="Payment proof"
@@ -137,29 +150,18 @@ export default function AdminOrderDetailPage() {
           />
 
           {order.payment_status === "payment_submitted" && (
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                marginTop: 14,
-              }}
-            >
+            <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
               <button
                 className="btn btnTech"
                 disabled={updating}
-                onClick={() =>
-                  update({ status: "payment_received" })
-                }
+                onClick={() => update({ status: "payment_received" })}
               >
                 Approve Payment
               </button>
-
               <button
                 className="btn btnGhost"
                 disabled={updating}
-                onClick={() =>
-                  update({ status: "rejected" })
-                }
+                onClick={() => update({ status: "rejected" })}
               >
                 Reject Payment
               </button>
@@ -175,9 +177,7 @@ export default function AdminOrderDetailPage() {
 
           <select
             value={shippingStatus}
-            onChange={(e) =>
-              setShippingStatus(e.target.value)
-            }
+            onChange={(e) => setShippingStatus(e.target.value)}
           >
             <option value="created">Created</option>
             <option value="processing">Processing</option>
@@ -209,13 +209,51 @@ export default function AdminOrderDetailPage() {
       {/* ITEMS */}
       <section className="card">
         <h3>Items</h3>
-        <ul style={{ marginTop: 8 }}>
-          {order.items.map((i, idx) => (
-            <li key={idx}>
-              Product {i.product_id} × {i.quantity}
-            </li>
-          ))}
-        </ul>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          {order.items.map((i, idx) => {
+            const p = products[i.product_id];
+
+            return (
+              <div
+                key={idx}
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "center",
+                }}
+              >
+                {p && (
+                  <img
+                    src={p.img}
+                    alt={p.title}
+                    style={{
+                      width: 56,
+                      height: 56,
+                      objectFit: "cover",
+                      borderRadius: 8,
+                    }}
+                  />
+                )}
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800 }}>
+                    {p ? p.title : i.product_id}
+                  </div>
+                  <div style={{ fontSize: 13, opacity: 0.6 }}>
+                    Quantity: {i.quantity}
+                  </div>
+                </div>
+
+                {p && (
+                  <div style={{ fontWeight: 700 }}>
+                    M {(p.price * i.quantity).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
     </div>
   );
