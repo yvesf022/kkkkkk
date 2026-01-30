@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
+import { useAdminAuth } from "@/lib/adminAuth";
 
 type Item = {
   label: string;
@@ -19,11 +19,12 @@ const ITEMS: Item[] = [
 export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const logout = useAuth((s) => s.logout);
+
+  const logout = useAdminAuth((s) => s.logout);
 
   function handleLogout() {
     logout();
-    router.push("/login");
+    router.replace("/admin/login");
   }
 
   return (
