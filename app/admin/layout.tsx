@@ -19,7 +19,6 @@ export default function AdminLayout({
   const checkedRef = useRef(false);
   const [checked, setChecked] = useState(false);
 
-  // 🔐 SINGLE auth check (Amazon-style)
   useEffect(() => {
     if (checkedRef.current) return;
     checkedRef.current = true;
@@ -28,11 +27,7 @@ export default function AdminLayout({
   }, [refresh]);
 
   if (!checked || loading) {
-    return (
-      <div className="p-6">
-        Loading admin console…
-      </div>
-    );
+    return <div className="p-6">Loading admin console…</div>;
   }
 
   if (!admin) {
@@ -41,12 +36,33 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        width: "100%",
+      }}
+    >
       {/* LEFT SIDEBAR */}
-      <AdminSidebar />
+      <div
+        style={{
+          width: 260,
+          flexShrink: 0, // 🔑 PREVENT COLLAPSE
+        }}
+      >
+        <AdminSidebar />
+      </div>
 
       {/* RIGHT CONTENT */}
-      <main className="flex-1 bg-gray-50 p-6 overflow-y-auto">
+      <main
+        style={{
+          flex: 1,               // 🔑 TAKE REMAINING SPACE
+          minWidth: 0,           // 🔑 PREVENT OVERFLOW ISSUES
+          padding: 24,
+          background: "#f8fafc",
+          overflowY: "auto",
+        }}
+      >
         {children}
       </main>
     </div>
