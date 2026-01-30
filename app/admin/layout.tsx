@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { useAdminAuth } from "@/lib/adminAuth";
+import { useRouter } from "next/navigation";
 
 export default function AdminLayout({
   children,
@@ -16,23 +16,31 @@ export default function AdminLayout({
   const loading = useAdminAuth((s) => s.loading);
   const refresh = useAdminAuth((s) => s.refresh);
 
-  // 🔐 Verify admin session on first load
+  // 🔒 ensure refresh runs ONLY once
+  const didCheckRef = useRef(false);
+  const [checked, setChecked] = useState(false);
+
   useEffect(() => {
-    refresh();
+    if (didCheckRef.current) return;
+    didCheckRef.current = true;
+
+    refresh().finally(() => {
+      setChecked(true);
+    });
   }, [refresh]);
 
-  // ⏳ Loading state
-  if (loading) {
+  // ⏳ Still checking session
+  if (!checked || loading) {
     return <div className="p-6">Checking admin session…</div>;
   }
 
-  // 🚫 Not an admin → go to admin login
+  // 🚫 Not admin → redirect (SIDE EFFECT)
   if (!admin) {
     router.replace("/admin/login");
     return null;
   }
 
-  // ✅ Admin authenticated
+  // ✅ Authenticated admin
   return (
     <div className="flex min-h-screen">
       <AdminSidebar />
