@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 /**
  * Amazon-level email verification page
  * Handles success, failure, and missing token safely
  */
-export default function VerifyEmailPage() {
+
+function VerifyEmailContent() {
   const params = useSearchParams();
   const router = useRouter();
 
@@ -120,5 +121,19 @@ export default function VerifyEmailPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ padding: 32 }}>
+          Verifying your email…
+        </div>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
