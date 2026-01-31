@@ -11,7 +11,8 @@ export default function LoginPage() {
 
   const user = useAuth((s) => s.user);
   const login = useAuth((s) => s.login);
-  const loadingAuth = useAuth((s) => s.loading);
+  const loading = useAuth((s) => s.loading);
+  const initialized = useAuth((s) => s.initialized);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,12 +21,14 @@ export default function LoginPage() {
   const [verifyError, setVerifyError] = useState(false);
   const [resending, setResending] = useState(false);
 
-  // 🔑 CRITICAL: redirect AWAY from /login when authenticated
+  // 🔑 REDIRECT ONLY AFTER AUTH STATE IS STABLE
   useEffect(() => {
-    if (user && !loadingAuth) {
+    if (!initialized) return;
+
+    if (user) {
       router.replace("/account");
     }
-  }, [user, loadingAuth, router]);
+  }, [initialized, user, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,7 +38,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success("Welcome back");
-      // 🚫 DO NOT redirect here — let the effect handle it
+      // 🚫 no router.replace here — effect handles redirect
     } catch (err: any) {
       const message =
         err?.message || "Invalid email or password";
@@ -81,7 +84,16 @@ export default function LoginPage() {
     }
   }
 
-  // Prevent flash of login page when already logged in
+  // ⏳ Wait for auth hydration (NO blank screen bug)
+  if (!initialized) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>
+        Loading…
+      </div>
+    );
+  }
+
+  // 🔒 Already logged in → redirect in effect
   if (user) return null;
 
   return (
