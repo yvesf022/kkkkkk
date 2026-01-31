@@ -10,6 +10,12 @@ export default function AccountDashboardPage() {
 
   const user = useAuth((s) => s.user);
   const initialized = useAuth((s) => s.initialized);
+  const refreshMe = useAuth((s) => s.refreshMe);
+
+  // 🔥 HYDRATE SESSION ON FIRST LOAD
+  useEffect(() => {
+    refreshMe();
+  }, [refreshMe]);
 
   // 🔐 Redirect ONLY after auth is fully initialized
   useEffect(() => {
@@ -49,7 +55,7 @@ export default function AccountDashboardPage() {
         </h1>
 
         <p style={{ opacity: 0.65, fontSize: 15 }}>
-          Hello{user.full_name ? `, ${user.full_name}` : ""}.  
+          Hello{user.full_name ? `, ${user.full_name}` : ""}.{" "}
           Manage orders, payments, and your personal information.
         </p>
       </section>
