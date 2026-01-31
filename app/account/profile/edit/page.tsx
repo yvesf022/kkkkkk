@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { updateMe } from "@/lib/api";
@@ -9,14 +9,44 @@ export default function EditProfilePage() {
   const router = useRouter();
 
   const user = useAuth((s) => s.user);
+  const initialized = useAuth((s) => s.initialized);
   const updateUser = useAuth((s) => s.updateUser);
   const loading = useAuth((s) => s.loading);
 
-  if (!user) return null;
-
-  const [fullName, setFullName] = useState(user.full_name || "");
-  const [phone, setPhone] = useState(user.phone || "");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
+
+  /* ======================
+     REDIRECT AFTER HYDRATION
+  ====================== */
+  useEffect(() => {
+    if (!initialized) return;
+
+    if (!user) {
+      router.replace("/login");
+    } else {
+      // initialize form values once user is available
+      setFullName(user.full_name || "");
+      setPhone(user.phone || "");
+    }
+  }, [initialized, user, router]);
+
+  /* ======================
+     LOADING STATE
+  ====================== */
+  if (!initialized) {
+    return (
+      <div style={{ padding: 40, fontWeight: 700 }}>
+        Loading profile editor…
+      </div>
+    );
+  }
+
+  /* ======================
+     BLOCK RENDER AFTER REDIRECT
+  ====================== */
+  if (!user) return null;
 
   async function handleSave() {
     setSaving(true);
