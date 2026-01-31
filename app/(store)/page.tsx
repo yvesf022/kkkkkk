@@ -1,11 +1,27 @@
-import StoreToolbar from "@/components/layout/store/StoreToolbar";
+"use client";
+
+import { useState } from "react";
+
+import StoreToolbar, {
+  Filters,
+  SortMode,
+} from "@/components/layout/store/StoreToolbar";
 import StoreTabs from "@/components/store/StoreTabs";
 
 export default function StoreHomePage() {
+  const [filters, setFilters] = useState<Filters>({});
+  const [sort, setSort] =
+    useState<SortMode>("featured");
+
   return (
     <div className="space-y-6">
       {/* Store header / filters */}
-      <StoreToolbar />
+      <StoreToolbar
+        filters={filters}
+        setFilters={setFilters}
+        sort={sort}
+        setSort={setSort}
+      />
 
       {/* Category / store tabs */}
       <StoreTabs />
