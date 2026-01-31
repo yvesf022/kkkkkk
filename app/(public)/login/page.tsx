@@ -8,7 +8,9 @@ import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+
   const login = useAuth((s) => s.login);
+  const getUser = useAuth.getState;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,14 +25,28 @@ export default function LoginPage() {
     setVerifyError(false);
 
     try {
+      // 1️⃣ authenticate
       await login(email, password);
+
+      // 2️⃣ read hydrated user from store
+      const user = getUser().user;
+
+      if (!user) {
+        throw new Error("Login succeeded but user not loaded");
+      }
+
       toast.success("Welcome back");
-      router.replace("/account/profile");
+
+      // 3️⃣ role-based redirect (IMPORTANT)
+      if (user.role === "admin") {
+        router.replace("/admin");
+      } else {
+        router.replace("/account");
+      }
     } catch (err: any) {
       const message =
         err?.message || "Invalid email or password";
 
-      // 🔐 EMAIL NOT VERIFIED CASE
       if (
         message.toLowerCase().includes("verify") ||
         message.toLowerCase().includes("not verified")
