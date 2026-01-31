@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Mail } from "lucide-react";
+import { Mail, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
@@ -11,53 +11,71 @@ export default function LoginPage() {
 
   const user = useAuth((s) => s.user);
   const login = useAuth((s) => s.login);
-  const loading = useAuth((s) => s.loading);
   const initialized = useAuth((s) => s.initialized);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
+  const [statusText, setStatusText] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   const [verifyError, setVerifyError] = useState(false);
   const [resending, setResending] = useState(false);
 
-  // 🔁 Redirect if already logged in (hard redirect to avoid blank screen)
+  /* -------------------------
+     AUTO REDIRECT IF LOGGED IN
+  ------------------------- */
   useEffect(() => {
     if (!initialized) return;
-
-    if (user) {
-      router.replace("/account");
-    }
+    if (user) router.replace("/account");
   }, [initialized, user, router]);
 
+  /* -------------------------
+     SUBMIT
+  ------------------------- */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
     setSubmitting(true);
+    setErrorText(null);
     setVerifyError(false);
+    setStatusText("Signing you in…");
 
     try {
       await login(email, password);
+
+      setStatusText("Redirecting to your account…");
       toast.success("Welcome back");
 
-      // ✅ Immediate redirect after login
       router.replace("/account");
     } catch (err: any) {
-      const message = err?.message || "Invalid email or password";
+      const message =
+        err?.message || "Invalid email or password";
+
+      setStatusText(null);
 
       if (
         message.toLowerCase().includes("verify") ||
         message.toLowerCase().includes("not verified")
       ) {
         setVerifyError(true);
-        toast.error("Please verify your email first");
+        setErrorText(
+          "Your email address has not been verified."
+        );
       } else {
-        toast.error(message);
+        setErrorText("Incorrect email or password.");
       }
+
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
   }
 
+  /* -------------------------
+     RESEND VERIFICATION
+  ------------------------- */
   async function resendVerification() {
     if (!email) {
       toast.error("Enter your email address first");
@@ -85,7 +103,9 @@ export default function LoginPage() {
     }
   }
 
-  // ⏳ Wait for auth hydration
+  /* -------------------------
+     HYDRATION
+  ------------------------- */
   if (!initialized) {
     return (
       <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>
@@ -94,11 +114,7 @@ export default function LoginPage() {
     );
   }
 
-  // 🔒 Safety redirect (never allow blank page)
-  if (user) {
-    router.replace("/account");
-    return null;
-  }
+  if (user) return null;
 
   return (
     <div
@@ -112,15 +128,43 @@ export default function LoginPage() {
           "0 30px 80px rgba(12,14,20,.18), inset 0 0 0 1px rgba(255,255,255,.6)",
       }}
     >
+      {/* HEADER */}
       <header style={{ textAlign: "center" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-          Welcome back
+          Sign in
         </h1>
         <p style={{ opacity: 0.65 }}>
-          Sign in to your account
+          Use your email and password
         </p>
       </header>
 
+      {/* STATUS */}
+      {statusText && (
+        <div style={{ fontSize: 14, opacity: 0.7 }}>
+          {statusText}
+        </div>
+      )}
+
+      {/* ERROR */}
+      {errorText && (
+        <div
+          style={{
+            padding: 14,
+            borderRadius: 14,
+            background: "#fef2f2",
+            color: "#991b1b",
+            fontSize: 14,
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <AlertCircle size={18} />
+          {errorText}
+        </div>
+      )}
+
+      {/* VERIFY ERROR */}
       {verifyError && (
         <div
           style={{
@@ -138,21 +182,20 @@ export default function LoginPage() {
             <strong>Email not verified</strong>
           </div>
 
-          <p>
-            Please verify your email address before signing in.
-          </p>
-
           <button
             type="button"
             disabled={resending}
             onClick={resendVerification}
             className="btn btnGhost"
           >
-            {resending ? "Sending…" : "Resend verification email"}
+            {resending
+              ? "Sending…"
+              : "Resend verification email"}
           </button>
         </div>
       )}
 
+      {/* FORM */}
       <form
         onSubmit={handleSubmit}
         style={{ display: "grid", gap: 16 }}
@@ -161,6 +204,7 @@ export default function LoginPage() {
           type="email"
           placeholder="Email address"
           required
+          disabled={submitting}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           style={inputStyle}
@@ -170,6 +214,7 @@ export default function LoginPage() {
           type="password"
           placeholder="Password"
           required
+          disabled={submitting}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={inputStyle}
@@ -191,12 +236,14 @@ export default function LoginPage() {
             opacity: submitting ? 0.7 : 1,
           }}
         >
-          {submitting ? "Signing in…" : "Login"}
+          {submitting ? "Signing in…" : "Sign in"}
         </button>
       </form>
     </div>
   );
 }
+
+/* ------------------ styles ------------------ */
 
 const inputStyle: React.CSSProperties = {
   padding: "14px 16px",
