@@ -1,11 +1,35 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 export default function AccountDashboardPage() {
-  const user = useAuth((s) => s.user);
+  const router = useRouter();
 
+  const user = useAuth((s) => s.user);
+  const initialized = useAuth((s) => s.initialized);
+
+  // 🔐 Redirect ONLY after auth is fully initialized
+  useEffect(() => {
+    if (!initialized) return;
+
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [initialized, user, router]);
+
+  // ⏳ Loading state during hydration
+  if (!initialized) {
+    return (
+      <div style={{ padding: 40, fontWeight: 700 }}>
+        Loading your account…
+      </div>
+    );
+  }
+
+  // ⛔ Block render after redirect
   if (!user) return null;
 
   return (
