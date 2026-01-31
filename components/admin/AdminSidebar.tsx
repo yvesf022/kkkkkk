@@ -20,13 +20,20 @@ const CATALOG: Item[] = [
   { label: "Payment Settings", href: "/admin/payment-settings" },
 ];
 
-export default function AdminSidebar() {
+export default function AdminSidebar({
+  isMobile,
+  onClose,
+}: {
+  isMobile?: boolean;
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const logout = useAdminAuth((s) => s.logout);
 
   function handleLogout() {
     logout();
+    onClose?.();
     router.replace("/admin/login");
   }
 
@@ -40,6 +47,7 @@ export default function AdminSidebar() {
         <Link
           key={item.href}
           href={item.href}
+          onClick={onClose}
           style={{
             padding: "10px 12px",
             borderRadius: 12,
@@ -74,6 +82,25 @@ export default function AdminSidebar() {
         gap: 20,
       }}
     >
+      {/* MOBILE CLOSE */}
+      {isMobile && (
+        <button
+          onClick={onClose}
+          style={{
+            alignSelf: "flex-end",
+            padding: "6px 10px",
+            borderRadius: 8,
+            fontWeight: 800,
+            background: "#1e293b",
+            color: "#e5e7eb",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          ✕ Close
+        </button>
+      )}
+
       {/* BRAND */}
       <div>
         <div
