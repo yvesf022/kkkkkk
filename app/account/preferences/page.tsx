@@ -1,21 +1,47 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 export default function PreferencesPage() {
+  const router = useRouter();
+
   const user = useAuth((s) => s.user);
+  const initialized = useAuth((s) => s.initialized);
 
   const [language, setLanguage] = useState("en");
   const [emailNotif, setEmailNotif] = useState(true);
   const [smsNotif, setSmsNotif] = useState(false);
 
+  /* ======================
+     REDIRECT AFTER HYDRATION
+  ====================== */
+  useEffect(() => {
+    if (!initialized) return;
+
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [initialized, user, router]);
+
+  /* ======================
+     LOADING STATE
+  ====================== */
+  if (!initialized) {
+    return (
+      <div style={{ padding: 40, fontWeight: 700 }}>
+        Loading preferences…
+      </div>
+    );
+  }
+
+  /* ======================
+     BLOCK RENDER AFTER REDIRECT
+  ====================== */
   if (!user) return null;
 
   function handleSave() {
-    // Amazon-level rule:
-    // Preferences are persisted server-side later.
-    // UI is stable, wired, and future-proof.
     alert("Preferences saved");
   }
 
