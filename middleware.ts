@@ -1,39 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * SAFE AUTH MIDDLEWARE
- * --------------------
- * - Protects /account routes
- * - Blocks authenticated users from public auth pages
- * - Does NOT touch /store or /admin
- * - Does NOT read admin cookies
- * - Redirect-only logic (no side effects)
+ * AUTH MIDDLEWARE (FIXED)
+ * ----------------------
+ * - ONLY protects /account routes
+ * - Does NOT redirect logged-in users away from /login
+ * - Avoids cookie race conditions
+ * - Client controls post-login navigation
  */
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  const hasUserToken =
-    request.cookies.get("access_token") !== undefined;
+  // Read cookie safely
+  const token = request.cookies.get("access_token")?.value;
 
   /**
-   * 🔒 BLOCK AUTH PAGES FOR LOGGED-IN USERS
-   */
-  if (
-    hasUserToken &&
-    (pathname === "/login" ||
-      pathname === "/register" ||
-      pathname === "/verify-email")
-  ) {
-    return NextResponse.redirect(
-      new URL("/account", request.url)
-    );
-  }
-
-  /**
-   * 🔐 PROTECT /account ROUTES
+   * 🔐 Protect /account routes
    */
   if (pathname.startsWith("/account")) {
-    if (!hasUserToken) {
+    if (!token) {
       return NextResponse.redirect(
         new URL("/login", request.url)
       );
@@ -47,10 +32,5 @@ export function middleware(request: NextRequest) {
  * Run middleware ONLY where needed
  */
 export const config = {
-  matcher: [
-    "/account/:path*",
-    "/login",
-    "/register",
-    "/verify-email",
-  ],
+  matcher: ["/account/:path*"],
 };
