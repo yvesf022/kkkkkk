@@ -40,33 +40,33 @@ export default function ProductImageUploader({
 
     try {
       const fd = new FormData();
-      fd.append("image", file);
+
+      // 🔥 MUST be "file" — backend expects UploadFile = File(...)
+      fd.append("file", file);
 
       const res = await fetch(
-        `${API}/api/admin/products/upload-image`,
+        `${API}/api/products/admin/upload-image`, // 🔥 correct route
         {
           method: "POST",
-          credentials: "include", // 🔐 admin cookie auth
+          credentials: "include", // admin cookie
           body: fd,
         }
       );
 
-      if (!res.ok) {
-        throw new Error("Upload failed");
-      }
-
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.detail || "Upload failed");
+      }
 
       if (!data.url) {
         throw new Error("Invalid upload response");
       }
 
-      onChange(data.url);
+      onChange(data.url); // e.g. /uploads/products/xyz.jpg
       toast.success("Image uploaded successfully");
-    } catch {
-      toast.error(
-        "Image upload failed (backend not ready yet)"
-      );
+    } catch (err: any) {
+      toast.error(err.message || "Image upload failed");
     } finally {
       setUploading(false);
     }
@@ -76,7 +76,11 @@ export default function ProductImageUploader({
     <div style={{ display: "grid", gap: 12 }}>
       {preview && (
         <img
-          src={preview}
+          src={
+            preview.startsWith("blob:")
+              ? preview
+              : `${API}${preview}`
+          }
           alt="Preview"
           style={{
             width: 140,
@@ -92,6 +96,7 @@ export default function ProductImageUploader({
         type="file"
         accept="image/*"
         onChange={handleFileSelect}
+        disabled={uploading}
       />
 
       <button
