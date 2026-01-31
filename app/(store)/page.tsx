@@ -26,7 +26,10 @@ export default function StoreHomePage() {
       />
 
       {/* Category / store tabs */}
-      <StoreTabs />
+      <StoreTabs
+        filters={filters}
+        setFilters={setFilters}
+      />
 
       {/* Product listing will live here */}
       <p className="text-gray-500">
