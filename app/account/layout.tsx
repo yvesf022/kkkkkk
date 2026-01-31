@@ -10,17 +10,31 @@ export default function AccountLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = useAuth((s) => s.user);
-  const loading = useAuth((s) => s.loading);
   const router = useRouter();
 
+  const user = useAuth((s) => s.user);
+  const loading = useAuth((s) => s.loading);
+  const initialized = useAuth((s) => s.initialized);
+  const refreshMe = useAuth((s) => s.refreshMe);
+
+  // 🔐 Ensure auth is hydrated
   useEffect(() => {
-    if (!loading && !user) {
+    if (!initialized) {
+      refreshMe();
+    }
+  }, [initialized, refreshMe]);
+
+  // 🔁 Redirect ONLY after auth is known
+  useEffect(() => {
+    if (initialized && !loading && !user) {
       router.replace("/login");
     }
-  }, [loading, user, router]);
+  }, [initialized, loading, user, router]);
 
-  if (loading || !user) return null;
+  // ⏳ Block render until auth is ready
+  if (!initialized || loading) return null;
+
+  if (!user) return null;
 
   return (
     <div
