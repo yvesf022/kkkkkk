@@ -86,20 +86,20 @@ export default function Header() {
   if (pathname.startsWith("/admin")) return null;
 
   const { toggleSidebar } = useUI();
-
   const { items } = useCart();
-  const cartCount = items.reduce((a, b) => a + b.quantity, 0);
   const wishlistCount = useStore((s) => s.wishlist.length);
 
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
 
+  const cartCount = items.reduce((a, b) => a + b.quantity, 0);
   const isStoreRoute = pathname.startsWith("/store");
 
-  function handleLogout() {
-    logout();
-    router.replace("/login");
-    router.refresh();
+  // ✅ FINAL, SAFE LOGOUT
+  async function handleLogout() {
+    await logout();                 // ⬅️ MUST await
+    router.replace("/login");       // ⬅️ user-only route
+    router.refresh();               // ⬅️ flush middleware + cache
   }
 
   return (
