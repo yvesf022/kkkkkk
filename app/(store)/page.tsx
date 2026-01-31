@@ -9,7 +9,9 @@ import StoreToolbar, {
 import StoreTabs from "@/components/store/StoreTabs";
 
 export default function StoreHomePage() {
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>(
+    {} as Filters
+  );
   const [sort, setSort] =
     useState<SortMode>("featured");
 
