@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -45,9 +46,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
 
-      setStatusText("Redirecting to your account…");
       toast.success("Welcome back");
-
       router.replace("/account");
     } catch (err: any) {
       const message =
@@ -60,9 +59,7 @@ export default function LoginPage() {
         message.toLowerCase().includes("not verified")
       ) {
         setVerifyError(true);
-        setErrorText(
-          "Your email address has not been verified."
-        );
+        setErrorText("Your email address has not been verified.");
       } else {
         setErrorText("Incorrect email or password.");
       }
@@ -126,24 +123,15 @@ export default function LoginPage() {
         gap: 22,
         boxShadow:
           "0 30px 80px rgba(12,14,20,.18), inset 0 0 0 1px rgba(255,255,255,.6)",
+        maxWidth: 420,
+        margin: "0 auto",
       }}
     >
       {/* HEADER */}
       <header style={{ textAlign: "center" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>
-          Sign in
-        </h1>
-        <p style={{ opacity: 0.65 }}>
-          Use your email and password
-        </p>
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>Sign in</h1>
+        <p style={{ opacity: 0.65 }}>Use your email and password</p>
       </header>
-
-      {/* STATUS */}
-      {statusText && (
-        <div style={{ fontSize: 14, opacity: 0.7 }}>
-          {statusText}
-        </div>
-      )}
 
       {/* ERROR */}
       {errorText && (
@@ -188,18 +176,13 @@ export default function LoginPage() {
             onClick={resendVerification}
             className="btn btnGhost"
           >
-            {resending
-              ? "Sending…"
-              : "Resend verification email"}
+            {resending ? "Sending…" : "Resend verification email"}
           </button>
         </div>
       )}
 
       {/* FORM */}
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "grid", gap: 16 }}
-      >
+      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
         <input
           type="email"
           placeholder="Email address"
@@ -233,12 +216,24 @@ export default function LoginPage() {
             background: "#111",
             color: "#fff",
             cursor: "pointer",
-            opacity: submitting ? 0.7 : 1,
           }}
         >
           {submitting ? "Signing in…" : "Sign in"}
         </button>
       </form>
+
+      {/* FOOTER LINKS */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 14,
+          opacity: 0.8,
+        }}
+      >
+        <Link href="/register">Create account</Link>
+        <Link href="/forgot-password">Forgot password?</Link>
+      </div>
     </div>
   );
 }
