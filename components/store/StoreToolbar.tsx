@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React from "react";
 
 export type SortMode =
   | "featured"
@@ -15,51 +15,41 @@ export type Filters = {
   max?: number;
 };
 
-type Props = {
-  filters: Filters;
-  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
-  sort: SortMode;
-  setSort: React.Dispatch<React.SetStateAction<SortMode>>;
-};
-
 export default function StoreToolbar({
   filters,
   setFilters,
   sort,
   setSort,
-}: Props) {
-  /* =========================
-     STABLE UPDATERS (AMAZON STYLE)
-  ========================= */
-
-  const updateFilter = useCallback(
-    <K extends keyof Filters>(key: K, value: Filters[K]) => {
-      setFilters((prev) => ({
-        ...prev,
-        [key]: value || undefined,
-      }));
-    },
-    [setFilters]
-  );
-
-  const resetAll = () => {
-    setFilters({});
-    setSort("featured");
-  };
-
-  /* =========================
-     UI
-  ========================= */
-
+}: {
+  filters: Filters;
+  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
+  sort: SortMode;
+  setSort: React.Dispatch<React.SetStateAction<SortMode>>;
+}) {
   return (
     <section
       style={{
-        borderRadius: 24,
-        padding: 20,
-        background: "#ffffff",
-        boxShadow: "0 12px 40px rgba(15,23,42,0.12)",
-        display: "grid",
-        gap: 16,
+        position: "relative",
+        borderRadius: 26,
+        padding: 18,
+        background: `
+          radial-gradient(
+            800px 260px at 12% 10%,
+            rgba(96,165,250,0.18),
+            transparent 60%
+          ),
+          radial-gradient(
+            800px 260px at 88% 14%,
+            rgba(244,114,182,0.14),
+            transparent 60%
+          ),
+          linear-gradient(
+            135deg,
+            #ffffff,
+            #f8fbff
+          )
+        `,
+        boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
       }}
     >
       {/* HEADER */}
@@ -67,77 +57,119 @@ export default function StoreToolbar({
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
           gap: 12,
+          alignItems: "center",
           flexWrap: "wrap",
         }}
       >
         <div>
-          <div style={{ fontWeight: 900, fontSize: 16 }}>
+          <div
+            style={{
+              fontWeight: 900,
+              fontSize: 15,
+              color: "#0f172a",
+            }}
+          >
             Shop Products
           </div>
-          <div style={{ fontSize: 12, opacity: 0.6 }}>
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 12,
+              fontWeight: 700,
+              color: "rgba(15,23,42,0.6)",
+            }}
+          >
             Search, filter, and sort items
           </div>
         </div>
 
         <button
           className="btn btnGhost"
-          onClick={resetAll}
+          onClick={() => {
+            setFilters({});
+            setSort("featured");
+          }}
         >
-          Reset filters
+          Reset
         </button>
       </div>
 
-      {/* FILTER GRID */}
+      {/* CONTROLS */}
       <div
-        className="storeToolbarGrid"
         style={{
+          marginTop: 14,
           display: "grid",
-          gridTemplateColumns: "2fr 1fr 1fr 1fr",
-          gap: 12,
+          gridTemplateColumns:
+            "1.2fr 0.9fr 0.9fr 1fr",
+          gap: 10,
         }}
+        className="storeToolbarGrid"
       >
         {/* SEARCH */}
         <input
           placeholder="Search products"
           value={filters.q ?? ""}
           onChange={(e) =>
-            updateFilter("q", e.target.value)
+            setFilters((s) => ({
+              ...s,
+              q: e.target.value,
+            }))
           }
-          style={inputStyle}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 16,
+            border: "1px solid rgba(15,23,42,0.12)",
+            fontWeight: 700,
+            background:
+              "linear-gradient(135deg,#ffffff,#f8fbff)",
+          }}
         />
 
-        {/* MIN PRICE */}
+        {/* MIN */}
         <input
-          placeholder="Min price (M)"
+          placeholder="Min M"
           inputMode="numeric"
           value={filters.min ?? ""}
           onChange={(e) =>
-            updateFilter(
-              "min",
-              e.target.value
+            setFilters((s) => ({
+              ...s,
+              min: e.target.value
                 ? Number(e.target.value)
-                : undefined
-            )
+                : undefined,
+            }))
           }
-          style={inputStyle}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 16,
+            border: "1px solid rgba(15,23,42,0.12)",
+            fontWeight: 700,
+            background:
+              "linear-gradient(135deg,#ffffff,#f8fbff)",
+          }}
         />
 
-        {/* MAX PRICE */}
+        {/* MAX */}
         <input
-          placeholder="Max price (M)"
+          placeholder="Max M"
           inputMode="numeric"
           value={filters.max ?? ""}
           onChange={(e) =>
-            updateFilter(
-              "max",
-              e.target.value
+            setFilters((s) => ({
+              ...s,
+              max: e.target.value
                 ? Number(e.target.value)
-                : undefined
-            )
+                : undefined,
+            }))
           }
-          style={inputStyle}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 16,
+            border: "1px solid rgba(15,23,42,0.12)",
+            fontWeight: 700,
+            background:
+              "linear-gradient(135deg,#ffffff,#f8fbff)",
+          }}
         />
 
         {/* SORT */}
@@ -146,10 +178,17 @@ export default function StoreToolbar({
           onChange={(e) =>
             setSort(e.target.value as SortMode)
           }
-          style={inputStyle}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 16,
+            border: "1px solid rgba(15,23,42,0.12)",
+            fontWeight: 800,
+            background:
+              "linear-gradient(135deg,#ffffff,#f8fbff)",
+          }}
         >
           <option value="featured">Featured</option>
-          <option value="rating">Top rated</option>
+          <option value="rating">Top Rated</option>
           <option value="price_low">
             Price: Low → High
           </option>
@@ -161,7 +200,7 @@ export default function StoreToolbar({
 
       {/* RESPONSIVE */}
       <style>{`
-        @media (max-width: 900px) {
+        @media (max-width: 980px) {
           .storeToolbarGrid {
             grid-template-columns: 1fr !important;
           }
@@ -170,15 +209,3 @@ export default function StoreToolbar({
     </section>
   );
 }
-
-/* =========================
-   SHARED INPUT STYLE
-========================= */
-
-const inputStyle: React.CSSProperties = {
-  padding: "12px 14px",
-  borderRadius: 14,
-  border: "1px solid rgba(15,23,42,0.15)",
-  fontWeight: 700,
-  background: "#f8fafc",
-};
