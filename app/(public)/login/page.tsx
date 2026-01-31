@@ -21,7 +21,7 @@ export default function LoginPage() {
   const [verifyError, setVerifyError] = useState(false);
   const [resending, setResending] = useState(false);
 
-  // 🔑 REDIRECT ONLY AFTER AUTH STATE IS STABLE (page refresh / already logged in)
+  // 🔁 Redirect if already logged in (hard redirect to avoid blank screen)
   useEffect(() => {
     if (!initialized) return;
 
@@ -39,11 +39,10 @@ export default function LoginPage() {
       await login(email, password);
       toast.success("Welcome back");
 
-      // ✅ FIX: redirect immediately after successful login
+      // ✅ Immediate redirect after login
       router.replace("/account");
     } catch (err: any) {
-      const message =
-        err?.message || "Invalid email or password";
+      const message = err?.message || "Invalid email or password";
 
       if (
         message.toLowerCase().includes("verify") ||
@@ -95,8 +94,11 @@ export default function LoginPage() {
     );
   }
 
-  // 🔒 Already logged in → redirect handled by effect
-  if (user) return null;
+  // 🔒 Safety redirect (never allow blank page)
+  if (user) {
+    router.replace("/account");
+    return null;
+  }
 
   return (
     <div
@@ -146,9 +148,7 @@ export default function LoginPage() {
             onClick={resendVerification}
             className="btn btnGhost"
           >
-            {resending
-              ? "Sending…"
-              : "Resend verification email"}
+            {resending ? "Sending…" : "Resend verification email"}
           </button>
         </div>
       )}
