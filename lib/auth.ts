@@ -11,6 +11,8 @@ export type User = {
   full_name?: string;
   phone?: string;
   role: "user" | "admin";
+  avatar_url?: string; // ✅ RESTORED (used by profile page)
+  created_at?: string;
 };
 
 type AuthState = {
@@ -22,7 +24,6 @@ type AuthState = {
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
 
-  // ✅ RESTORED — used by profile edit & others
   updateUser: (user: User | null) => void;
 };
 
@@ -106,7 +107,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   /* --------------------
-     MANUAL UPDATE (SAFE)
+     MANUAL UPDATE
   -------------------- */
   updateUser: (user) => set({ user }),
 }));
