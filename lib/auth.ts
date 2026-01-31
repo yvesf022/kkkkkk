@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { login, logout, getMe } from "./api";
 
+/* ======================
+   TYPES
+====================== */
+
 export type User = {
   id: string;
   email: string;
@@ -14,6 +18,7 @@ export type User = {
 type AuthState = {
   user: User | null;
   loading: boolean;
+  initialized: boolean;
 
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -21,41 +26,84 @@ type AuthState = {
   updateUser: (user: User | null) => void;
 };
 
-export const useAuth = create<AuthState>((set) => ({
+/* ======================
+   STORE
+====================== */
+
+export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   loading: false,
+  initialized: false,
 
-  // ⚡ FAST LOGIN (non-blocking hydration)
+  /* --------------------
+     LOGIN
+  -------------------- */
   login: async (email, password) => {
     set({ loading: true });
 
-    // 1️⃣ Authenticate (sets cookie)
+    // 1️⃣ Authenticate (cookie-based)
     await login(email, password);
 
-    // 2️⃣ Immediately unblock UI
-    set({ loading: false });
-
-    // 3️⃣ Hydrate user in background (DO NOT AWAIT)
-    getMe()
-      .then((user) => set({ user }))
-      .catch(() => set({ user: null }));
-  },
-
-  logout: async () => {
-    set({ loading: true });
-    await logout();
-    set({ user: null, loading: false });
-  },
-
-  refreshMe: async () => {
+    // 2️⃣ Immediately resolve identity
     try {
-      set({ loading: true });
       const user = await getMe();
-      set({ user, loading: false });
+      set({
+        user,
+        loading: false,
+        initialized: true,
+      });
     } catch {
-      set({ user: null, loading: false });
+      set({
+        user: null,
+        loading: false,
+        initialized: true,
+      });
+      throw new Error("Failed to fetch user");
     }
   },
 
+  /* --------------------
+     LOGOUT
+  -------------------- */
+  logout: async () => {
+    set({ loading: true });
+    try {
+      await logout();
+    } finally {
+      set({
+        user: null,
+        loading: false,
+        initialized: true,
+      });
+    }
+  },
+
+  /* --------------------
+     REFRESH SESSION
+  -------------------- */
+  refreshMe: async () => {
+    // Prevent duplicate refresh
+    if (get().initialized) return;
+
+    set({ loading: true });
+    try {
+      const user = await getMe();
+      set({
+        user,
+        loading: false,
+        initialized: true,
+      });
+    } catch {
+      set({
+        user: null,
+        loading: false,
+        initialized: true,
+      });
+    }
+  },
+
+  /* --------------------
+     MANUAL UPDATE
+  -------------------- */
   updateUser: (user) => set({ user }),
 }));
