@@ -21,7 +21,7 @@ export default function LoginPage() {
   const [verifyError, setVerifyError] = useState(false);
   const [resending, setResending] = useState(false);
 
-  // 🔑 REDIRECT ONLY AFTER AUTH STATE IS STABLE
+  // 🔑 REDIRECT ONLY AFTER AUTH STATE IS STABLE (page refresh / already logged in)
   useEffect(() => {
     if (!initialized) return;
 
@@ -38,7 +38,9 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success("Welcome back");
-      // 🚫 no router.replace here — effect handles redirect
+
+      // ✅ FIX: redirect immediately after successful login
+      router.replace("/account");
     } catch (err: any) {
       const message =
         err?.message || "Invalid email or password";
@@ -84,7 +86,7 @@ export default function LoginPage() {
     }
   }
 
-  // ⏳ Wait for auth hydration (NO blank screen bug)
+  // ⏳ Wait for auth hydration
   if (!initialized) {
     return (
       <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>
@@ -93,7 +95,7 @@ export default function LoginPage() {
     );
   }
 
-  // 🔒 Already logged in → redirect in effect
+  // 🔒 Already logged in → redirect handled by effect
   if (user) return null;
 
   return (
