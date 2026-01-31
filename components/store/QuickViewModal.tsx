@@ -5,12 +5,27 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 
-import type { Product } from "@/lib/products";
 import { useStore } from "@/lib/store";
 import { useCart } from "@/app/context/CartContext";
 
 /** Lesotho currency formatter (Maloti) */
-const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
+const fmtM = (v: number) =>
+  `M ${Math.round(v).toLocaleString("en-ZA")}`;
+
+/**
+ * Backend-aligned product type
+ */
+type Product = {
+  id: string;
+  title: string;
+  price: number;
+  compare_price?: number;
+  main_image: string;
+  category: string;
+
+  stock: number;
+  in_stock: boolean;
+};
 
 export default function QuickViewModal({
   open,
@@ -128,7 +143,9 @@ export default function QuickViewModal({
                 alignItems: "center",
               }}
             >
-              <div style={{ fontWeight: 900 }}>Quick View</div>
+              <div style={{ fontWeight: 900 }}>
+                Quick View
+              </div>
 
               <button
                 className="btn btnGhost"
@@ -148,13 +165,13 @@ export default function QuickViewModal({
 
             {/* BODY */}
             <div
+              className="qvGrid"
               style={{
                 display: "grid",
                 gridTemplateColumns: "1.15fr 1fr",
                 gap: 18,
                 padding: 18,
               }}
-              className="qvGrid"
             >
               {/* IMAGE */}
               <div
@@ -167,7 +184,7 @@ export default function QuickViewModal({
                 }}
               >
                 <Image
-                  src={product.img}
+                  src={product.main_image}
                   alt={product.title}
                   width={1200}
                   height={900}
@@ -198,13 +215,9 @@ export default function QuickViewModal({
                       marginTop: 6,
                       fontWeight: 700,
                       color: "rgba(15,23,42,0.6)",
-                      display: "flex",
-                      gap: 8,
                     }}
                   >
-                    <span>⭐ {product.rating}</span>
-                    <span>•</span>
-                    <span>{product.category.toUpperCase()}</span>
+                    {product.category.toUpperCase()}
                   </div>
                 </div>
 
@@ -219,7 +232,9 @@ export default function QuickViewModal({
                       "0 18px 50px rgba(15,23,42,0.14)",
                   }}
                 >
-                  <div style={{ fontWeight: 800 }}>Price</div>
+                  <div style={{ fontWeight: 800 }}>
+                    Price
+                  </div>
 
                   <div
                     style={{
@@ -230,24 +245,48 @@ export default function QuickViewModal({
                   >
                     {fmtM(product.price)}
                   </div>
+
+                  {product.compare_price && (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 14,
+                        opacity: 0.5,
+                        textDecoration: "line-through",
+                      }}
+                    >
+                      {fmtM(product.compare_price)}
+                    </div>
+                  )}
                 </div>
 
                 {/* ACTIONS */}
                 <div style={{ display: "grid", gap: 10 }}>
                   <button
                     className="btn btnTech"
+                    disabled={!product.in_stock}
                     onClick={() => {
+                      if (!product.in_stock) {
+                        toast.error(
+                          "This product is out of stock"
+                        );
+                        return;
+                      }
+
                       addToCart({
                         id: product.id,
                         title: product.title,
                         price: product.price,
-                        image: product.img, // ✅ FIXED
+                        image: product.main_image,
                       });
+
                       toast.success("Added to cart");
                       onClose();
                     }}
                   >
-                    Add to Cart
+                    {product.in_stock
+                      ? "Add to Cart"
+                      : "Out of Stock"}
                   </button>
 
                   <button

@@ -6,9 +6,12 @@ export default function StoreLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ display: "flex" }}>
-      <Sidebar /> {/* Sub-Stores — STORE ONLY */}
-      <main style={{ flex: 1 }}>{children}</main>
+    <div className="flex min-h-screen">
+      {/* Store Sidebar */}
+      <Sidebar />
+
+      {/* Store Content */}
+      <main className="flex-1 p-4">{children}</main>
     </div>
   );
 }

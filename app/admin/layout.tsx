@@ -16,25 +16,64 @@ export default function AdminLayout({
   const loading = useAdminAuth((s) => s.loading);
   const refresh = useAdminAuth((s) => s.refresh);
 
-  const checkedRef = useRef(false);
-  const [checked, setChecked] = useState(false);
+  /**
+   * Ensure refresh() runs exactly once
+   * even under React strict mode.
+   */
+  const ranRef = useRef(false);
+  const [ready, setReady] = useState(false);
 
+  /* ======================
+     AUTH CHECK (ONCE)
+  ====================== */
   useEffect(() => {
-    if (checkedRef.current) return;
-    checkedRef.current = true;
+    if (ranRef.current) return;
+    ranRef.current = true;
 
-    refresh().finally(() => setChecked(true));
+    refresh().finally(() => {
+      setReady(true);
+    });
   }, [refresh]);
 
-  if (!checked || loading) {
-    return <div className="p-6">Loading admin console…</div>;
+  /* ======================
+     REDIRECT IF NOT ADMIN
+  ====================== */
+  useEffect(() => {
+    if (!ready || loading) return;
+    if (!admin) {
+      router.replace("/admin/login");
+    }
+  }, [ready, loading, admin, router]);
+
+  /* ======================
+     LOADING STATE
+  ====================== */
+  if (!ready || loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          background: "#f8fafc",
+          fontWeight: 700,
+        }}
+      >
+        Loading admin console…
+      </div>
+    );
   }
 
+  /* ======================
+     BLOCK RENDER UNTIL AUTH
+  ====================== */
   if (!admin) {
-    router.replace("/admin/login");
     return null;
   }
 
+  /* ======================
+     LAYOUT
+  ====================== */
   return (
     <div
       style={{
@@ -43,21 +82,23 @@ export default function AdminLayout({
         width: "100%",
       }}
     >
-      {/* LEFT SIDEBAR */}
-      <div
+      {/* SIDEBAR */}
+      <aside
         style={{
           width: 260,
-          flexShrink: 0, // 🔑 PREVENT COLLAPSE
+          flexShrink: 0,
+          background: "#ffffff",
+          borderRight: "1px solid #e5e7eb",
         }}
       >
         <AdminSidebar />
-      </div>
+      </aside>
 
-      {/* RIGHT CONTENT */}
+      {/* MAIN CONTENT */}
       <main
         style={{
-          flex: 1,               // 🔑 TAKE REMAINING SPACE
-          minWidth: 0,           // 🔑 PREVENT OVERFLOW ISSUES
+          flex: 1,
+          minWidth: 0,
           padding: 24,
           background: "#f8fafc",
           overflowY: "auto",

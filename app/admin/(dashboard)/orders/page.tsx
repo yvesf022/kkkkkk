@@ -6,6 +6,10 @@ import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
+/* ======================
+   TYPES
+====================== */
+
 type Order = {
   id: string;
   user_email: string;
@@ -20,6 +24,10 @@ type Filter =
   | "needs_review"
   | "paid"
   | "shipped";
+
+/** Lesotho currency formatter (Maloti) */
+const fmtM = (v: number) =>
+  `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -61,14 +69,14 @@ export default function AdminOrdersPage() {
     }
     if (filter === "paid") {
       return orders.filter(
-        (o) => o.payment_status === "payment_received"
+        (o) =>
+          o.payment_status === "payment_received" &&
+          o.shipping_status !== "shipped"
       );
     }
     if (filter === "shipped") {
       return orders.filter(
-        (o) =>
-          o.shipping_status === "shipped" ||
-          o.shipping_status === "delivered"
+        (o) => o.shipping_status === "shipped"
       );
     }
     return orders;
@@ -77,14 +85,14 @@ export default function AdminOrdersPage() {
   if (loading) return <p>Loading orders…</p>;
 
   return (
-    <div style={{ display: "grid", gap: 24 }}>
+    <div style={{ display: "grid", gap: 28 }}>
       {/* HEADER */}
       <header>
         <h1 style={{ fontSize: 28, fontWeight: 900 }}>
           Orders
         </h1>
         <p style={{ opacity: 0.6 }}>
-          Manage payments and shipping
+          Review payments and manage fulfillment
         </p>
       </header>
 
@@ -96,12 +104,12 @@ export default function AdminOrdersPage() {
           onClick={() => setFilter("all")}
         />
         <FilterBtn
-          label="Needs review"
+          label="Needs payment review"
           active={filter === "needs_review"}
           onClick={() => setFilter("needs_review")}
         />
         <FilterBtn
-          label="Paid"
+          label="Paid (awaiting shipment)"
           active={filter === "paid"}
           onClick={() => setFilter("paid")}
         />
@@ -117,63 +125,104 @@ export default function AdminOrdersPage() {
         <div className="card">No orders found.</div>
       ) : (
         <div style={{ display: "grid", gap: 14 }}>
-          {visibleOrders.map((o) => (
-            <Link
-              key={o.id}
-              href={`/admin/orders/${o.id}`}
-              className="card"
-              style={{
-                display: "grid",
-                gap: 6,
-                textDecoration: "none",
-              }}
-            >
-              <div
+          {visibleOrders.map((o) => {
+            const needsReview =
+              o.payment_status === "payment_submitted";
+
+            const paid =
+              o.payment_status === "payment_received";
+
+            return (
+              <Link
+                key={o.id}
+                href={`/admin/orders/${o.id}`}
+                className="card"
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
+                  display: "grid",
+                  gap: 8,
+                  textDecoration: "none",
+                  border:
+                    needsReview
+                      ? "2px solid #fed7aa"
+                      : "1px solid #e5e7eb",
+                  background: needsReview
+                    ? "#fff7ed"
+                    : "#ffffff",
                 }}
               >
-                <strong>
-                  Order #{o.id.slice(0, 8)}
-                </strong>
-                <strong>
-                  M {o.total_amount.toLocaleString()}
-                </strong>
-              </div>
+                {/* TOP ROW */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <strong>
+                    Order #{o.id.slice(0, 8)}
+                  </strong>
 
-              <div style={{ fontSize: 13, opacity: 0.7 }}>
-                {o.user_email}
-              </div>
+                  <strong>
+                    {fmtM(o.total_amount)}
+                  </strong>
+                </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: 14,
-                  fontSize: 13,
-                }}
-              >
-                <span>
-                  Payment: <b>{o.payment_status}</b>
-                </span>
-                <span>
-                  Shipping: <b>{o.shipping_status}</b>
-                </span>
-              </div>
-
-              {o.payment_status === "payment_submitted" && (
+                {/* META */}
                 <div
                   style={{
                     fontSize: 13,
-                    color: "#92400e",
-                    fontWeight: 700,
+                    opacity: 0.75,
                   }}
                 >
-                  ⚠ Needs payment review
+                  {o.user_email}
                 </div>
-              )}
-            </Link>
-          ))}
+
+                {/* STATUS */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 16,
+                    fontSize: 13,
+                  }}
+                >
+                  <span>
+                    Payment:{" "}
+                    <b>{paymentLabel(o.payment_status)}</b>
+                  </span>
+
+                  <span>
+                    Shipping:{" "}
+                    <b>{shippingLabel(o.shipping_status)}</b>
+                  </span>
+                </div>
+
+                {/* PRIORITY FLAG */}
+                {needsReview && (
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 800,
+                      color: "#92400e",
+                    }}
+                  >
+                    ⚠ Payment proof uploaded — review required
+                  </div>
+                )}
+
+                {paid &&
+                  o.shipping_status !== "shipped" && (
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#065f46",
+                      }}
+                    >
+                      ✔ Payment approved — ready to ship
+                    </div>
+                  )}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
@@ -181,8 +230,33 @@ export default function AdminOrdersPage() {
 }
 
 /* ======================
+   HELPERS
+====================== */
+
+function paymentLabel(status: string) {
+  switch (status) {
+    case "payment_submitted":
+      return "Payment submitted";
+    case "payment_received":
+      return "Payment approved";
+    case "rejected":
+      return "Payment rejected";
+    default:
+      return status;
+  }
+}
+
+function shippingLabel(status: string) {
+  if (!status) return "Not shipped";
+  if (status === "shipped") return "Shipped";
+  if (status === "delivered") return "Delivered";
+  return status;
+}
+
+/* ======================
    FILTER BUTTON
 ====================== */
+
 function FilterBtn({
   label,
   active,

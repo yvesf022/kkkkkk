@@ -12,39 +12,50 @@ import { ScaleHover } from "@/components/ui/Motion";
 /** Lesotho currency formatter (Maloti) */
 const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
+/**
+ * Backend-aligned product shape
+ */
 type Product = {
-  _id?: string;
   id: string;
   title: string;
   price: number;
-  oldPrice?: number;
-  img: string;
+  compare_price?: number;
+  main_image: string;
   category: string;
-  rating: number;
 
-  /** INVENTORY (BACKEND-TRUTH) */
   stock: number;
   in_stock: boolean;
 };
 
-export default function ProductCard({ p }: { p: Product }) {
+export default function ProductCard({
+  product,
+}: {
+  product: Product;
+}) {
   const { addToCart } = useCart();
   const [qvOpen, setQvOpen] = useState(false);
 
   const discount = useMemo(() => {
-    if (!p.oldPrice || p.oldPrice <= p.price) return null;
-    return Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100);
-  }, [p.oldPrice, p.price]);
+    if (
+      !product.compare_price ||
+      product.compare_price <= product.price
+    )
+      return null;
 
-  const productId = p.id || p._id;
+    return Math.round(
+      ((product.compare_price - product.price) /
+        product.compare_price) *
+        100
+    );
+  }, [product.compare_price, product.price]);
 
-  const isOutOfStock = p.in_stock === false;
+  const isOutOfStock = product.in_stock === false;
 
   return (
     <>
       <QuickViewModal
         open={qvOpen}
-        product={p}
+        product={product}
         onClose={() => setQvOpen(false)}
       />
 
@@ -78,7 +89,7 @@ export default function ProductCard({ p }: { p: Product }) {
                 color: "#1e3a8a",
               }}
             >
-              {p.category.toUpperCase()}
+              {product.category.toUpperCase()}
             </span>
 
             {isOutOfStock ? (
@@ -113,7 +124,7 @@ export default function ProductCard({ p }: { p: Product }) {
           </div>
 
           {/* IMAGE */}
-          <Link href={`/product/${productId}`}>
+          <Link href={`/store/product/${product.id}`}>
             <div
               style={{
                 height: 170,
@@ -123,8 +134,8 @@ export default function ProductCard({ p }: { p: Product }) {
               }}
             >
               <Image
-                src={p.img}
-                alt={p.title}
+                src={product.main_image}
+                alt={product.title}
                 width={700}
                 height={500}
                 style={{
@@ -145,7 +156,7 @@ export default function ProductCard({ p }: { p: Product }) {
               lineHeight: 1.3,
             }}
           >
-            {p.title}
+            {product.title}
           </div>
 
           {/* PRICE */}
@@ -157,8 +168,8 @@ export default function ProductCard({ p }: { p: Product }) {
             }}
           >
             <span style={{ fontWeight: 900 }}>
-              {fmtM(p.price)}
-              {p.oldPrice && (
+              {fmtM(product.price)}
+              {product.compare_price && (
                 <span
                   style={{
                     marginLeft: 6,
@@ -167,7 +178,7 @@ export default function ProductCard({ p }: { p: Product }) {
                     fontSize: 12,
                   }}
                 >
-                  {fmtM(p.oldPrice)}
+                  {fmtM(product.compare_price)}
                 </span>
               )}
             </span>
@@ -177,7 +188,7 @@ export default function ProductCard({ p }: { p: Product }) {
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ display: "flex", gap: 8 }}>
               <Link
-                href={`/product/${productId}`}
+                href={`/store/product/${product.id}`}
                 className="btn btnGhost"
                 style={{ flex: 1, textAlign: "center" }}
               >
@@ -190,16 +201,19 @@ export default function ProductCard({ p }: { p: Product }) {
                 disabled={isOutOfStock}
                 onClick={() => {
                   if (isOutOfStock) {
-                    toast.error("This product is out of stock");
+                    toast.error(
+                      "This product is currently out of stock"
+                    );
                     return;
                   }
 
                   addToCart({
-                    id: productId!,
-                    title: p.title,
-                    price: p.price,
-                    image: p.img, // ✅ FIXED
+                    id: product.id,
+                    title: product.title,
+                    price: product.price,
+                    image: product.main_image,
                   });
+
                   toast.success("Added to cart");
                 }}
               >

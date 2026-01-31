@@ -5,6 +5,10 @@ import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
+/* ======================
+   TYPES
+====================== */
+
 type PaymentSetting = {
   id: number;
   bank_name: string;
@@ -13,19 +17,24 @@ type PaymentSetting = {
   is_active: boolean;
 };
 
+function maskAccount(num: string) {
+  if (num.length <= 4) return num;
+  return "•••• " + num.slice(-4);
+}
+
 export default function PaymentSettingsPage() {
   const [settings, setSettings] = useState<PaymentSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // form
+  /* FORM */
   const [bankName, setBankName] = useState("");
   const [accountName, setAccountName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
 
-  /* =========================
+  /* ======================
      LOAD SETTINGS
-  ========================= */
+  ====================== */
   async function load() {
     try {
       const res = await fetch(
@@ -46,9 +55,9 @@ export default function PaymentSettingsPage() {
     load();
   }, []);
 
-  /* =========================
+  /* ======================
      ADD BANK
-  ========================= */
+  ====================== */
   async function addBank(e: React.FormEvent) {
     e.preventDefault();
 
@@ -75,7 +84,7 @@ export default function PaymentSettingsPage() {
 
       if (!res.ok) throw new Error();
 
-      toast.success("Bank added");
+      toast.success("Bank account added");
       setBankName("");
       setAccountName("");
       setAccountNumber("");
@@ -87,13 +96,22 @@ export default function PaymentSettingsPage() {
     }
   }
 
-  /* =========================
+  /* ======================
      TOGGLE ACTIVE
-  ========================= */
+  ====================== */
   async function toggleActive(
     id: number,
     active: boolean
   ) {
+    if (
+      active &&
+      !confirm(
+        "Deactivate this bank? Customers will no longer see it."
+      )
+    ) {
+      return;
+    }
+
     try {
       const res = await fetch(
         `${API}/api/admin/payment-settings/${id}`,
@@ -112,16 +130,34 @@ export default function PaymentSettingsPage() {
     }
   }
 
+  const activeBank = settings.find((s) => s.is_active);
+
   return (
-    <div style={{ maxWidth: 720 }}>
+    <div style={{ maxWidth: 760 }}>
       {/* HEADER */}
       <h1 style={{ fontSize: 26, fontWeight: 900 }}>
         Payment Settings
       </h1>
 
       <p style={{ marginTop: 8, opacity: 0.6 }}>
-        Configure bank accounts customers use for payments.
+        Configure the bank account customers use for payments.
       </p>
+
+      {/* ACTIVE BANK NOTICE */}
+      {activeBank && (
+        <div
+          className="card"
+          style={{
+            marginTop: 20,
+            border: "2px solid #86efac",
+            background: "#f0fdf4",
+          }}
+        >
+          <strong>Active bank:</strong>{" "}
+          {activeBank.bank_name} ·{" "}
+          {maskAccount(activeBank.account_number)}
+        </div>
+      )}
 
       {/* ADD BANK */}
       <section className="card" style={{ marginTop: 24 }}>
@@ -147,7 +183,9 @@ export default function PaymentSettingsPage() {
           <input
             placeholder="Account holder name"
             value={accountName}
-            onChange={(e) => setAccountName(e.target.value)}
+            onChange={(e) =>
+              setAccountName(e.target.value)
+            }
             required
           />
 
@@ -169,7 +207,7 @@ export default function PaymentSettingsPage() {
         </form>
       </section>
 
-      {/* LIST BANKS */}
+      {/* BANK LIST */}
       <section style={{ marginTop: 32 }}>
         <h3 style={{ fontWeight: 800 }}>
           Existing Banks
@@ -198,6 +236,9 @@ export default function PaymentSettingsPage() {
                   justifyContent: "space-between",
                   alignItems: "center",
                   gap: 12,
+                  border: s.is_active
+                    ? "2px solid #86efac"
+                    : undefined,
                 }}
               >
                 <div>
@@ -211,7 +252,7 @@ export default function PaymentSettingsPage() {
                       opacity: 0.7,
                     }}
                   >
-                    {s.account_number}
+                    {maskAccount(s.account_number)}
                   </div>
                 </div>
 

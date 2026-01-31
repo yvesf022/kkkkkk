@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
+import { Eye, EyeOff, CheckCircle, XCircle, Mail } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,9 +19,10 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [registered, setRegistered] = useState(false);
 
-  // ✅ Amazon-style password rules
+  /* ================= PASSWORD RULES ================= */
+
   const passwordRules = useMemo(() => {
     return {
       length: password.length >= 8,
@@ -46,13 +47,14 @@ export default function RegisterPage() {
     passwordsMatch &&
     !loading;
 
+  /* ================= REGISTER ================= */
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
 
     setLoading(true);
     setError(null);
-    setSuccess(null);
 
     try {
       const payload = {
@@ -78,12 +80,8 @@ export default function RegisterPage() {
         throw new Error(data.detail || "Registration failed");
       }
 
-      setSuccess("Account created successfully. Redirecting to login…");
       toast.success("Account created 🎉");
-
-      setTimeout(() => {
-        router.push("/login");
-      }, 900);
+      setRegistered(true);
     } catch (err: any) {
       const message =
         err?.message || "Unable to create account. Please try again.";
@@ -93,6 +91,97 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  /* ================= SUCCESS STATE ================= */
+
+  if (registered) {
+    return (
+      <main
+        style={{
+          minHeight: "80vh",
+          display: "grid",
+          placeItems: "center",
+          padding: "24px",
+        }}
+      >
+        <section
+          style={{
+            width: "100%",
+            maxWidth: 460,
+            borderRadius: 28,
+            padding: "36px 32px",
+            textAlign: "center",
+            background: `
+              radial-gradient(420px 220px at 10% 0%, rgba(96,165,250,0.25), transparent 60%),
+              radial-gradient(360px 200px at 90% 10%, rgba(244,114,182,0.22), transparent 60%),
+              linear-gradient(135deg, #f8fbff, #eef6ff, #fff1f6)
+            `,
+            boxShadow: "0 30px 90px rgba(15,23,42,0.18)",
+          }}
+        >
+          <Mail size={42} style={{ margin: "0 auto 12px" }} />
+
+          <h1 style={{ fontSize: 24, fontWeight: 900 }}>
+            Verify your email
+          </h1>
+
+          <p
+            style={{
+              marginTop: 10,
+              color: "#475569",
+              fontWeight: 600,
+            }}
+          >
+            We’ve sent a verification link to:
+          </p>
+
+          <p style={{ fontWeight: 900, marginTop: 6 }}>
+            {email}
+          </p>
+
+          <p
+            style={{
+              marginTop: 18,
+              fontSize: 14,
+              color: "#64748b",
+              lineHeight: 1.6,
+            }}
+          >
+            Please check your inbox and click the link to
+            activate your account before signing in.
+          </p>
+
+          <div style={{ marginTop: 22, display: "grid", gap: 10 }}>
+            <button
+              className="btn btnPrimary"
+              onClick={() => router.push("/login")}
+            >
+              Go to login
+            </button>
+
+            <button
+              className="btn btnGhost"
+              onClick={() => router.push("/")}
+            >
+              Continue shopping
+            </button>
+          </div>
+
+          <p
+            style={{
+              marginTop: 20,
+              fontSize: 12,
+              color: "#64748b",
+            }}
+          >
+            Didn’t receive the email? Check spam or try again later.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  /* ================= FORM ================= */
 
   return (
     <main
@@ -125,7 +214,6 @@ export default function RegisterPage() {
           Create an account to track orders and shop faster.
         </p>
 
-        {/* ERROR */}
         {error && (
           <div
             style={{
@@ -141,30 +229,11 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* SUCCESS */}
-        {success && (
-          <div
-            style={{
-              marginTop: 16,
-              padding: "10px 12px",
-              borderRadius: 12,
-              background: "#dcfce7",
-              color: "#14532d",
-              fontWeight: 600,
-            }}
-          >
-            ✅ {success}
-          </div>
-        )}
-
         <form
           onSubmit={handleRegister}
-          style={{
-            marginTop: 22,
-            display: "grid",
-            gap: 14,
-          }}
+          style={{ marginTop: 22, display: "grid", gap: 14 }}
         >
+          {/* EMAIL */}
           <input
             type="email"
             placeholder="Email address"
@@ -212,7 +281,7 @@ export default function RegisterPage() {
             </button>
           </div>
 
-          {/* PASSWORD RULES */}
+          {/* RULES */}
           <div style={{ fontSize: 13, display: "grid", gap: 6 }}>
             {[
               { ok: passwordRules.length, label: "At least 8 characters" },
@@ -239,7 +308,7 @@ export default function RegisterPage() {
             ))}
           </div>
 
-          {/* CONFIRM PASSWORD */}
+          {/* CONFIRM */}
           <div style={{ position: "relative" }}>
             <input
               type={showConfirm ? "text" : "password"}
@@ -275,13 +344,7 @@ export default function RegisterPage() {
           </div>
 
           {!passwordsMatch && confirmPassword && (
-            <div
-              style={{
-                fontSize: 13,
-                color: "#7f1d1d",
-                fontWeight: 600,
-              }}
-            >
+            <div style={{ fontSize: 13, color: "#7f1d1d", fontWeight: 600 }}>
               ❌ Passwords do not match
             </div>
           )}
@@ -322,13 +385,7 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <div
-          style={{
-            marginTop: 18,
-            display: "grid",
-            gap: 10,
-          }}
-        >
+        <div style={{ marginTop: 18, display: "grid", gap: 10 }}>
           <button
             type="button"
             className="btn btnGhost"
@@ -354,7 +411,7 @@ export default function RegisterPage() {
             textAlign: "center",
           }}
         >
-          🔒 Secure registration · Your data is protected
+          🔒 Secure registration · Email verification required
         </p>
       </section>
     </main>

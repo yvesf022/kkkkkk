@@ -2,8 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { getMyOrders, type Order } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+
+/** Lesotho currency formatter (Maloti) */
+const fmtM = (v: number) =>
+  `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -11,19 +16,61 @@ export default function OrdersPage() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  /* ---------------- AUTH GUARD ---------------- */
+
+  useEffect(() => {
+    if (user === null) {
+      router.replace("/login");
+    }
+  }, [user, router]);
+
+  /* ---------------- FETCH ORDERS ---------------- */
 
   useEffect(() => {
     if (!user) return;
 
+    setLoading(true);
+    setError(null);
+
     getMyOrders()
       .then(setOrders)
+      .catch(() =>
+        setError("Failed to load your orders. Please try again.")
+      )
       .finally(() => setLoading(false));
   }, [user]);
 
   if (!user) return null;
 
+  /* ---------------- LOADING ---------------- */
+
   if (loading) {
-    return <p style={{ opacity: 0.6 }}>Loading your orders…</p>;
+    return (
+      <div style={{ maxWidth: 900 }}>
+        <h1 style={title}>Your Orders</h1>
+        <p style={{ opacity: 0.6 }}>Loading your orders…</p>
+      </div>
+    );
+  }
+
+  /* ---------------- ERROR ---------------- */
+
+  if (error) {
+    return (
+      <div style={{ maxWidth: 640 }}>
+        <h1 style={title}>Your Orders</h1>
+        <p style={{ color: "#991b1b" }}>{error}</p>
+
+        <button
+          onClick={() => router.refresh()}
+          style={primary}
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   /* ---------------- EMPTY STATE ---------------- */
@@ -31,9 +78,7 @@ export default function OrdersPage() {
   if (orders.length === 0) {
     return (
       <div style={{ maxWidth: 640 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 12 }}>
-          Your Orders
-        </h1>
+        <h1 style={title}>Your Orders</h1>
 
         <p style={{ opacity: 0.7, marginBottom: 28 }}>
           You haven’t placed any orders yet.
@@ -53,34 +98,50 @@ export default function OrdersPage() {
 
   return (
     <div style={{ maxWidth: 900 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 24 }}>
-        Your Orders
-      </h1>
+      <h1 style={title}>Your Orders</h1>
 
       <div style={{ display: "grid", gap: 16 }}>
         {orders.map((order) => (
           <button
             key={order.id}
-            onClick={() => router.push(`/account/orders/${order.id}`)}
+            onClick={() =>
+              router.push(`/account/orders/${order.id}`)
+            }
             style={orderCard}
           >
             <div>
-              <div style={{ fontWeight: 800 }}>
+              <div style={{ fontWeight: 900 }}>
                 Order #{order.id.slice(0, 8)}
               </div>
 
-              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 4 }}>
-                Placed on {new Date(order.created_at).toLocaleDateString()}
+              <div
+                style={{
+                  fontSize: 13,
+                  opacity: 0.6,
+                  marginTop: 4,
+                }}
+              >
+                Placed on{" "}
+                {new Date(order.created_at).toLocaleDateString()}
               </div>
             </div>
 
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontWeight: 800 }}>
-                M {order.total_amount.toFixed(2)}
+              <div style={{ fontWeight: 900 }}>
+                {fmtM(order.total_amount)}
               </div>
 
-              <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>
-                {order.payment_status || "processing"}
+              <div
+                style={{
+                  fontSize: 13,
+                  marginTop: 4,
+                  color:
+                    order.payment_status === "paid"
+                      ? "green"
+                      : "orange",
+                }}
+              >
+                {order.payment_status || "Processing"}
               </div>
             </div>
           </button>
@@ -91,6 +152,12 @@ export default function OrdersPage() {
 }
 
 /* ------------------ styles ------------------ */
+
+const title: React.CSSProperties = {
+  fontSize: 28,
+  fontWeight: 900,
+  marginBottom: 24,
+};
 
 const primary: React.CSSProperties = {
   padding: "12px 20px",
@@ -107,10 +174,10 @@ const orderCard: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "center",
   padding: 20,
-  borderRadius: 14,
+  borderRadius: 16,
   background: "#fff",
   border: "none",
   cursor: "pointer",
   textAlign: "left",
-  boxShadow: "0 10px 30px rgba(0,0,0,.08)",
+  boxShadow: "0 12px 32px rgba(15,23,42,0.12)",
 };

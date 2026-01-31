@@ -5,6 +5,10 @@ import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
+/* ======================
+   TYPES
+====================== */
+
 type Order = {
   id: string;
   total_amount: number;
@@ -13,10 +17,17 @@ type Order = {
   created_at: string;
 };
 
+/** Lesotho currency formatter (Maloti) */
+const fmtM = (v: number) =>
+  `M ${Math.round(v).toLocaleString("en-ZA")}`;
+
 export default function AdminReportsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
+  /* ======================
+     LOAD DATA
+  ====================== */
   useEffect(() => {
     fetch(`${API}/api/orders/admin`, {
       credentials: "include",
@@ -32,31 +43,39 @@ export default function AdminReportsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  /* ======================
+     COMPUTE STATS
+  ====================== */
   const stats = useMemo(() => {
-    const totalRevenue = orders
-      .filter((o) => o.payment_status === "payment_received")
-      .reduce((sum, o) => sum + o.total_amount, 0);
+    const paidOrders = orders.filter(
+      (o) => o.payment_status === "payment_received"
+    );
 
-    const pendingPayments = orders.filter(
+    const pendingOrders = orders.filter(
       (o) => o.payment_status === "payment_submitted"
-    ).length;
+    );
 
-    const shipped = orders.filter(
+    const shippedOrders = orders.filter(
       (o) => o.shipping_status === "shipped"
-    ).length;
+    );
+
+    const totalRevenue = paidOrders.reduce(
+      (sum, o) => sum + o.total_amount,
+      0
+    );
 
     return {
       totalOrders: orders.length,
       totalRevenue,
-      pendingPayments,
-      shipped,
+      pendingPayments: pendingOrders.length,
+      shipped: shippedOrders.length,
     };
   }, [orders]);
 
   if (loading) return <p>Loading reports…</p>;
 
   return (
-    <div style={{ display: "grid", gap: 28 }}>
+    <div style={{ display: "grid", gap: 32 }}>
       {/* HEADER */}
       <header>
         <h1 style={{ fontSize: 28, fontWeight: 900 }}>
@@ -67,47 +86,86 @@ export default function AdminReportsPage() {
         </p>
       </header>
 
+      {/* EMPTY STATE */}
+      {orders.length === 0 && (
+        <div className="card">
+          No orders yet. Reports will appear once
+          customers start placing orders.
+        </div>
+      )}
+
       {/* KPIs */}
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px,1fr))",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(220px,1fr))",
           gap: 18,
         }}
       >
         <Stat
-          label="Total Orders"
-          value={stats.totalOrders}
+          label="Total Revenue"
+          value={fmtM(stats.totalRevenue)}
+          highlight="success"
         />
-        <Stat
-          label="Revenue"
-          value={`M${stats.totalRevenue.toLocaleString()}`}
-        />
+
         <Stat
           label="Pending Payments"
           value={stats.pendingPayments}
+          highlight={
+            stats.pendingPayments > 0
+              ? "warning"
+              : undefined
+          }
         />
+
         <Stat
           label="Orders Shipped"
           value={stats.shipped}
+        />
+
+        <Stat
+          label="Total Orders"
+          value={stats.totalOrders}
         />
       </section>
     </div>
   );
 }
 
+/* ======================
+   KPI CARD
+====================== */
+
 function Stat({
   label,
   value,
+  highlight,
 }: {
   label: string;
   value: any;
+  highlight?: "success" | "warning";
 }) {
+  const styles =
+    highlight === "success"
+      ? {
+          border: "2px solid #86efac",
+          background: "#f0fdf4",
+        }
+      : highlight === "warning"
+      ? {
+          border: "2px solid #fde68a",
+          background: "#fffbeb",
+        }
+      : {
+          border: "1px solid #e5e7eb",
+          background: "#ffffff",
+        };
+
   return (
     <div
       style={{
-        background: "#ffffff",
-        border: "1px solid #e5e7eb",
+        ...styles,
         borderRadius: 18,
         padding: 20,
       }}

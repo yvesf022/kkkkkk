@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
+
+import { useAuth } from "@/lib/auth";
 import OrderTimeline from "@/components/orders/OrderTimeline";
+
+/* ======================
+   TYPES
+====================== */
 
 type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
 type ShippingStatus = "awaiting_shipping" | "shipped" | null;
@@ -18,13 +24,34 @@ type Order = {
   tracking_number?: string | null;
 };
 
+/** Lesotho currency formatter (Maloti) */
+const fmtM = (v: number) =>
+  `M ${Math.round(v).toLocaleString("en-ZA")}`;
+
 export default function OrderDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const user = useAuth((s) => s.user);
+
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+
+  /* ======================
+     AUTH GUARD
+  ====================== */
+
+  useEffect(() => {
+    if (user === null) {
+      router.replace("/login");
+    }
+  }, [user, router]);
+
+  /* ======================
+     LOAD ORDER
+  ====================== */
 
   async function loadOrder() {
     try {
@@ -32,7 +59,11 @@ export default function OrderDetailsPage() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}`,
         { credentials: "include" }
       );
-      if (!res.ok) throw new Error();
+
+      if (!res.ok) {
+        throw new Error("Order not accessible");
+      }
+
       const data = await res.json();
 
       setOrder({
@@ -41,21 +72,26 @@ export default function OrderDetailsPage() {
         shipping_status: data.shipping_status ?? null,
       });
     } catch {
-      toast.error("Unable to load order");
+      toast.error("Unable to access this order");
+      router.replace("/account/orders");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadOrder();
-  }, [id]);
+    if (user) loadOrder();
+  }, [id, user]);
+
+  /* ======================
+     PAYMENT PROOF UPLOAD
+  ====================== */
 
   async function handleUpload(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !order) return;
 
     if (!file.type.startsWith("image/")) {
       toast.error("Only image files are allowed");
@@ -68,6 +104,7 @@ export default function OrderDetailsPage() {
     }
 
     setUploading(true);
+
     try {
       const form = new FormData();
       form.append("file", file);
@@ -82,26 +119,29 @@ export default function OrderDetailsPage() {
       );
 
       if (!res.ok) throw new Error();
+
       toast.success("Payment proof uploaded");
+      fileRef.current && (fileRef.current.value = "");
       await loadOrder();
     } catch {
-      toast.error("Upload failed");
+      toast.error("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
   }
 
-  if (loading) return <p>Loading order…</p>;
-  if (!order) return <p>Order not found</p>;
+  /* ======================
+     RENDER STATES
+  ====================== */
+
+  if (!user || loading) {
+    return <p style={{ opacity: 0.6 }}>Loading order…</p>;
+  }
+
+  if (!order) return null;
 
   return (
-    <div
-      style={{
-        maxWidth: 1100,
-        display: "grid",
-        gap: 28,
-      }}
-    >
+    <div style={{ maxWidth: 1100, display: "grid", gap: 28 }}>
       {/* BREADCRUMB */}
       <div style={{ fontSize: 13 }}>
         <Link href="/account/orders">Orders</Link> ›{" "}
@@ -131,7 +171,8 @@ export default function OrderDetailsPage() {
       >
         <strong>Current status:</strong>{" "}
         {paymentLabel(order.payment_status)} ·{" "}
-        {shippingLabel(order.shipping_status)}
+        {shippingLabel(order.shipping_status)} ·{" "}
+        <strong>{fmtM(order.total_amount)}</strong>
       </div>
 
       {/* TIMELINE */}
@@ -167,7 +208,6 @@ export default function OrderDetailsPage() {
 
             <label
               style={{
-                display: "inline-block",
                 fontWeight: 700,
                 cursor: uploading ? "default" : "pointer",
                 opacity: uploading ? 0.6 : 1,
@@ -177,9 +217,11 @@ export default function OrderDetailsPage() {
                 ? "Uploading…"
                 : "Upload payment proof"}
               <input
+                ref={fileRef}
                 type="file"
                 accept="image/*"
                 hidden
+                disabled={uploading}
                 onChange={handleUpload}
               />
             </label>
@@ -192,28 +234,23 @@ export default function OrderDetailsPage() {
 
         {order.payment_status === "paid" && (
           <p style={{ fontSize: 14 }}>
-            Payment confirmed. Your order will proceed to
-            shipping.
+            Payment confirmed. Your order is now
+            being prepared for shipment.
           </p>
         )}
 
         {order.payment_status === "rejected" && (
           <p style={{ fontSize: 14, color: "#b91c1c" }}>
-            Payment was rejected. Please upload a valid proof.
+            Payment was rejected. Please upload a
+            new, valid proof.
           </p>
         )}
       </div>
 
       {/* TRUST NOTE */}
-      <div
-        style={{
-          fontSize: 13,
-          opacity: 0.6,
-          lineHeight: 1.6,
-        }}
-      >
-        🔒 Payments are completed externally. We never store
-        payment details on your account.
+      <div style={{ fontSize: 13, opacity: 0.6 }}>
+        🔒 Payments are completed externally. We never
+        store payment details on your account.
       </div>
 
       {/* FOOTER ACTIONS */}
