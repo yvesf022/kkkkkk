@@ -1,35 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * AUTH MIDDLEWARE
+ * USER AUTH MIDDLEWARE
  * ----------------------
- * - Protects /account routes only
- * - Does NOT interfere with /login or other public routes
- * - Relies on cookie presence for authentication
+ * - Protects /account routes ONLY
+ * - Does NOT interfere with public routes
+ * - Runs BEFORE React (server-side)
+ * - Accepts valid user auth cookies
  */
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Safely read cookie
-  const token = request.cookies.get("access_token")?.value;
+  // 🔐 Check for user authentication cookies
+  const hasUserAuthCookie =
+    request.cookies.has("access_token") || // common FastAPI user cookie
+    request.cookies.has("user_token") ||    // alternate naming
+    request.cookies.has("auth_token");      // fallback naming
 
   /**
-   * 🔐 Protect /account routes
+   * Protect /account routes
    */
   if (pathname.startsWith("/account")) {
-    if (!token) {
+    if (!hasUserAuthCookie) {
       return NextResponse.redirect(
         new URL("/login", request.url)
       );
     }
   }
 
-  // ✅ Allow everything else
+  // ✅ Allow request to continue
   return NextResponse.next();
 }
 
 /**
- * Run middleware ONLY where needed
+ * Run middleware ONLY on account routes
  */
 export const config = {
   matcher: ["/account/:path*"],
