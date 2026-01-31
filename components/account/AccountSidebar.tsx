@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+type Props = {
+  isMobile?: boolean;
+  onClose?: () => void;
+};
+
 const navItems = [
   { label: "Profile", href: "/account/profile" },
   { label: "My Orders", href: "/account/orders" },
@@ -11,7 +16,10 @@ const navItems = [
   { label: "Security", href: "/account/security" },
 ];
 
-export default function AccountSidebar() {
+export default function AccountSidebar({
+  isMobile,
+  onClose,
+}: Props) {
   const pathname = usePathname();
 
   return (
@@ -25,6 +33,24 @@ export default function AccountSidebar() {
         height: "fit-content",
       }}
     >
+      {/* MOBILE CLOSE */}
+      {isMobile && (
+        <button
+          onClick={onClose}
+          style={{
+            marginBottom: 14,
+            padding: "6px 10px",
+            borderRadius: 8,
+            fontWeight: 800,
+            background: "#f1f5f9",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          ✕ Close
+        </button>
+      )}
+
       <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>
         My Account
       </h3>
@@ -40,6 +66,7 @@ export default function AccountSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               style={{
                 padding: "10px 14px",
                 borderRadius: 10,
