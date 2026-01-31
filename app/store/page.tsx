@@ -1,13 +1,20 @@
 "use client";
 
+import { useState } from "react";
+
 import StoreToolbar, {
   Filters,
   SortMode,
 } from "@/components/layout/store/StoreToolbar";
-import { useState } from "react";
 
 export default function StorePage() {
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>({
+    q: "",
+    category: undefined,
+    min: undefined,
+    max: undefined,
+  });
+
   const [sort, setSort] = useState<SortMode>("featured");
 
   return (
