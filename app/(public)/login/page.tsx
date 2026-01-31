@@ -50,7 +50,7 @@ export default function LoginPage() {
 
       toast.success("Welcome back");
       router.replace("/account");
-      router.refresh(); // flush middleware + cache
+      router.refresh();
     } catch (err: any) {
       const message = err?.message || "Invalid email or password";
 
@@ -113,7 +113,6 @@ export default function LoginPage() {
     );
   }
 
-  // ✅ Instead of returning null, show a redirecting state
   if (user) {
     return (
       <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>
@@ -136,13 +135,11 @@ export default function LoginPage() {
         margin: "0 auto",
       }}
     >
-      {/* HEADER */}
       <header style={{ textAlign: "center" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>Sign in</h1>
         <p style={{ opacity: 0.65 }}>Use your email and password</p>
       </header>
 
-      {/* ERROR */}
       {errorText && (
         <div
           style={{
@@ -161,7 +158,6 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* VERIFY ERROR */}
       {verifyError && (
         <div
           style={{
@@ -193,7 +189,10 @@ export default function LoginPage() {
       {/* FORM */}
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
         <input
+          id="email"
+          name="email"
           type="email"
+          autoComplete="email"
           placeholder="Email address"
           required
           disabled={submitting}
@@ -203,7 +202,10 @@ export default function LoginPage() {
         />
 
         <input
+          id="password"
+          name="password"
           type="password"
+          autoComplete="current-password"
           placeholder="Password"
           required
           disabled={submitting}
@@ -231,7 +233,6 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {/* FOOTER LINKS */}
       <div
         style={{
           display: "flex",
@@ -246,8 +247,6 @@ export default function LoginPage() {
     </div>
   );
 }
-
-/* ------------------ styles ------------------ */
 
 const inputStyle: React.CSSProperties = {
   padding: "14px 16px",
