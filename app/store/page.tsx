@@ -2,21 +2,32 @@
 
 import { useState } from "react";
 
-import StoreToolbar, {
-  Filters,
-  SortMode,
-} from "@/components/layout/store/StoreToolbar";
+import StoreToolbar from "@/components/layout/store/StoreToolbar";
 import StoreTabs from "@/components/store/StoreTabs";
 
+/**
+ * Store-level filter contract (authoritative here)
+ * Must structurally match what StoreToolbar uses
+ */
+type StoreFilters = {
+  q?: string;
+  category?: string;
+  min?: number;
+  max?: number;
+};
+
+type StoreSort =
+  | "featured"
+  | "price_low"
+  | "price_high"
+  | "rating";
+
 export default function StorePage() {
-  const [filters, setFilters] = useState<Filters>({
+  const [filters, setFilters] = useState<StoreFilters>({
     q: "",
-    category: undefined,
-    min: undefined,
-    max: undefined,
   });
 
-  const [sort, setSort] = useState<SortMode>("featured");
+  const [sort, setSort] = useState<StoreSort>("featured");
 
   return (
     <div style={{ display: "grid", gap: 28 }}>
