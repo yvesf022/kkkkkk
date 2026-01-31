@@ -11,7 +11,7 @@ export type User = {
   full_name?: string;
   phone?: string;
   role: "user" | "admin";
-  avatar_url?: string; // ✅ RESTORED (used by profile page)
+  avatar_url?: string;
   created_at?: string;
 };
 
@@ -23,7 +23,6 @@ type AuthState = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
-
   updateUser: (user: User | null) => void;
 };
 
@@ -45,21 +44,16 @@ export const useAuth = create<AuthState>((set, get) => ({
     // 1️⃣ Authenticate (cookie-based)
     await apiLogin(email, password);
 
-    // 2️⃣ Try to resolve identity, but NEVER block UI
+    // 2️⃣ Resolve identity (best-effort, never blocks UI)
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-
-      const user = await getMe({ signal: controller.signal });
-      clearTimeout(timeout);
-
+      const user = await getMe();
       set({
         user,
         loading: false,
         initialized: true,
       });
     } catch {
-      // Login succeeded; identity will hydrate later
+      // Login succeeded, identity will hydrate later
       set({
         loading: false,
         initialized: true,
