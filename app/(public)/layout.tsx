@@ -1,8 +1,37 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+
 export default function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const user = useAuth((s) => s.user);
+  const initialized = useAuth((s) => s.initialized);
+
+  // 🔒 Redirect authenticated users away from public pages
+  useEffect(() => {
+    if (!initialized) return;
+
+    if (user) {
+      router.replace("/account");
+    }
+  }, [initialized, user, router]);
+
+  // ⏳ Wait for auth hydration
+  if (!initialized) {
+    return null;
+  }
+
+  // ⛔ Never render public layout for logged-in users
+  if (user) {
+    return null;
+  }
+
   return (
     <main
       style={{
