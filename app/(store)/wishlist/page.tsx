@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import toast from "react-hot-toast";
@@ -10,14 +11,57 @@ import { useStore } from "@/lib/store";
 const fmtM = (v: number) =>
   `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
+type Product = {
+  id: string;
+  title: string;
+  price: number;
+  main_image: string;
+};
+
 export default function WishlistPage() {
   const wishlist = useStore((s) => s.wishlist);
-  const products = useStore((s) => s.products);
-  const toggleWishlist = useStore((s) => s.toggleWishlist);
+  const toggleWishlist = useStore(
+    (s) => s.toggleWishlist
+  );
+
+  const [products, setProducts] = useState<Product[]>(
+    []
+  );
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/products`,
+          { credentials: "include" }
+        );
+
+        if (!res.ok) throw new Error();
+
+        const data = await res.json();
+        setProducts(data);
+      } catch {
+        toast.error("Failed to load wishlist");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProducts();
+  }, []);
 
   const savedProducts = products.filter((p) =>
     wishlist.includes(p.id)
   );
+
+  if (loading) {
+    return (
+      <div style={{ padding: 32 }}>
+        <p>Loading wishlist…</p>
+      </div>
+    );
+  }
 
   if (savedProducts.length === 0) {
     return (
@@ -32,7 +76,10 @@ export default function WishlistPage() {
         <Link
           href="/store"
           className="btn btnTech"
-          style={{ marginTop: 16, display: "inline-block" }}
+          style={{
+            marginTop: 16,
+            display: "inline-block",
+          }}
         >
           Browse Store
         </Link>
