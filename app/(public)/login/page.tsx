@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Mail } from "lucide-react";
@@ -8,28 +8,34 @@ import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+
+  const user = useAuth((s) => s.user);
   const login = useAuth((s) => s.login);
+  const loadingAuth = useAuth((s) => s.loading);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [verifyError, setVerifyError] = useState(false);
   const [resending, setResending] = useState(false);
 
+  // 🔑 CRITICAL: redirect AWAY from /login when authenticated
+  useEffect(() => {
+    if (user && !loadingAuth) {
+      router.replace("/account");
+    }
+  }, [user, loadingAuth, router]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
     setVerifyError(false);
 
     try {
-      // 🔐 USER LOGIN ONLY
       await login(email, password);
-
       toast.success("Welcome back");
-
-      // ✅ ALWAYS redirect users to /account
-      router.replace("/account");
+      // 🚫 DO NOT redirect here — let the effect handle it
     } catch (err: any) {
       const message =
         err?.message || "Invalid email or password";
@@ -44,7 +50,7 @@ export default function LoginPage() {
         toast.error(message);
       }
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
@@ -75,6 +81,9 @@ export default function LoginPage() {
     }
   }
 
+  // Prevent flash of login page when already logged in
+  if (user) return null;
+
   return (
     <div
       style={{
@@ -87,7 +96,6 @@ export default function LoginPage() {
           "0 30px 80px rgba(12,14,20,.18), inset 0 0 0 1px rgba(255,255,255,.6)",
       }}
     >
-      {/* HEADER */}
       <header style={{ textAlign: "center" }}>
         <h1 style={{ fontSize: 26, fontWeight: 900 }}>
           Welcome back
@@ -97,7 +105,6 @@ export default function LoginPage() {
         </p>
       </header>
 
-      {/* EMAIL VERIFICATION NOTICE */}
       {verifyError && (
         <div
           style={{
@@ -116,8 +123,7 @@ export default function LoginPage() {
           </div>
 
           <p>
-            Please verify your email address before
-            signing in.
+            Please verify your email address before signing in.
           </p>
 
           <button
@@ -133,7 +139,6 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* FORM */}
       <form
         onSubmit={handleSubmit}
         style={{ display: "grid", gap: 16 }}
@@ -158,7 +163,7 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={submitting}
           style={{
             width: "100%",
             marginTop: 8,
@@ -169,33 +174,12 @@ export default function LoginPage() {
             background: "#111",
             color: "#fff",
             cursor: "pointer",
-            opacity: loading ? 0.7 : 1,
+            opacity: submitting ? 0.7 : 1,
           }}
         >
-          {loading ? "Signing in…" : "Login"}
+          {submitting ? "Signing in…" : "Login"}
         </button>
       </form>
-
-      {/* FOOTER */}
-      <footer
-        style={{
-          textAlign: "center",
-          fontSize: 14,
-          opacity: 0.7,
-        }}
-      >
-        Don’t have an account?{" "}
-        <a
-          href="/register"
-          style={{
-            fontWeight: 900,
-            color: "#ff4fa1",
-            textDecoration: "none",
-          }}
-        >
-          Register
-        </a>
-      </footer>
     </div>
   );
 }
