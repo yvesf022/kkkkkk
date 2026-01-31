@@ -12,24 +12,30 @@ const fmtM = (v: number) =>
 
 export default function OrdersPage() {
   const router = useRouter();
+
   const user = useAuth((s) => s.user);
+  const initialized = useAuth((s) => s.initialized);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /* ---------------- AUTH GUARD ---------------- */
-
+  /* ======================
+     REDIRECT AFTER HYDRATION
+  ====================== */
   useEffect(() => {
-    if (user === null) {
+    if (!initialized) return;
+
+    if (!user) {
       router.replace("/login");
     }
-  }, [user, router]);
+  }, [initialized, user, router]);
 
-  /* ---------------- FETCH ORDERS ---------------- */
-
+  /* ======================
+     FETCH ORDERS
+  ====================== */
   useEffect(() => {
-    if (!user) return;
+    if (!initialized || !user) return;
 
     setLoading(true);
     setError(null);
@@ -40,12 +46,28 @@ export default function OrdersPage() {
         setError("Failed to load your orders. Please try again.")
       )
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [initialized, user]);
 
+  /* ======================
+     LOADING (AUTH)
+  ====================== */
+  if (!initialized) {
+    return (
+      <div style={{ maxWidth: 900 }}>
+        <h1 style={title}>Your Orders</h1>
+        <p style={{ opacity: 0.6 }}>Loading your account…</p>
+      </div>
+    );
+  }
+
+  /* ======================
+     BLOCK RENDER AFTER REDIRECT
+  ====================== */
   if (!user) return null;
 
-  /* ---------------- LOADING ---------------- */
-
+  /* ======================
+     LOADING (DATA)
+  ====================== */
   if (loading) {
     return (
       <div style={{ maxWidth: 900 }}>
@@ -55,8 +77,9 @@ export default function OrdersPage() {
     );
   }
 
-  /* ---------------- ERROR ---------------- */
-
+  /* ======================
+     ERROR
+  ====================== */
   if (error) {
     return (
       <div style={{ maxWidth: 640 }}>
@@ -73,8 +96,9 @@ export default function OrdersPage() {
     );
   }
 
-  /* ---------------- EMPTY STATE ---------------- */
-
+  /* ======================
+     EMPTY STATE
+  ====================== */
   if (orders.length === 0) {
     return (
       <div style={{ maxWidth: 640 }}>
@@ -94,8 +118,9 @@ export default function OrdersPage() {
     );
   }
 
-  /* ---------------- ORDERS LIST ---------------- */
-
+  /* ======================
+     ORDERS LIST
+  ====================== */
   return (
     <div style={{ maxWidth: 900 }}>
       <h1 style={title}>Your Orders</h1>
