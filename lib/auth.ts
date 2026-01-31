@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { login as apiLogin, logout as apiLogout, getMe } from "./api";
 
+/* ======================
+   TYPES
+====================== */
+
 export type User = {
   id: string;
   email: string;
@@ -17,21 +21,30 @@ type AuthState = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
+
+  // ✅ RESTORED — used by profile edit & others
+  updateUser: (user: User | null) => void;
 };
+
+/* ======================
+   STORE
+====================== */
 
 export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   loading: false,
   initialized: false,
 
-  // =====================
-  // LOGIN (NON-BLOCKING)
-  // =====================
+  /* --------------------
+     LOGIN (NON-BLOCKING)
+  -------------------- */
   login: async (email, password) => {
     set({ loading: true });
 
+    // 1️⃣ Authenticate (cookie-based)
     await apiLogin(email, password);
 
+    // 2️⃣ Try to resolve identity, but NEVER block UI
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3000);
@@ -39,37 +52,61 @@ export const useAuth = create<AuthState>((set, get) => ({
       const user = await getMe({ signal: controller.signal });
       clearTimeout(timeout);
 
-      set({ user, loading: false, initialized: true });
+      set({
+        user,
+        loading: false,
+        initialized: true,
+      });
     } catch {
       // Login succeeded; identity will hydrate later
-      set({ loading: false, initialized: true });
+      set({
+        loading: false,
+        initialized: true,
+      });
     }
   },
 
-  // =====================
-  // LOGOUT
-  // =====================
+  /* --------------------
+     LOGOUT
+  -------------------- */
   logout: async () => {
     set({ loading: true });
     try {
       await apiLogout();
     } finally {
-      set({ user: null, loading: false, initialized: true });
+      set({
+        user: null,
+        loading: false,
+        initialized: true,
+      });
     }
   },
 
-  // =====================
-  // REFRESH SESSION
-  // =====================
+  /* --------------------
+     REFRESH SESSION
+  -------------------- */
   refreshMe: async () => {
     if (get().initialized) return;
 
     set({ loading: true });
     try {
       const user = await getMe();
-      set({ user, loading: false, initialized: true });
+      set({
+        user,
+        loading: false,
+        initialized: true,
+      });
     } catch {
-      set({ user: null, loading: false, initialized: true });
+      set({
+        user: null,
+        loading: false,
+        initialized: true,
+      });
     }
   },
+
+  /* --------------------
+     MANUAL UPDATE (SAFE)
+  -------------------- */
+  updateUser: (user) => set({ user }),
 }));
