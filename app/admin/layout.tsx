@@ -16,16 +16,25 @@ export default function AdminLayout({
   const loading = useAdminAuth((s) => s.loading);
   const refresh = useAdminAuth((s) => s.refresh);
 
-  /**
-   * Ensure refresh() runs exactly once
-   * even under React strict mode.
-   */
   const ranRef = useRef(false);
   const [ready, setReady] = useState(false);
 
-  /* ======================
+  /* -----------------------
+     MOBILE DETECTION
+  ----------------------- */
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  /* -----------------------
      AUTH CHECK (ONCE)
-  ====================== */
+  ----------------------- */
   useEffect(() => {
     if (ranRef.current) return;
     ranRef.current = true;
@@ -35,9 +44,9 @@ export default function AdminLayout({
     });
   }, [refresh]);
 
-  /* ======================
+  /* -----------------------
      REDIRECT IF NOT ADMIN
-  ====================== */
+  ----------------------- */
   useEffect(() => {
     if (!ready || loading) return;
     if (!admin) {
@@ -45,9 +54,9 @@ export default function AdminLayout({
     }
   }, [ready, loading, admin, router]);
 
-  /* ======================
+  /* -----------------------
      LOADING STATE
-  ====================== */
+  ----------------------- */
   if (!ready || loading) {
     return (
       <div
@@ -64,37 +73,49 @@ export default function AdminLayout({
     );
   }
 
-  /* ======================
-     BLOCK RENDER UNTIL AUTH
-  ====================== */
-  if (!admin) {
-    return null;
-  }
+  if (!admin) return null;
 
-  /* ======================
-     LAYOUT
-  ====================== */
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        width: "100%",
-      }}
-    >
-      {/* SIDEBAR */}
-      <aside
-        style={{
-          width: 260,
-          flexShrink: 0,
-          background: "#ffffff",
-          borderRight: "1px solid #e5e7eb",
-        }}
-      >
-        <AdminSidebar />
-      </aside>
+    <div style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
+      {/* =====================
+          MOBILE OVERLAY
+      ===================== */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.4)",
+            zIndex: 40,
+          }}
+        />
+      )}
 
-      {/* MAIN CONTENT */}
+      {/* =====================
+          SIDEBAR
+      ===================== */}
+      {(!isMobile || sidebarOpen) && (
+        <aside
+          style={{
+            width: 260,
+            background: "#ffffff",
+            borderRight: "1px solid #e5e7eb",
+            position: isMobile ? "fixed" : "static",
+            inset: isMobile ? "0 auto 0 0" : undefined,
+            zIndex: 50,
+          }}
+        >
+          <AdminSidebar
+            onClose={() => setSidebarOpen(false)}
+            isMobile={isMobile}
+          />
+        </aside>
+      )}
+
+      {/* =====================
+          MAIN CONTENT
+      ===================== */}
       <main
         style={{
           flex: 1,
@@ -104,6 +125,24 @@ export default function AdminLayout({
           overflowY: "auto",
         }}
       >
+        {/* MOBILE MENU BUTTON */}
+        {isMobile && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            style={{
+              marginBottom: 16,
+              padding: "10px 14px",
+              borderRadius: 10,
+              fontWeight: 800,
+              border: "1px solid rgba(0,0,0,.15)",
+              background: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            ☰ Menu
+          </button>
+        )}
+
         {children}
       </main>
     </div>
