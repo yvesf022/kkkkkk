@@ -11,11 +11,9 @@ import StoreTabs from "@/components/store/StoreTabs";
 export default function StorePage() {
   const [filters, setFilters] = useState<Filters>({
     q: "",
+    category: undefined,
     min: undefined,
     max: undefined,
-    minRating: undefined,
-    priceMax: undefined,
-    onlyDiscount: false,
   });
 
   const [sort, setSort] = useState<SortMode>("featured");
