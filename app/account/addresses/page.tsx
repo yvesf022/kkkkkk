@@ -1,14 +1,42 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
 
 export default function AddressesPage() {
   const router = useRouter();
+
   const user = useAuth((s) => s.user);
+  const initialized = useAuth((s) => s.initialized);
   const logout = useAuth((s) => s.logout);
 
+  /* ======================
+     REDIRECT AFTER HYDRATION
+  ====================== */
+  useEffect(() => {
+    if (!initialized) return;
+
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [initialized, user, router]);
+
+  /* ======================
+     LOADING STATE
+  ====================== */
+  if (!initialized) {
+    return (
+      <div style={{ padding: 40, fontWeight: 700 }}>
+        Loading addresses…
+      </div>
+    );
+  }
+
+  /* ======================
+     BLOCK RENDER AFTER REDIRECT
+  ====================== */
   if (!user) return null;
 
   function handleLogout() {
@@ -23,7 +51,7 @@ export default function AddressesPage() {
         Your Addresses
       </h1>
 
-      {/* EMPTY STATE (Amazon-style) */}
+      {/* EMPTY STATE */}
       <div
         style={{
           padding: 32,
