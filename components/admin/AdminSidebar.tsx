@@ -1,85 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useAdminAuth } from "@/lib/adminAuth";
+import { usePathname } from "next/navigation";
 
-type Item = {
-  label: string;
-  href: string;
-};
-
-const PRIMARY: Item[] = [
-  { label: "Dashboard", href: "/admin" },
-  { label: "Orders", href: "/admin/orders" },
-  { label: "Payments", href: "/admin/payments" },
-];
-
-const CATALOG: Item[] = [
-  { label: "Products", href: "/admin/products" },
-  { label: "Payment Settings", href: "/admin/payment-settings" },
-];
-
-export default function AdminSidebar({
-  isMobile,
-  onClose,
-}: {
+type Props = {
   isMobile?: boolean;
   onClose?: () => void;
-}) {
+};
+
+const navItems = [
+  { label: "Profile", href: "/account/profile" },
+  { label: "My Orders", href: "/account/orders" },
+  { label: "Addresses", href: "/account/addresses" },
+  { label: "Payments", href: "/account/payments" },
+  { label: "Security", href: "/account/security" },
+];
+
+export default function AccountSidebar({
+  isMobile,
+  onClose,
+}: Props) {
   const pathname = usePathname();
-  const router = useRouter();
-  const logout = useAdminAuth((s) => s.logout);
-
-  function handleLogout() {
-    logout();
-    onClose?.();
-    router.replace("/admin/login");
-  }
-
-  function renderItems(items: Item[]) {
-    return items.map((item) => {
-      const active =
-        pathname === item.href ||
-        pathname.startsWith(item.href + "/");
-
-      return (
-        <Link
-          key={item.href}
-          href={item.href}
-          onClick={onClose}
-          style={{
-            padding: "10px 12px",
-            borderRadius: 12,
-            fontWeight: 700,
-            fontSize: 14,
-            textDecoration: "none",
-            color: active ? "#ffffff" : "#cbd5f5",
-            background: active
-              ? "rgba(99,102,241,0.25)"
-              : "transparent",
-            border: active
-              ? "1px solid rgba(99,102,241,0.4)"
-              : "1px solid transparent",
-          }}
-        >
-          {item.label}
-        </Link>
-      );
-    });
-  }
 
   return (
     <aside
       style={{
         width: 260,
-        minHeight: "100vh",
-        background: "#0f172a",
-        color: "#e5e7eb",
-        padding: "22px 18px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 20,
+        background: "#fff",
+        borderRadius: 20,
+        padding: "28px 20px",
+        boxShadow: "0 20px 60px rgba(0,0,0,.08)",
+        height: "fit-content",
       }}
     >
       {/* MOBILE CLOSE */}
@@ -87,12 +38,11 @@ export default function AdminSidebar({
         <button
           onClick={onClose}
           style={{
-            alignSelf: "flex-end",
+            marginBottom: 14,
             padding: "6px 10px",
             borderRadius: 8,
             fontWeight: 800,
-            background: "#1e293b",
-            color: "#e5e7eb",
+            background: "#f1f5f9",
             border: "none",
             cursor: "pointer",
           }}
@@ -101,80 +51,38 @@ export default function AdminSidebar({
         </button>
       )}
 
-      {/* BRAND */}
-      <div>
-        <div
-          style={{
-            fontWeight: 900,
-            fontSize: 18,
-            color: "#ffffff",
-          }}
-        >
-          Karabo Admin
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            opacity: 0.65,
-            marginTop: 2,
-          }}
-        >
-          Store control center
-        </div>
-      </div>
+      <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>
+        My Account
+      </h3>
+      <p style={{ fontSize: 13, opacity: 0.6, marginBottom: 20 }}>
+        Orders, payments & settings
+      </p>
 
-      {/* PRIMARY NAV */}
-      <nav style={{ display: "grid", gap: 6 }}>
-        {renderItems(PRIMARY)}
+      <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {navItems.map((item) => {
+          const active = pathname.startsWith(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onClose}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                fontWeight: active ? 700 : 500,
+                textDecoration: "none",
+                background: active
+                  ? "rgba(0,0,0,.06)"
+                  : "transparent",
+                color: "#111",
+              }}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
-
-      {/* DIVIDER */}
-      <div
-        style={{
-          height: 1,
-          background: "#1e293b",
-          margin: "10px 0",
-        }}
-      />
-
-      {/* CATALOG */}
-      <div>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: 0.5,
-            opacity: 0.6,
-            marginBottom: 8,
-          }}
-        >
-          CATALOG
-        </div>
-
-        <nav style={{ display: "grid", gap: 6 }}>
-          {renderItems(CATALOG)}
-        </nav>
-      </div>
-
-      {/* FOOTER */}
-      <div style={{ marginTop: "auto" }}>
-        <button
-          onClick={handleLogout}
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            borderRadius: 12,
-            fontWeight: 800,
-            fontSize: 14,
-            background: "#1e293b",
-            color: "#fca5a5",
-            border: "1px solid #334155",
-            cursor: "pointer",
-          }}
-        >
-          Log out
-        </button>
-      </div>
     </aside>
   );
 }
