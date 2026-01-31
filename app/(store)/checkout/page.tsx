@@ -6,11 +6,39 @@ import toast from "react-hot-toast";
 import { useState } from "react";
 
 import { useCart } from "@/app/context/CartContext";
-import { createOrder } from "@/lib/store";
 
 /** Lesotho currency formatter (Maloti) */
 const fmtM = (v: number) =>
   `M ${Math.round(v).toLocaleString("en-ZA")}`;
+
+type CreateOrderPayload = {
+  items: {
+    product_id: string;
+    quantity: number;
+    price: number;
+  }[];
+  total_amount: number;
+};
+
+async function createOrder(payload: CreateOrderPayload) {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/orders`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Order creation failed");
+  }
+
+  return res.json();
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -54,7 +82,7 @@ export default function CheckoutPage() {
       router.push(
         `/order-success?orderId=${order.id}`
       );
-    } catch (err) {
+    } catch {
       toast.error(
         "Failed to place order. Please try again."
       );
@@ -91,7 +119,10 @@ export default function CheckoutPage() {
               alt={item.title}
               width={80}
               height={80}
-              style={{ objectFit: "cover", borderRadius: 12 }}
+              style={{
+                objectFit: "cover",
+                borderRadius: 12,
+              }}
             />
 
             <div>
