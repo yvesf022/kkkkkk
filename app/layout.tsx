@@ -1,11 +1,12 @@
-"use client";
-
 import "@/styles/globals.css";
 
-import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
-import { UIProvider } from "@/components/layout/uiStore";
-import { CartProvider } from "./context/CartContext";
+import type { Metadata } from "next";
+import ClientShell from "@/components/layout/ClientShell";
+
+export const metadata: Metadata = {
+  title: "Karabo Online Store",
+  description: "Shop smarter with Karabo",
+};
 
 export default function RootLayout({
   children,
@@ -15,33 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <UIProvider>
-          <CartProvider>
-            <Header />
-
-            <div
-              className="appShell"
-              style={{
-                display: "flex",
-                width: "100%",
-                minHeight: "calc(100vh - var(--header-height, 72px))",
-                alignItems: "stretch",
-              }}
-            >
-              <Sidebar />
-
-              <main
-                className="pageContentWrap"
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                }}
-              >
-                {children}
-              </main>
-            </div>
-          </CartProvider>
-        </UIProvider>
+        <ClientShell>{children}</ClientShell>
       </body>
     </html>
   );
