@@ -2,36 +2,24 @@
 
 import { useState } from "react";
 
-import StoreToolbar from "@/components/layout/store/StoreToolbar";
+import StoreToolbar, {
+  Filters,
+  SortMode,
+} from "@/components/layout/store/StoreToolbar";
 import StoreTabs from "@/components/store/StoreTabs";
 
-/* ======================================================
-   STORE DOMAIN TYPES (AUTHORITATIVE)
-====================================================== */
-
-export type StoreFilters = {
-  q?: string;
-  category?: string;
-  min?: number;
-  max?: number;
-};
-
-export type StoreSort =
-  | "featured"
-  | "price_low"
-  | "price_high"
-  | "rating";
-
-/* ======================================================
-   STORE PAGE
-====================================================== */
-
 export default function StorePage() {
-  const [filters, setFilters] = useState<StoreFilters>({
+  const [filters, setFilters] = useState<Filters>({
     q: "",
+    category: undefined,
+    min: undefined,
+    max: undefined,
+    minRating: undefined,
+    priceMax: undefined,
+    onlyDiscount: false,
   });
 
-  const [sort, setSort] = useState<StoreSort>("featured");
+  const [sort, setSort] = useState<SortMode>("featured");
 
   return (
     <div style={{ display: "grid", gap: 28 }}>
@@ -49,7 +37,7 @@ export default function StorePage() {
         setFilters={setFilters}
       />
 
-      {/* ===== PLACEHOLDER PRODUCT GRID ===== */}
+      {/* ===== PRODUCT PLACEHOLDER ===== */}
       <div
         style={{
           padding: 40,
