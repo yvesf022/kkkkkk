@@ -31,7 +31,9 @@ const fmtM = (v: number) =>
 export default function OrderDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+
   const user = useAuth((s) => s.user);
+  const initialized = useAuth((s) => s.initialized);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -40,19 +42,19 @@ export default function OrderDetailsPage() {
   const [uploading, setUploading] = useState(false);
 
   /* ======================
-     AUTH GUARD
+     REDIRECT AFTER HYDRATION
   ====================== */
-
   useEffect(() => {
-    if (user === null) {
+    if (!initialized) return;
+
+    if (!user) {
       router.replace("/login");
     }
-  }, [user, router]);
+  }, [initialized, user, router]);
 
   /* ======================
      LOAD ORDER
   ====================== */
-
   async function loadOrder() {
     try {
       const res = await fetch(
@@ -80,8 +82,9 @@ export default function OrderDetailsPage() {
   }
 
   useEffect(() => {
-    if (user) loadOrder();
-  }, [id, user]);
+    if (!initialized || !user) return;
+    loadOrder();
+  }, [id, initialized, user]);
 
   /* ======================
      PAYMENT PROOF UPLOAD
@@ -134,11 +137,23 @@ export default function OrderDetailsPage() {
      RENDER STATES
   ====================== */
 
-  if (!user || loading) {
+  if (!initialized) {
+    return <p style={{ opacity: 0.6 }}>Loading your account…</p>;
+  }
+
+  if (!user) return null;
+
+  if (loading) {
     return <p style={{ opacity: 0.6 }}>Loading order…</p>;
   }
 
-  if (!order) return null;
+  if (!order) {
+    return (
+      <p style={{ opacity: 0.6 }}>
+        Order not available.
+      </p>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 1100, display: "grid", gap: 28 }}>
@@ -245,12 +260,6 @@ export default function OrderDetailsPage() {
             new, valid proof.
           </p>
         )}
-      </div>
-
-      {/* TRUST NOTE */}
-      <div style={{ fontSize: 13, opacity: 0.6 }}>
-        🔒 Payments are completed externally. We never
-        store payment details on your account.
       </div>
 
       {/* FOOTER ACTIONS */}
