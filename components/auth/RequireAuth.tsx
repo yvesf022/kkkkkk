@@ -25,7 +25,7 @@ export default function RequireAuth({
   const loading = useAuth((s) => s.loading);
   const refreshMe = useAuth((s) => s.refreshMe);
 
-  // 🧠 ensure we hydrate only once per mount
+  // 🧠 ensure hydration runs only once per mount
   const hasHydratedRef = useRef(false);
 
   /* =========================
@@ -45,7 +45,7 @@ export default function RequireAuth({
   const userRole = user?.role;
 
   /* =========================
-     REDIRECT LOGIC (SECURE)
+     AUTH REDIRECTS
   ========================= */
   useEffect(() => {
     if (!authReady) return;
@@ -60,6 +60,32 @@ export default function RequireAuth({
       return;
     }
   }, [authReady, isAuthenticated, userRole, role, router]);
+
+  /* =========================
+     STORE ROUTE NORMALIZATION
+     (OPTION 1 FIX)
+  ========================= */
+  useEffect(() => {
+    if (!authReady || !isAuthenticated) return;
+
+    const pathname = window.location.pathname;
+
+    // Only allow known store routes
+    const allowedStoreRoutes = [
+      "/store",
+      "/store/all",
+      "/store/cart",
+      "/store/checkout",
+      "/store/wishlist",
+    ];
+
+    if (
+      pathname.startsWith("/store/") &&
+      !allowedStoreRoutes.some((p) => pathname.startsWith(p))
+    ) {
+      router.replace("/store");
+    }
+  }, [authReady, isAuthenticated, router]);
 
   /* =========================
      RENDER LOGIC
