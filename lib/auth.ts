@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { login as apiLogin, logout as apiLogout, getMe } from "./api";
+import { login, logout, getMe } from "./api";
 
 /* ======================
    TYPES
@@ -11,6 +11,8 @@ export type User = {
   full_name?: string;
   phone?: string;
   role: "user" | "admin";
+
+  // ✅ FIXED — fields actually used by UI
   avatar_url?: string;
   created_at?: string;
 };
@@ -36,29 +38,22 @@ export const useAuth = create<AuthState>((set, get) => ({
   initialized: false,
 
   /* --------------------
-     LOGIN (NON-BLOCKING)
+     LOGIN
   -------------------- */
   login: async (email, password) => {
     set({ loading: true });
 
     // 1️⃣ Authenticate (cookie-based)
-    await apiLogin(email, password);
+    await login(email, password);
 
-    // 2️⃣ Resolve identity (best-effort, never blocks UI)
-    try {
-      const user = await getMe();
-      set({
-        user,
-        loading: false,
-        initialized: true,
-      });
-    } catch {
-      // Login succeeded, identity will hydrate later
-      set({
-        loading: false,
-        initialized: true,
-      });
-    }
+    // 2️⃣ Resolve identity
+    const user = await getMe();
+
+    set({
+      user,
+      loading: false,
+      initialized: true,
+    });
   },
 
   /* --------------------
@@ -66,8 +61,9 @@ export const useAuth = create<AuthState>((set, get) => ({
   -------------------- */
   logout: async () => {
     set({ loading: true });
+
     try {
-      await apiLogout();
+      await logout();
     } finally {
       set({
         user: null,
@@ -84,6 +80,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     if (get().initialized) return;
 
     set({ loading: true });
+
     try {
       const user = await getMe();
       set({
