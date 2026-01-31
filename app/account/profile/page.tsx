@@ -1,18 +1,45 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { uploadAvatar } from "@/lib/api";
 
 export default function ProfilePage() {
   const router = useRouter();
+
   const user = useAuth((s) => s.user);
+  const initialized = useAuth((s) => s.initialized);
   const logout = useAuth((s) => s.logout);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
+  /* ======================
+     REDIRECT AFTER HYDRATION
+  ====================== */
+  useEffect(() => {
+    if (!initialized) return;
+
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [initialized, user, router]);
+
+  /* ======================
+     LOADING STATE
+  ====================== */
+  if (!initialized) {
+    return (
+      <div style={{ padding: 40, fontWeight: 700 }}>
+        Loading profile…
+      </div>
+    );
+  }
+
+  /* ======================
+     BLOCK RENDER AFTER REDIRECT
+  ====================== */
   if (!user) return null;
 
   async function handleAvatarChange(file: File) {
@@ -88,7 +115,6 @@ export default function ProfilePage() {
             {user.full_name || "Your account"}
           </h1>
 
-          {/* EMAIL + VERIFIED BADGE */}
           <div
             style={{
               display: "flex",
@@ -114,10 +140,11 @@ export default function ProfilePage() {
           </div>
 
           {user.phone && (
-            <p style={{ opacity: 0.65, marginTop: 6 }}>{user.phone}</p>
+            <p style={{ opacity: 0.65, marginTop: 6 }}>
+              {user.phone}
+            </p>
           )}
 
-          {/* METADATA */}
           <div style={{ marginTop: 18, fontSize: 13, opacity: 0.55 }}>
             Account type: {user.role}
             <br />
@@ -127,7 +154,6 @@ export default function ProfilePage() {
               : "—"}
           </div>
 
-          {/* ACTIONS */}
           <div style={{ marginTop: 26, display: "flex", gap: 14 }}>
             <button
               onClick={() => router.push("/account/profile/edit")}
