@@ -2,36 +2,19 @@
 
 import { useState } from "react";
 
-import StoreToolbar from "@/components/layout/store/StoreToolbar";
+import StoreToolbar, {
+  Filters,
+  SortMode,
+} from "@/components/store/StoreToolbar";
 import StoreTabs from "@/components/store/StoreTabs";
 
-/**
- * Store-level filter contract (authoritative here)
- * Must structurally match what StoreToolbar uses
- */
-type StoreFilters = {
-  q?: string;
-  category?: string;
-  min?: number;
-  max?: number;
-};
-
-type StoreSort =
-  | "featured"
-  | "price_low"
-  | "price_high"
-  | "rating";
-
 export default function StorePage() {
-  const [filters, setFilters] = useState<StoreFilters>({
-    q: "",
-  });
-
-  const [sort, setSort] = useState<StoreSort>("featured");
+  const [filters, setFilters] = useState<Filters>({});
+  const [sort, setSort] = useState<SortMode>("featured");
 
   return (
-    <div style={{ display: "grid", gap: 28 }}>
-      {/* ===== HEADER / FILTERS ===== */}
+    <div className="space-y-6">
+      {/* ===== STORE HEADER / FILTERS ===== */}
       <StoreToolbar
         filters={filters}
         setFilters={setFilters}
@@ -45,19 +28,10 @@ export default function StorePage() {
         setFilters={setFilters}
       />
 
-      {/* ===== PRODUCT PLACEHOLDER ===== */}
-      <div
-        style={{
-          padding: 40,
-          borderRadius: 24,
-          background: "#f8fafc",
-          textAlign: "center",
-          fontWeight: 700,
-          opacity: 0.6,
-        }}
-      >
-        Products will appear here
-      </div>
+      {/* ===== PLACEHOLDER PRODUCT AREA ===== */}
+      <p className="text-gray-500">
+        Select a category to browse products.
+      </p>
     </div>
   );
 }
