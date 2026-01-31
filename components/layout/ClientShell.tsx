@@ -12,10 +12,9 @@ export default function ClientShell({
 }: {
   children: React.ReactNode;
 }) {
-  // 🔐 SINGLE SOURCE OF TRUTH FOR AUTH
   const refreshMe = useAuth((s) => s.refreshMe);
 
-  // 🧠 Hydrate auth ONCE when app loads
+  // 🔐 Hydrate auth ONCE globally
   useEffect(() => {
     refreshMe();
   }, [refreshMe]);
@@ -30,8 +29,7 @@ export default function ClientShell({
           style={{
             display: "flex",
             width: "100%",
-            minHeight:
-              "calc(100vh - var(--header-height, 72px))",
+            minHeight: "calc(100vh - var(--header-height, 72px))",
             alignItems: "stretch",
           }}
         >
