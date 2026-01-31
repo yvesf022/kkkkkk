@@ -50,10 +50,13 @@ export default function AdminProductsPage() {
   async function loadProducts() {
     try {
       const res = await fetch(`${API}/api/products`);
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err?.detail || "Failed to load products");
+      }
       setProducts(await res.json());
-    } catch {
-      toast.error("Failed to load products");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load products");
     } finally {
       setLoading(false);
     }
@@ -74,6 +77,8 @@ export default function AdminProductsPage() {
       return;
     }
 
+    toast.success("Image uploaded successfully");
+
     setSaving(true);
     try {
       const res = await fetch(`${API}/api/products`, {
@@ -93,9 +98,13 @@ export default function AdminProductsPage() {
         }),
       });
 
-      if (!res.ok) throw new Error();
+      const data = await res.json();
 
-      toast.success("Product created");
+      if (!res.ok) {
+        throw new Error(data?.detail || "Failed to create product");
+      }
+
+      toast.success(`Product created: ${data?.title || title}`);
 
       setTitle("");
       setPrice("");
@@ -108,8 +117,8 @@ export default function AdminProductsPage() {
       setDescription("");
 
       loadProducts();
-    } catch {
-      toast.error("Failed to create product");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create product");
     } finally {
       setSaving(false);
     }
@@ -127,22 +136,21 @@ export default function AdminProductsPage() {
       return;
 
     try {
-      const res = await fetch(
-        `${API}/api/products/${p.id}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
+      const res = await fetch(`${API}/api/products/${p.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
 
-      if (!res.ok) throw new Error();
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.detail || "Delete failed");
+      }
 
       toast.success("Product deleted");
-      setProducts((x) =>
-        x.filter((y) => y.id !== p.id)
-      );
-    } catch {
-      toast.error("Delete failed");
+      setProducts((x) => x.filter((y) => y.id !== p.id));
+    } catch (err: any) {
+      toast.error(err.message || "Delete failed");
     }
   }
 
@@ -159,28 +167,19 @@ export default function AdminProductsPage() {
       </header>
 
       {/* ADD PRODUCT */}
-      <section
-        className="card"
-        style={{ maxWidth: 560 }}
-      >
+      <section className="card" style={{ maxWidth: 560 }}>
         <h3 style={{ fontWeight: 900 }}>
           Add New Product
         </h3>
 
         <form
           onSubmit={addProduct}
-          style={{
-            display: "grid",
-            gap: 12,
-            marginTop: 14,
-          }}
+          style={{ display: "grid", gap: 12, marginTop: 14 }}
         >
           <input
             placeholder="Product title"
             value={title}
-            onChange={(e) =>
-              setTitle(e.target.value)
-            }
+            onChange={(e) => setTitle(e.target.value)}
             required
           />
 
@@ -188,18 +187,14 @@ export default function AdminProductsPage() {
             type="number"
             placeholder="Price (M)"
             value={price}
-            onChange={(e) =>
-              setPrice(e.target.value)
-            }
+            onChange={(e) => setPrice(e.target.value)}
             required
           />
 
           <input
             placeholder="Category (e.g. beauty, tech)"
             value={category}
-            onChange={(e) =>
-              setCategory(e.target.value)
-            }
+            onChange={(e) => setCategory(e.target.value)}
             required
           />
 
@@ -207,54 +202,38 @@ export default function AdminProductsPage() {
             type="number"
             placeholder="Stock quantity"
             value={stock}
-            onChange={(e) =>
-              setStock(e.target.value)
-            }
+            onChange={(e) => setStock(e.target.value)}
             required
           />
 
           <input
             placeholder="SKU (optional)"
             value={sku}
-            onChange={(e) =>
-              setSku(e.target.value)
-            }
+            onChange={(e) => setSku(e.target.value)}
           />
 
           <input
             placeholder="Brand (optional)"
             value={brand}
-            onChange={(e) =>
-              setBrand(e.target.value)
-            }
+            onChange={(e) => setBrand(e.target.value)}
           />
 
           <input
             type="number"
             placeholder="Rating 1–5 (optional)"
             value={rating}
-            onChange={(e) =>
-              setRating(e.target.value)
-            }
+            onChange={(e) => setRating(e.target.value)}
           />
 
           <textarea
             placeholder="Product description (optional)"
             value={description}
-            onChange={(e) =>
-              setDescription(e.target.value)
-            }
+            onChange={(e) => setDescription(e.target.value)}
           />
 
-          <ProductImageUploader
-            value={img}
-            onChange={setImg}
-          />
+          <ProductImageUploader value={img} onChange={setImg} />
 
-          <button
-            className="btn btnTech"
-            disabled={saving}
-          >
+          <button className="btn btnTech" disabled={saving}>
             {saving ? "Saving…" : "Create Product"}
           </button>
         </form>
@@ -309,14 +288,8 @@ export default function AdminProductsPage() {
                     {p.title}
                   </div>
 
-                  <div
-                    style={{
-                      fontSize: 13,
-                      opacity: 0.6,
-                    }}
-                  >
-                    {p.category} • Stock:{" "}
-                    {p.stock}
+                  <div style={{ fontSize: 13, opacity: 0.6 }}>
+                    {p.category} • Stock: {p.stock}
                   </div>
                 </div>
 

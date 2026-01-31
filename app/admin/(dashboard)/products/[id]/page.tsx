@@ -39,14 +39,16 @@ export default function AdminProductEditorPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(
-          `${API}/api/products`,
-          { credentials: "include" }
-        );
+        const res = await fetch(`${API}/api/products`, {
+          credentials: "include",
+        });
 
-        if (!res.ok) throw new Error();
-        const products: Product[] = await res.json();
-        const found = products.find((p) => p.id === id);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.detail || "Failed to load products");
+        }
+
+        const found = data.find((p: Product) => p.id === id);
 
         if (!found) {
           toast.error("Product not found");
@@ -56,8 +58,8 @@ export default function AdminProductEditorPage() {
 
         setProduct(found);
         setOriginal(found);
-      } catch {
-        toast.error("Failed to load product");
+      } catch (err: any) {
+        toast.error(err.message || "Failed to load product");
         router.replace("/admin/products");
       } finally {
         setLoading(false);
@@ -115,12 +117,19 @@ export default function AdminProductEditorPage() {
         }
       );
 
-      if (!res.ok) throw new Error();
+      const data = await res.json();
 
-      toast.success("Product updated");
+      if (!res.ok) {
+        throw new Error(data?.detail || "Failed to save product");
+      }
+
+      toast.success(
+        data?.message || "Product updated successfully"
+      );
+
       setOriginal(product);
-    } catch {
-      toast.error("Failed to save product");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save product");
     } finally {
       setSaving(false);
     }
@@ -153,39 +162,27 @@ export default function AdminProductEditorPage() {
         <input
           value={product.title}
           onChange={(e) =>
-            setProduct({
-              ...product,
-              title: e.target.value,
-            })
+            setProduct({ ...product, title: e.target.value })
           }
         />
         <input
           value={product.category}
           onChange={(e) =>
-            setProduct({
-              ...product,
-              category: e.target.value,
-            })
+            setProduct({ ...product, category: e.target.value })
           }
         />
         <input
           placeholder="Brand"
           value={product.brand || ""}
           onChange={(e) =>
-            setProduct({
-              ...product,
-              brand: e.target.value,
-            })
+            setProduct({ ...product, brand: e.target.value })
           }
         />
         <input
           placeholder="SKU"
           value={product.sku || ""}
           onChange={(e) =>
-            setProduct({
-              ...product,
-              sku: e.target.value,
-            })
+            setProduct({ ...product, sku: e.target.value })
           }
         />
       </section>
@@ -240,9 +237,10 @@ export default function AdminProductEditorPage() {
         <h3>Product Image</h3>
         <ProductImageUploader
           value={product.img}
-          onChange={(url) =>
-            setProduct({ ...product, img: url })
-          }
+          onChange={(url) => {
+            setProduct({ ...product, img: url });
+            toast.success("Image updated");
+          }}
         />
       </section>
 
