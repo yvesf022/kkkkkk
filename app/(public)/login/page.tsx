@@ -29,7 +29,9 @@ export default function LoginPage() {
   ------------------------- */
   useEffect(() => {
     if (!initialized) return;
-    if (user) router.replace("/account");
+    if (user) {
+      router.replace("/account");
+    }
   }, [initialized, user, router]);
 
   /* -------------------------
@@ -48,9 +50,9 @@ export default function LoginPage() {
 
       toast.success("Welcome back");
       router.replace("/account");
+      router.refresh(); // flush middleware + cache
     } catch (err: any) {
-      const message =
-        err?.message || "Invalid email or password";
+      const message = err?.message || "Invalid email or password";
 
       setStatusText(null);
 
@@ -111,7 +113,14 @@ export default function LoginPage() {
     );
   }
 
-  if (user) return null;
+  // ✅ Instead of returning null, show a redirecting state
+  if (user) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", opacity: 0.6 }}>
+        Redirecting…
+      </div>
+    );
+  }
 
   return (
     <div

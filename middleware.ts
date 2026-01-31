@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * AUTH MIDDLEWARE (FIXED)
+ * AUTH MIDDLEWARE
  * ----------------------
- * - ONLY protects /account routes
- * - Does NOT redirect logged-in users away from /login
- * - Avoids cookie race conditions
- * - Client controls post-login navigation
+ * - Protects /account routes only
+ * - Does NOT interfere with /login or other public routes
+ * - Relies on cookie presence for authentication
  */
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Read cookie safely
+  // Safely read cookie
   const token = request.cookies.get("access_token")?.value;
 
   /**
@@ -25,6 +24,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // ✅ Allow everything else
   return NextResponse.next();
 }
 
