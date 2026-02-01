@@ -1,35 +1,35 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { uploadAvatar } from "@/lib/api";
 
-export default function ProfilePage() {
+export default function AccountProfilePage() {
   const router = useRouter();
 
   const user = useAuth((s) => s.user);
-  const initialized = useAuth((s) => s.initialized);
+  const authLoading = useAuth((s) => s.loading);
   const logout = useAuth((s) => s.logout);
 
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
 
   /* ======================
-     REDIRECT AFTER HYDRATION
+     REDIRECT AFTER AUTH RESOLVES
   ====================== */
   useEffect(() => {
-    if (!initialized) return;
+    if (authLoading) return;
 
     if (!user) {
       router.replace("/login");
     }
-  }, [initialized, user, router]);
+  }, [authLoading, user, router]);
 
   /* ======================
      LOADING STATE
   ====================== */
-  if (!initialized) {
+  if (authLoading) {
     return (
       <div style={{ padding: 40, fontWeight: 700 }}>
         Loading profile…
@@ -46,17 +46,19 @@ export default function ProfilePage() {
     try {
       setUploading(true);
       await uploadAvatar(file);
-      router.refresh();
+      router.refresh(); // re-fetch updated avatar
     } catch {
-      alert("Avatar upload failed");
+      alert("Failed to upload avatar");
     } finally {
       setUploading(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: 900 }}>
-      {/* PROFILE IDENTITY CARD */}
+    <div style={{ maxWidth: 960 }}>
+      {/* ======================
+          PROFILE CARD
+      ====================== */}
       <div
         style={{
           display: "flex",
@@ -65,15 +67,14 @@ export default function ProfilePage() {
           borderRadius: 22,
           background: "#fff",
           boxShadow: "0 20px 60px rgba(0,0,0,.08)",
-          marginBottom: 48,
         }}
       >
         {/* AVATAR */}
         <div style={{ textAlign: "center" }}>
           <div
             style={{
-              width: 124,
-              height: 124,
+              width: 128,
+              height: 128,
               borderRadius: "50%",
               background: user.avatar_url
                 ? `url(${user.avatar_url}) center/cover`
@@ -115,32 +116,10 @@ export default function ProfilePage() {
             {user.full_name || "Your account"}
           </h1>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginTop: 6,
-            }}
-          >
-            <span style={{ opacity: 0.75 }}>{user.email}</span>
-
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 800,
-                padding: "4px 8px",
-                borderRadius: 999,
-                background: "#e6f4ea",
-                color: "#137333",
-              }}
-            >
-              Verified
-            </span>
-          </div>
+          <p style={{ opacity: 0.7, marginTop: 4 }}>{user.email}</p>
 
           {user.phone && (
-            <p style={{ opacity: 0.65, marginTop: 6 }}>
+            <p style={{ opacity: 0.6, marginTop: 6 }}>
               {user.phone}
             </p>
           )}
@@ -154,6 +133,7 @@ export default function ProfilePage() {
               : "—"}
           </div>
 
+          {/* ACTIONS */}
           <div style={{ marginTop: 26, display: "flex", gap: 14 }}>
             <button
               onClick={() => router.push("/account/profile/edit")}
@@ -178,7 +158,9 @@ export default function ProfilePage() {
   );
 }
 
-/* ------------------ styles ------------------ */
+/* ======================
+   STYLES
+====================== */
 
 const primaryButton: React.CSSProperties = {
   padding: "12px 20px",
