@@ -5,7 +5,6 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { useStore } from "@/lib/store";
 import { useCart } from "@/app/context/CartContext";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
@@ -38,10 +37,6 @@ export default function QuickViewModal({
   onClose: () => void;
 }) {
   const { addToCart } = useCart();
-  const toggleWishlist = useStore((s) => s.toggleWishlist);
-  const wishlist = useStore((s) => s.wishlist);
-
-  const inWish = product ? wishlist.includes(product.id) : false;
 
   const isOutOfStock =
     !product || product.in_stock === false || product.stock <= 0;
@@ -89,19 +84,8 @@ export default function QuickViewModal({
               position: "fixed",
               inset: 0,
               zIndex: 120,
-              background: `
-                radial-gradient(
-                  1200px 600px at 12% 18%,
-                  rgba(96,165,250,0.18),
-                  transparent 60%
-                ),
-                radial-gradient(
-                  1200px 600px at 88% 16%,
-                  rgba(244,114,182,0.14),
-                  transparent 60%
-                ),
-                rgba(8,12,22,0.55)
-              `,
+              background:
+                "rgba(8,12,22,0.55)",
               backdropFilter: "blur(10px)",
             }}
           />
@@ -123,19 +107,7 @@ export default function QuickViewModal({
               zIndex: 130,
               borderRadius: 28,
               overflow: "hidden",
-              background: `
-                radial-gradient(
-                  1000px 500px at 16% 12%,
-                  rgba(96,165,250,0.14),
-                  transparent 60%
-                ),
-                radial-gradient(
-                  1000px 500px at 90% 18%,
-                  rgba(244,114,182,0.10),
-                  transparent 60%
-                ),
-                linear-gradient(180deg,#ffffff,#f6f9ff)
-              `,
+              background: "#fff",
               boxShadow:
                 "0 40px 120px rgba(15,23,42,0.35)",
             }}
@@ -150,9 +122,7 @@ export default function QuickViewModal({
                 alignItems: "center",
               }}
             >
-              <div style={{ fontWeight: 900 }}>
-                Quick View
-              </div>
+              <div style={{ fontWeight: 900 }}>Quick View</div>
 
               <button
                 className="btn btnGhost"
@@ -163,12 +133,7 @@ export default function QuickViewModal({
               </button>
             </div>
 
-            <div
-              style={{
-                height: 1,
-                background: "rgba(15,23,42,0.08)",
-              }}
-            />
+            <div style={{ height: 1, background: "#e5e7eb" }} />
 
             {/* BODY */}
             <div
@@ -181,15 +146,7 @@ export default function QuickViewModal({
               }}
             >
               {/* IMAGE */}
-              <div
-                style={{
-                  borderRadius: 24,
-                  overflow: "hidden",
-                  background: "#fff",
-                  boxShadow:
-                    "0 22px 60px rgba(15,23,42,0.14)",
-                }}
-              >
+              <div style={{ borderRadius: 24, overflow: "hidden" }}>
                 <Image
                   src={imageUrl}
                   alt={product.title}
@@ -210,8 +167,6 @@ export default function QuickViewModal({
                     style={{
                       fontSize: 22,
                       fontWeight: 900,
-                      lineHeight: 1.2,
-                      color: "#0f172a",
                     }}
                   >
                     {product.title}
@@ -221,7 +176,7 @@ export default function QuickViewModal({
                     style={{
                       marginTop: 6,
                       fontWeight: 700,
-                      color: "rgba(15,23,42,0.6)",
+                      opacity: 0.6,
                     }}
                   >
                     {product.category.toUpperCase()}
@@ -229,100 +184,36 @@ export default function QuickViewModal({
                 </div>
 
                 {/* PRICE */}
-                <div
-                  style={{
-                    padding: 16,
-                    borderRadius: 22,
-                    background:
-                      "linear-gradient(135deg,#ffffff,#f4f9ff)",
-                    boxShadow:
-                      "0 18px 50px rgba(15,23,42,0.14)",
+                <div style={{ fontWeight: 900, fontSize: 18 }}>
+                  {fmtM(product.price)}
+                </div>
+
+                {/* ACTION */}
+                <button
+                  className="btn btnTech"
+                  disabled={isOutOfStock}
+                  onClick={() => {
+                    if (isOutOfStock) {
+                      toast.error("Out of stock");
+                      return;
+                    }
+
+                    addToCart({
+                      id: product.id,
+                      title: product.title,
+                      price: product.price,
+                      image: imageUrl,
+                      quantity: 1,
+                    });
+
+                    toast.success("Added to cart");
+                    onClose();
                   }}
                 >
-                  <div style={{ fontWeight: 800 }}>
-                    Price
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 8,
-                      fontSize: 18,
-                      fontWeight: 900,
-                    }}
-                  >
-                    {fmtM(product.price)}
-                  </div>
-
-                  {product.compare_price && (
-                    <div
-                      style={{
-                        marginTop: 4,
-                        fontSize: 14,
-                        opacity: 0.5,
-                        textDecoration: "line-through",
-                      }}
-                    >
-                      {fmtM(product.compare_price)}
-                    </div>
-                  )}
-                </div>
-
-                {/* ACTIONS */}
-                <div style={{ display: "grid", gap: 10 }}>
-                  <button
-                    className="btn btnTech"
-                    disabled={isOutOfStock}
-                    onClick={() => {
-                      if (isOutOfStock) {
-                        toast.error(
-                          "This product is currently out of stock"
-                        );
-                        return;
-                      }
-
-                      addToCart({
-                        id: product.id,
-                        title: product.title,
-                        price: product.price,
-                        image: imageUrl,
-                        quantity: 1,
-                      });
-
-                      toast.success("Added to cart");
-                      onClose();
-                    }}
-                  >
-                    {isOutOfStock
-                      ? "Out of Stock"
-                      : "Add to Cart"}
-                  </button>
-
-                  <button
-                    className="btn btnGhost"
-                    onClick={() => {
-                      toggleWishlist(product.id);
-                      toast.success(
-                        inWish
-                          ? "Removed from wishlist"
-                          : "Saved to wishlist"
-                      );
-                    }}
-                  >
-                    {inWish
-                      ? "Remove from Wishlist"
-                      : "Save to Wishlist"}
-                  </button>
-                </div>
+                  {isOutOfStock ? "Out of Stock" : "Add to Cart"}
+                </button>
               </div>
             </div>
-
-            <style>{`
-              @media (max-width: 900px) {
-                .qvGrid {
-                  grid-template-columns: 1fr !important;
-                }
-              }
-            `}</style>
           </motion.div>
         </>
       )}
