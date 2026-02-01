@@ -49,7 +49,7 @@ export const useCart = create<CartState>((set, get) => ({
   addItem: (product, quantity = 1) => {
     set((state) => {
       const existing = state.items.find(
-        (i) => i.product_id === product.id,
+        (i) => i.product_id === product.id
       );
 
       if (existing) {
@@ -57,7 +57,7 @@ export const useCart = create<CartState>((set, get) => ({
           items: state.items.map((i) =>
             i.product_id === product.id
               ? { ...i, quantity: i.quantity + quantity }
-              : i,
+              : i
           ),
         };
       }
@@ -79,7 +79,7 @@ export const useCart = create<CartState>((set, get) => ({
   removeItem: (productId) => {
     set((state) => ({
       items: state.items.filter(
-        (i) => i.product_id !== productId,
+        (i) => i.product_id !== productId
       ),
     }));
   },
@@ -94,7 +94,7 @@ export const useCart = create<CartState>((set, get) => ({
       items: state.items.map((i) =>
         i.product_id === productId
           ? { ...i, quantity }
-          : i,
+          : i
       ),
     }));
   },
@@ -110,14 +110,14 @@ export const useCart = create<CartState>((set, get) => ({
   subtotal: () => {
     return get().items.reduce(
       (sum, item) => sum + item.price * item.quantity,
-      0,
+      0
     );
   },
 
   totalItems: () => {
     return get().items.reduce(
       (sum, item) => sum + item.quantity,
-      0,
+      0
     );
   },
 
@@ -140,10 +140,13 @@ export const useCart = create<CartState>((set, get) => ({
      * - Backend trusts total_amount
      * - Items are stored as-is
      */
-    const order = await ordersApi.create({
+    const order = (await ordersApi.create({
       items,
       total_amount,
-    });
+    })) as {
+      order_id: string;
+      order_status: string;
+    };
 
     // Clear cart ONLY after successful order creation
     get().clear();
