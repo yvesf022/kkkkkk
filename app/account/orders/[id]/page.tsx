@@ -7,20 +7,21 @@ import Link from "next/link";
 
 import { useAuth } from "@/lib/auth";
 import OrderTimeline from "@/components/orders/OrderTimeline";
+import type {
+  PaymentStatus,
+  ShippingStatus,
+} from "@/lib/types";
 
 /* ======================
    TYPES
 ====================== */
 
-type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
-type ShippingStatus = "awaiting_shipping" | "shipped" | null;
-
 type Order = {
   id: string;
   created_at: string;
   total_amount: number;
-  payment_status: PaymentStatus;
-  shipping_status: ShippingStatus;
+  payment_status: PaymentStatus | null;
+  shipping_status: ShippingStatus | null;
   tracking_number?: string | null;
 };
 
@@ -70,7 +71,7 @@ export default function OrderDetailsPage() {
 
       setOrder({
         ...data,
-        payment_status: data.payment_status ?? "pending",
+        payment_status: data.payment_status ?? null,
         shipping_status: data.shipping_status ?? null,
       });
     } catch {
@@ -185,8 +186,8 @@ export default function OrderDetailsPage() {
         }}
       >
         <strong>Current status:</strong>{" "}
-        {paymentLabel(order.payment_status)} ·{" "}
-        {shippingLabel(order.shipping_status)} ·{" "}
+        {order.payment_status ?? "—"} ·{" "}
+        {order.shipping_status ?? "Not shipped yet"} ·{" "}
         <strong>{fmtM(order.total_amount)}</strong>
       </div>
 
@@ -196,71 +197,6 @@ export default function OrderDetailsPage() {
         shippingStatus={order.shipping_status}
         trackingNumber={order.tracking_number}
       />
-
-      {/* ACTION PANEL */}
-      <div
-        style={{
-          padding: 24,
-          borderRadius: 24,
-          background:
-            "linear-gradient(135deg,#ffffff,#f8fbff)",
-          boxShadow:
-            "0 18px 50px rgba(15,23,42,0.12)",
-          display: "grid",
-          gap: 16,
-        }}
-      >
-        <h3 style={{ fontWeight: 900 }}>
-          What’s happening now
-        </h3>
-
-        {order.payment_status === "on_hold" && (
-          <>
-            <p style={{ fontSize: 14 }}>
-              Your order is awaiting payment verification.
-              Please upload your payment proof below.
-            </p>
-
-            <label
-              style={{
-                fontWeight: 700,
-                cursor: uploading ? "default" : "pointer",
-                opacity: uploading ? 0.6 : 1,
-              }}
-            >
-              {uploading
-                ? "Uploading…"
-                : "Upload payment proof"}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                hidden
-                disabled={uploading}
-                onChange={handleUpload}
-              />
-            </label>
-
-            <div style={{ fontSize: 12, opacity: 0.6 }}>
-              Image only · Max 5MB · Secure upload
-            </div>
-          </>
-        )}
-
-        {order.payment_status === "paid" && (
-          <p style={{ fontSize: 14 }}>
-            Payment confirmed. Your order is now
-            being prepared for shipment.
-          </p>
-        )}
-
-        {order.payment_status === "rejected" && (
-          <p style={{ fontSize: 14, color: "#b91c1c" }}>
-            Payment was rejected. Please upload a
-            new, valid proof.
-          </p>
-        )}
-      </div>
 
       {/* FOOTER ACTIONS */}
       <div
@@ -287,29 +223,4 @@ export default function OrderDetailsPage() {
       </div>
     </div>
   );
-}
-
-/* ======================
-   LABEL HELPERS
-====================== */
-
-function paymentLabel(status: PaymentStatus) {
-  switch (status) {
-    case "pending":
-      return "Order placed";
-    case "on_hold":
-      return "Awaiting payment verification";
-    case "paid":
-      return "Payment confirmed";
-    case "rejected":
-      return "Payment rejected";
-  }
-}
-
-function shippingLabel(status: ShippingStatus) {
-  if (!status) return "Not shipped yet";
-  if (status === "awaiting_shipping")
-    return "Preparing shipment";
-  if (status === "shipped") return "Shipped";
-  return "—";
 }
