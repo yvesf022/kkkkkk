@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { getMyOrders, type Order } from "@/lib/api";
+import { getMyOrders } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import type { Order } from "@/lib/types";
 
 /** Lesotho currency formatter (Maloti) */
 const fmtM = (v: number) =>
