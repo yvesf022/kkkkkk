@@ -14,7 +14,7 @@ export default function OrdersPage() {
   const router = useRouter();
 
   const user = useAuth((s) => s.user);
-  const initialized = useAuth((s) => s.initialized);
+  const authLoading = useAuth((s) => s.loading);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,18 +24,18 @@ export default function OrdersPage() {
      REDIRECT AFTER HYDRATION
   ====================== */
   useEffect(() => {
-    if (!initialized) return;
+    if (authLoading) return;
 
     if (!user) {
       router.replace("/login");
     }
-  }, [initialized, user, router]);
+  }, [authLoading, user, router]);
 
   /* ======================
      FETCH ORDERS
   ====================== */
   useEffect(() => {
-    if (!initialized || !user) return;
+    if (authLoading || !user) return;
 
     setLoading(true);
     setError(null);
@@ -46,12 +46,12 @@ export default function OrdersPage() {
         setError("Failed to load your orders. Please try again.")
       )
       .finally(() => setLoading(false));
-  }, [initialized, user]);
+  }, [authLoading, user]);
 
   /* ======================
      LOADING (AUTH)
   ====================== */
-  if (!initialized) {
+  if (authLoading) {
     return (
       <div style={{ maxWidth: 900 }}>
         <h1 style={title}>Your Orders</h1>
