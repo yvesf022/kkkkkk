@@ -12,6 +12,11 @@ type Props = {
   onChange: (url: string) => void;
 };
 
+/** ✅ BACKEND RESPONSE SHAPE */
+type UploadImageResponse = {
+  url: string;
+};
+
 /**
  * PRODUCT IMAGE UPLOADER — AUTHORITATIVE
  *
@@ -56,12 +61,13 @@ export default function ProductImageUploader({
     setUploading(true);
 
     try {
-      const result = await productsApi.uploadImage(
-        productId,
-        file
-      );
+      const result =
+        (await productsApi.uploadImage(
+          productId,
+          file
+        )) as UploadImageResponse;
 
-      if (!result?.url) {
+      if (!result.url) {
         throw new Error("Invalid upload response");
       }
 
