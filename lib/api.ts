@@ -9,6 +9,8 @@
  * - No Authorization headers
  */
 
+import type { Admin } from "@/lib/adminAuth";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
@@ -102,8 +104,9 @@ export const adminAuthApi = {
     });
   },
 
-  me() {
-    return request("/api/admin/auth/me");
+  // ✅ FIXED: explicitly typed
+  me(): Promise<Admin> {
+    return request<Admin>("/api/admin/auth/me");
   },
 
   logout() {
@@ -167,10 +170,13 @@ export const productsApi = {
     const form = new FormData();
     form.append("file", file);
 
-    return request(`/api/products/admin/${productId}/images`, {
-      method: "POST",
-      body: form,
-    });
+    return request<{ url: string }>(
+      `/api/products/admin/${productId}/images`,
+      {
+        method: "POST",
+        body: form,
+      },
+    );
   },
 
   deleteImage(imageId: string) {
@@ -235,7 +241,6 @@ export const ordersApi = {
  * Backward-compatible exports for account pages
  * (Required for Vercel static analysis)
  */
-
 export async function getMyOrders(): Promise<Order[]> {
   return ordersApi.myOrders();
 }
@@ -320,8 +325,11 @@ export const adminUsersApi = {
   },
 
   changeRole(userId: string, role: "user" | "admin") {
-    return request(`/api/admin/users/${userId}/role?role=${role}`, {
-      method: "POST",
-    });
+    return request(
+      `/api/admin/users/${userId}/role?role=${role}`,
+      {
+        method: "POST",
+      },
+    );
   },
 };
