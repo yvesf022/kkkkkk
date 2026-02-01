@@ -1,3 +1,15 @@
+"use client";
+
+/**
+ * ADMIN LIST SKELETON — AUTHORITATIVE
+ *
+ * PURPOSE:
+ * - Visual placeholder only
+ * - No backend calls
+ * - No auth logic
+ * - Safe to render anywhere in admin UI
+ */
+
 export default function AdminListSkeleton() {
   return (
     <div style={{ display: "grid", gap: 14 }}>

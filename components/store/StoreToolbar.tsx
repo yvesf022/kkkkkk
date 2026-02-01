@@ -15,6 +15,13 @@ export type Filters = {
   max?: number;
 };
 
+const SORT_OPTIONS: SortMode[] = [
+  "featured",
+  "rating",
+  "price_low",
+  "price_high",
+];
+
 export default function StoreToolbar({
   filters,
   setFilters,
@@ -43,11 +50,7 @@ export default function StoreToolbar({
             rgba(244,114,182,0.14),
             transparent 60%
           ),
-          linear-gradient(
-            135deg,
-            #ffffff,
-            #f8fbff
-          )
+          linear-gradient(135deg,#ffffff,#f8fbff)
         `,
         boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
       }}
@@ -110,12 +113,13 @@ export default function StoreToolbar({
         <input
           placeholder="Search products"
           value={filters.q ?? ""}
-          onChange={(e) =>
+          onChange={(e) => {
+            const v = e.target.value.trim();
             setFilters((s) => ({
               ...s,
-              q: e.target.value,
-            }))
-          }
+              q: v.length > 0 ? v : undefined,
+            }));
+          }}
           style={{
             padding: "12px 14px",
             borderRadius: 16,
@@ -128,17 +132,18 @@ export default function StoreToolbar({
 
         {/* MIN */}
         <input
+          type="number"
           placeholder="Min M"
-          inputMode="numeric"
           value={filters.min ?? ""}
-          onChange={(e) =>
+          onChange={(e) => {
+            const v = e.target.value;
+            const n = v === "" ? undefined : Number(v);
+
             setFilters((s) => ({
               ...s,
-              min: e.target.value
-                ? Number(e.target.value)
-                : undefined,
-            }))
-          }
+              min: Number.isFinite(n!) ? n : undefined,
+            }));
+          }}
           style={{
             padding: "12px 14px",
             borderRadius: 16,
@@ -151,17 +156,18 @@ export default function StoreToolbar({
 
         {/* MAX */}
         <input
+          type="number"
           placeholder="Max M"
-          inputMode="numeric"
           value={filters.max ?? ""}
-          onChange={(e) =>
+          onChange={(e) => {
+            const v = e.target.value;
+            const n = v === "" ? undefined : Number(v);
+
             setFilters((s) => ({
               ...s,
-              max: e.target.value
-                ? Number(e.target.value)
-                : undefined,
-            }))
-          }
+              max: Number.isFinite(n!) ? n : undefined,
+            }));
+          }}
           style={{
             padding: "12px 14px",
             borderRadius: 16,
@@ -175,9 +181,12 @@ export default function StoreToolbar({
         {/* SORT */}
         <select
           value={sort}
-          onChange={(e) =>
-            setSort(e.target.value as SortMode)
-          }
+          onChange={(e) => {
+            const v = e.target.value as SortMode;
+            if (SORT_OPTIONS.includes(v)) {
+              setSort(v);
+            }
+          }}
           style={{
             padding: "12px 14px",
             borderRadius: 16,

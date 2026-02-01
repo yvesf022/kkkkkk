@@ -3,6 +3,13 @@
 import React from "react";
 import type { Filters, SortMode } from "./StoreToolbar";
 
+const SORT_OPTIONS: SortMode[] = [
+  "featured",
+  "rating",
+  "price_low",
+  "price_high",
+];
+
 export default function FiltersBar({
   filters,
   setFilters,
@@ -23,19 +30,20 @@ export default function FiltersBar({
       }}
       className="filtersGrid"
     >
-      {/* MIN */}
+      {/* MIN PRICE */}
       <input
+        type="number"
         placeholder="Min price"
-        inputMode="numeric"
         value={filters.min ?? ""}
-        onChange={(e) =>
+        onChange={(e) => {
+          const v = e.target.value;
+          const n = v === "" ? undefined : Number(v);
+
           setFilters((f) => ({
             ...f,
-            min: e.target.value
-              ? Number(e.target.value)
-              : undefined,
-          }))
-        }
+            min: Number.isFinite(n!) ? n : undefined,
+          }));
+        }}
         style={{
           padding: "12px 14px",
           borderRadius: 16,
@@ -46,19 +54,20 @@ export default function FiltersBar({
         }}
       />
 
-      {/* MAX */}
+      {/* MAX PRICE */}
       <input
+        type="number"
         placeholder="Max price"
-        inputMode="numeric"
         value={filters.max ?? ""}
-        onChange={(e) =>
+        onChange={(e) => {
+          const v = e.target.value;
+          const n = v === "" ? undefined : Number(v);
+
           setFilters((f) => ({
             ...f,
-            max: e.target.value
-              ? Number(e.target.value)
-              : undefined,
-          }))
-        }
+            max: Number.isFinite(n!) ? n : undefined,
+          }));
+        }}
         style={{
           padding: "12px 14px",
           borderRadius: 16,
@@ -72,9 +81,12 @@ export default function FiltersBar({
       {/* SORT */}
       <select
         value={sort}
-        onChange={(e) =>
-          setSort(e.target.value as SortMode)
-        }
+        onChange={(e) => {
+          const value = e.target.value as SortMode;
+          if (SORT_OPTIONS.includes(value)) {
+            setSort(value);
+          }
+        }}
         style={{
           padding: "12px 14px",
           borderRadius: 16,

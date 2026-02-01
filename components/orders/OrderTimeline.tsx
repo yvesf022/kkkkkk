@@ -1,13 +1,30 @@
+"use client";
+
+import type { PaymentStatus, ShippingStatus } from "@/lib/types";
+
 type Props = {
-  paymentStatus: string;
-  shippingStatus: string;
+  paymentStatus: PaymentStatus | null;
+  shippingStatus: ShippingStatus;
   trackingNumber?: string | null;
 };
 
+/**
+ * ORDER TIMELINE — AUTHORITATIVE
+ *
+ * BACKEND CONTRACT:
+ * - PaymentStatus: "pending" | "paid" | "rejected" | null
+ * - ShippingStatus:
+ *   "created" | "pending" | "processing" | "shipped" | "delivered" | "returned"
+ *
+ * FRONTEND RULE:
+ * - NEVER invent states
+ * - Timeline is a visual interpretation ONLY
+ */
+
 const STEPS = [
-  { key: "on_hold", label: "Order Placed" },
-  { key: "payment_submitted", label: "Payment Submitted" },
-  { key: "payment_received", label: "Payment Received" },
+  { key: "order_created", label: "Order Placed" },
+  { key: "payment_pending", label: "Payment Under Review" },
+  { key: "payment_paid", label: "Payment Approved" },
   { key: "shipped", label: "Shipped" },
   { key: "delivered", label: "Delivered" },
 ];
@@ -18,16 +35,28 @@ export default function OrderTimeline({
   trackingNumber,
 }: Props) {
   function isStepActive(step: string) {
-    if (step === "on_hold") return true;
-    if (step === "payment_submitted")
-      return paymentStatus !== "on_hold";
-    if (step === "payment_received")
-      return paymentStatus === "payment_received";
-    if (step === "shipped")
-      return shippingStatus === "shipped" || shippingStatus === "delivered";
-    if (step === "delivered")
-      return shippingStatus === "delivered";
-    return false;
+    switch (step) {
+      case "order_created":
+        return true;
+
+      case "payment_pending":
+        return paymentStatus === "pending" || paymentStatus === "paid";
+
+      case "payment_paid":
+        return paymentStatus === "paid";
+
+      case "shipped":
+        return (
+          shippingStatus === "shipped" ||
+          shippingStatus === "delivered"
+        );
+
+      case "delivered":
+        return shippingStatus === "delivered";
+
+      default:
+        return false;
+    }
   }
 
   return (
@@ -62,7 +91,9 @@ export default function OrderTimeline({
                   background: active ? "#22c55e" : "#cbd5e1",
                 }}
               />
-              <div style={{ fontWeight: 700 }}>{step.label}</div>
+              <div style={{ fontWeight: 700 }}>
+                {step.label}
+              </div>
             </div>
           );
         })}

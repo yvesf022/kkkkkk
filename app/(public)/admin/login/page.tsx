@@ -1,18 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useAdminAuth } from "@/lib/adminAuth";
 
+/**
+ * ADMIN LOGIN PAGE — AUTHORITATIVE
+ *
+ * BACKEND CONTRACT:
+ * - POST /api/admin/auth/login
+ * - Cookie-based auth (admin_access_token)
+ * - /api/admin/auth/me is the source of truth
+ * - 401 = invalid credentials
+ * - 403 = not an admin / access denied
+ *
+ * FRONTEND RULES:
+ * - Do NOT read cookies
+ * - Do NOT decode JWT
+ * - Always rely on adminAuth.hydrate()
+ */
+
 export default function AdminLoginPage() {
   const router = useRouter();
 
-  const login = useAdminAuth((s) => s.login);
-  const loading = useAdminAuth((s) => s.loading);
+  const {
+    admin,
+    login,
+    loading,
+    hydrate,
+  } = useAdminAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  /**
+   * Hydrate admin session on mount
+   * If already logged in → redirect away
+   */
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (!loading && admin) {
+      router.replace("/admin");
+    }
+  }, [loading, admin, router]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,45 +55,62 @@ export default function AdminLoginPage() {
       await login(email, password);
 
       toast.success("Admin login successful");
-
-      // ✅ App Router navigation (Amazon-level)
       router.replace("/admin");
     } catch (err: any) {
-      toast.error(err.message || "Admin login failed");
+      toast.error(
+        err?.status === 401
+          ? "Invalid admin credentials."
+          : err?.status === 403
+          ? "You do not have admin access."
+          : "Admin login failed.",
+      );
     }
   }
 
   return (
-    <div className="card" style={{ padding: 28 }}>
-      <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 10 }}>
-        Admin Login
-      </h1>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div
+        className="w-full max-w-md rounded-lg bg-white p-8 shadow"
+      >
+        <h1 className="mb-2 text-2xl font-bold">
+          Admin Login
+        </h1>
 
-      <p style={{ opacity: 0.6, marginBottom: 20 }}>
-        Restricted access
-      </p>
+        <p className="mb-6 text-sm opacity-60">
+          Restricted access
+        </p>
 
-      <form onSubmit={submit} style={{ display: "grid", gap: 14 }}>
-        <input
-          type="email"
-          placeholder="Admin email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+        <form
+          onSubmit={submit}
+          className="grid gap-4"
+        >
+          <input
+            type="email"
+            placeholder="Admin email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="rounded border px-3 py-2"
+          />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="rounded border px-3 py-2"
+          />
 
-        <button className="btn btnTech" disabled={loading}>
-          {loading ? "Signing in…" : "Login as Admin"}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded bg-black py-2 text-white disabled:opacity-50"
+          >
+            {loading ? "Signing in…" : "Login as Admin"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

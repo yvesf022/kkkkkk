@@ -1,109 +1,69 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-type Role = "user" | "admin";
+/**
+ * REQUIRE AUTH — AUTHORITATIVE
+ *
+ * BACKEND CONTRACT:
+ * - Auth is cookie-based (HTTP-only)
+ * - access_token cookie is the ONLY user auth cookie
+ * - /api/auth/me is the source of truth
+ *
+ * FRONTEND RULES:
+ * - Middleware handles FIRST-LAYER protection
+ * - This component handles SECOND-LAYER (UI safety)
+ * - NEVER decode JWT
+ * - NEVER read cookies directly
+ */
 
-type RenderProps = (authReady: boolean) => React.ReactNode;
-
-type Props = {
-  role?: Role;
-  allowDuringHydration?: boolean;
-  children: React.ReactNode | RenderProps;
+type RequireAuthProps = {
+  children: React.ReactNode;
 };
 
-export default function RequireAuth({
-  children,
-  role,
-  allowDuringHydration = false,
-}: Props) {
+export default function RequireAuth({ children }: RequireAuthProps) {
   const router = useRouter();
+  const { user, loading, hydrate } = useAuth();
 
-  const user = useAuth((s) => s.user);
-  const loading = useAuth((s) => s.loading);
-  const refreshMe = useAuth((s) => s.refreshMe);
-
-  // 🧠 ensure hydration runs only once per mount
-  const hasHydratedRef = useRef(false);
-
-  /* =========================
-     AUTH HYDRATION (ON-DEMAND)
-  ========================= */
+  /**
+   * Hydrate user session on mount
+   * (safe even if already hydrated)
+   */
   useEffect(() => {
-    if (hasHydratedRef.current) return;
+    hydrate();
+    // hydrate is stable from Zustand
+  }, [hydrate]);
 
-    if (!user && !loading) {
-      hasHydratedRef.current = true;
-      refreshMe();
-    }
-  }, [user, loading, refreshMe]);
-
-  const authReady = !loading;
-  const isAuthenticated = Boolean(user);
-  const userRole = user?.role;
-
-  /* =========================
-     AUTH REDIRECTS
-  ========================= */
+  /**
+   * Redirect logic
+   */
   useEffect(() => {
-    if (!authReady) return;
-
-    if (!isAuthenticated) {
-      router.replace(role === "admin" ? "/admin/login" : "/login");
-      return;
+    if (!loading && !user) {
+      router.replace("/login");
     }
+  }, [loading, user, router]);
 
-    if (role && userRole !== role) {
-      router.replace(role === "admin" ? "/admin/login" : "/account");
-      return;
-    }
-  }, [authReady, isAuthenticated, userRole, role, router]);
-
-  /* =========================
-     STORE ROUTE NORMALIZATION
-     (OPTION 1 FIX)
-  ========================= */
-  useEffect(() => {
-    if (!authReady || !isAuthenticated) return;
-
-    const pathname = window.location.pathname;
-
-    // Only allow known store routes
-    const allowedStoreRoutes = [
-      "/store",
-      "/store/all",
-      "/store/cart",
-      "/store/checkout",
-      "/store/wishlist",
-    ];
-
-    if (
-      pathname.startsWith("/store/") &&
-      !allowedStoreRoutes.some((p) => pathname.startsWith(p))
-    ) {
-      router.replace("/store");
-    }
-  }, [authReady, isAuthenticated, router]);
-
-  /* =========================
-     RENDER LOGIC
-  ========================= */
-
-  if (!authReady) {
-    if (allowDuringHydration && typeof children === "function") {
-      return <>{children(false)}</>;
-    }
-    return null;
+  /**
+   * Loading state
+   * IMPORTANT:
+   * - Do NOT render protected UI while checking auth
+   */
+  if (loading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <span>Loading...</span>
+      </div>
+    );
   }
 
-  if (!isAuthenticated) return null;
-
-  if (role && userRole !== role) return null;
-
-  if (typeof children === "function") {
-    return <>{children(true)}</>;
+  /**
+   * Safety fallback
+   * (middleware should already block unauth users)
+   */
+  if (!user) {
+    return null;
   }
 
   return <>{children}</>;

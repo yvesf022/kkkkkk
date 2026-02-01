@@ -23,21 +23,23 @@ const PRIMARY: Item[] = [
 
 const CATALOG: Item[] = [
   { label: "Products", href: "/admin/products" },
-  { label: "Payment Settings", href: "/admin/payment-settings" },
 ];
 
-const AdminSidebar: React.FC<AdminSidebarProps> = ({
+export default function AdminSidebar({
   isMobile,
   onClose,
-}) => {
+}: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const logout = useAdminAuth((s) => s.logout);
 
-  function handleLogout() {
-    logout();
-    onClose?.();
-    router.replace("/admin/login");
+  async function handleLogout() {
+    try {
+      await logout(); // clears admin cookie
+    } finally {
+      onClose?.();
+      router.replace("/admin/login");
+    }
   }
 
   function renderItems(items: Item[]) {
@@ -180,6 +182,4 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
       </div>
     </aside>
   );
-};
-
-export default AdminSidebar;
+}

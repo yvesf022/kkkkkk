@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import ProductCard from "@/components/store/ProductCard";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -6,14 +7,12 @@ type Product = {
   id: string;
   title: string;
   price: number;
-  img: string;
+  compare_price?: number;
+  main_image: string;
   category: string;
   stock: number;
+  in_stock: boolean;
 };
-
-/* ======================
-   PAGE
-====================== */
 
 export default async function CategoryPage({
   params,
@@ -28,7 +27,7 @@ export default async function CategoryPage({
   );
 
   if (!res.ok) {
-    return notFound();
+    notFound();
   }
 
   const products: Product[] = await res.json();
@@ -48,49 +47,29 @@ export default async function CategoryPage({
 
   return (
     <div style={{ padding: 40 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 20 }}>
+      <h1
+        style={{
+          fontSize: 28,
+          fontWeight: 900,
+          marginBottom: 20,
+        }}
+      >
         {category}
       </h1>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-          gap: 20,
+          gridTemplateColumns:
+            "repeat(auto-fill, minmax(240px, 1fr))",
+          gap: 22,
         }}
       >
-        {products.map((p) => (
-          <div
-            key={p.id}
-            style={{
-              border: "1px solid #eee",
-              borderRadius: 16,
-              padding: 14,
-            }}
-          >
-            <img
-              src={p.img}
-              alt={p.title}
-              style={{
-                width: "100%",
-                height: 180,
-                objectFit: "cover",
-                borderRadius: 12,
-              }}
-            />
-
-            <div style={{ marginTop: 10, fontWeight: 800 }}>
-              {p.title}
-            </div>
-
-            <div style={{ opacity: 0.6, fontSize: 14 }}>
-              {p.category}
-            </div>
-
-            <div style={{ fontWeight: 900, marginTop: 6 }}>
-              M {p.price.toLocaleString("en-ZA")}
-            </div>
-          </div>
+        {products.map((product) => (
+          <ProductCard
+            key={product.id}
+            product={product}
+          />
         ))}
       </div>
     </div>

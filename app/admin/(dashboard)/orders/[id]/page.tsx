@@ -7,19 +7,14 @@ import toast from "react-hot-toast";
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
 /* ======================
-   TYPES
+   TYPES (MATCH BACKEND)
 ====================== */
 
 type OrderItem = {
   product_id: string;
-  quantity: number;
-};
-
-type Product = {
-  id: string;
   title: string;
-  img: string;
   price: number;
+  quantity: number;
 };
 
 type Order = {
@@ -30,9 +25,6 @@ type Order = {
   shipping_status: string;
   tracking_number?: string;
   created_at: string;
-  payment?: {
-    proof_url?: string;
-  };
 };
 
 /** Lesotho currency formatter (Maloti) */
@@ -44,7 +36,6 @@ export default function AdminOrderDetailPage() {
   const router = useRouter();
 
   const [order, setOrder] = useState<Order | null>(null);
-  const [products, setProducts] = useState<Record<string, Product>>({});
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -52,31 +43,21 @@ export default function AdminOrderDetailPage() {
   const [tracking, setTracking] = useState("");
 
   /* ======================
-     LOAD ORDER + PRODUCTS
+     LOAD ORDER (ADMIN)
   ====================== */
   async function load() {
     try {
-      const [orderRes, productsRes] = await Promise.all([
-        fetch(`${API}/api/orders/${id}`, {
-          credentials: "include",
-        }),
-        fetch(`${API}/api/products`),
-      ]);
+      const res = await fetch(
+        `${API}/api/orders/admin/${id}`,
+        { credentials: "include" }
+      );
 
-      if (!orderRes.ok || !productsRes.ok)
-        throw new Error();
+      if (!res.ok) throw new Error();
 
-      const orderData = await orderRes.json();
-      const productsData: Product[] =
-        await productsRes.json();
-
-      const map: Record<string, Product> = {};
-      productsData.forEach((p) => (map[p.id] = p));
-
-      setProducts(map);
-      setOrder(orderData);
-      setShippingStatus(orderData.shipping_status || "");
-      setTracking(orderData.tracking_number || "");
+      const data: Order = await res.json();
+      setOrder(data);
+      setShippingStatus(data.shipping_status || "");
+      setTracking(data.tracking_number || "");
     } catch {
       toast.error("Unable to load order");
       router.replace("/admin/orders");
@@ -90,29 +71,32 @@ export default function AdminOrderDetailPage() {
   }, [id]);
 
   /* ======================
-     UPDATE ORDER
+     UPDATE SHIPPING ONLY
   ====================== */
-  async function update(payload: any) {
+  async function updateShipping() {
     if (!order) return;
 
     setUpdating(true);
     try {
       const res = await fetch(
-        `${API}/api/orders/admin/${order.id}/update`,
+        `${API}/api/orders/admin/${order.id}/shipping`,
         {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            shipping_status: shippingStatus,
+            tracking_number: tracking,
+          }),
         }
       );
 
       if (!res.ok) throw new Error();
 
-      toast.success("Order updated");
+      toast.success("Shipping updated");
       await load();
     } catch {
-      toast.error("Failed to update order");
+      toast.error("Failed to update shipping");
     } finally {
       setUpdating(false);
     }
@@ -121,27 +105,17 @@ export default function AdminOrderDetailPage() {
   if (loading) return <p>Loading order…</p>;
   if (!order) return null;
 
-  const needsReview =
-    order.payment_status === "payment_submitted";
-  const paid =
-    order.payment_status === "payment_received";
+  const paid = order.payment_status === "payment_received";
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gap: 28,
-        maxWidth: 960,
-      }}
-    >
+    <div style={{ display: "grid", gap: 28, maxWidth: 960 }}>
       {/* HEADER */}
       <header>
         <h1 style={{ fontSize: 28, fontWeight: 900 }}>
           Order #{order.id.slice(0, 8)}
         </h1>
         <p style={{ opacity: 0.6 }}>
-          Created{" "}
-          {new Date(order.created_at).toLocaleString()}
+          Created {new Date(order.created_at).toLocaleString()}
         </p>
       </header>
 
@@ -151,114 +125,38 @@ export default function AdminOrderDetailPage() {
           <b>Total:</b> {fmtM(order.total_amount)}
         </div>
         <div>
-          <b>Payment:</b>{" "}
-          {paymentLabel(order.payment_status)}
+          <b>Payment:</b> {paymentLabel(order.payment_status)}
         </div>
         <div>
-          <b>Shipping:</b>{" "}
-          {shippingLabel(order.shipping_status)}
+          <b>Shipping:</b> {shippingLabel(order.shipping_status)}
         </div>
       </section>
 
-      {/* PAYMENT REVIEW */}
-      {order.payment?.proof_url && (
-        <section
-          className="card"
-          style={{
-            border: needsReview
-              ? "2px solid #fed7aa"
-              : undefined,
-            background: needsReview
-              ? "#fff7ed"
-              : undefined,
-          }}
-        >
-          <h3>Payment Proof</h3>
-
-          <img
-            src={`${API}${order.payment.proof_url}`}
-            alt="Payment proof"
-            style={{
-              maxWidth: "100%",
-              borderRadius: 12,
-              marginTop: 12,
-              border: "1px solid #e5e7eb",
-            }}
-          />
-
-          {needsReview && (
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                marginTop: 16,
-              }}
-            >
-              <button
-                className="btn btnTech"
-                disabled={updating}
-                onClick={() =>
-                  update({ status: "payment_received" })
-                }
-              >
-                Approve Payment
-              </button>
-
-              <button
-                className="btn btnGhost"
-                disabled={updating}
-                onClick={() =>
-                  update({ status: "rejected" })
-                }
-              >
-                Reject Payment
-              </button>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* SHIPPING */}
+      {/* SHIPPING (ADMIN ONLY AFTER PAYMENT) */}
       {paid && (
-        <section
-          className="card"
-          style={{ display: "grid", gap: 12 }}
-        >
+        <section className="card" style={{ display: "grid", gap: 12 }}>
           <h3>Shipping</h3>
 
           <select
             value={shippingStatus}
-            onChange={(e) =>
-              setShippingStatus(e.target.value)
-            }
+            onChange={(e) => setShippingStatus(e.target.value)}
           >
             <option value="">Not shipped</option>
-            <option value="processing">
-              Processing
-            </option>
+            <option value="processing">Processing</option>
             <option value="shipped">Shipped</option>
-            <option value="delivered">
-              Delivered
-            </option>
+            <option value="delivered">Delivered</option>
           </select>
 
           <input
             placeholder="Tracking number"
             value={tracking}
-            onChange={(e) =>
-              setTracking(e.target.value)
-            }
+            onChange={(e) => setTracking(e.target.value)}
           />
 
           <button
             className="btn btnTech"
             disabled={updating}
-            onClick={() =>
-              update({
-                shipping_status: shippingStatus,
-                tracking_number: tracking,
-              })
-            }
+            onClick={updateShipping}
           >
             Update Shipping
           </button>
@@ -270,53 +168,27 @@ export default function AdminOrderDetailPage() {
         <h3>Items</h3>
 
         <div style={{ display: "grid", gap: 12 }}>
-          {order.items.map((i, idx) => {
-            const p = products[i.product_id];
-
-            return (
-              <div
-                key={idx}
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "center",
-                }}
-              >
-                {p && (
-                  <img
-                    src={p.img}
-                    alt={p.title}
-                    style={{
-                      width: 56,
-                      height: 56,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                    }}
-                  />
-                )}
-
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800 }}>
-                    {p ? p.title : i.product_id}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      opacity: 0.6,
-                    }}
-                  >
-                    Quantity: {i.quantity}
-                  </div>
+          {order.items.map((i, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 800 }}>{i.title}</div>
+                <div style={{ fontSize: 13, opacity: 0.6 }}>
+                  Qty: {i.quantity}
                 </div>
-
-                {p && (
-                  <div style={{ fontWeight: 700 }}>
-                    {fmtM(p.price * i.quantity)}
-                  </div>
-                )}
               </div>
-            );
-          })}
+
+              <div style={{ fontWeight: 700 }}>
+                {fmtM(i.price * i.quantity)}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
     </div>
@@ -330,11 +202,13 @@ export default function AdminOrderDetailPage() {
 function paymentLabel(status: string) {
   switch (status) {
     case "payment_submitted":
-      return "Payment submitted (awaiting review)";
+      return "Payment submitted";
     case "payment_received":
       return "Payment approved";
-    case "rejected":
-      return "Payment rejected";
+    case "shipped":
+      return "Shipped";
+    case "delivered":
+      return "Delivered";
     default:
       return status;
   }

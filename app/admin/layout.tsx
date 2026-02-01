@@ -1,23 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { useAdminAuth } from "@/lib/adminAuth";
 
-export default function AdminLayout({
+/**
+ * ADMIN DASHBOARD LAYOUT — AUTHORITATIVE
+ *
+ * BACKEND CONTRACT:
+ * - /admin/* requires authenticated ADMIN
+ * - Cookie-based auth (admin_access_token)
+ * - /api/admin/auth/me is the source of truth
+ *
+ * FRONTEND RULES:
+ * - middleware.ts = first guard
+ * - hydrate() = session check
+ * - layout must NEVER render for non-admins
+ */
+
+export default function AdminDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const router = useRouter();
 
-  const admin = useAdminAuth((s) => s.admin);
-  const loading = useAdminAuth((s) => s.loading);
-  const refresh = useAdminAuth((s) => s.refresh);
-
-  const ranRef = useRef(false);
-  const [ready, setReady] = useState(false);
+  const { admin, loading, hydrate } = useAdminAuth();
 
   /* -----------------------
      MOBILE DETECTION
@@ -33,31 +42,22 @@ export default function AdminLayout({
   }, []);
 
   /* -----------------------
-     AUTH CHECK (ONCE)
+     ADMIN AUTH CHECK
   ----------------------- */
   useEffect(() => {
-    if (ranRef.current) return;
-    ranRef.current = true;
+    hydrate();
+  }, [hydrate]);
 
-    refresh().finally(() => {
-      setReady(true);
-    });
-  }, [refresh]);
-
-  /* -----------------------
-     REDIRECT IF NOT ADMIN
-  ----------------------- */
   useEffect(() => {
-    if (!ready || loading) return;
-    if (!admin) {
+    if (!loading && !admin) {
       router.replace("/admin/login");
     }
-  }, [ready, loading, admin, router]);
+  }, [loading, admin, router]);
 
   /* -----------------------
      LOADING STATE
   ----------------------- */
-  if (!ready || loading) {
+  if (loading) {
     return (
       <div
         style={{

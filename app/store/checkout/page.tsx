@@ -15,9 +15,7 @@ type CreateOrderPayload = {
   items: {
     product_id: string;
     quantity: number;
-    price: number;
   }[];
-  total_amount: number;
 };
 
 async function createOrder(payload: CreateOrderPayload) {
@@ -72,9 +70,7 @@ export default function CheckoutPage() {
         items: items.map((i) => ({
           product_id: i.id,
           quantity: i.quantity,
-          price: i.price,
         })),
-        total_amount: total,
       });
 
       clearCart();
@@ -179,7 +175,7 @@ export default function CheckoutPage() {
         </button>
 
         <p style={{ fontSize: 12, opacity: 0.6 }}>
-          Payment will be completed manually after
+          Payment instructions will be shown after
           placing the order.
         </p>
       </div>

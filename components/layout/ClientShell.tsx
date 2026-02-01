@@ -1,24 +1,28 @@
 "use client";
 
-import { useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import { UIProvider } from "@/components/layout/uiStore";
 import { CartProvider } from "@/app/context/CartContext";
-import { useAuth } from "@/lib/auth";
+
+/**
+ * CLIENT SHELL — AUTHORITATIVE
+ *
+ * PURPOSE:
+ * - Global UI shell ONLY
+ * - Header, sidebar, layout, providers
+ *
+ * RULES:
+ * - ❌ NO auth hydration here
+ * - ❌ NO backend calls
+ * - Auth is handled by RequireAuth / admin layouts
+ */
 
 export default function ClientShell({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const refreshMe = useAuth((s) => s.refreshMe);
-
-  // 🔐 Hydrate auth ONCE globally
-  useEffect(() => {
-    refreshMe();
-  }, [refreshMe]);
-
   return (
     <UIProvider>
       <CartProvider>

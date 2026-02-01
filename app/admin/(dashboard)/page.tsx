@@ -3,6 +3,22 @@
 import Link from "next/link";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 
+/**
+ * ADMIN DASHBOARD PAGE — AUTHORITATIVE
+ *
+ * BACKEND CONTRACT:
+ * - This page assumes ADMIN auth is already validated
+ * - Auth is enforced by:
+ *   - middleware.ts
+ *   - app/admin/layout.tsx
+ *   - app/admin/(dashboard)/layout.tsx
+ *
+ * FRONTEND RULE:
+ * - This page is PRESENTATIONAL ONLY
+ * - No auth logic
+ * - No API calls
+ */
+
 export default function AdminDashboardPage() {
   return (
     <div style={{ display: "grid", gap: 32 }}>
@@ -17,6 +33,7 @@ export default function AdminDashboardPage() {
         >
           Admin Dashboard
         </h1>
+
         <p
           style={{
             marginTop: 6,
@@ -24,9 +41,8 @@ export default function AdminDashboardPage() {
             maxWidth: 720,
           }}
         >
-          Operational overview of orders, payments, and
-          inventory. Review pending actions and manage
-          the store lifecycle.
+          Operational overview of orders, payments, and inventory.
+          Review pending actions and manage the store lifecycle.
         </p>
       </header>
 
@@ -99,13 +115,6 @@ export default function AdminDashboardPage() {
           />
 
           <ActionCard
-            title="Payment Settings"
-            description="Configure bank details and payment instructions."
-            href="/admin/payment-settings"
-            tone="light"
-          />
-
-          <ActionCard
             title="Reports"
             description="View sales summaries and operational insights."
             href="/admin/reports"
@@ -118,7 +127,7 @@ export default function AdminDashboardPage() {
 }
 
 /* =========================
-   ACTION CARD
+   ACTION CARD (PURE)
 ========================= */
 
 function ActionCard({
@@ -141,8 +150,7 @@ function ActionCard({
         }
       : tone === "warning"
       ? {
-          background:
-            "linear-gradient(135deg,#fff7ed,#ffedd5)",
+          background: "linear-gradient(135deg,#fff7ed,#ffedd5)",
           color: "#9a3412",
           border: "1px solid #fed7aa",
         }
@@ -160,8 +168,7 @@ function ActionCard({
         padding: 24,
         borderRadius: 22,
         textDecoration: "none",
-        boxShadow:
-          "0 12px 30px rgba(15,23,42,0.10)",
+        boxShadow: "0 12px 30px rgba(15,23,42,0.10)",
         transition: "transform .15s ease",
         ...styles,
       }}

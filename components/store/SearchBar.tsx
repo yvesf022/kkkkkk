@@ -3,6 +3,15 @@
 import React from "react";
 import type { Filters } from "./StoreToolbar";
 
+/**
+ * SEARCH BAR — AUTHORITATIVE
+ *
+ * RULES:
+ * - Pure UI input
+ * - Normalizes query string
+ * - Empty / whitespace-only input → undefined
+ */
+
 export default function SearchBar({
   filters,
   setFilters,
@@ -14,12 +23,14 @@ export default function SearchBar({
     <input
       placeholder="Search products"
       value={filters.q ?? ""}
-      onChange={(e) =>
+      onChange={(e) => {
+        const v = e.target.value.trim();
+
         setFilters((f) => ({
           ...f,
-          q: e.target.value,
-        }))
-      }
+          q: v.length > 0 ? v : undefined,
+        }));
+      }}
       style={{
         padding: "12px 14px",
         borderRadius: 16,

@@ -1,7 +1,18 @@
-import { create } from "zustand";
+"use client";
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
+import { create } from "zustand";
+import { adminAuthApi } from "./api";
+
+/**
+ * BACKEND CONTRACT (DO NOT CHANGE):
+ *
+ * - Admin auth is cookie-based (HTTP-only)
+ * - Cookie name: admin_access_token
+ * - Login sets cookie (8 hours)
+ * - /api/admin/auth/me is the ONLY source of truth
+ * - 401 = not authenticated
+ * - 403 = authenticated but not admin / access denied
+ */
 
 export type Admin = {
   id: string;
@@ -12,87 +23,106 @@ export type Admin = {
 type AdminAuthState = {
   admin: Admin | null;
   loading: boolean;
+  error: string | null;
 
+  hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  refresh: () => Promise<void>;
+  clear: () => void;
 };
 
 export const useAdminAuth = create<AdminAuthState>((set) => ({
   admin: null,
-  loading: false,
+  loading: true,
+  error: null,
 
-  // 🔐 ADMIN LOGIN (SYNC, AMAZON-LEVEL)
-  login: async (email, password) => {
-    set({ loading: true });
+  /**
+   * Hydrate admin session from backend
+   * MUST be called on admin app load / refresh
+   */
+  hydrate: async () => {
+    set({ loading: true, error: null });
 
-    const res = await fetch(`${API}/api/admin/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!res.ok) {
-      set({ loading: false });
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data?.detail || "Admin login failed");
-    }
-
-    // ✅ immediately hydrate admin (NO background race)
-    const meRes = await fetch(`${API}/api/admin/auth/me`, {
-      credentials: "include",
-    });
-
-    if (!meRes.ok) {
-      set({ admin: null, loading: false });
-      throw new Error("Failed to load admin session");
-    }
-
-    const admin = await meRes.json();
-
-    if (admin?.role !== "admin") {
-      set({ admin: null, loading: false });
-      throw new Error("Admin access denied");
-    }
-
-    set({ admin, loading: false });
-  },
-
-  // 🔓 ADMIN LOGOUT
-  logout: async () => {
-    set({ loading: true });
-
-    await fetch(`${API}/api/admin/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
-
-    set({ admin: null, loading: false });
-  },
-
-  // 🔄 CHECK EXISTING ADMIN SESSION
-  refresh: async () => {
     try {
-      set({ loading: true });
-
-      const res = await fetch(`${API}/api/admin/auth/me`, {
-        credentials: "include",
-      });
-
-      if (!res.ok) {
+      const admin = await adminAuthApi.me();
+      set({ admin, loading: false });
+    } catch (err: any) {
+      if (err?.status === 401) {
+        // Not logged in (normal admin state)
         set({ admin: null, loading: false });
-        return;
-      }
-
-      const admin = await res.json();
-      if (admin?.role === "admin") {
-        set({ admin, loading: false });
+      } else if (err?.status === 403) {
+        // Logged in but not allowed (should be rare)
+        set({
+          admin: null,
+          loading: false,
+          error: "Admin access denied.",
+        });
       } else {
-        set({ admin: null, loading: false });
+        set({
+          admin: null,
+          loading: false,
+          error: "Failed to load admin session.",
+        });
       }
+    }
+  },
+
+  /**
+   * Admin login
+   * Backend sets HTTP-only admin cookie
+   */
+  login: async (email: string, password: string) => {
+    set({ loading: true, error: null });
+
+    try {
+      await adminAuthApi.login({ email, password });
+
+      // IMPORTANT:
+      // Do NOT trust login response alone.
+      // Always hydrate from /me.
+      const admin = await adminAuthApi.me();
+      set({ admin, loading: false });
+    } catch (err: any) {
+      if (err?.status === 401) {
+        set({
+          loading: false,
+          error: "Invalid admin credentials.",
+        });
+      } else if (err?.status === 403) {
+        set({
+          loading: false,
+          error: "You do not have admin access.",
+        });
+      } else {
+        set({
+          loading: false,
+          error: "Admin login failed.",
+        });
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Admin logout
+   * Backend clears admin cookie
+   */
+  logout: async () => {
+    set({ loading: true, error: null });
+
+    try {
+      await adminAuthApi.logout();
     } catch {
+      // Even if logout fails, clear local state
+    } finally {
       set({ admin: null, loading: false });
     }
+  },
+
+  /**
+   * Local reset (no API call)
+   */
+  clear: () => {
+    set({ admin: null, loading: false, error: null });
   },
 }));

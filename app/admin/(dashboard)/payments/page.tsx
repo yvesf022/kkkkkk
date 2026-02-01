@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
 /* ======================
-   TYPES
+   TYPES (BACKEND-ALIGNED)
 ====================== */
 
 type Payment = {
@@ -30,7 +30,6 @@ export default function AdminPaymentsPage() {
   /* ======================
      LOAD PAYMENTS
   ====================== */
-
   async function load() {
     setLoading(true);
     try {
@@ -55,7 +54,6 @@ export default function AdminPaymentsPage() {
   /* ======================
      REVIEW PAYMENT
   ====================== */
-
   async function reviewPayment(
     id: string,
     status: "approved" | "rejected"
@@ -63,7 +61,7 @@ export default function AdminPaymentsPage() {
     setUpdating(true);
     try {
       const res = await fetch(
-        `${API}/api/payments/admin/${id}/review`,
+        `${API}/api/payments/admin/${id}`, // ✅ CORRECT ENDPOINT
         {
           method: "POST",
           credentials: "include",
@@ -72,7 +70,10 @@ export default function AdminPaymentsPage() {
         }
       );
 
-      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.detail || "Update failed");
+      }
 
       toast.success(
         status === "approved"
@@ -81,8 +82,10 @@ export default function AdminPaymentsPage() {
       );
 
       await load();
-    } catch {
-      toast.error("Failed to update payment");
+    } catch (err: any) {
+      toast.error(
+        err?.message || "Failed to update payment"
+      );
     } finally {
       setUpdating(false);
     }
@@ -138,9 +141,7 @@ export default function AdminPaymentsPage() {
                 <strong>
                   Payment #{p.id.slice(0, 8)}
                 </strong>
-                <strong>
-                  {fmtM(p.amount)}
-                </strong>
+                <strong>{fmtM(p.amount)}</strong>
               </div>
 
               {/* META */}

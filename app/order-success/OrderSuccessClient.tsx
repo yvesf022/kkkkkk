@@ -23,14 +23,17 @@ export default function OrderSuccessClient() {
             Order placed successfully
           </h1>
           <p className="pageSubtitle">
-            Thank you for your order. We’re preparing the
-            next steps.
+            Thank you for your order. Please complete
+            payment to proceed.
           </p>
         </div>
 
         {/* ORDER REFERENCE */}
         {orderId && (
-          <div className="infoBox" style={{ marginBottom: 20 }}>
+          <div
+            className="infoBox"
+            style={{ marginBottom: 20 }}
+          >
             <strong>Order reference:</strong>
             <div>{orderId}</div>
           </div>
@@ -49,34 +52,30 @@ export default function OrderSuccessClient() {
 
           <ul className="list">
             <li>
-              Your order is now marked as{" "}
-              <strong>Awaiting payment</strong>.
+              Your order has been created successfully.
             </li>
             <li>
-              Complete your payment externally using the
-              instructions provided.
+              Proceed to your order details to submit
+              payment proof.
             </li>
             <li>
-              Upload your payment proof from your order
-              details page.
+              Our team will manually verify the payment.
             </li>
             <li>
-              Our team will verify the payment manually.
-            </li>
-            <li>
-              Once confirmed, your order will move to
+              Once approved, your order will move to
               shipping.
             </li>
           </ul>
         </section>
 
         {/* TRUST NOTE */}
-        <div className="infoBox" style={{ marginBottom: 24 }}>
+        <div
+          className="infoBox"
+          style={{ marginBottom: 24 }}
+        >
           🔒 <strong>Your security matters.</strong>
           <br />
-          Payment details are never stored on your account.
-          All payments are verified manually for your
-          protection.
+          Payments are verified manually and securely.
         </div>
 
         {/* ACTIONS */}
@@ -88,12 +87,14 @@ export default function OrderSuccessClient() {
             flexWrap: "wrap",
           }}
         >
-          <Link
-            href="/account/orders"
-            className="btn btnPrimary"
-          >
-            View my orders
-          </Link>
+          {orderId && (
+            <Link
+              href={`/account/orders/${orderId}`}
+              className="btn btnPrimary"
+            >
+              Go to order details
+            </Link>
+          )}
 
           <Link
             href="/store"

@@ -1,35 +1,61 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import AddToCartClient from "./AddToCartClient";
 
 export const dynamic = "force-dynamic";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
-async function getProduct(id: string) {
-  const res = await fetch(`${API}/api/products/${id}`, {
+/* ======================
+   TYPES (BACKEND-ALIGNED)
+====================== */
+
+type Product = {
+  id: string;
+  title: string;
+  price: number;
+  compare_price?: number | null;
+  main_image: string;
+  category: string;
+  stock: number;
+  in_stock: boolean;
+  description?: string | null;
+};
+
+/* ======================
+   DATA FETCH
+====================== */
+
+async function getProductById(id: string): Promise<Product | null> {
+  const res = await fetch(`${API}/api/products`, {
     cache: "no-store",
-    credentials: "include",
   });
 
-  if (!res.ok) {
-    return null;
-  }
+  if (!res.ok) return null;
 
-  return res.json();
+  const products: Product[] = await res.json();
+  return products.find((p) => p.id === id) ?? null;
 }
+
+/* ======================
+   PAGE
+====================== */
 
 export default async function ProductPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const product = await getProduct(params.id);
+  const product = await getProductById(params.id);
 
-  // 🚫 Invalid product ID → real 404
   if (!product) {
     notFound();
   }
+
+  const imageUrl = product.main_image.startsWith("http")
+    ? product.main_image
+    : `${API}${product.main_image}`;
 
   return (
     <div style={{ display: "grid", gap: 32 }}>
@@ -56,15 +82,16 @@ export default async function ProductPage({
         <div
           style={{
             border: "1px solid #eee",
-            borderRadius: 8,
-            padding: 12,
+            borderRadius: 16,
+            padding: 16,
+            background: "#fff",
           }}
         >
           <Image
-            src={product.main_image}
+            src={imageUrl}
             alt={product.title}
-            width={400}
-            height={400}
+            width={600}
+            height={600}
             style={{ objectFit: "contain" }}
             priority
           />
@@ -76,58 +103,40 @@ export default async function ProductPage({
             {product.title}
           </h1>
 
-          {product.brand && (
-            <p style={{ opacity: 0.6 }}>
-              Brand: <strong>{product.brand}</strong>
-            </p>
-          )}
+          {/* PRICE */}
+          <div>
+            <div style={{ fontSize: 26, fontWeight: 900 }}>
+              M {Math.round(product.price).toLocaleString("en-ZA")}
+            </div>
 
-          <p style={{ fontSize: 24, fontWeight: 700 }}>
-            ${product.price}
-          </p>
-
-          {product.compare_price && (
-            <p style={{ textDecoration: "line-through", opacity: 0.5 }}>
-              ${product.compare_price}
-            </p>
-          )}
+            {product.compare_price && (
+              <div
+                style={{
+                  opacity: 0.5,
+                  textDecoration: "line-through",
+                }}
+              >
+                M{" "}
+                {Math.round(product.compare_price).toLocaleString(
+                  "en-ZA"
+                )}
+              </div>
+            )}
+          </div>
 
           {/* STOCK */}
-          {product.in_stock ? (
-            <p style={{ color: "green", fontWeight: 600 }}>
+          {product.in_stock && product.stock > 0 ? (
+            <p style={{ color: "#16a34a", fontWeight: 700 }}>
               In stock
             </p>
           ) : (
-            <p style={{ color: "red", fontWeight: 600 }}>
+            <p style={{ color: "#dc2626", fontWeight: 700 }}>
               Out of stock
             </p>
           )}
 
-          {/* ACTIONS */}
-          <div style={{ display: "flex", gap: 12 }}>
-            <button
-              disabled={!product.in_stock}
-              style={{
-                padding: "12px 20px",
-                background: product.in_stock ? "#ffd814" : "#ccc",
-                border: "1px solid #fcd200",
-                fontWeight: 700,
-                cursor: product.in_stock ? "pointer" : "not-allowed",
-              }}
-            >
-              Add to Cart
-            </button>
-
-            <button
-              style={{
-                padding: "12px 20px",
-                border: "1px solid #ddd",
-                background: "#fff",
-              }}
-            >
-              Add to Wishlist
-            </button>
-          </div>
+          {/* ACTIONS (CLIENT) */}
+          <AddToCartClient product={product} />
         </div>
       </div>
 
@@ -137,45 +146,9 @@ export default async function ProductPage({
           <h2 style={{ fontSize: 20, fontWeight: 800 }}>
             Product Description
           </h2>
-          <p style={{ opacity: 0.8 }}>{product.description}</p>
-        </section>
-      )}
-
-      {/* ===== SPECS ===== */}
-      {product.specs && Object.keys(product.specs).length > 0 && (
-        <section style={{ maxWidth: 900 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800 }}>
-            Specifications
-          </h2>
-
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <tbody>
-              {Object.entries(product.specs).map(
-                ([key, value]) => (
-                  <tr key={key}>
-                    <td
-                      style={{
-                        padding: 8,
-                        borderBottom: "1px solid #eee",
-                        fontWeight: 600,
-                        width: "30%",
-                      }}
-                    >
-                      {key}
-                    </td>
-                    <td
-                      style={{
-                        padding: 8,
-                        borderBottom: "1px solid #eee",
-                      }}
-                    >
-                      {String(value)}
-                    </td>
-                  </tr>
-                )
-              )}
-            </tbody>
-          </table>
+          <p style={{ opacity: 0.8 }}>
+            {product.description}
+          </p>
         </section>
       )}
     </div>

@@ -35,7 +35,6 @@ export default function AddToCartClient({
             title: product.title,
             price: product.price,
             image: product.main_image,
-            quantity: 1,
           });
 
           toast.success("Added to cart");

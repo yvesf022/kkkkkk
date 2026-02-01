@@ -2,15 +2,32 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { productsApi } from "@/lib/api";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
 type Props = {
-  value?: string;
+  productId: string; // 🔒 REQUIRED by backend
+  value?: string;    // backend image URL (/uploads/...)
   onChange: (url: string) => void;
 };
 
+/**
+ * PRODUCT IMAGE UPLOADER — AUTHORITATIVE
+ *
+ * BACKEND CONTRACT:
+ * - POST /api/products/admin/{product_id}/images
+ * - Field name: "file"
+ * - Admin cookie required
+ *
+ * NOTES:
+ * - Uploads ONE image
+ * - Returns uploaded image URL
+ * - Does NOT manage ordering or main-image state
+ */
+
 export default function ProductImageUploader({
+  productId,
   value,
   onChange,
 }: Props) {
@@ -39,48 +56,38 @@ export default function ProductImageUploader({
     setUploading(true);
 
     try {
-      const fd = new FormData();
-
-      // 🔥 MUST be "file" — backend expects UploadFile = File(...)
-      fd.append("file", file);
-
-      const res = await fetch(
-        `${API}/api/products/admin/upload-image`, // 🔥 correct route
-        {
-          method: "POST",
-          credentials: "include", // admin cookie
-          body: fd,
-        }
+      const result = await productsApi.uploadImage(
+        productId,
+        file
       );
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.detail || "Upload failed");
-      }
-
-      if (!data.url) {
+      if (!result?.url) {
         throw new Error("Invalid upload response");
       }
 
-      onChange(data.url); // e.g. /uploads/products/xyz.jpg
+      onChange(result.url);
       toast.success("Image uploaded successfully");
     } catch (err: any) {
-      toast.error(err.message || "Image upload failed");
+      toast.error(
+        err?.message || "Image upload failed"
+      );
     } finally {
       setUploading(false);
     }
   }
 
+  const previewSrc =
+    preview && preview.startsWith("blob:")
+      ? preview
+      : preview
+      ? `${API}${preview}`
+      : null;
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {preview && (
+      {previewSrc && (
         <img
-          src={
-            preview.startsWith("blob:")
-              ? preview
-              : `${API}${preview}`
-          }
+          src={previewSrc}
           alt="Preview"
           style={{
             width: 140,

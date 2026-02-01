@@ -1,192 +1,288 @@
-/* =========================================================
-   API CLIENT – PRODUCTION SAFE
-========================================================= */
+/**
+ * API CLIENT — AUTHORITATIVE
+ *
+ * Backend facts (DO NOT CHANGE):
+ * - Auth is cookie-based (HTTP-only)
+ * - User cookie:  access_token
+ * - Admin cookie: admin_access_token
+ * - Credentials MUST be included
+ * - No Authorization headers
+ */
 
-const API_BASE =
+const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
-/* ======================
-   CORE FETCH WRAPPER
-====================== */
-async function apiFetch<T>(
+/**
+ * Low-level request helper
+ * - Always includes credentials
+ * - Never attaches tokens manually
+ */
+async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
-      ...(options.body instanceof FormData
-        ? {}
-        : { "Content-Type": "application/json" }),
       ...(options.headers || {}),
     },
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "API request failed");
+    let message = "Request failed";
+    try {
+      const data = await res.json();
+      message = data.detail || data.message || message;
+    } catch {
+      // ignore JSON parse errors
+    }
+
+    const error = new Error(message) as Error & {
+      status?: number;
+    };
+    error.status = res.status;
+    throw error;
+  }
+
+  // Some endpoints return empty responses
+  if (res.status === 204) {
+    return null as T;
   }
 
   return res.json() as Promise<T>;
 }
 
-/* ======================
-   AUTH
-====================== */
-export type AuthResponse = {
-  access_token: string;
-  role: "user" | "admin";
+/* =====================================================
+   USER AUTH
+===================================================== */
+
+export const authApi = {
+  register(payload: {
+    email: string;
+    password: string;
+    full_name?: string;
+    phone?: string;
+  }) {
+    return request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  login(payload: { email: string; password: string }) {
+    return request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  me() {
+    return request("/api/auth/me");
+  },
+
+  logout() {
+    return request("/api/auth/logout", {
+      method: "POST",
+    });
+  },
 };
 
-export function login(email: string, password: string) {
-  return apiFetch<AuthResponse>("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
-}
+/* =====================================================
+   ADMIN AUTH
+===================================================== */
 
-export function register(payload: {
-  email: string;
-  password: string;
-  full_name?: string;
-  phone?: string;
-}) {
-  return apiFetch("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
+export const adminAuthApi = {
+  login(payload: { email: string; password: string }) {
+    return request("/api/admin/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
 
-export function logout() {
-  return apiFetch("/api/auth/logout", { method: "POST" });
-}
+  me() {
+    return request("/api/admin/auth/me");
+  },
 
-/* ======================
-   USER
-====================== */
-export type User = {
-  id: string;
-  email: string;
-  full_name?: string;
-  phone?: string;
-  role: "user" | "admin";
-  created_at?: string;
-  avatar_url?: string;
+  logout() {
+    return request("/api/admin/auth/logout", {
+      method: "POST",
+    });
+  },
 };
 
-export function getMe(): Promise<User> {
-  return apiFetch<User>("/api/auth/me");
-}
-
-export function updateMe(payload: Partial<User>): Promise<User> {
-  return apiFetch<User>("/api/users/me", {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
-}
-
-/* REQUIRED BY PROFILE PAGE */
-export function uploadAvatar(file: File): Promise<User> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  return fetch(`${API_BASE}/api/users/me/avatar`, {
-    method: "POST",
-    credentials: "include",
-    body: formData,
-  }).then(res => {
-    if (!res.ok) throw new Error("Avatar upload failed");
-    return res.json();
-  });
-}
-
-/* ======================
+/* =====================================================
    PRODUCTS
-====================== */
-export type Product = {
-  id: string;
-  name: string;
-  price: number;
-  image_url?: string;
+===================================================== */
+
+export const productsApi = {
+  list(params: Record<string, string | number | boolean | undefined> = {}) {
+    const query = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        query.append(key, String(value));
+      }
+    });
+
+    const qs = query.toString();
+    return request(`/api/products${qs ? `?${qs}` : ""}`);
+  },
+
+  getAdmin(productId: string) {
+    return request(`/api/products/admin/${productId}`);
+  },
+
+  create(payload: Record<string, any>) {
+    return request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  update(productId: string, payload: Record<string, any>) {
+    return request(`/api/products/admin/${productId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  disable(productId: string) {
+    return request(`/api/products/admin/${productId}/disable`, {
+      method: "POST",
+    });
+  },
+
+  restore(productId: string) {
+    return request(`/api/products/admin/${productId}/restore`, {
+      method: "POST",
+    });
+  },
+
+  uploadImage(productId: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+
+    return request(`/api/products/admin/${productId}/images`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  deleteImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}`, {
+      method: "DELETE",
+    });
+  },
+
+  reorderImages(productId: string, imageIds: string[]) {
+    return request(`/api/products/admin/${productId}/images/reorder`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(imageIds),
+    });
+  },
+
+  setMainImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}/set-main`, {
+      method: "POST",
+    });
+  },
 };
 
-export function fetchProducts(): Promise<Product[]> {
-  return apiFetch<Product[]>("/api/products");
-}
-
-export function getProductById(id: string): Promise<Product> {
-  return apiFetch<Product>(`/api/products/${id}`);
-}
-
-/* ======================
+/* =====================================================
    ORDERS
-====================== */
-export type OrderItem = {
-  product_id: string;
-  quantity: number;
+===================================================== */
+
+export const ordersApi = {
+  create(payload: { items: any; total_amount: number }) {
+    return request("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  myOrders() {
+    return request("/api/orders/my");
+  },
+
+  adminOrders() {
+    return request("/api/orders/admin");
+  },
+
+  updateShipping(orderId: string, payload: Record<string, any>) {
+    return request(`/api/orders/admin/${orderId}/shipping`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
 };
 
-export type Order = {
-  id: string;
-  total_amount: number;
-  created_at: string;
-  payment_status?: "pending" | "on_hold" | "paid" | "rejected";
-  shipping_status?: string;
-  items?: OrderItem[];
+/* =====================================================
+   PAYMENTS
+===================================================== */
+
+export const paymentsApi = {
+  create(orderId: string) {
+    return request(`/api/payments/${orderId}`, {
+      method: "POST",
+    });
+  },
+
+  uploadProof(paymentId: string, file: File) {
+    const form = new FormData();
+    form.append("proof", file);
+
+    return request(`/api/payments/${paymentId}/proof`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  adminList() {
+    return request("/api/payments/admin");
+  },
+
+  review(paymentId: string, status: "paid" | "rejected") {
+    return request(`/api/payments/admin/${paymentId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  },
 };
 
-export function getMyOrders(): Promise<Order[]> {
-  return apiFetch<Order[]>("/api/orders/my");
-}
+/* =====================================================
+   ADMIN USERS
+===================================================== */
 
-/* ✅ FIXED: items is OPTIONAL */
-export function createOrder(payload: {
-  address_id: string;
-  items?: OrderItem[];
-}) {
-  return apiFetch("/api/orders", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
+export const adminUsersApi = {
+  list() {
+    return request("/api/admin/users");
+  },
 
-/* ======================
-   ADDRESSES
-====================== */
-export type Address = {
-  id: string;
-  full_name: string;
-  phone: string;
-  address_line_1: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-  is_default: boolean;
+  disable(userId: string) {
+    return request(`/api/admin/users/${userId}/disable`, {
+      method: "POST",
+    });
+  },
+
+  enable(userId: string) {
+    return request(`/api/admin/users/${userId}/enable`, {
+      method: "POST",
+    });
+  },
+
+  changeRole(userId: string, role: "user" | "admin") {
+    return request(`/api/admin/users/${userId}/role?role=${role}`, {
+      method: "POST",
+    });
+  },
 };
-
-export function getMyAddresses(): Promise<Address[]> {
-  return apiFetch<Address[]>("/api/users/addresses");
-}
-
-export function createAddress(
-  payload: Omit<Address, "id" | "is_default">
-): Promise<Address> {
-  return apiFetch<Address>("/api/users/addresses", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function deleteAddress(addressId: string): Promise<void> {
-  return apiFetch<void>(`/api/users/addresses/${addressId}`, {
-    method: "DELETE",
-  });
-}
-
-export function setDefaultAddress(addressId: string): Promise<void> {
-  return apiFetch<void>(`/api/users/addresses/${addressId}/default`, {
-    method: "PATCH",
-  });
-}

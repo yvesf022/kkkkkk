@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import ProductImageUploader from "@/components/admin/ProductImageUploader";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
 /* ======================
-   TYPES (DB-ALIGNED)
+   TYPES (BACKEND-ALIGNED)
 ====================== */
 
 type Product = {
@@ -17,9 +16,8 @@ type Product = {
   price: number;
   category: string;
   stock: number;
-  rating?: number;
-  brand?: string;
-  main_image: string;
+  in_stock: boolean;
+  main_image?: string | null;
 };
 
 /* ======================
@@ -31,23 +29,24 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // form state
+  /* FORM STATE */
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [stock, setStock] = useState("");
-  const [img, setImg] = useState("");
-  const [brand, setBrand] = useState("");
-  const [rating, setRating] = useState("");
   const [description, setDescription] = useState("");
 
   /* ======================
-     LOAD PRODUCTS
+     LOAD PRODUCTS (ADMIN)
   ====================== */
   async function loadProducts() {
     try {
-      const res = await fetch(`${API}/api/products`);
+      const res = await fetch(`${API}/api/products`, {
+        credentials: "include",
+      });
+
       if (!res.ok) throw new Error("Failed to load products");
+
       setProducts(await res.json());
     } catch (err: any) {
       toast.error(err.message || "Failed to load products");
@@ -66,11 +65,6 @@ export default function AdminProductsPage() {
   async function createProduct(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!img) {
-      toast.error("Please upload a product image first");
-      return;
-    }
-
     setSaving(true);
     toast.loading("Creating product…", { id: "create" });
 
@@ -81,14 +75,10 @@ export default function AdminProductsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
-          short_description: description.slice(0, 120),
           description,
           price: Number(price),
           category,
           stock: Number(stock),
-          img,
-          brand: brand || null,
-          rating: rating ? Number(rating) : null,
         }),
       });
 
@@ -98,23 +88,18 @@ export default function AdminProductsPage() {
         throw new Error(data?.detail || "Product creation failed");
       }
 
-      toast.success("✅ Product created successfully", {
-        id: "create",
-      });
+      toast.success("Product created", { id: "create" });
 
-      // reset form
+      /* RESET FORM */
       setTitle("");
       setPrice("");
       setCategory("");
       setStock("");
-      setImg("");
-      setBrand("");
-      setRating("");
       setDescription("");
 
       loadProducts();
     } catch (err: any) {
-      toast.error(err.message || "❌ Product creation failed", {
+      toast.error(err.message || "Product creation failed", {
         id: "create",
       });
     } finally {
@@ -134,7 +119,7 @@ export default function AdminProductsPage() {
       <form
         onSubmit={createProduct}
         className="card"
-        style={{ maxWidth: 560, display: "grid", gap: 12 }}
+        style={{ maxWidth: 520, display: "grid", gap: 12 }}
       >
         <h3>Add Product</h3>
 
@@ -175,36 +160,16 @@ export default function AdminProductsPage() {
           required
         />
 
-        <input
-          placeholder="Brand (optional)"
-          value={brand}
-          onChange={(e) => setBrand(e.target.value)}
-        />
-
-        <input
-          type="number"
-          min={1}
-          max={5}
-          placeholder="Rating (1–5, optional)"
-          value={rating}
-          onChange={(e) => setRating(e.target.value)}
-        />
-
-        {/* IMAGE UPLOAD */}
-        <ProductImageUploader
-          value={img}
-          onChange={(url) => {
-            setImg(url);
-            toast.success("✅ Image uploaded successfully");
-          }}
-        />
-
         <button
           className="btn btnTech"
           disabled={saving}
         >
           {saving ? "Creating…" : "Create Product"}
         </button>
+
+        <p style={{ fontSize: 12, opacity: 0.6 }}>
+          Images are added after product creation.
+        </p>
       </form>
 
       {/* ======================
@@ -222,25 +187,22 @@ export default function AdminProductsPage() {
               className="card"
               style={{ display: "flex", gap: 14 }}
             >
-              <img
-                src={`${API}${p.main_image}`}
-                alt={p.title}
-                style={{
-                  width: 64,
-                  height: 64,
-                  objectFit: "cover",
-                  borderRadius: 10,
-                }}
-              />
+              {p.main_image && (
+                <img
+                  src={`${API}${p.main_image}`}
+                  alt={p.title}
+                  style={{
+                    width: 64,
+                    height: 64,
+                    objectFit: "cover",
+                    borderRadius: 10,
+                  }}
+                />
+              )}
 
               <div style={{ flex: 1 }}>
                 <strong>{p.title}</strong>
-                <div
-                  style={{
-                    fontSize: 13,
-                    opacity: 0.6,
-                  }}
-                >
+                <div style={{ fontSize: 13, opacity: 0.6 }}>
                   {p.category} • Stock: {p.stock}
                 </div>
               </div>
@@ -249,7 +211,7 @@ export default function AdminProductsPage() {
                 href={`/admin/products/${p.id}`}
                 className="btn btnGhost"
               >
-                Edit
+                Manage
               </Link>
             </div>
           ))}

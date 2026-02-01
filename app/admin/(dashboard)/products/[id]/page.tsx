@@ -3,25 +3,22 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import ProductImageUploader from "@/components/admin/ProductImageUploader";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
 /* ======================
-   TYPES
+   BACKEND-ALIGNED TYPE
 ====================== */
 
 type Product = {
   id: string;
   title: string;
+  description: string;
   price: number;
-  img: string;
   category: string;
   stock: number;
-  rating?: number;
-  sku?: string;
-  brand?: string;
-  description?: string;
+  in_stock: boolean;
+  main_image?: string | null;
 };
 
 export default function AdminProductEditorPage() {
@@ -34,7 +31,7 @@ export default function AdminProductEditorPage() {
   const [saving, setSaving] = useState(false);
 
   /* ======================
-     LOAD PRODUCT
+     LOAD PRODUCT (ADMIN)
   ====================== */
   useEffect(() => {
     async function load() {
@@ -48,7 +45,9 @@ export default function AdminProductEditorPage() {
           throw new Error(data?.detail || "Failed to load products");
         }
 
-        const found = data.find((p: Product) => p.id === id);
+        const found = data.find(
+          (p: Product) => p.id === id
+        );
 
         if (!found) {
           toast.error("Product not found");
@@ -75,61 +74,45 @@ export default function AdminProductEditorPage() {
   const dirty =
     JSON.stringify(product) !== JSON.stringify(original);
 
-  useEffect(() => {
-    const onUnload = (e: BeforeUnloadEvent) => {
-      if (!dirty) return;
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", onUnload);
-    return () =>
-      window.removeEventListener("beforeunload", onUnload);
-  }, [dirty]);
-
   /* ======================
-     SAVE
+     SAVE (PATCH)
   ====================== */
   async function save() {
     if (!product) return;
 
     if (product.price < 0 || product.stock < 0) {
-      toast.error("Price and stock must be positive");
-      return;
-    }
-
-    if (
-      product.rating &&
-      (product.rating < 1 || product.rating > 5)
-    ) {
-      toast.error("Rating must be between 1 and 5");
+      toast.error("Price and stock must be non-negative");
       return;
     }
 
     setSaving(true);
     try {
       const res = await fetch(
-        `${API}/api/products/${product.id}`,
+        `${API}/api/products/admin/${product.id}`,
         {
-          method: "POST",
+          method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(product),
+          body: JSON.stringify({
+            title: product.title,
+            description: product.description,
+            price: product.price,
+            category: product.category,
+            stock: product.stock,
+          }),
         }
       );
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.detail || "Failed to save product");
+        throw new Error(data?.detail || "Update failed");
       }
 
-      toast.success(
-        data?.message || "Product updated successfully"
-      );
-
+      toast.success("Product updated");
       setOriginal(product);
     } catch (err: any) {
-      toast.error(err.message || "Failed to save product");
+      toast.error(err.message || "Failed to update product");
     } finally {
       setSaving(false);
     }
@@ -139,50 +122,37 @@ export default function AdminProductEditorPage() {
   if (!product) return null;
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gap: 28,
-        maxWidth: 760,
-      }}
-    >
-      {/* HEADER */}
+    <div style={{ display: "grid", gap: 28, maxWidth: 720 }}>
       <header>
         <h1 style={{ fontSize: 28, fontWeight: 900 }}>
           Edit Product
         </h1>
         <p style={{ opacity: 0.6 }}>
-          Manage pricing, inventory, and visibility
+          Manage core product data
         </p>
       </header>
 
       {/* IDENTITY */}
       <section className="card">
-        <h3>Product Identity</h3>
+        <h3>Identity</h3>
+
         <input
           value={product.title}
           onChange={(e) =>
-            setProduct({ ...product, title: e.target.value })
+            setProduct({
+              ...product,
+              title: e.target.value,
+            })
           }
         />
+
         <input
           value={product.category}
           onChange={(e) =>
-            setProduct({ ...product, category: e.target.value })
-          }
-        />
-        <input
-          placeholder="Brand"
-          value={product.brand || ""}
-          onChange={(e) =>
-            setProduct({ ...product, brand: e.target.value })
-          }
-        />
-        <input
-          placeholder="SKU"
-          value={product.sku || ""}
-          onChange={(e) =>
-            setProduct({ ...product, sku: e.target.value })
+            setProduct({
+              ...product,
+              category: e.target.value,
+            })
           }
         />
       </section>
@@ -190,6 +160,7 @@ export default function AdminProductEditorPage() {
       {/* PRICING */}
       <section className="card">
         <h3>Pricing</h3>
+
         <input
           type="number"
           min={0}
@@ -201,24 +172,12 @@ export default function AdminProductEditorPage() {
             })
           }
         />
-        <input
-          type="number"
-          min={1}
-          max={5}
-          placeholder="Rating (1–5)"
-          value={product.rating ?? ""}
-          onChange={(e) =>
-            setProduct({
-              ...product,
-              rating: Number(e.target.value),
-            })
-          }
-        />
       </section>
 
       {/* INVENTORY */}
       <section className="card">
         <h3>Inventory</h3>
+
         <input
           type="number"
           min={0}
@@ -232,23 +191,12 @@ export default function AdminProductEditorPage() {
         />
       </section>
 
-      {/* MEDIA */}
-      <section className="card">
-        <h3>Product Image</h3>
-        <ProductImageUploader
-          value={product.img}
-          onChange={(url) => {
-            setProduct({ ...product, img: url });
-            toast.success("Image updated");
-          }}
-        />
-      </section>
-
       {/* DESCRIPTION */}
       <section className="card">
         <h3>Description</h3>
+
         <textarea
-          value={product.description || ""}
+          value={product.description}
           onChange={(e) =>
             setProduct({
               ...product,
@@ -268,14 +216,16 @@ export default function AdminProductEditorPage() {
       >
         <button
           className="btn btnGhost"
-          onClick={() => router.push("/admin/products")}
+          onClick={() =>
+            router.push("/admin/products")
+          }
         >
           Back
         </button>
 
         <button
           className="btn btnTech"
-          disabled={saving || !dirty}
+          disabled={!dirty || saving}
           onClick={save}
         >
           {saving ? "Saving…" : "Save Changes"}

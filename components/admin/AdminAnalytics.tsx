@@ -3,27 +3,30 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { formatCurrency } from "@/lib/currency";
+import { paymentsApi } from "@/lib/api";
+import type { Payment } from "@/lib/types";
 
-const API = process.env.NEXT_PUBLIC_API_URL!;
-
-type Payment = {
-  id: string;
-  amount: number;
-  status: "initiated" | "proof_submitted" | "approved" | "rejected";
-};
+/**
+ * ADMIN ANALYTICS — AUTHORITATIVE
+ *
+ * BACKEND CONTRACT:
+ * - GET /api/payments/admin
+ * - PaymentStatus = "pending" | "paid" | "rejected"
+ * - Proof upload does NOT change status
+ *
+ * FRONTEND RULE:
+ * - Analytics only
+ * - No auth logic
+ * - Use shared API client
+ */
 
 export default function AdminAnalytics() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API}/api/payments/admin`, {
-      credentials: "include",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
+    paymentsApi
+      .adminList()
       .then(setPayments)
       .catch(() => {
         toast.error("Failed to load admin analytics");
@@ -38,16 +41,16 @@ export default function AdminAnalytics() {
   const totalPayments = payments.length;
 
   const pendingPayments = payments.filter(
-    (p) => p.status === "proof_submitted"
+    (p) => p.status === "pending",
   );
 
   const approvedPayments = payments.filter(
-    (p) => p.status === "approved"
+    (p) => p.status === "paid",
   );
 
   const revenue = approvedPayments.reduce(
     (sum, p) => sum + p.amount,
-    0
+    0,
   );
 
   return (
@@ -89,7 +92,7 @@ function Stat({
   highlight,
 }: {
   label: string;
-  value: any;
+  value: string | number;
   highlight?: boolean;
 }) {
   return (
@@ -99,9 +102,7 @@ function Stat({
         color: highlight ? "#ffffff" : "#0f172a",
         borderRadius: 18,
         padding: 20,
-        border: highlight
-          ? "none"
-          : "1px solid #e5e7eb",
+        border: highlight ? "none" : "1px solid #e5e7eb",
       }}
     >
       <div

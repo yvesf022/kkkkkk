@@ -1,23 +1,106 @@
-// lib/store.ts
+"use client";
 
 import { create } from "zustand";
+import type { ProductListItem } from "./types";
+import { listProducts } from "./products";
+
+/**
+ * BACKEND CONTRACT (DO NOT CHANGE):
+ *
+ * - Backend does NOT store UI state
+ * - Backend does NOT remember filters
+ * - Backend does NOT paginate beyond query params
+ *
+ * Store state = FRONTEND ONLY
+ */
+
+export type StoreFilters = {
+  search_query?: string;
+  category?: string;
+  brand?: string;
+  min_price?: number;
+  max_price?: number;
+  in_stock?: boolean;
+  min_rating?: number;
+  sort?: "price_low" | "price_high" | "rating" | "best_sellers";
+};
 
 type StoreState = {
-  wishlist: string[];
+  products: ProductListItem[];
+  loading: boolean;
+  error: string | null;
 
-  toggleWishlist: (productId: string) => void;
-  isWishlisted: (productId: string) => boolean;
+  filters: StoreFilters;
+  page: number;
+  per_page: number;
+
+  fetchProducts: (reset?: boolean) => Promise<void>;
+  setFilters: (filters: Partial<StoreFilters>) => void;
+  setPage: (page: number) => void;
+  reset: () => void;
 };
 
 export const useStore = create<StoreState>((set, get) => ({
-  wishlist: [],
+  products: [],
+  loading: false,
+  error: null,
 
-  toggleWishlist: (productId) =>
-    set((state) => ({
-      wishlist: state.wishlist.includes(productId)
-        ? state.wishlist.filter((id) => id !== productId)
-        : [...state.wishlist, productId],
-    })),
+  filters: {},
+  page: 1,
+  per_page: 20,
 
-  isWishlisted: (productId) => get().wishlist.includes(productId),
+  /* =========================
+     DATA FETCHING
+  ========================== */
+
+  fetchProducts: async (reset = false) => {
+    set({ loading: true, error: null });
+
+    try {
+      const { filters, page, per_page, products } = get();
+
+      const data = await listProducts({
+        ...filters,
+        page,
+        per_page,
+      });
+
+      set({
+        products: reset ? data : [...products, ...data],
+        loading: false,
+      });
+    } catch (err: any) {
+      set({
+        loading: false,
+        error: "Failed to load products",
+      });
+    }
+  },
+
+  /* =========================
+     FILTER & PAGINATION
+  ========================== */
+
+  setFilters: (newFilters) => {
+    set({
+      filters: { ...get().filters, ...newFilters },
+      page: 1,
+      products: [],
+    });
+  },
+
+  setPage: (page) => {
+    set({ page });
+  },
+
+  reset: () => {
+    set({
+      products: [],
+      filters: {},
+      page: 1,
+      per_page: 20,
+      loading: false,
+      error: null,
+    });
+  },
 }));

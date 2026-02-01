@@ -8,21 +8,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { useCart } from "@/app/context/CartContext";
 
+const API = process.env.NEXT_PUBLIC_API_URL!;
+
 /** Lesotho currency formatter (Maloti) */
 const fmtM = (v: number) =>
   `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
 /**
- * Backend-aligned product type
+ * BACKEND-ALIGNED PRODUCT TYPE
  */
 type Product = {
   id: string;
   title: string;
   price: number;
-  compare_price?: number;
+  compare_price?: number | null;
   main_image: string;
   category: string;
-
   stock: number;
   in_stock: boolean;
 };
@@ -41,6 +42,16 @@ export default function QuickViewModal({
   const wishlist = useStore((s) => s.wishlist);
 
   const inWish = product ? wishlist.includes(product.id) : false;
+
+  const isOutOfStock =
+    !product || product.in_stock === false || product.stock <= 0;
+
+  const imageUrl =
+    product && product.main_image.startsWith("http")
+      ? product.main_image
+      : product
+      ? `${API}${product.main_image}`
+      : "";
 
   /* ================= LOCK SCROLL + ESC ================= */
 
@@ -123,11 +134,7 @@ export default function QuickViewModal({
                   rgba(244,114,182,0.10),
                   transparent 60%
                 ),
-                linear-gradient(
-                  180deg,
-                  #ffffff,
-                  #f6f9ff
-                )
+                linear-gradient(180deg,#ffffff,#f6f9ff)
               `,
               boxShadow:
                 "0 40px 120px rgba(15,23,42,0.35)",
@@ -184,7 +191,7 @@ export default function QuickViewModal({
                 }}
               >
                 <Image
-                  src={product.main_image}
+                  src={imageUrl}
                   alt={product.title}
                   width={1200}
                   height={900}
@@ -264,11 +271,11 @@ export default function QuickViewModal({
                 <div style={{ display: "grid", gap: 10 }}>
                   <button
                     className="btn btnTech"
-                    disabled={!product.in_stock}
+                    disabled={isOutOfStock}
                     onClick={() => {
-                      if (!product.in_stock) {
+                      if (isOutOfStock) {
                         toast.error(
-                          "This product is out of stock"
+                          "This product is currently out of stock"
                         );
                         return;
                       }
@@ -277,16 +284,17 @@ export default function QuickViewModal({
                         id: product.id,
                         title: product.title,
                         price: product.price,
-                        image: product.main_image,
+                        image: imageUrl,
+                        quantity: 1,
                       });
 
                       toast.success("Added to cart");
                       onClose();
                     }}
                   >
-                    {product.in_stock
-                      ? "Add to Cart"
-                      : "Out of Stock"}
+                    {isOutOfStock
+                      ? "Out of Stock"
+                      : "Add to Cart"}
                   </button>
 
                   <button

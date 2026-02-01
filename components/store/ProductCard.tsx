@@ -9,20 +9,21 @@ import { useCart } from "@/app/context/CartContext";
 import QuickViewModal from "@/components/store/QuickViewModal";
 import { ScaleHover } from "@/components/ui/Motion";
 
+const API = process.env.NEXT_PUBLIC_API_URL!;
+
 /** Lesotho currency formatter (Maloti) */
 const fmtM = (v: number) => `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
 /**
- * Backend-aligned product shape
+ * BACKEND-ALIGNED PRODUCT SHAPE
  */
 type Product = {
   id: string;
   title: string;
   price: number;
-  compare_price?: number;
+  compare_price?: number | null;
   main_image: string;
   category: string;
-
   stock: number;
   in_stock: boolean;
 };
@@ -49,7 +50,12 @@ export default function ProductCard({
     );
   }, [product.compare_price, product.price]);
 
-  const isOutOfStock = product.in_stock === false;
+  const isOutOfStock =
+    product.in_stock === false || product.stock <= 0;
+
+  const imageUrl = product.main_image.startsWith("http")
+    ? product.main_image
+    : `${API}${product.main_image}`;
 
   return (
     <>
@@ -134,7 +140,7 @@ export default function ProductCard({
               }}
             >
               <Image
-                src={product.main_image}
+                src={imageUrl}
                 alt={product.title}
                 width={700}
                 height={500}
@@ -211,7 +217,8 @@ export default function ProductCard({
                     id: product.id,
                     title: product.title,
                     price: product.price,
-                    image: product.main_image,
+                    image: imageUrl,
+                    quantity: 1,
                   });
 
                   toast.success("Added to cart");
