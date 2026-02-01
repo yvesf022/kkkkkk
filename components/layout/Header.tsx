@@ -4,7 +4,6 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUI } from "@/components/layout/uiStore";
-import { useStore } from "@/lib/store";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/lib/auth";
 
@@ -87,7 +86,6 @@ export default function Header() {
 
   const { toggleSidebar } = useUI();
   const { items } = useCart();
-  const wishlistCount = useStore((s) => s.wishlist.length);
 
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
@@ -97,9 +95,9 @@ export default function Header() {
 
   // ✅ FINAL, SAFE LOGOUT
   async function handleLogout() {
-    await logout();                 // ⬅️ MUST await
-    router.replace("/login");       // ⬅️ user-only route
-    router.refresh();               // ⬅️ flush middleware + cache
+    await logout();
+    router.replace("/login");
+    router.refresh();
   }
 
   return (
@@ -143,11 +141,6 @@ export default function Header() {
             {/* NAV */}
             <nav style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <CapsuleLink href="/store">Shop</CapsuleLink>
-
-              <div style={{ position: "relative" }}>
-                <CapsuleLink href="/store/wishlist">Wishlist</CapsuleLink>
-                <CountBadge n={wishlistCount} />
-              </div>
 
               <div style={{ position: "relative" }}>
                 <CapsuleLink href="/store/cart">Cart</CapsuleLink>
