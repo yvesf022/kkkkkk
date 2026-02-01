@@ -48,7 +48,8 @@ export const useAuth = create<AuthState>((set) => ({
     set({ loading: true, error: null });
 
     try {
-      const user = await authApi.me();
+      // ✅ FIX: typed return value
+      const user = await authApi.me<User>();
       set({ user, loading: false });
     } catch (err: any) {
       if (err?.status === 401) {
@@ -81,10 +82,8 @@ export const useAuth = create<AuthState>((set) => ({
     try {
       await authApi.login({ email, password });
 
-      // IMPORTANT:
-      // Do NOT trust login response alone.
-      // Always hydrate from /me.
-      const user = await authApi.me();
+      // ALWAYS re-hydrate from /me
+      const user = await authApi.me<User>(); // ✅ typed
       set({ user, loading: false });
     } catch (err: any) {
       if (err?.status === 401) {
@@ -116,8 +115,6 @@ export const useAuth = create<AuthState>((set) => ({
 
     try {
       await authApi.logout();
-    } catch {
-      // Even if logout fails, clear local state
     } finally {
       set({ user: null, loading: false });
     }
