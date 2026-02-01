@@ -9,19 +9,17 @@ export default function EditProfilePage() {
   const router = useRouter();
 
   const user = useAuth((s) => s.user);
-  const initialized = useAuth((s) => s.initialized);
-  const updateUser = useAuth((s) => s.updateUser);
-  const loading = useAuth((s) => s.loading);
+  const authLoading = useAuth((s) => s.loading);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
 
   /* ======================
-     REDIRECT AFTER HYDRATION
+     REDIRECT AFTER AUTH RESOLVES
   ====================== */
   useEffect(() => {
-    if (!initialized) return;
+    if (authLoading) return;
 
     if (!user) {
       router.replace("/login");
@@ -30,12 +28,12 @@ export default function EditProfilePage() {
       setFullName(user.full_name || "");
       setPhone(user.phone || "");
     }
-  }, [initialized, user, router]);
+  }, [authLoading, user, router]);
 
   /* ======================
      LOADING STATE
   ====================== */
-  if (!initialized) {
+  if (authLoading) {
     return (
       <div style={{ padding: 40, fontWeight: 700 }}>
         Loading profile editor…
@@ -52,13 +50,14 @@ export default function EditProfilePage() {
     setSaving(true);
 
     try {
-      const updatedUser = await updateMe({
+      await updateMe({
         full_name: fullName || undefined,
         phone: phone || undefined,
       });
 
-      updateUser(updatedUser);
+      // Refresh profile data and return
       router.replace("/account/profile");
+      router.refresh();
     } finally {
       setSaving(false);
     }
@@ -95,7 +94,7 @@ export default function EditProfilePage() {
       <div style={{ display: "flex", gap: 12, marginTop: 28 }}>
         <button
           onClick={handleSave}
-          disabled={saving || loading}
+          disabled={saving || authLoading}
           style={primary}
         >
           {saving ? "Saving…" : "Save changes"}
@@ -120,7 +119,13 @@ function Field({
 }) {
   return (
     <div style={{ marginBottom: 22 }}>
-      <label style={{ fontWeight: 700, display: "block", marginBottom: 6 }}>
+      <label
+        style={{
+          fontWeight: 700,
+          display: "block",
+          marginBottom: 6,
+        }}
+      >
         {label}
       </label>
       {children}
