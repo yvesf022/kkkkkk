@@ -42,7 +42,22 @@ export default function OrdersPage() {
     setError(null);
 
     getMyOrders()
-      .then(setOrders)
+      .then((apiOrders) => {
+        const mapped: Order[] = apiOrders.map((o: any) => ({
+          id: o.id,
+          created_at: o.created_at,
+          total_amount: o.total_amount,
+
+          // domain-required fields
+          payment_status: o.payment_status ?? null,
+          shipping_status: o.shipping_status ?? null,
+          order_status: o.order_status ?? "created",
+
+          tracking_number: o.tracking_number ?? null,
+        }));
+
+        setOrders(mapped);
+      })
       .catch(() =>
         setError("Failed to load your orders. Please try again.")
       )
@@ -87,10 +102,7 @@ export default function OrdersPage() {
         <h1 style={title}>Your Orders</h1>
         <p style={{ color: "#991b1b" }}>{error}</p>
 
-        <button
-          onClick={() => router.refresh()}
-          style={primary}
-        >
+        <button onClick={() => router.refresh()} style={primary}>
           Retry
         </button>
       </div>
