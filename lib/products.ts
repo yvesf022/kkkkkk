@@ -36,9 +36,7 @@ export type ProductListParams = {
 export async function listProducts(
   params: ProductListParams = {},
 ): Promise<ProductListItem[]> {
-  return (await productsApi.list(
-    params,
-  )) as ProductListItem[];
+  return (await productsApi.list(params)) as ProductListItem[];
 }
 
 /* =====================================================
@@ -48,9 +46,7 @@ export async function listProducts(
 export async function getAdminProduct(
   productId: string,
 ): Promise<Product> {
-  return (await productsApi.getAdmin(
-    productId,
-  )) as Product;
+  return (await productsApi.getAdmin(productId)) as Product;
 }
 
 export type CreateProductPayload = {
@@ -59,3 +55,88 @@ export type CreateProductPayload = {
   short_description?: string;
   description?: string;
   sku?: string;
+  brand?: string;
+  compare_price?: number;
+  category?: string;
+  stock?: number;
+  rating?: number;
+  img?: string;
+};
+
+export async function createProduct(
+  payload: CreateProductPayload,
+): Promise<{ id: string; title: string }> {
+  return (await productsApi.create(payload)) as {
+    id: string;
+    title: string;
+  };
+}
+
+export type UpdateProductPayload = Partial<{
+  title: string;
+  short_description: string;
+  description: string;
+  sku: string;
+  brand: string;
+  price: number;
+  compare_price: number;
+  category: string;
+  stock: number;
+  rating: number;
+  in_stock: boolean;
+  status: ProductStatus;
+  main_image: string;
+  specs: Record<string, any>;
+}>;
+
+export async function updateProduct(
+  productId: string,
+  payload: UpdateProductPayload,
+): Promise<void> {
+  await productsApi.update(productId, payload);
+}
+
+export async function disableProduct(
+  productId: string,
+): Promise<void> {
+  await productsApi.disable(productId);
+}
+
+export async function restoreProduct(
+  productId: string,
+): Promise<void> {
+  await productsApi.restore(productId);
+}
+
+/* =====================================================
+   ADMIN — PRODUCT IMAGES
+===================================================== */
+
+export async function uploadProductImage(
+  productId: string,
+  file: File,
+): Promise<{ url: string; position: number }> {
+  return (await productsApi.uploadImage(productId, file)) as {
+    url: string;
+    position: number;
+  };
+}
+
+export async function deleteProductImage(
+  imageId: string,
+): Promise<void> {
+  await productsApi.deleteImage(imageId);
+}
+
+export async function reorderProductImages(
+  productId: string,
+  imageIds: string[],
+): Promise<void> {
+  await productsApi.reorderImages(productId, imageIds);
+}
+
+export async function setMainProductImage(
+  imageId: string,
+): Promise<void> {
+  await productsApi.setMainImage(imageId);
+}
