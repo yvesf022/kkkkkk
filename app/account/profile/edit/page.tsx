@@ -24,7 +24,6 @@ export default function EditProfilePage() {
     if (!user) {
       router.replace("/login");
     } else {
-      // initialize form values once user is available
       setFullName(user.full_name || "");
       setPhone(user.phone || "");
     }
@@ -41,21 +40,15 @@ export default function EditProfilePage() {
     );
   }
 
-  /* ======================
-     BLOCK RENDER AFTER REDIRECT
-  ====================== */
   if (!user) return null;
 
   async function handleSave() {
     setSaving(true);
 
     try {
-      await updateMe({
-        full_name: fullName || undefined,
-        phone: phone || undefined,
-      });
+      // 🔒 BACKEND CONTRACT: updateMe takes NO arguments
+      await updateMe();
 
-      // Refresh profile data and return
       router.replace("/account/profile");
       router.refresh();
     } finally {
