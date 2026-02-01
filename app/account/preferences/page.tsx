@@ -8,27 +8,27 @@ export default function PreferencesPage() {
   const router = useRouter();
 
   const user = useAuth((s) => s.user);
-  const initialized = useAuth((s) => s.initialized);
+  const authLoading = useAuth((s) => s.loading);
 
   const [language, setLanguage] = useState("en");
   const [emailNotif, setEmailNotif] = useState(true);
   const [smsNotif, setSmsNotif] = useState(false);
 
   /* ======================
-     REDIRECT AFTER HYDRATION
+     REDIRECT AFTER AUTH RESOLVES
   ====================== */
   useEffect(() => {
-    if (!initialized) return;
+    if (authLoading) return;
 
     if (!user) {
       router.replace("/login");
     }
-  }, [initialized, user, router]);
+  }, [authLoading, user, router]);
 
   /* ======================
      LOADING STATE
   ====================== */
-  if (!initialized) {
+  if (authLoading) {
     return (
       <div style={{ padding: 40, fontWeight: 700 }}>
         Loading preferences…
