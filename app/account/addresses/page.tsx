@@ -9,24 +9,24 @@ export default function AddressesPage() {
   const router = useRouter();
 
   const user = useAuth((s) => s.user);
-  const initialized = useAuth((s) => s.initialized);
+  const loading = useAuth((s) => s.loading);
   const logout = useAuth((s) => s.logout);
 
   /* ======================
      REDIRECT AFTER HYDRATION
   ====================== */
   useEffect(() => {
-    if (!initialized) return;
+    if (loading) return;
 
     if (!user) {
       router.replace("/login");
     }
-  }, [initialized, user, router]);
+  }, [loading, user, router]);
 
   /* ======================
      LOADING STATE
   ====================== */
-  if (!initialized) {
+  if (loading) {
     return (
       <div style={{ padding: 40, fontWeight: 700 }}>
         Loading addresses…
