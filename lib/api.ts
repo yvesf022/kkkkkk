@@ -45,7 +45,6 @@ async function request<T>(
     throw error;
   }
 
-  // Some endpoints return empty responses
   if (res.status === 204) {
     return null as T;
   }
@@ -199,6 +198,13 @@ export const productsApi = {
    ORDERS
 ===================================================== */
 
+export type Order = {
+  id: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+};
+
 export const ordersApi = {
   create(payload: { items: any; total_amount: number }) {
     return request("/api/orders", {
@@ -209,7 +215,7 @@ export const ordersApi = {
   },
 
   myOrders() {
-    return request("/api/orders/my");
+    return request<Order[]>("/api/orders/my");
   },
 
   adminOrders() {
@@ -224,6 +230,39 @@ export const ordersApi = {
     });
   },
 };
+
+/**
+ * Backward-compatible exports for account pages
+ * (Required for Vercel static analysis)
+ */
+
+export async function getMyOrders(): Promise<Order[]> {
+  return ordersApi.myOrders();
+}
+
+/* =====================================================
+   USER PROFILE
+===================================================== */
+
+export async function uploadAvatar(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+
+  return request("/api/users/me/avatar", {
+    method: "POST",
+    body: form,
+  });
+}
+
+/**
+ * Backend endpoint does NOT exist yet.
+ * This stub is intentional and explicit.
+ */
+export async function updateMe(): Promise<never> {
+  throw new Error(
+    "updateMe endpoint is not implemented in the backend yet",
+  );
+}
 
 /* =====================================================
    PAYMENTS
