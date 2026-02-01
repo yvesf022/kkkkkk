@@ -11,19 +11,19 @@ export default function PublicLayout({
 }) {
   const router = useRouter();
   const user = useAuth((s) => s.user);
-  const initialized = useAuth((s) => s.initialized);
+  const loading = useAuth((s) => s.loading);
 
   // 🔒 Redirect authenticated users away from public pages
   useEffect(() => {
-    if (!initialized) return;
+    if (loading) return;
 
     if (user) {
       router.replace("/account");
     }
-  }, [initialized, user, router]);
+  }, [loading, user, router]);
 
   // ⏳ Wait for auth hydration
-  if (!initialized) {
+  if (loading) {
     return null;
   }
 
