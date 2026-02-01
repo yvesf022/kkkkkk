@@ -213,12 +213,12 @@ export default function ProductCard({
                     return;
                   }
 
+                  // ✅ quantity is handled INSIDE the cart store
                   addToCart({
                     id: product.id,
                     title: product.title,
                     price: product.price,
                     image: imageUrl,
-                    quantity: 1,
                   });
 
                   toast.success("Added to cart");
