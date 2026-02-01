@@ -33,7 +33,7 @@ export default function OrderDetailsPage() {
   const router = useRouter();
 
   const user = useAuth((s) => s.user);
-  const initialized = useAuth((s) => s.initialized);
+  const authLoading = useAuth((s) => s.loading);
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -45,12 +45,12 @@ export default function OrderDetailsPage() {
      REDIRECT AFTER HYDRATION
   ====================== */
   useEffect(() => {
-    if (!initialized) return;
+    if (authLoading) return;
 
     if (!user) {
       router.replace("/login");
     }
-  }, [initialized, user, router]);
+  }, [authLoading, user, router]);
 
   /* ======================
      LOAD ORDER
@@ -82,9 +82,9 @@ export default function OrderDetailsPage() {
   }
 
   useEffect(() => {
-    if (!initialized || !user) return;
+    if (authLoading || !user) return;
     loadOrder();
-  }, [id, initialized, user]);
+  }, [id, authLoading, user]);
 
   /* ======================
      PAYMENT PROOF UPLOAD
@@ -124,7 +124,7 @@ export default function OrderDetailsPage() {
       if (!res.ok) throw new Error();
 
       toast.success("Payment proof uploaded");
-      fileRef.current && (fileRef.current.value = "");
+      if (fileRef.current) fileRef.current.value = "";
       await loadOrder();
     } catch {
       toast.error("Upload failed. Please try again.");
@@ -137,7 +137,7 @@ export default function OrderDetailsPage() {
      RENDER STATES
   ====================== */
 
-  if (!initialized) {
+  if (authLoading) {
     return <p style={{ opacity: 0.6 }}>Loading your account…</p>;
   }
 
