@@ -9,25 +9,25 @@ export default function AccountDashboardPage() {
   const router = useRouter();
 
   const user = useAuth((s) => s.user);
-  const initialized = useAuth((s) => s.initialized);
-  const refreshMe = useAuth((s) => s.refreshMe);
+  const authLoading = useAuth((s) => s.loading);
+  const hydrate = useAuth((s) => s.hydrate);
 
   // 🔥 HYDRATE SESSION ON FIRST LOAD
   useEffect(() => {
-    refreshMe();
-  }, [refreshMe]);
+    hydrate();
+  }, [hydrate]);
 
-  // 🔐 Redirect ONLY after auth is fully initialized
+  // 🔐 Redirect ONLY after auth is resolved
   useEffect(() => {
-    if (!initialized) return;
+    if (authLoading) return;
 
     if (!user) {
       router.replace("/login");
     }
-  }, [initialized, user, router]);
+  }, [authLoading, user, router]);
 
   // ⏳ Loading state during hydration
-  if (!initialized) {
+  if (authLoading) {
     return (
       <div style={{ padding: 40, fontWeight: 700 }}>
         Loading your account…
