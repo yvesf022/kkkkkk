@@ -2,7 +2,6 @@
 
 import toast from "react-hot-toast";
 import { useCart } from "@/app/context/CartContext";
-import { useStore } from "@/lib/store";
 
 type Product = {
   id: string;
@@ -19,10 +18,6 @@ export default function AddToCartClient({
   product: Product;
 }) {
   const { addToCart } = useCart();
-  const toggleWishlist = useStore((s) => s.toggleWishlist);
-  const wishlist = useStore((s) => s.wishlist);
-
-  const inWish = wishlist.includes(product.id);
 
   return (
     <div style={{ display: "flex", gap: 12 }}>
@@ -41,20 +36,6 @@ export default function AddToCartClient({
         }}
       >
         Add to Cart
-      </button>
-
-      <button
-        className="btn btnGhost"
-        onClick={() => {
-          toggleWishlist(product.id);
-          toast.success(
-            inWish
-              ? "Removed from wishlist"
-              : "Added to wishlist"
-          );
-        }}
-      >
-        {inWish ? "Remove Wishlist" : "Add Wishlist"}
       </button>
     </div>
   );
