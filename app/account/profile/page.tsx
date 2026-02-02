@@ -20,10 +20,7 @@ export default function AccountProfilePage() {
   ====================== */
   useEffect(() => {
     if (authLoading) return;
-
-    if (!user) {
-      router.replace("/login");
-    }
+    if (!user) router.replace("/login");
   }, [authLoading, user, router]);
 
   /* ======================
@@ -37,16 +34,13 @@ export default function AccountProfilePage() {
     );
   }
 
-  /* ======================
-     BLOCK RENDER AFTER REDIRECT
-  ====================== */
   if (!user) return null;
 
   async function handleAvatarChange(file: File) {
     try {
       setUploading(true);
       await uploadAvatar(file);
-      router.refresh(); // re-fetch updated avatar
+      router.refresh();
     } catch {
       alert("Failed to upload avatar");
     } finally {
@@ -56,9 +50,6 @@ export default function AccountProfilePage() {
 
   return (
     <div style={{ maxWidth: 960 }}>
-      {/* ======================
-          PROFILE CARD
-      ====================== */}
       <div
         style={{
           display: "flex",
@@ -119,9 +110,7 @@ export default function AccountProfilePage() {
           <p style={{ opacity: 0.7, marginTop: 4 }}>{user.email}</p>
 
           {user.phone && (
-            <p style={{ opacity: 0.6, marginTop: 6 }}>
-              {user.phone}
-            </p>
+            <p style={{ opacity: 0.6, marginTop: 6 }}>{user.phone}</p>
           )}
 
           <div style={{ marginTop: 18, fontSize: 13, opacity: 0.55 }}>
@@ -133,7 +122,6 @@ export default function AccountProfilePage() {
               : "—"}
           </div>
 
-          {/* ACTIONS */}
           <div style={{ marginTop: 26, display: "flex", gap: 14 }}>
             <button
               onClick={() => router.push("/account/profile/edit")}

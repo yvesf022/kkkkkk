@@ -46,8 +46,10 @@ export default function EditProfilePage() {
     setSaving(true);
 
     try {
-      // 🔒 BACKEND CONTRACT: updateMe takes NO arguments
-      await updateMe();
+      await updateMe({
+        full_name: fullName || undefined,
+        phone: phone || undefined,
+      });
 
       router.replace("/account/profile");
       router.refresh();

@@ -1,116 +1,122 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { useAdminAuth } from "@/lib/adminAuth";
-
-/**
- * ADMIN LOGIN PAGE — AUTHORITATIVE
- *
- * BACKEND CONTRACT:
- * - POST /api/admin/auth/login
- * - Cookie-based auth (admin_access_token)
- * - /api/admin/auth/me is the source of truth
- * - 401 = invalid credentials
- * - 403 = not an admin / access denied
- *
- * FRONTEND RULES:
- * - Do NOT read cookies
- * - Do NOT decode JWT
- * - Always rely on adminAuth.hydrate()
- */
+import { adminAuthApi } from "@/lib/api";
 
 export default function AdminLoginPage() {
   const router = useRouter();
 
-  const {
-    admin,
-    login,
-    loading,
-    hydrate,
-  } = useAdminAuth();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  /**
-   * Hydrate admin session on mount
-   * If already logged in → redirect away
-   */
+  /* ======================
+     AUTO REDIRECT IF LOGGED IN
+  ====================== */
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    adminAuthApi
+      .me()
+      .then(() => router.replace("/admin"))
+      .catch(() => {});
+  }, [router]);
 
-  useEffect(() => {
-    if (!loading && admin) {
-      router.replace("/admin");
-    }
-  }, [loading, admin, router]);
-
-  async function submit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setLoading(true);
 
     try {
-      await login(email, password);
-
-      toast.success("Admin login successful");
+      await adminAuthApi.login({ email, password });
+      toast.success("Welcome back");
       router.replace("/admin");
     } catch (err: any) {
-      toast.error(
-        err?.status === 401
-          ? "Invalid admin credentials."
-          : err?.status === 403
-          ? "You do not have admin access."
-          : "Admin login failed.",
-      );
+      toast.error(err.message || "Invalid admin credentials");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div
-        className="w-full max-w-md rounded-lg bg-white p-8 shadow"
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        background: "#f6f7f9",
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          width: 380,
+          padding: 36,
+          background: "#fff",
+          borderRadius: 18,
+          boxShadow: "0 30px 80px rgba(0,0,0,.12)",
+        }}
       >
-        <h1 className="mb-2 text-2xl font-bold">
-          Admin Login
+        <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 24 }}>
+          Admin login
         </h1>
 
-        <p className="mb-6 text-sm opacity-60">
-          Restricted access
-        </p>
+        <label style={label}>Email</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          style={input}
+        />
 
-        <form
-          onSubmit={submit}
-          className="grid gap-4"
+        <label style={label}>Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          style={input}
+        />
+
+        <button
+          type="submit"
+          disabled={loading}
+          style={button}
         >
-          <input
-            type="email"
-            placeholder="Admin email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="rounded border px-3 py-2"
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="rounded border px-3 py-2"
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded bg-black py-2 text-white disabled:opacity-50"
-          >
-            {loading ? "Signing in…" : "Login as Admin"}
-          </button>
-        </form>
-      </div>
+          {loading ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
     </div>
   );
 }
+
+/* ======================
+   STYLES
+====================== */
+
+const label: React.CSSProperties = {
+  display: "block",
+  fontWeight: 700,
+  marginTop: 14,
+  marginBottom: 6,
+};
+
+const input: React.CSSProperties = {
+  width: "100%",
+  padding: "12px 14px",
+  borderRadius: 10,
+  border: "1px solid rgba(0,0,0,.15)",
+  fontSize: 14,
+};
+
+const button: React.CSSProperties = {
+  marginTop: 24,
+  width: "100%",
+  padding: "14px 18px",
+  borderRadius: 12,
+  border: "none",
+  background: "#111",
+  color: "#fff",
+  fontWeight: 900,
+  cursor: "pointer",
+};
