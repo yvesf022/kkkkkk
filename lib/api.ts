@@ -1,5 +1,5 @@
 /**
- * API CLIENT — AUTHORITATIVE (FIXED)
+ * API CLIENT — AUTHORITATIVE (FINAL)
  *
  * Backend facts:
  * - Auth is cookie-based (HTTP-only)
@@ -37,17 +37,12 @@ async function request<T>(
       message = data.detail || data.message || message;
     } catch {}
 
-    const error = new Error(message) as Error & {
-      status?: number;
-    };
+    const error = new Error(message) as Error & { status?: number };
     error.status = res.status;
     throw error;
   }
 
-  if (res.status === 204) {
-    return null as T;
-  }
-
+  if (res.status === 204) return null as T;
   return res.json() as Promise<T>;
 }
 
@@ -82,9 +77,7 @@ export const authApi = {
   },
 
   logout() {
-    return request("/api/auth/logout", {
-      method: "POST",
-    });
+    return request("/api/auth/logout", { method: "POST" });
   },
 };
 
@@ -102,18 +95,16 @@ export const adminAuthApi = {
   },
 
   me(): Promise<Admin> {
-    return request<Admin>("/api/admin/auth/me");
+    return request("/api/admin/auth/me");
   },
 
   logout() {
-    return request("/api/admin/auth/logout", {
-      method: "POST",
-    });
+    return request("/api/admin/auth/logout", { method: "POST" });
   },
 };
 
 /* =====================================================
-   ORDERS (🔥 FIXED PATHS)
+   ORDERS
 ===================================================== */
 
 export const ordersApi = {
@@ -143,12 +134,46 @@ export const ordersApi = {
 };
 
 /* =====================================================
-   USER PROFILE (🔥 FIXED)
+   PAYMENTS ✅ (RESTORED — REQUIRED BY ADMIN UI)
+===================================================== */
+
+export const paymentsApi = {
+  create(orderId: string) {
+    return request(`/api/payments/${orderId}`, {
+      method: "POST",
+    });
+  },
+
+  uploadProof(paymentId: string, file: File) {
+    const form = new FormData();
+    form.append("proof", file);
+
+    return request(`/api/payments/${paymentId}/proof`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  adminList() {
+    return request("/api/payments/admin");
+  },
+
+  review(paymentId: string, status: "paid" | "rejected") {
+    return request(`/api/payments/admin/${paymentId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  },
+};
+
+/* =====================================================
+   USER PROFILE
 ===================================================== */
 
 export function uploadAvatar(file: File) {
   const form = new FormData();
-  form.append("file", file); // must match backend UploadFile name
+  form.append("file", file);
 
   return request("/api/users/me/avatar", {
     method: "POST",
@@ -171,6 +196,6 @@ export function updateMe(payload: {
    BACKWARD COMPAT
 ===================================================== */
 
-export async function getMyOrders() {
+export function getMyOrders() {
   return ordersApi.myOrders();
 }
