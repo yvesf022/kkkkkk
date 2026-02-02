@@ -40,7 +40,20 @@ export default function OrdersPage() {
     ordersApi
       .myOrders()
       .then((apiOrders) => {
-        setOrders(apiOrders);
+        // 🔥 MAP API → DOMAIN MODEL
+        const mapped: Order[] = apiOrders.map((o: any) => ({
+          id: o.id,
+          created_at: o.created_at,
+          total_amount: o.total_amount,
+
+          // REQUIRED DOMAIN FIELDS
+          order_status: o.order_status ?? "created",
+          payment_status: o.payment_status ?? null,
+          shipping_status: o.shipping_status ?? null,
+          tracking_number: o.tracking_number ?? null,
+        }));
+
+        setOrders(mapped);
       })
       .catch((err) => {
         console.error("Failed to load orders:", err);
@@ -61,9 +74,6 @@ export default function OrdersPage() {
     );
   }
 
-  /* ======================
-     BLOCK AFTER REDIRECT
-  ====================== */
   if (!user) return null;
 
   /* ======================
@@ -79,13 +89,15 @@ export default function OrdersPage() {
   }
 
   /* ======================
-     ERROR STATE
+     ERROR
   ====================== */
   if (error) {
     return (
       <div style={{ maxWidth: 640 }}>
         <h1 style={title}>Your Orders</h1>
-        <p style={{ color: "#991b1b", marginBottom: 20 }}>{error}</p>
+        <p style={{ color: "#991b1b", marginBottom: 20 }}>
+          {error}
+        </p>
 
         <button
           onClick={() => router.refresh()}
