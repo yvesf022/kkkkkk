@@ -4,9 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
-
 export default function LoginPage() {
   const router = useRouter();
   const { user, login, loading } = useAuth();
@@ -16,7 +13,6 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
       router.replace("/account");
@@ -56,7 +52,7 @@ export default function LoginPage() {
 
         {error && <div style={errorBox}>{error}</div>}
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
+        <form onSubmit={handleSubmit} style={form}>
           <div>
             <label style={label}>Email address</label>
             <input
@@ -100,7 +96,7 @@ export default function LoginPage() {
           Continue as Guest
         </button>
 
-        <div style={{ marginTop: 16, textAlign: "center", fontSize: 13 }}>
+        <div style={footer}>
           New to Karabo?{" "}
           <button
             onClick={() => router.push("/register")}
@@ -114,7 +110,7 @@ export default function LoginPage() {
   );
 }
 
-/* ---------- styles ---------- */
+/* ---------- typed styles ---------- */
 
 const page: React.CSSProperties = {
   minHeight: "100vh",
@@ -134,17 +130,35 @@ const card: React.CSSProperties = {
   boxShadow: "0 2px 6px rgba(0,0,0,.08)",
 };
 
-const title = { fontSize: 26, fontWeight: 800 };
-const subtitle = { fontSize: 13, color: "#565959", marginBottom: 16 };
-const label = { fontSize: 13, fontWeight: 700 };
-const input = {
+const title: React.CSSProperties = {
+  fontSize: 26,
+  fontWeight: 800,
+};
+
+const subtitle: React.CSSProperties = {
+  fontSize: 13,
+  color: "#565959",
+  marginBottom: 16,
+};
+
+const label: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 700,
+};
+
+const input: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
   borderRadius: 6,
   border: "1px solid #a6a6a6",
 };
 
-const primaryButton = {
+const form: React.CSSProperties = {
+  display: "grid",
+  gap: 14,
+};
+
+const primaryButton: React.CSSProperties = {
   marginTop: 8,
   padding: "10px 0",
   borderRadius: 8,
@@ -154,7 +168,7 @@ const primaryButton = {
   cursor: "pointer",
 };
 
-const secondaryButton = {
+const secondaryButton: React.CSSProperties = {
   width: "100%",
   padding: "10px 0",
   borderRadius: 8,
@@ -163,14 +177,14 @@ const secondaryButton = {
   cursor: "pointer",
 };
 
-const divider = {
+const divider: React.CSSProperties = {
   margin: "16px 0",
   textAlign: "center",
   fontSize: 12,
   color: "#767676",
 };
 
-const errorBox = {
+const errorBox: React.CSSProperties = {
   background: "#fff2f2",
   border: "1px solid #cc0c39",
   color: "#cc0c39",
@@ -180,7 +194,13 @@ const errorBox = {
   marginBottom: 14,
 };
 
-const linkButton = {
+const footer: React.CSSProperties = {
+  marginTop: 16,
+  textAlign: "center",
+  fontSize: 13,
+};
+
+const linkButton: React.CSSProperties = {
   background: "none",
   border: "none",
   color: "#0066c0",
