@@ -5,36 +5,16 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import AccountSidebar from "@/components/account/AccountSidebar";
 
-/**
- * ACCOUNT LAYOUT — FINAL & CORRECT
- *
- * SECURITY:
- * - middleware.ts protects /account/*
- * - This layout handles UI redirects ONLY
- *
- * RULES:
- * - No RequireAuth wrapper
- * - No premature null returns
- * - Always allow hydration to finish
- */
-
 export default function AccountLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, loading, hydrate } = useAuth();
+  const { user, loading } = useAuth();
 
   /* -----------------------
-     HYDRATE SESSION
-  ----------------------- */
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
-
-  /* -----------------------
-     REDIRECT AFTER HYDRATION
+     REDIRECT AFTER AUTH RESOLVED
   ----------------------- */
   useEffect(() => {
     if (!loading && !user) {
@@ -67,12 +47,12 @@ export default function AccountLayout({
   }
 
   /* -----------------------
-     BLOCK RENDER AFTER REDIRECT
+     BLOCK AFTER REDIRECT
   ----------------------- */
   if (!user) return null;
 
   /* -----------------------
-     RENDER LAYOUT
+     RENDER
   ----------------------- */
   return (
     <div
@@ -85,33 +65,8 @@ export default function AccountLayout({
         width: "100%",
       }}
     >
-      {/* MOBILE OVERLAY */}
-      {isMobile && sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,.4)",
-            zIndex: 40,
-          }}
-        />
-      )}
-
-      {/* SIDEBAR */}
       {(!isMobile || sidebarOpen) && (
-        <aside
-          style={{
-            width: 260,
-            flexShrink: 0,
-            background: "#ffffff",
-            borderRight: "1px solid #e5e7eb",
-            position: isMobile ? "fixed" : "static",
-            inset: isMobile ? "0 auto 0 0" : undefined,
-            zIndex: 50,
-            height: isMobile ? "100vh" : "auto",
-          }}
-        >
+        <aside style={{ width: 260 }}>
           <AccountSidebar
             isMobile={isMobile}
             onClose={() => setSidebarOpen(false)}
@@ -119,25 +74,7 @@ export default function AccountLayout({
         </aside>
       )}
 
-      {/* MAIN CONTENT */}
       <main style={{ flex: 1, minWidth: 0 }}>
-        {isMobile && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            style={{
-              marginBottom: 16,
-              padding: "10px 14px",
-              borderRadius: 10,
-              fontWeight: 800,
-              border: "1px solid rgba(0,0,0,.15)",
-              background: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            ☰ Account menu
-          </button>
-        )}
-
         {children}
       </main>
     </div>
