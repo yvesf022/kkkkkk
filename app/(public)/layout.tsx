@@ -5,18 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 /**
- * PUBLIC LAYOUT — AUTHORITATIVE
- *
- * PURPOSE:
- * - Wraps public pages like /login, /register
- * - Must NEVER block rendering
- * - Must NEVER hide UI during auth hydration
+ * PUBLIC LAYOUT — FINAL & CORRECT
  *
  * RULES:
- * - Always render children
- * - Redirect only AFTER auth is resolved
- * - Do NOT read cookies
- * - Do NOT style aggressively (respect globals.css)
+ * - Public pages (/login, /register) must NEVER render for logged-in users
+ * - Redirect immediately after auth is resolved
  */
 
 export default function PublicLayout({
@@ -25,38 +18,26 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const user = useAuth((s) => s.user);
-  const loading = useAuth((s) => s.loading);
-  const hydrate = useAuth((s) => s.hydrate);
+  const { user, loading, hydrate } = useAuth();
 
-  // Ensure auth state is hydrated once
+  // Hydrate auth once
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
-  // Redirect logged-in users away from public pages
+  // Redirect authenticated users
   useEffect(() => {
     if (!loading && user) {
       router.replace("/account");
     }
   }, [loading, user, router]);
 
-  /**
-   * CRITICAL:
-   * - DO NOT return null
-   * - DO NOT conditionally hide children
-   * - Public pages must always render
-   */
+  // ⏳ Wait for auth check
+  if (loading) return null;
 
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        width: "100%",
-        display: "block",
-      }}
-    >
-      {children}
-    </main>
-  );
+  // 🚫 DO NOT render public pages when logged in
+  if (user) return null;
+
+  // ✅ Safe to render public pages
+  return <>{children}</>;
 }
