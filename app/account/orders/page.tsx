@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { ordersApi } from "@/lib/api";
+import { getMyOrders } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Order } from "@/lib/types";
 
@@ -13,47 +13,41 @@ const fmtM = (v: number) =>
 
 export default function OrdersPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+
+  const user = useAuth((s) => s.user);
+  const authLoading = useAuth((s) => s.loading);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /* ======================
-     REDIRECT IF LOGGED OUT
-  ====================== */
+  /* ---------------- AUTH REDIRECT ---------------- */
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace("/login");
     }
   }, [authLoading, user, router]);
 
-  /* ======================
-     FETCH MY ORDERS
-  ====================== */
+  /* ---------------- FETCH ORDERS ---------------- */
   useEffect(() => {
     if (authLoading || !user) return;
 
     setLoading(true);
     setError(null);
 
-    ordersApi
-      .myOrders()
-      .then((apiOrders) => {
-        // 🔥 MAP API → DOMAIN MODEL
-        const mapped: Order[] = apiOrders.map((o: any) => ({
-          id: o.id,
-          created_at: o.created_at,
-          total_amount: o.total_amount,
-
-          // REQUIRED DOMAIN FIELDS
-          order_status: o.order_status ?? "created",
-          payment_status: o.payment_status ?? null,
-          shipping_status: o.shipping_status ?? null,
-          tracking_number: o.tracking_number ?? null,
-        }));
-
-        setOrders(mapped);
+    getMyOrders()
+      .then((apiOrders: any[]) => {
+        setOrders(
+          apiOrders.map((o) => ({
+            id: o.id,
+            created_at: o.created_at,
+            total_amount: o.total_amount,
+            order_status: o.order_status ?? "created",
+            shipping_status: o.shipping_status ?? null,
+            payment_status: o.payment_status ?? null,
+            tracking_number: o.tracking_number ?? null,
+          }))
+        );
       })
       .catch((err) => {
         console.error("Failed to load orders:", err);
@@ -62,81 +56,42 @@ export default function OrdersPage() {
       .finally(() => setLoading(false));
   }, [authLoading, user]);
 
-  /* ======================
-     AUTH LOADING
-  ====================== */
+  /* ---------------- STATES ---------------- */
   if (authLoading) {
-    return (
-      <div style={{ maxWidth: 900 }}>
-        <h1 style={title}>Your Orders</h1>
-        <p style={{ opacity: 0.6 }}>Loading your account…</p>
-      </div>
-    );
+    return <p>Loading your account…</p>;
   }
 
   if (!user) return null;
 
-  /* ======================
-     DATA LOADING
-  ====================== */
   if (loading) {
-    return (
-      <div style={{ maxWidth: 900 }}>
-        <h1 style={title}>Your Orders</h1>
-        <p style={{ opacity: 0.6 }}>Loading your orders…</p>
-      </div>
-    );
+    return <p>Loading your orders…</p>;
   }
 
-  /* ======================
-     ERROR
-  ====================== */
   if (error) {
     return (
-      <div style={{ maxWidth: 640 }}>
-        <h1 style={title}>Your Orders</h1>
-        <p style={{ color: "#991b1b", marginBottom: 20 }}>
-          {error}
-        </p>
-
-        <button
-          onClick={() => router.refresh()}
-          className="btn btnPrimary"
-        >
-          Retry
-        </button>
-      </div>
+      <>
+        <p style={{ color: "#991b1b" }}>{error}</p>
+        <button onClick={() => router.refresh()}>Retry</button>
+      </>
     );
   }
 
-  /* ======================
-     EMPTY STATE
-  ====================== */
   if (orders.length === 0) {
     return (
-      <div style={{ maxWidth: 640 }}>
-        <h1 style={title}>Your Orders</h1>
-
-        <p style={{ opacity: 0.7, marginBottom: 28 }}>
-          You haven’t placed any orders yet.
-        </p>
-
-        <button
-          onClick={() => router.push("/store")}
-          className="btn btnPrimary"
-        >
+      <>
+        <h1>Your Orders</h1>
+        <p>You haven’t placed any orders yet.</p>
+        <button onClick={() => router.push("/store")}>
           Start shopping
         </button>
-      </div>
+      </>
     );
   }
 
-  /* ======================
-     ORDERS LIST
-  ====================== */
+  /* ---------------- RENDER ---------------- */
   return (
     <div style={{ maxWidth: 900 }}>
-      <h1 style={title}>Your Orders</h1>
+      <h1>Your Orders</h1>
 
       <div style={{ display: "grid", gap: 16 }}>
         {orders.map((order) => (
@@ -145,41 +100,27 @@ export default function OrdersPage() {
             onClick={() =>
               router.push(`/account/orders/${order.id}`)
             }
-            style={orderCard}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: 20,
+              borderRadius: 16,
+              background: "#fff",
+              border: "none",
+              cursor: "pointer",
+            }}
           >
             <div>
-              <div style={{ fontWeight: 900 }}>
-                Order #{order.id.slice(0, 8)}
-              </div>
-
-              <div
-                style={{
-                  fontSize: 13,
-                  opacity: 0.6,
-                  marginTop: 4,
-                }}
-              >
-                Placed on{" "}
+              <strong>Order #{order.id.slice(0, 8)}</strong>
+              <div style={{ fontSize: 13, opacity: 0.6 }}>
                 {new Date(order.created_at).toLocaleDateString()}
               </div>
             </div>
 
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontWeight: 900 }}>
-                {fmtM(order.total_amount)}
-              </div>
-
-              <div
-                style={{
-                  fontSize: 13,
-                  marginTop: 4,
-                  color:
-                    order.payment_status === "paid"
-                      ? "green"
-                      : "orange",
-                }}
-              >
-                {order.payment_status || "Processing"}
+              <strong>{fmtM(order.total_amount)}</strong>
+              <div style={{ fontSize: 13 }}>
+                {order.payment_status ?? "Processing"}
               </div>
             </div>
           </button>
@@ -188,26 +129,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-
-/* ======================
-   STYLES
-====================== */
-
-const title: React.CSSProperties = {
-  fontSize: 28,
-  fontWeight: 900,
-  marginBottom: 24,
-};
-
-const orderCard: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: 20,
-  borderRadius: 16,
-  background: "#ffffff",
-  border: "none",
-  cursor: "pointer",
-  textAlign: "left",
-  boxShadow: "0 12px 32px rgba(15,23,42,0.12)",
-};
