@@ -14,9 +14,9 @@ import type { Admin } from "@/lib/adminAuth";
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
-/* ================================
+/* ===============================
    LOW-LEVEL REQUEST
-================================ */
+=============================== */
 
 async function request<T>(
   path: string,
@@ -45,9 +45,9 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
-/* ================================
+/* ===============================
    USER AUTH
-================================ */
+=============================== */
 
 export const authApi = {
   register(payload: {
@@ -80,9 +80,9 @@ export const authApi = {
   },
 };
 
-/* ================================
+/* ===============================
    ADMIN AUTH
-================================ */
+=============================== */
 
 export const adminAuthApi = {
   login(payload: { email: string; password: string }) {
@@ -102,9 +102,9 @@ export const adminAuthApi = {
   },
 };
 
-/* ================================
-   ORDERS (API SHAPE ONLY)
-================================ */
+/* ===============================
+   ORDERS
+=============================== */
 
 export type ApiOrder = {
   id: string;
@@ -142,9 +142,60 @@ export const ordersApi = {
   },
 };
 
-/**
- * Backward-compatible helper
- */
 export async function getMyOrders(): Promise<ApiOrder[]> {
   return ordersApi.myOrders();
+}
+
+/* ===============================
+   PAYMENTS  ✅ RESTORED
+=============================== */
+
+export const paymentsApi = {
+  create(orderId: string) {
+    return request(`/api/payments/${orderId}`, { method: "POST" });
+  },
+
+  uploadProof(paymentId: string, file: File) {
+    const form = new FormData();
+    form.append("proof", file);
+
+    return request(`/api/payments/${paymentId}/proof`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  adminList() {
+    return request("/api/payments/admin");
+  },
+
+  review(paymentId: string, status: "paid" | "rejected") {
+    return request(`/api/payments/admin/${paymentId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  },
+};
+
+/* ===============================
+   USER PROFILE  ✅ RESTORED
+=============================== */
+
+export async function uploadAvatar(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+
+  return request("/api/users/me/avatar", {
+    method: "POST",
+    body: form,
+  });
+}
+
+/**
+ * Backend endpoint does NOT exist yet.
+ * Stub required for UI imports.
+ */
+export async function updateMe(): Promise<never> {
+  throw new Error("updateMe endpoint not implemented in backend");
 }
