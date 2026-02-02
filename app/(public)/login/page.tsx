@@ -4,28 +4,31 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
+
 export default function LoginPage() {
   const router = useRouter();
   const { user, login, loading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Redirect logged-in users
+  // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
       router.replace("/account");
     }
   }, [loading, user, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
 
-    setError(null);
     setSubmitting(true);
+    setError(null);
 
     try {
       await login(email.trim(), password);
@@ -33,196 +36,154 @@ export default function LoginPage() {
     } catch (err: any) {
       setError(
         err?.status === 401
-          ? "The email or password you entered is incorrect."
+          ? "Incorrect email or password."
           : err?.status === 403
-          ? "Your account has been disabled. Please contact support."
-          : "We couldn’t sign you in right now. Please try again."
+          ? "Your account has been disabled."
+          : "Unable to sign in right now. Please try again."
       );
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   if (user) return null;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f3f4f6",
-        display: "grid",
-        placeItems: "center",
-        padding: 24,
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          background: "#fff",
-          border: "1px solid #d5d9d9",
-          borderRadius: 8,
-          padding: 28,
-          boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-        }}
-      >
-        {/* HEADER */}
-        <header style={{ marginBottom: 18 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800 }}>
-            Sign in
-          </h1>
-          <p style={{ fontSize: 13, color: "#565959" }}>
-            Access your Karabo account
-          </p>
-        </header>
+    <main style={page}>
+      <section style={card}>
+        <h1 style={title}>Sign in</h1>
+        <p style={subtitle}>Access your Karabo account</p>
 
-        {/* ERROR */}
-        {error && (
-          <div
-            role="alert"
-            style={{
-              border: "1px solid #cc0c39",
-              background: "#fff2f2",
-              padding: "12px 14px",
-              borderRadius: 6,
-              fontSize: 13,
-              marginBottom: 16,
-              color: "#cc0c39",
-            }}
-          >
-            <strong>There was a problem</strong>
-            <div style={{ marginTop: 6 }}>{error}</div>
-          </div>
-        )}
+        {error && <div style={errorBox}>{error}</div>}
 
-        {/* LOGIN FORM */}
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 14 }}>
-            <label
-              htmlFor="email"
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                display: "block",
-                marginBottom: 4,
-              }}
-            >
-              Email address
-            </label>
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
+          <div>
+            <label style={label}>Email address</label>
             <input
-              id="email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={inputStyle}
+              style={input}
             />
           </div>
 
-          <div style={{ marginBottom: 18 }}>
-            <label
-              htmlFor="password"
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                display: "block",
-                marginBottom: 4,
-              }}
-            >
-              Password
-            </label>
+          <div>
+            <label style={label}>Password</label>
             <input
-              id="password"
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
+              style={input}
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading || submitting}
+            disabled={submitting || loading}
             style={{
-              width: "100%",
-              padding: "10px 0",
-              fontSize: 14,
-              fontWeight: 800,
-              borderRadius: 8,
-              border: "1px solid #fcd200",
-              background:
-                submitting || loading
-                  ? "#f7d97a"
-                  : "linear-gradient(#f7dfa5, #f0c14b)",
-              cursor:
-                submitting || loading ? "not-allowed" : "pointer",
+              ...primaryButton,
+              opacity: submitting || loading ? 0.6 : 1,
             }}
           >
             {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
-        {/* DIVIDER */}
-        <div
-          style={{
-            margin: "18px 0",
-            textAlign: "center",
-            fontSize: 12,
-            color: "#767676",
-          }}
-        >
-          ────── or ──────
-        </div>
+        <div style={divider}>or</div>
 
-        {/* CONTINUE AS GUEST */}
         <button
+          style={secondaryButton}
           onClick={() => router.push("/store")}
-          style={{
-            width: "100%",
-            padding: "10px 0",
-            fontSize: 14,
-            fontWeight: 700,
-            borderRadius: 8,
-            border: "1px solid #adb1b8",
-            background: "#fff",
-            cursor: "pointer",
-          }}
         >
           Continue as Guest
         </button>
 
-        {/* FOOTER */}
-        <div
-          style={{
-            marginTop: 18,
-            fontSize: 13,
-            textAlign: "center",
-          }}
-        >
+        <div style={{ marginTop: 16, textAlign: "center", fontSize: 13 }}>
           New to Karabo?{" "}
-          <a
-            href="/register"
-            style={{
-              color: "#0066c0",
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
+          <button
+            onClick={() => router.push("/register")}
+            style={linkButton}
           >
             Create your account
-          </a>
+          </button>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
 
-/* INPUT STYLE */
-const inputStyle: React.CSSProperties = {
+/* ---------- styles ---------- */
+
+const page: React.CSSProperties = {
+  minHeight: "100vh",
+  display: "grid",
+  placeItems: "center",
+  background: "#f3f4f6",
+  padding: 24,
+};
+
+const card: React.CSSProperties = {
+  width: "100%",
+  maxWidth: 420,
+  background: "#fff",
+  padding: 28,
+  borderRadius: 8,
+  border: "1px solid #d5d9d9",
+  boxShadow: "0 2px 6px rgba(0,0,0,.08)",
+};
+
+const title = { fontSize: 26, fontWeight: 800 };
+const subtitle = { fontSize: 13, color: "#565959", marginBottom: 16 };
+const label = { fontSize: 13, fontWeight: 700 };
+const input = {
   width: "100%",
   padding: "8px 10px",
-  fontSize: 14,
   borderRadius: 6,
   border: "1px solid #a6a6a6",
-  outline: "none",
+};
+
+const primaryButton = {
+  marginTop: 8,
+  padding: "10px 0",
+  borderRadius: 8,
+  border: "1px solid #fcd200",
+  background: "linear-gradient(#f7dfa5,#f0c14b)",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const secondaryButton = {
+  width: "100%",
+  padding: "10px 0",
+  borderRadius: 8,
+  border: "1px solid #adb1b8",
+  background: "#fff",
+  cursor: "pointer",
+};
+
+const divider = {
+  margin: "16px 0",
+  textAlign: "center",
+  fontSize: 12,
+  color: "#767676",
+};
+
+const errorBox = {
+  background: "#fff2f2",
+  border: "1px solid #cc0c39",
+  color: "#cc0c39",
+  padding: "10px 12px",
+  borderRadius: 6,
+  fontSize: 13,
+  marginBottom: 14,
+};
+
+const linkButton = {
+  background: "none",
+  border: "none",
+  color: "#0066c0",
+  fontWeight: 700,
+  cursor: "pointer",
 };

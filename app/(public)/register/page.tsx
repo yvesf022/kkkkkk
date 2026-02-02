@@ -2,63 +2,42 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
-import { Eye, EyeOff, CheckCircle, XCircle, Mail, ShieldCheck } from "lucide-react";
 
-/* --------------------------------------------------
-   SAFE API BASE (FIXED)
--------------------------------------------------- */
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
-/* --------------------------------------------------
-   REGISTER PAGE — AMAZON LEVEL
--------------------------------------------------- */
 export default function RegisterPage() {
   const router = useRouter();
 
-  /* ---------------- STATE ---------------- */
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirm, setConfirm] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [registered, setRegistered] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  /* ---------------- PASSWORD RULES ---------------- */
-  const passwordRules = useMemo(() => {
-    return {
-      length: password.length >= 8,
-      number: /\d/.test(password),
-      letter: /[a-zA-Z]/.test(password),
-    };
-  }, [password]);
+  const passwordRules = useMemo(() => ({
+    length: password.length >= 8,
+    number: /\d/.test(password),
+    letter: /[a-zA-Z]/.test(password),
+  }), [password]);
 
   const passwordValid =
     passwordRules.length &&
     passwordRules.number &&
     passwordRules.letter;
 
-  const passwordsMatch =
-    password.length > 0 &&
-    confirmPassword.length > 0 &&
-    password === confirmPassword;
-
   const canSubmit =
     fullName.trim().length >= 2 &&
     email &&
     passwordValid &&
-    passwordsMatch &&
+    password === confirm &&
     !loading;
 
-  /* ---------------- REGISTER ---------------- */
-  const handleRegister = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
 
@@ -66,240 +45,109 @@ export default function RegisterPage() {
     setError(null);
 
     try {
-      const payload = {
-        email,
-        password,
-        full_name: fullName.trim(),
-        phone: phone.trim() || null,
-      };
-
       const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          full_name: fullName,
+          email,
+          phone: phone || null,
+          password,
+        }),
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         throw new Error(data.detail || "Registration failed");
       }
 
-      toast.success("Account created 🎉");
-      setRegistered(true);
+      setSuccess(true);
     } catch (err: any) {
-      const msg =
-        err?.message || "Unable to create account. Please try again.";
-      setError(msg);
-      toast.error(msg);
+      setError(err.message || "Unable to create account");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  /* ---------------- SUCCESS ---------------- */
-  if (registered) {
+  if (success) {
     return (
-      <main className="min-h-screen grid place-items-center px-6">
-        <section className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg text-center">
-          <Mail size={42} className="mx-auto mb-4" />
-          <h1 className="text-2xl font-extrabold">Verify your email</h1>
+      <main style={page}>
+        <section style={card}>
+          <h1 style={title}>Verify your email</h1>
+          <p>We sent a verification link to:</p>
+          <strong>{email}</strong>
 
-          <p className="mt-3 text-gray-600">
-            We sent a verification link to:
-          </p>
-          <p className="mt-1 font-bold">{email}</p>
-
-          <p className="mt-4 text-sm text-gray-500">
-            Please verify your email before signing in.
-          </p>
-
-          <div className="mt-6 grid gap-3">
-            <button
-              className="btn btnPrimary"
-              onClick={() => router.push("/login")}
-            >
-              Go to login
-            </button>
-
-            <button
-              className="btn btnGhost"
-              onClick={() => router.push("/store")}
-            >
-              Continue shopping
-            </button>
-          </div>
+          <button
+            style={{ ...primaryButton, marginTop: 16 }}
+            onClick={() => router.push("/login")}
+          >
+            Go to login
+          </button>
         </section>
       </main>
     );
   }
 
-  /* ---------------- FORM ---------------- */
   return (
-    <main className="min-h-screen grid place-items-center px-6">
-      <section className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
-        <h1 className="text-2xl font-extrabold">Create account</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Shop faster, track orders, and manage your account.
-        </p>
+    <main style={page}>
+      <section style={card}>
+        <h1 style={title}>Create account</h1>
+        <p style={subtitle}>It’s quick and secure</p>
 
-        {error && (
-          <div className="mt-4 rounded-md bg-red-100 px-4 py-2 text-sm text-red-700 font-medium">
-            ❌ {error}
-          </div>
-        )}
+        {error && <div style={errorBox}>{error}</div>}
 
-        <form onSubmit={handleRegister} className="mt-6 grid gap-4">
-          {/* FULL NAME */}
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
           <div>
-            <label className="block text-sm font-semibold">
-              Full name
-            </label>
-            <input
-              type="text"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
+            <label style={label}>Full name</label>
+            <input style={input} value={fullName} onChange={e => setFullName(e.target.value)} />
           </div>
 
-          {/* EMAIL */}
           <div>
-            <label className="block text-sm font-semibold">
-              Email address
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
+            <label style={label}>Email address</label>
+            <input style={input} type="email" value={email} onChange={e => setEmail(e.target.value)} />
           </div>
 
-          {/* PHONE */}
           <div>
-            <label className="block text-sm font-semibold">
-              Mobile number <span className="text-gray-500">(optional)</span>
-            </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
+            <label style={label}>Mobile number (optional)</label>
+            <input style={input} value={phone} onChange={e => setPhone(e.target.value)} />
           </div>
 
-          {/* PASSWORD */}
           <div>
-            <label className="block text-sm font-semibold">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-md border px-3 py-2 pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-
-            {/* PASSWORD RULES */}
-            <div className="mt-2 space-y-1 text-sm">
-              {[
-                { ok: passwordRules.length, label: "At least 8 characters" },
-                { ok: passwordRules.number, label: "Contains a number" },
-                { ok: passwordRules.letter, label: "Contains a letter" },
-              ].map((r) => (
-                <div
-                  key={r.label}
-                  className={`flex items-center gap-2 ${
-                    r.ok ? "text-green-700" : "text-red-700"
-                  }`}
-                >
-                  {r.ok ? (
-                    <CheckCircle size={14} />
-                  ) : (
-                    <XCircle size={14} />
-                  )}
-                  {r.label}
-                </div>
-              ))}
+            <label style={label}>Password</label>
+            <input style={input} type="password" value={password} onChange={e => setPassword(e.target.value)} />
+            <div style={{ fontSize: 12, marginTop: 6 }}>
+              • At least 8 characters<br />
+              • Contains a letter and a number
             </div>
           </div>
 
-          {/* CONFIRM */}
           <div>
-            <label className="block text-sm font-semibold">
-              Re-enter password
-            </label>
-            <div className="relative">
-              <input
-                type={showConfirm ? "text" : "password"}
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1 w-full rounded-md border px-3 py-2 pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirm(!showConfirm)}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-              >
-                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-
-            {!passwordsMatch && confirmPassword && (
-              <p className="mt-1 text-sm text-red-700 font-medium">
-                Passwords do not match
-              </p>
-            )}
+            <label style={label}>Re-enter password</label>
+            <input style={input} type="password" value={confirm} onChange={e => setConfirm(e.target.value)} />
           </div>
 
-          {/* CTA */}
           <button
             type="submit"
             disabled={!canSubmit}
-            className="btn btnPrimary mt-2"
+            style={{ ...primaryButton, opacity: canSubmit ? 1 : 0.6 }}
           >
-            {loading ? "Creating account…" : "Create your Karabo account"}
+            {loading ? "Creating account…" : "Create your account"}
           </button>
         </form>
 
-        {/* TRUST */}
-        <div className="mt-6 flex items-center gap-2 text-xs text-gray-600">
-          <ShieldCheck size={16} />
-          Secure registration · Email verification required
+        <div style={{ marginTop: 16, fontSize: 12, color: "#555" }}>
+          🔒 Secure registration · Email verification required
         </div>
 
-        {/* FOOTER */}
-        <div className="mt-6 grid gap-2 text-sm">
-          <button
-            className="btn btnGhost"
-            onClick={() => router.push("/login")}
-          >
-            Already have an account? Sign in
-          </button>
-
-          <button
-            className="btn btnGhost"
-            onClick={() => router.push("/store")}
-          >
-            Continue as guest
+        <div style={{ marginTop: 14, textAlign: "center" }}>
+          <button style={linkButton} onClick={() => router.push("/login")}>
+            Already have an account?
           </button>
         </div>
       </section>
     </main>
   );
 }
+
+/* reuse same styles as login */
