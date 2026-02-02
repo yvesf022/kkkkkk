@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { getMyOrders } from "@/lib/api";
+import { ordersApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Order } from "@/lib/types";
 
@@ -13,27 +13,23 @@ const fmtM = (v: number) =>
 
 export default function OrdersPage() {
   const router = useRouter();
-
-  const user = useAuth((s) => s.user);
-  const authLoading = useAuth((s) => s.loading);
+  const { user, loading: authLoading } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /* ======================
-     REDIRECT AFTER HYDRATION
+     REDIRECT IF LOGGED OUT
   ====================== */
   useEffect(() => {
-    if (authLoading) return;
-
-    if (!user) {
+    if (!authLoading && !user) {
       router.replace("/login");
     }
   }, [authLoading, user, router]);
 
   /* ======================
-     FETCH ORDERS
+     FETCH MY ORDERS
   ====================== */
   useEffect(() => {
     if (authLoading || !user) return;
@@ -41,31 +37,20 @@ export default function OrdersPage() {
     setLoading(true);
     setError(null);
 
-    getMyOrders()
+    ordersApi
+      .myOrders()
       .then((apiOrders) => {
-        const mapped: Order[] = apiOrders.map((o: any) => ({
-          id: o.id,
-          created_at: o.created_at,
-          total_amount: o.total_amount,
-
-          // domain-required fields
-          payment_status: o.payment_status ?? null,
-          shipping_status: o.shipping_status ?? null,
-          order_status: o.order_status ?? "created",
-
-          tracking_number: o.tracking_number ?? null,
-        }));
-
-        setOrders(mapped);
+        setOrders(apiOrders);
       })
-      .catch(() =>
-        setError("Failed to load your orders. Please try again.")
-      )
+      .catch((err) => {
+        console.error("Failed to load orders:", err);
+        setError("Failed to load your orders. Please try again.");
+      })
       .finally(() => setLoading(false));
   }, [authLoading, user]);
 
   /* ======================
-     LOADING (AUTH)
+     AUTH LOADING
   ====================== */
   if (authLoading) {
     return (
@@ -77,12 +62,12 @@ export default function OrdersPage() {
   }
 
   /* ======================
-     BLOCK RENDER AFTER REDIRECT
+     BLOCK AFTER REDIRECT
   ====================== */
   if (!user) return null;
 
   /* ======================
-     LOADING (DATA)
+     DATA LOADING
   ====================== */
   if (loading) {
     return (
@@ -94,15 +79,18 @@ export default function OrdersPage() {
   }
 
   /* ======================
-     ERROR
+     ERROR STATE
   ====================== */
   if (error) {
     return (
       <div style={{ maxWidth: 640 }}>
         <h1 style={title}>Your Orders</h1>
-        <p style={{ color: "#991b1b" }}>{error}</p>
+        <p style={{ color: "#991b1b", marginBottom: 20 }}>{error}</p>
 
-        <button onClick={() => router.refresh()} style={primary}>
+        <button
+          onClick={() => router.refresh()}
+          className="btn btnPrimary"
+        >
           Retry
         </button>
       </div>
@@ -123,7 +111,7 @@ export default function OrdersPage() {
 
         <button
           onClick={() => router.push("/store")}
-          style={primary}
+          className="btn btnPrimary"
         >
           Start shopping
         </button>
@@ -189,22 +177,14 @@ export default function OrdersPage() {
   );
 }
 
-/* ------------------ styles ------------------ */
+/* ======================
+   STYLES
+====================== */
 
 const title: React.CSSProperties = {
   fontSize: 28,
   fontWeight: 900,
   marginBottom: 24,
-};
-
-const primary: React.CSSProperties = {
-  padding: "12px 20px",
-  borderRadius: 10,
-  border: "none",
-  background: "#111",
-  color: "#fff",
-  fontWeight: 800,
-  cursor: "pointer",
 };
 
 const orderCard: React.CSSProperties = {
@@ -213,7 +193,7 @@ const orderCard: React.CSSProperties = {
   alignItems: "center",
   padding: 20,
   borderRadius: 16,
-  background: "#fff",
+  background: "#ffffff",
   border: "none",
   cursor: "pointer",
   textAlign: "left",
