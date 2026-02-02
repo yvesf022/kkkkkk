@@ -9,6 +9,8 @@
  * - No Authorization headers
  */
 
+import type { Admin } from "@/lib/adminAuth";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
@@ -78,7 +80,9 @@ export const authApi = {
   },
 
   logout() {
-    return request("/api/auth/logout", { method: "POST" });
+    return request("/api/auth/logout", {
+      method: "POST",
+    });
   },
 };
 
@@ -95,17 +99,19 @@ export const adminAuthApi = {
     });
   },
 
-  me() {
-    return request("/api/admin/auth/me");
+  me(): Promise<Admin> {
+    return request<Admin>("/api/admin/auth/me");
   },
 
   logout() {
-    return request("/api/admin/auth/logout", { method: "POST" });
+    return request("/api/admin/auth/logout", {
+      method: "POST",
+    });
   },
 };
 
 /* =====================================================
-   PRODUCTS  ✅ THIS IS WHAT WAS MISSING
+   PRODUCTS (ADMIN UI)
 ===================================================== */
 
 export const productsApi = {
@@ -113,9 +119,7 @@ export const productsApi = {
     const query = new URLSearchParams();
 
     Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) {
-        query.append(k, String(v));
-      }
+      if (v !== undefined && v !== null) query.append(k, String(v));
     });
 
     const qs = query.toString();
@@ -142,6 +146,18 @@ export const productsApi = {
     });
   },
 
+  disable(productId: string) {
+    return request(`/api/products/admin/${productId}/disable`, {
+      method: "POST",
+    });
+  },
+
+  restore(productId: string) {
+    return request(`/api/products/admin/${productId}/restore`, {
+      method: "POST",
+    });
+  },
+
   uploadImage(productId: string, file: File) {
     const form = new FormData();
     form.append("file", file);
@@ -157,6 +173,20 @@ export const productsApi = {
       method: "DELETE",
     });
   },
+
+  reorderImages(productId: string, imageIds: string[]) {
+    return request(`/api/products/admin/${productId}/images/reorder`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(imageIds),
+    });
+  },
+
+  setMainImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}/set-main`, {
+      method: "POST",
+    });
+  },
 };
 
 /* =====================================================
@@ -164,8 +194,28 @@ export const productsApi = {
 ===================================================== */
 
 export const ordersApi = {
+  create(payload: { items: any; total_amount: number }) {
+    return request("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
   myOrders() {
     return request("/api/orders/my");
+  },
+
+  adminOrders() {
+    return request("/api/orders/admin");
+  },
+
+  updateShipping(orderId: string, payload: Record<string, any>) {
+    return request(`/api/orders/admin/${orderId}/shipping`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
   },
 };
 
@@ -174,8 +224,32 @@ export const ordersApi = {
 ===================================================== */
 
 export const paymentsApi = {
+  create(orderId: string) {
+    return request(`/api/payments/${orderId}`, {
+      method: "POST",
+    });
+  },
+
+  uploadProof(paymentId: string, file: File) {
+    const form = new FormData();
+    form.append("proof", file);
+
+    return request(`/api/payments/${paymentId}/proof`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
   adminList() {
     return request("/api/payments/admin");
+  },
+
+  review(paymentId: string, status: "paid" | "rejected") {
+    return request(`/api/payments/admin/${paymentId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
   },
 };
 
@@ -183,7 +257,7 @@ export const paymentsApi = {
    USER PROFILE
 ===================================================== */
 
-export function uploadAvatar(file: File) {
+export async function uploadAvatar(file: File) {
   const form = new FormData();
   form.append("file", file);
 
@@ -191,4 +265,20 @@ export function uploadAvatar(file: File) {
     method: "POST",
     body: form,
   });
+}
+
+/**
+ * Backend endpoint NOT implemented yet
+ * This exists ONLY to keep frontend builds passing
+ */
+export async function updateMe(): Promise<void> {
+  return;
+}
+
+/* =====================================================
+   BACKWARD COMPAT (REQUIRED BY PAGES)
+===================================================== */
+
+export function getMyOrders() {
+  return ordersApi.myOrders();
 }
