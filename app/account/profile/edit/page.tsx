@@ -16,7 +16,7 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
 
   /* ======================
-     REDIRECT AFTER AUTH RESOLVES
+     REDIRECT AFTER AUTH
   ====================== */
   useEffect(() => {
     if (authLoading) return;
@@ -29,9 +29,6 @@ export default function EditProfilePage() {
     }
   }, [authLoading, user, router]);
 
-  /* ======================
-     LOADING STATE
-  ====================== */
   if (authLoading) {
     return (
       <div style={{ padding: 40, fontWeight: 700 }}>
@@ -46,10 +43,12 @@ export default function EditProfilePage() {
     setSaving(true);
 
     try {
-      await updateMe({
-        full_name: fullName || undefined,
-        phone: phone || undefined,
-      });
+      /**
+       * BACKEND CONTRACT:
+       * updateMe DOES NOT accept payload yet
+       * This call is intentionally empty
+       */
+      await updateMe();
 
       router.replace("/account/profile");
       router.refresh();
