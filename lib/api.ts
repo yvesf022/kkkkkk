@@ -1,23 +1,25 @@
 /**
  * API CLIENT — AUTHORITATIVE
  *
- * Backend facts (DO NOT CHANGE):
- * - Auth is cookie-based (HTTP-only)
- * - User cookie:  access_token
+ * Backend facts:
+ * - Cookie-based auth ONLY
+ * - User cookie: access_token
  * - Admin cookie: admin_access_token
- * - Credentials MUST be included
- * - No Authorization headers
+ * - credentials: "include" is REQUIRED
  */
 
 import type { Admin } from "@/lib/adminAuth";
 
+/* =====================================================
+   BASE CONFIG
+===================================================== */
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
-/* ===============================
-   LOW-LEVEL REQUEST
-=============================== */
-
+/**
+ * Low-level request helper
+ */
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -36,18 +38,19 @@ async function request<T>(
       const data = await res.json();
       message = data.detail || data.message || message;
     } catch {}
-    const err = new Error(message) as Error & { status?: number };
-    err.status = res.status;
-    throw err;
+    throw new Error(message);
   }
 
-  if (res.status === 204) return null as T;
+  if (res.status === 204) {
+    return null as T;
+  }
+
   return res.json() as Promise<T>;
 }
 
-/* ===============================
-   USER AUTH
-=============================== */
+/* =====================================================
+   AUTH (USER)
+===================================================== */
 
 export const authApi = {
   register(payload: {
@@ -80,9 +83,9 @@ export const authApi = {
   },
 };
 
-/* ===============================
-   ADMIN AUTH
-=============================== */
+/* =====================================================
+   AUTH (ADMIN)
+===================================================== */
 
 export const adminAuthApi = {
   login(payload: { email: string; password: string }) {
@@ -102,69 +105,101 @@ export const adminAuthApi = {
   },
 };
 
-/* ===============================
-   ORDERS
-=============================== */
+/* =====================================================
+   PRODUCTS  ✅ REQUIRED BY ADMIN UI
+===================================================== */
 
-export type ApiOrder = {
-  id: string;
-  created_at: string;
-  total_amount: number;
-  payment_status?: string | null;
-  shipping_status?: string | null;
-  order_status?: string | null;
-  tracking_number?: string | null;
-};
+export const productsApi = {
+  list() {
+    return request("/api/products");
+  },
 
-export const ordersApi = {
-  create(payload: { items: any; total_amount: number }) {
-    return request("/api/orders", {
+  getAdmin(productId: string) {
+    return request(`/api/products/admin/${productId}`);
+  },
+
+  create(payload: Record<string, any>) {
+    return request("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
   },
 
-  myOrders(): Promise<ApiOrder[]> {
+  update(productId: string, payload: Record<string, any>) {
+    return request(`/api/products/admin/${productId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  disable(productId: string) {
+    return request(`/api/products/admin/${productId}/disable`, {
+      method: "POST",
+    });
+  },
+
+  restore(productId: string) {
+    return request(`/api/products/admin/${productId}/restore`, {
+      method: "POST",
+    });
+  },
+
+  uploadImage(productId: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+
+    return request(`/api/products/admin/${productId}/images`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  deleteImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}`, {
+      method: "DELETE",
+    });
+  },
+
+  reorderImages(productId: string, imageIds: string[]) {
+    return request(`/api/products/admin/${productId}/images/reorder`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(imageIds),
+    });
+  },
+
+  setMainImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}/set-main`, {
+      method: "POST",
+    });
+  },
+};
+
+/* =====================================================
+   ORDERS
+===================================================== */
+
+export const ordersApi = {
+  myOrders() {
     return request("/api/orders/my");
   },
 
   adminOrders() {
     return request("/api/orders/admin");
   },
-
-  updateShipping(orderId: string, payload: Record<string, any>) {
-    return request(`/api/orders/admin/${orderId}/shipping`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  },
 };
 
-export async function getMyOrders(): Promise<ApiOrder[]> {
+export async function getMyOrders() {
   return ordersApi.myOrders();
 }
 
-/* ===============================
-   PAYMENTS  ✅ RESTORED
-=============================== */
+/* =====================================================
+   PAYMENTS ✅ REQUIRED BY ADMIN ANALYTICS
+===================================================== */
 
 export const paymentsApi = {
-  create(orderId: string) {
-    return request(`/api/payments/${orderId}`, { method: "POST" });
-  },
-
-  uploadProof(paymentId: string, file: File) {
-    const form = new FormData();
-    form.append("proof", file);
-
-    return request(`/api/payments/${paymentId}/proof`, {
-      method: "POST",
-      body: form,
-    });
-  },
-
   adminList() {
     return request("/api/payments/admin");
   },
@@ -178,9 +213,9 @@ export const paymentsApi = {
   },
 };
 
-/* ===============================
-   USER PROFILE  ✅ RESTORED
-=============================== */
+/* =====================================================
+   USER PROFILE
+===================================================== */
 
 export async function uploadAvatar(file: File) {
   const form = new FormData();
@@ -193,9 +228,8 @@ export async function uploadAvatar(file: File) {
 }
 
 /**
- * Backend endpoint does NOT exist yet.
- * Stub required for UI imports.
+ * Backend NOT implemented yet — stub is intentional
  */
 export async function updateMe(): Promise<never> {
-  throw new Error("updateMe endpoint not implemented in backend");
+  throw new Error("updateMe endpoint not implemented");
 }
