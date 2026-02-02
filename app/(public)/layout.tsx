@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
-import { useAuth } from "@/lib/auth";
-
 /**
- * PUBLIC LAYOUT — FINAL
+ * PUBLIC LAYOUT — FINAL & CORRECT
  *
- * RULES:
- * - NEVER redirect
- * - ONLY hide content if user is logged in
- * - Let pages control navigation
+ * RULES (ABSOLUTE):
+ * - NO auth logic
+ * - NO redirects
+ * - NO hiding UI
+ * - MUST always render children
+ *
+ * Reason:
+ * Route groups do NOT unmount instantly.
+ * Returning null here breaks navigation.
  */
 
 export default function PublicLayout({
@@ -17,18 +19,5 @@ export default function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, hydrate } = useAuth();
-
-  // Hydrate once
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
-
-  // Wait for auth resolution
-  if (loading) return null;
-
-  // Hide public pages when logged in
-  if (user) return null;
-
   return <>{children}</>;
 }
