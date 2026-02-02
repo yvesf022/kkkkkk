@@ -13,20 +13,28 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* -----------------------
+     REDIRECT WHEN AUTH STATE UPDATES
+  ----------------------- */
   useEffect(() => {
-    if (!loading && user) router.replace("/account");
+    if (!loading && user) {
+      router.replace("/account");
+    }
   }, [loading, user, router]);
 
+  /* -----------------------
+     SUBMIT HANDLER
+  ----------------------- */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || loading) return;
 
     setBusy(true);
     setError(null);
 
     try {
       await login(email.trim(), password);
-      router.replace("/account");
+      // ❌ DO NOT redirect here
     } catch {
       setError("Incorrect email or password.");
     } finally {
@@ -34,10 +42,14 @@ export default function LoginPage() {
     }
   }
 
-  if (user) return null;
-
   return (
-    <main style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
+    <main
+      style={{
+        display: "grid",
+        placeItems: "center",
+        minHeight: "100vh",
+      }}
+    >
       <section
         style={{
           width: "100%",
