@@ -1,43 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
 
 export default function AccountDashboardPage() {
-  const router = useRouter();
-
-  const user = useAuth((s) => s.user);
-  const authLoading = useAuth((s) => s.loading);
-  const hydrate = useAuth((s) => s.hydrate);
-
-  // 🔥 HYDRATE SESSION ON FIRST LOAD
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
-
-  // 🔐 Redirect ONLY after auth is resolved
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user) {
-      router.replace("/login");
-    }
-  }, [authLoading, user, router]);
-
-  // ⏳ Loading state during hydration
-  if (authLoading) {
-    return (
-      <div style={{ padding: 40, fontWeight: 700 }}>
-        Loading your account…
-      </div>
-    );
-  }
-
-  // ⛔ Block render after redirect
-  if (!user) return null;
-
   return (
     <div style={{ width: "100%" }}>
       {/* ======================
@@ -55,7 +20,6 @@ export default function AccountDashboardPage() {
         </h1>
 
         <p style={{ opacity: 0.65, fontSize: 15 }}>
-          Hello{user.full_name ? `, ${user.full_name}` : ""}.{" "}
           Manage orders, payments, and your personal information.
         </p>
       </section>
