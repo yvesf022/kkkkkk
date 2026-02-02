@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 /**
- * PUBLIC LAYOUT — FINAL & CORRECT
+ * PUBLIC LAYOUT — FINAL
  *
  * RULES:
- * - Public pages (/login, /register) must NEVER render for logged-in users
- * - Redirect immediately after auth is resolved
+ * - NEVER redirect
+ * - ONLY hide content if user is logged in
+ * - Let pages control navigation
  */
 
 export default function PublicLayout({
@@ -17,27 +17,18 @@ export default function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const { user, loading, hydrate } = useAuth();
 
-  // Hydrate auth once
+  // Hydrate once
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
-  // Redirect authenticated users
-  useEffect(() => {
-    if (!loading && user) {
-      router.replace("/account");
-    }
-  }, [loading, user, router]);
-
-  // ⏳ Wait for auth check
+  // Wait for auth resolution
   if (loading) return null;
 
-  // 🚫 DO NOT render public pages when logged in
+  // Hide public pages when logged in
   if (user) return null;
 
-  // ✅ Safe to render public pages
   return <>{children}</>;
 }
