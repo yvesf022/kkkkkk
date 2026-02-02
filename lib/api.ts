@@ -1,25 +1,23 @@
 /**
  * API CLIENT — AUTHORITATIVE
  *
- * Backend facts:
- * - Cookie-based auth ONLY
- * - User cookie: access_token
+ * Backend facts (DO NOT CHANGE):
+ * - Auth is cookie-based (HTTP-only)
+ * - User cookie:  access_token
  * - Admin cookie: admin_access_token
- * - credentials: "include" is REQUIRED
+ * - Credentials MUST be included
+ * - No Authorization headers
  */
 
 import type { Admin } from "@/lib/adminAuth";
 
-/* =====================================================
-   BASE CONFIG
-===================================================== */
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
-/**
- * Low-level request helper
- */
+/* =====================================================
+   LOW-LEVEL REQUEST
+===================================================== */
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -38,7 +36,12 @@ async function request<T>(
       const data = await res.json();
       message = data.detail || data.message || message;
     } catch {}
-    throw new Error(message);
+
+    const error = new Error(message) as Error & {
+      status?: number;
+    };
+    error.status = res.status;
+    throw error;
   }
 
   if (res.status === 204) {
@@ -49,7 +52,7 @@ async function request<T>(
 }
 
 /* =====================================================
-   AUTH (USER)
+   USER AUTH
 ===================================================== */
 
 export const authApi = {
@@ -79,12 +82,14 @@ export const authApi = {
   },
 
   logout() {
-    return request("/api/auth/logout", { method: "POST" });
+    return request("/api/auth/logout", {
+      method: "POST",
+    });
   },
 };
 
 /* =====================================================
-   AUTH (ADMIN)
+   ADMIN AUTH
 ===================================================== */
 
 export const adminAuthApi = {
@@ -97,21 +102,30 @@ export const adminAuthApi = {
   },
 
   me(): Promise<Admin> {
-    return request("/api/admin/auth/me");
+    return request<Admin>("/api/admin/auth/me");
   },
 
   logout() {
-    return request("/api/admin/auth/logout", { method: "POST" });
+    return request("/api/admin/auth/logout", {
+      method: "POST",
+    });
   },
 };
 
 /* =====================================================
-   PRODUCTS  ✅ REQUIRED BY ADMIN UI
+   PRODUCTS (REQUIRED BY ADMIN UI)
 ===================================================== */
 
 export const productsApi = {
-  list() {
-    return request("/api/products");
+  list(params: Record<string, any> = {}) {
+    const query = new URLSearchParams();
+
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) query.append(k, String(v));
+    });
+
+    const qs = query.toString();
+    return request(`/api/products${qs ? `?${qs}` : ""}`);
   },
 
   getAdmin(productId: string) {
@@ -178,10 +192,18 @@ export const productsApi = {
 };
 
 /* =====================================================
-   ORDERS
+   ORDERS (🔥 FIXES cart.ts ERROR)
 ===================================================== */
 
 export const ordersApi = {
+  create(payload: { items: any; total_amount: number }) {
+    return request("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
   myOrders() {
     return request("/api/orders/my");
   },
@@ -189,17 +211,37 @@ export const ordersApi = {
   adminOrders() {
     return request("/api/orders/admin");
   },
+
+  updateShipping(orderId: string, payload: Record<string, any>) {
+    return request(`/api/orders/admin/${orderId}/shipping`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
 };
 
-export async function getMyOrders() {
-  return ordersApi.myOrders();
-}
-
 /* =====================================================
-   PAYMENTS ✅ REQUIRED BY ADMIN ANALYTICS
+   PAYMENTS
 ===================================================== */
 
 export const paymentsApi = {
+  create(orderId: string) {
+    return request(`/api/payments/${orderId}`, {
+      method: "POST",
+    });
+  },
+
+  uploadProof(paymentId: string, file: File) {
+    const form = new FormData();
+    form.append("proof", file);
+
+    return request(`/api/payments/${paymentId}/proof`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
   adminList() {
     return request("/api/payments/admin");
   },
@@ -228,8 +270,16 @@ export async function uploadAvatar(file: File) {
 }
 
 /**
- * Backend NOT implemented yet — stub is intentional
+ * Backend endpoint NOT implemented yet (explicit)
  */
 export async function updateMe(): Promise<never> {
-  throw new Error("updateMe endpoint not implemented");
+  throw new Error("updateMe endpoint is not implemented in backend");
+}
+
+/* =====================================================
+   BACKWARD COMPAT EXPORT
+===================================================== */
+
+export async function getMyOrders() {
+  return ordersApi.myOrders();
 }
