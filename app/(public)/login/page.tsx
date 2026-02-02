@@ -10,55 +10,56 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && user) {
-      router.replace("/account");
-    }
+    if (!loading && user) router.replace("/account");
   }, [loading, user, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (submitting) return;
+    if (busy) return;
 
-    setSubmitting(true);
+    setBusy(true);
     setError(null);
 
     try {
       await login(email.trim(), password);
       router.replace("/account");
     } catch {
-      setError("Invalid email or password.");
+      setError("Incorrect email or password.");
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   }
 
   if (user) return null;
 
   return (
-    <main>
+    <main style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
       <section
         style={{
-          maxWidth: 420,
-          margin: "64px auto",
-          padding: "32px 28px",
+          width: "100%",
+          maxWidth: 380,
+          padding: "40px 28px",
         }}
       >
-        <h1 style={{ fontWeight: 900, fontSize: 26 }}>
-          Sign in
-        </h1>
+        {/* HEADER */}
+        <header style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 900 }}>
+            Sign in
+          </h1>
+          <p style={{ marginTop: 6, opacity: 0.6, fontWeight: 600 }}>
+            Welcome back. Let’s get you in.
+          </p>
+        </header>
 
-        <p style={{ marginTop: 6, opacity: 0.7, fontWeight: 600 }}>
-          Welcome back to Karabo
-        </p>
-
+        {/* ERROR */}
         {error && (
           <div
             style={{
-              marginTop: 18,
+              marginBottom: 18,
               padding: "12px 14px",
               borderRadius: 14,
               background: "#fee2e2",
@@ -70,63 +71,60 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form
-          onSubmit={handleSubmit}
-          style={{ marginTop: 22, display: "grid", gap: 14 }}
-        >
+        {/* FORM */}
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
           <input
             type="email"
             placeholder="Email address"
-            required
             value={email}
+            required
             onChange={(e) => setEmail(e.target.value)}
           />
 
           <input
             type="password"
             placeholder="Password"
-            required
             value={password}
+            required
             onChange={(e) => setPassword(e.target.value)}
           />
 
           <button
             type="submit"
             className="btn btnPrimary"
-            disabled={submitting || loading}
+            disabled={busy || loading}
           >
-            {submitting ? "Signing in…" : "Sign in"}
+            {busy ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
-        <div style={{ marginTop: 22, textAlign: "center", opacity: 0.6 }}>
-          or
-        </div>
-
-        <div style={{ marginTop: 18 }}>
-          <button
-            className="btn btnGhost"
-            style={{ width: "100%" }}
-            onClick={() => router.push("/store")}
-          >
-            Continue shopping as guest
-          </button>
-        </div>
-
+        {/* FOOTER ACTIONS */}
         <div
           style={{
-            marginTop: 22,
+            marginTop: 26,
+            display: "grid",
+            gap: 12,
             textAlign: "center",
             fontSize: 13,
             fontWeight: 600,
           }}
         >
-          New to Karabo?{" "}
+          <button
+            className="btn btnGhost"
+            onClick={() => router.push("/store")}
+          >
+            Continue as guest
+          </button>
+
+          <span style={{ opacity: 0.6 }}>
+            New here?
+          </span>
+
           <button
             className="btn btnGhost"
             onClick={() => router.push("/register")}
           >
-            Create account
+            Create an account
           </button>
         </div>
       </section>

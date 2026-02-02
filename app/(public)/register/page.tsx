@@ -14,20 +14,20 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (loading) return;
+    if (busy) return;
 
     if (password !== confirm) {
       setError("Passwords do not match.");
       return;
     }
 
-    setLoading(true);
+    setBusy(true);
     setError(null);
 
     try {
@@ -43,43 +43,40 @@ export default function RegisterPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || "Registration failed");
-      }
+      if (!res.ok) throw new Error(data.detail || "Registration failed");
 
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Unable to create account.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
   if (success) {
     return (
-      <main>
+      <main style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
         <section
           style={{
             maxWidth: 420,
-            margin: "64px auto",
-            padding: "32px 28px",
+            padding: "44px 28px",
             textAlign: "center",
           }}
         >
-          <h1 style={{ fontWeight: 900, fontSize: 26 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 900 }}>
             Verify your email
           </h1>
 
-          <p style={{ marginTop: 12, opacity: 0.7 }}>
-            Check your inbox to activate your account.
+          <p style={{ marginTop: 12, opacity: 0.65, fontWeight: 600 }}>
+            We’ve sent a verification link to your email address.
           </p>
 
           <button
             className="btn btnPrimary"
-            style={{ marginTop: 22 }}
+            style={{ marginTop: 28 }}
             onClick={() => router.push("/login")}
           >
-            Go to login
+            Go to sign in
           </button>
         </section>
       </main>
@@ -87,26 +84,29 @@ export default function RegisterPage() {
   }
 
   return (
-    <main>
+    <main style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
       <section
         style={{
-          maxWidth: 420,
-          margin: "64px auto",
-          padding: "32px 28px",
+          width: "100%",
+          maxWidth: 520,
+          padding: "44px 32px",
         }}
       >
-        <h1 style={{ fontWeight: 900, fontSize: 26 }}>
-          Create account
-        </h1>
+        {/* HEADER */}
+        <header style={{ marginBottom: 30 }}>
+          <h1 style={{ fontSize: 30, fontWeight: 900 }}>
+            Create your account
+          </h1>
+          <p style={{ marginTop: 8, opacity: 0.6, fontWeight: 600 }}>
+            Track orders, save preferences, and shop faster.
+          </p>
+        </header>
 
-        <p style={{ marginTop: 6, opacity: 0.7, fontWeight: 600 }}>
-          Secure, fast, and personalized shopping
-        </p>
-
+        {/* ERROR */}
         {error && (
           <div
             style={{
-              marginTop: 18,
+              marginBottom: 20,
               padding: "12px 14px",
               borderRadius: 14,
               background: "#fee2e2",
@@ -118,53 +118,52 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <form
-          onSubmit={handleSubmit}
-          style={{ marginTop: 22, display: "grid", gap: 14 }}
-        >
+        {/* FORM */}
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
           <input
             placeholder="Full name"
             value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
             required
+            onChange={(e) => setFullName(e.target.value)}
           />
 
           <input
             type="email"
             placeholder="Email address"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
             required
+            onChange={(e) => setEmail(e.target.value)}
           />
 
           <input
             type="password"
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
             required
+            onChange={(e) => setPassword(e.target.value)}
           />
 
           <input
             type="password"
             placeholder="Confirm password"
             value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
             required
+            onChange={(e) => setConfirm(e.target.value)}
           />
 
           <button
             type="submit"
             className="btn btnPrimary"
-            disabled={loading}
+            disabled={busy}
           >
-            {loading ? "Creating account…" : "Create account"}
+            {busy ? "Creating account…" : "Create account"}
           </button>
         </form>
 
+        {/* FOOTER */}
         <div
           style={{
-            marginTop: 22,
+            marginTop: 28,
             textAlign: "center",
             fontSize: 13,
             fontWeight: 600,
