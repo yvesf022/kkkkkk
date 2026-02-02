@@ -29,14 +29,8 @@ export default function LoginPage() {
     try {
       await login(email.trim(), password);
       router.replace("/account");
-    } catch (err: any) {
-      setError(
-        err?.status === 401
-          ? "Incorrect email or password."
-          : err?.status === 403
-          ? "Your account has been disabled."
-          : "Unable to sign in right now. Please try again."
-      );
+    } catch {
+      setError("Invalid email or password.");
     } finally {
       setSubmitting(false);
     }
@@ -45,165 +39,97 @@ export default function LoginPage() {
   if (user) return null;
 
   return (
-    <main style={page}>
-      <section style={card}>
-        <h1 style={title}>Sign in</h1>
-        <p style={subtitle}>Access your Karabo account</p>
+    <main>
+      <section
+        style={{
+          maxWidth: 420,
+          margin: "64px auto",
+          padding: "32px 28px",
+        }}
+      >
+        <h1 style={{ fontWeight: 900, fontSize: 26 }}>
+          Sign in
+        </h1>
 
-        {error && <div style={errorBox}>{error}</div>}
+        <p style={{ marginTop: 6, opacity: 0.7, fontWeight: 600 }}>
+          Welcome back to Karabo
+        </p>
 
-        <form onSubmit={handleSubmit} style={form}>
-          <div>
-            <label style={label}>Email address</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={input}
-            />
+        {error && (
+          <div
+            style={{
+              marginTop: 18,
+              padding: "12px 14px",
+              borderRadius: 14,
+              background: "#fee2e2",
+              color: "#7f1d1d",
+              fontWeight: 700,
+            }}
+          >
+            {error}
           </div>
+        )}
 
-          <div>
-            <label style={label}>Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={input}
-            />
-          </div>
+        <form
+          onSubmit={handleSubmit}
+          style={{ marginTop: 22, display: "grid", gap: 14 }}
+        >
+          <input
+            type="email"
+            placeholder="Email address"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <input
+            type="password"
+            placeholder="Password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
           <button
             type="submit"
+            className="btn btnPrimary"
             disabled={submitting || loading}
-            style={{
-              ...primaryButton,
-              opacity: submitting || loading ? 0.6 : 1,
-            }}
           >
             {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
-        <div style={divider}>or</div>
+        <div style={{ marginTop: 22, textAlign: "center", opacity: 0.6 }}>
+          or
+        </div>
 
-        <button
-          style={secondaryButton}
-          onClick={() => router.push("/store")}
+        <div style={{ marginTop: 18 }}>
+          <button
+            className="btn btnGhost"
+            style={{ width: "100%" }}
+            onClick={() => router.push("/store")}
+          >
+            Continue shopping as guest
+          </button>
+        </div>
+
+        <div
+          style={{
+            marginTop: 22,
+            textAlign: "center",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
         >
-          Continue as Guest
-        </button>
-
-        <div style={footer}>
           New to Karabo?{" "}
           <button
+            className="btn btnGhost"
             onClick={() => router.push("/register")}
-            style={linkButton}
           >
-            Create your account
+            Create account
           </button>
         </div>
       </section>
     </main>
   );
 }
-
-/* ---------- typed styles ---------- */
-
-const page: React.CSSProperties = {
-  minHeight: "100vh",
-  display: "grid",
-  placeItems: "center",
-  background: "#f3f4f6",
-  padding: 24,
-};
-
-const card: React.CSSProperties = {
-  width: "100%",
-  maxWidth: 420,
-  background: "#fff",
-  padding: 28,
-  borderRadius: 8,
-  border: "1px solid #d5d9d9",
-  boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-};
-
-const title: React.CSSProperties = {
-  fontSize: 26,
-  fontWeight: 800,
-};
-
-const subtitle: React.CSSProperties = {
-  fontSize: 13,
-  color: "#565959",
-  marginBottom: 16,
-};
-
-const label: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 700,
-};
-
-const input: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  borderRadius: 6,
-  border: "1px solid #a6a6a6",
-};
-
-const form: React.CSSProperties = {
-  display: "grid",
-  gap: 14,
-};
-
-const primaryButton: React.CSSProperties = {
-  marginTop: 8,
-  padding: "10px 0",
-  borderRadius: 8,
-  border: "1px solid #fcd200",
-  background: "linear-gradient(#f7dfa5,#f0c14b)",
-  fontWeight: 800,
-  cursor: "pointer",
-};
-
-const secondaryButton: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 0",
-  borderRadius: 8,
-  border: "1px solid #adb1b8",
-  background: "#fff",
-  cursor: "pointer",
-};
-
-const divider: React.CSSProperties = {
-  margin: "16px 0",
-  textAlign: "center",
-  fontSize: 12,
-  color: "#767676",
-};
-
-const errorBox: React.CSSProperties = {
-  background: "#fff2f2",
-  border: "1px solid #cc0c39",
-  color: "#cc0c39",
-  padding: "10px 12px",
-  borderRadius: 6,
-  fontSize: 13,
-  marginBottom: 14,
-};
-
-const footer: React.CSSProperties = {
-  marginTop: 16,
-  textAlign: "center",
-  fontSize: 13,
-};
-
-const linkButton: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  color: "#0066c0",
-  fontWeight: 700,
-  cursor: "pointer",
-};

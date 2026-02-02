@@ -1,12 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-/* --------------------------------------------------
-   SAFE API BASE
--------------------------------------------------- */
-const API_BASE_URL =
+const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
 
 export default function RegisterPage() {
@@ -14,7 +11,6 @@ export default function RegisterPage() {
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
@@ -22,45 +18,26 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  /* ---------------- PASSWORD RULES ---------------- */
-  const passwordRules = useMemo(
-    () => ({
-      length: password.length >= 8,
-      number: /\d/.test(password),
-      letter: /[a-zA-Z]/.test(password),
-    }),
-    [password]
-  );
-
-  const passwordValid =
-    passwordRules.length &&
-    passwordRules.number &&
-    passwordRules.letter;
-
-  const canSubmit =
-    fullName.trim().length >= 2 &&
-    email &&
-    passwordValid &&
-    password === confirm &&
-    !loading;
-
-  /* ---------------- REGISTER ---------------- */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (loading) return;
+
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           full_name: fullName,
           email,
-          phone: phone || null,
           password,
         }),
       });
@@ -78,17 +55,28 @@ export default function RegisterPage() {
     }
   }
 
-  /* ---------------- SUCCESS ---------------- */
   if (success) {
     return (
-      <main style={page}>
-        <section style={card}>
-          <h1 style={title}>Verify your email</h1>
-          <p>We sent a verification link to:</p>
-          <strong>{email}</strong>
+      <main>
+        <section
+          style={{
+            maxWidth: 420,
+            margin: "64px auto",
+            padding: "32px 28px",
+            textAlign: "center",
+          }}
+        >
+          <h1 style={{ fontWeight: 900, fontSize: 26 }}>
+            Verify your email
+          </h1>
+
+          <p style={{ marginTop: 12, opacity: 0.7 }}>
+            Check your inbox to activate your account.
+          </p>
 
           <button
-            style={{ ...primaryButton, marginTop: 16 }}
+            className="btn btnPrimary"
+            style={{ marginTop: 22 }}
             onClick={() => router.push("/login")}
           >
             Go to login
@@ -98,164 +86,99 @@ export default function RegisterPage() {
     );
   }
 
-  /* ---------------- FORM ---------------- */
   return (
-    <main style={page}>
-      <section style={card}>
-        <h1 style={title}>Create account</h1>
-        <p style={subtitle}>It’s quick and secure</p>
+    <main>
+      <section
+        style={{
+          maxWidth: 420,
+          margin: "64px auto",
+          padding: "32px 28px",
+        }}
+      >
+        <h1 style={{ fontWeight: 900, fontSize: 26 }}>
+          Create account
+        </h1>
 
-        {error && <div style={errorBox}>{error}</div>}
+        <p style={{ marginTop: 6, opacity: 0.7, fontWeight: 600 }}>
+          Secure, fast, and personalized shopping
+        </p>
 
-        <form onSubmit={handleSubmit} style={form}>
-          <div>
-            <label style={label}>Full name</label>
-            <input
-              style={input}
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
+        {error && (
+          <div
+            style={{
+              marginTop: 18,
+              padding: "12px 14px",
+              borderRadius: 14,
+              background: "#fee2e2",
+              color: "#7f1d1d",
+              fontWeight: 700,
+            }}
+          >
+            {error}
           </div>
+        )}
 
-          <div>
-            <label style={label}>Email address</label>
-            <input
-              style={input}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
+        <form
+          onSubmit={handleSubmit}
+          style={{ marginTop: 22, display: "grid", gap: 14 }}
+        >
+          <input
+            placeholder="Full name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+          />
 
-          <div>
-            <label style={label}>Mobile number (optional)</label>
-            <input
-              style={input}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
+          <input
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-          <div>
-            <label style={label}>Password</label>
-            <input
-              style={input}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <div style={rules}>
-              • At least 8 characters<br />
-              • Contains a letter and a number
-            </div>
-          </div>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-          <div>
-            <label style={label}>Re-enter password</label>
-            <input
-              style={input}
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-            />
-          </div>
+          <input
+            type="password"
+            placeholder="Confirm password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+          />
 
           <button
             type="submit"
-            disabled={!canSubmit}
-            style={{ ...primaryButton, opacity: canSubmit ? 1 : 0.6 }}
+            className="btn btnPrimary"
+            disabled={loading}
           >
-            {loading ? "Creating account…" : "Create your account"}
+            {loading ? "Creating account…" : "Create account"}
           </button>
         </form>
 
-        <div style={footerNote}>
-          🔒 Secure registration · Email verification required
+        <div
+          style={{
+            marginTop: 22,
+            textAlign: "center",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Already have an account?{" "}
+          <button
+            className="btn btnGhost"
+            onClick={() => router.push("/login")}
+          >
+            Sign in
+          </button>
         </div>
       </section>
     </main>
   );
 }
-
-/* --------------------------------------------------
-   STYLES (DEFINED — FIXES BUILD)
--------------------------------------------------- */
-
-const page: React.CSSProperties = {
-  minHeight: "100vh",
-  display: "grid",
-  placeItems: "center",
-  background: "#f3f4f6",
-  padding: 24,
-};
-
-const card: React.CSSProperties = {
-  width: "100%",
-  maxWidth: 420,
-  background: "#fff",
-  padding: 28,
-  borderRadius: 8,
-  border: "1px solid #d5d9d9",
-  boxShadow: "0 2px 6px rgba(0,0,0,.08)",
-};
-
-const title: React.CSSProperties = {
-  fontSize: 26,
-  fontWeight: 800,
-};
-
-const subtitle: React.CSSProperties = {
-  fontSize: 13,
-  color: "#565959",
-  marginBottom: 16,
-};
-
-const label: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 700,
-};
-
-const input: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  borderRadius: 6,
-  border: "1px solid #a6a6a6",
-};
-
-const form: React.CSSProperties = {
-  display: "grid",
-  gap: 14,
-};
-
-const primaryButton: React.CSSProperties = {
-  marginTop: 8,
-  padding: "10px 0",
-  borderRadius: 8,
-  border: "1px solid #fcd200",
-  background: "linear-gradient(#f7dfa5,#f0c14b)",
-  fontWeight: 800,
-  cursor: "pointer",
-};
-
-const errorBox: React.CSSProperties = {
-  background: "#fff2f2",
-  border: "1px solid #cc0c39",
-  color: "#cc0c39",
-  padding: "10px 12px",
-  borderRadius: 6,
-  fontSize: 13,
-  marginBottom: 14,
-};
-
-const rules: React.CSSProperties = {
-  fontSize: 12,
-  marginTop: 6,
-  color: "#555",
-};
-
-const footerNote: React.CSSProperties = {
-  marginTop: 16,
-  fontSize: 12,
-  color: "#555",
-  textAlign: "center",
-};
