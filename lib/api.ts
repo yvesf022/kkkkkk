@@ -1,15 +1,13 @@
 /**
- * API CLIENT — AUTHORITATIVE (FINAL)
+ * API CLIENT — AUTHORITATIVE
  *
- * Backend facts:
+ * Backend facts (DO NOT CHANGE):
  * - Auth is cookie-based (HTTP-only)
  * - User cookie:  access_token
  * - Admin cookie: admin_access_token
  * - Credentials MUST be included
  * - No Authorization headers
  */
-
-import type { Admin } from "@/lib/adminAuth";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
@@ -42,7 +40,10 @@ async function request<T>(
     throw error;
   }
 
-  if (res.status === 204) return null as T;
+  if (res.status === 204) {
+    return null as T;
+  }
+
   return res.json() as Promise<T>;
 }
 
@@ -94,7 +95,7 @@ export const adminAuthApi = {
     });
   },
 
-  me(): Promise<Admin> {
+  me() {
     return request("/api/admin/auth/me");
   },
 
@@ -104,66 +105,77 @@ export const adminAuthApi = {
 };
 
 /* =====================================================
-   ORDERS
+   PRODUCTS  ✅ THIS IS WHAT WAS MISSING
 ===================================================== */
 
-export const ordersApi = {
-  create(payload: { items: any; total_amount: number }) {
-    return request("/orders", {
+export const productsApi = {
+  list(params: Record<string, any> = {}) {
+    const query = new URLSearchParams();
+
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) {
+        query.append(k, String(v));
+      }
+    });
+
+    const qs = query.toString();
+    return request(`/api/products${qs ? `?${qs}` : ""}`);
+  },
+
+  getAdmin(productId: string) {
+    return request(`/api/products/admin/${productId}`);
+  },
+
+  create(payload: Record<string, any>) {
+    return request("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
   },
 
-  myOrders() {
-    return request("/orders/my");
-  },
-
-  adminOrders() {
-    return request("/orders/admin");
-  },
-
-  updateShipping(orderId: string, payload: Record<string, any>) {
-    return request(`/orders/admin/${orderId}/shipping`, {
-      method: "POST",
+  update(productId: string, payload: Record<string, any>) {
+    return request(`/api/products/admin/${productId}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
   },
-};
 
-/* =====================================================
-   PAYMENTS ✅ (RESTORED — REQUIRED BY ADMIN UI)
-===================================================== */
-
-export const paymentsApi = {
-  create(orderId: string) {
-    return request(`/api/payments/${orderId}`, {
-      method: "POST",
-    });
-  },
-
-  uploadProof(paymentId: string, file: File) {
+  uploadImage(productId: string, file: File) {
     const form = new FormData();
-    form.append("proof", file);
+    form.append("file", file);
 
-    return request(`/api/payments/${paymentId}/proof`, {
+    return request(`/api/products/admin/${productId}/images`, {
       method: "POST",
       body: form,
     });
   },
 
+  deleteImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+/* =====================================================
+   ORDERS
+===================================================== */
+
+export const ordersApi = {
+  myOrders() {
+    return request("/api/orders/my");
+  },
+};
+
+/* =====================================================
+   PAYMENTS
+===================================================== */
+
+export const paymentsApi = {
   adminList() {
     return request("/api/payments/admin");
-  },
-
-  review(paymentId: string, status: "paid" | "rejected") {
-    return request(`/api/payments/admin/${paymentId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
   },
 };
 
@@ -179,23 +191,4 @@ export function uploadAvatar(file: File) {
     method: "POST",
     body: form,
   });
-}
-
-export function updateMe(payload: {
-  full_name?: string;
-  phone?: string;
-}) {
-  return request("/api/users/me", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-}
-
-/* =====================================================
-   BACKWARD COMPAT
-===================================================== */
-
-export function getMyOrders() {
-  return ordersApi.myOrders();
 }
