@@ -41,9 +41,7 @@ export default function AccountProfilePage() {
       setUploading(true);
       await uploadAvatar(file);
 
-      // 🔒 reset file input so same image can be re-selected
       if (fileRef.current) fileRef.current.value = "";
-
       router.refresh();
     } catch {
       alert("Failed to upload avatar");
@@ -118,8 +116,7 @@ export default function AccountProfilePage() {
           )}
 
           <div style={{ marginTop: 18, fontSize: 13, opacity: 0.55 }}>
-            Account type:{" "}
-            {user.role === "admin" ? "Admin" : "User"}
+            Account type: User
             <br />
             Member since:{" "}
             {user.created_at
