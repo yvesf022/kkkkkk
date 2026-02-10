@@ -8,7 +8,6 @@ import { useAdminAuth } from "@/lib/adminAuth";
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { admin, loading, hydrate } = useAdminAuth();
-
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -29,10 +28,15 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     }
   }, [loading, admin, router]);
 
-  if (loading) {
+  if (!admin && loading) {
+    // Skeleton UI instead of blank screen
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 font-bold">
-        Loading admin console…
+      <div className="flex min-h-screen bg-gray-50">
+        <aside className="w-64 bg-slate-900 animate-pulse" />
+        <main className="flex-1 p-6">
+          <div className="h-6 w-40 bg-gray-200 rounded mb-4 animate-pulse" />
+          <div className="h-4 w-64 bg-gray-200 rounded animate-pulse" />
+        </main>
       </div>
     );
   }
@@ -41,26 +45,16 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   return (
     <div className="flex min-h-screen w-full">
-      {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/40 z-40"
-        />
+        <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-40" />
       )}
 
-      {/* Sidebar */}
       {(!isMobile || sidebarOpen) && (
-        <aside
-          className={`w-64 bg-slate-900 text-white border-r border-slate-700 ${
-            isMobile ? "fixed inset-y-0 left-0 z-50" : ""
-          }`}
-        >
+        <aside className={`w-64 bg-slate-900 text-white border-r border-slate-700 ${isMobile ? "fixed inset-y-0 left-0 z-50" : ""}`}>
           <AdminSidebar onClose={() => setSidebarOpen(false)} isMobile={isMobile} />
         </aside>
       )}
 
-      {/* Main content */}
       <main className="flex-1 min-w-0 p-6 bg-gray-50 overflow-y-auto">
         {isMobile && (
           <button
@@ -70,13 +64,6 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
             ☰ Menu
           </button>
         )}
-
-        {/* Top bar */}
-        <header className="flex justify-between items-center mb-6">
-          <h1 className="text-xl font-bold">Admin Console</h1>
-          <span className="text-sm text-gray-600">Logged in as {admin?.email}</span>
-        </header>
-
         {children}
       </main>
     </div>

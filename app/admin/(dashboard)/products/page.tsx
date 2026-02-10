@@ -2,33 +2,26 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import Link from "next/link";
-import { listProducts, getAdminProduct, createProduct } from "@/lib/products";
+import { listProducts, getAdminProduct, createProduct, uploadProductImage } from "@/lib/products";
 import type { Product, ProductListItem } from "@/lib/types";
-import ProductImageUploader from "@/components/admin/ProductImageUploader";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Form state
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
+  const [newProductId, setNewProductId] = useState<string | null>(null);
 
-  /* ======================
-     LOAD PRODUCTS (ADMIN)
-  ====================== */
   async function loadProducts() {
     try {
       const list: ProductListItem[] = await listProducts();
-      const fullProducts: Product[] = await Promise.all(
-        list.map((p) => getAdminProduct(p.id))
-      );
-      setProducts(fullProducts);
+      const fullProducts: Product[] = await Promise.all(list.map((p) => getAdminProduct(p.id).catch(() => null)));
+      setProducts(fullProducts.filter(Boolean) as Product[]);
     } catch (err: any) {
       toast.error(err.message || "Failed to load products");
     } finally {
@@ -40,9 +33,6 @@ export default function AdminProductsPage() {
     loadProducts();
   }, []);
 
-  /* ======================
-     CREATE PRODUCT
-  ====================== */
   async function handleCreateProduct(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -57,7 +47,8 @@ export default function AdminProductsPage() {
           stock: Number(stock),
         });
 
-        // Reset form
+        setNewProductId(product.id);
+
         setTitle("");
         setPrice("");
         setCategory("");
@@ -69,8 +60,7 @@ export default function AdminProductsPage() {
       })(),
       {
         loading: "Creating product…",
-        success: (product) =>
-          `✅ Product "${product.title}" created successfully (ID: ${product.id})`,
+        success: (product) => `✅ Product "${product.title}" created successfully (ID: ${product.id})`,
         error: (err) => err.message || "Product creation failed",
       }
     );
@@ -78,62 +68,56 @@ export default function AdminProductsPage() {
     setSaving(false);
   }
 
+  async function handleImageUpload(file: File) {
+    if (!newProductId) {
+      toast.error("No product selected for image upload");
+      return;
+    }
+
+    await toast.promise(
+      uploadProductImage(newProductId, file),
+      {
+        loading: "Uploading image…",
+        success: "✅ Image uploaded successfully",
+        error: "Image upload failed",
+      }
+    );
+
+    await loadProducts();
+    setNewProductId(null);
+  }
+
   return (
     <div className="grid gap-8">
       <h1 className="text-2xl font-bold">Products</h1>
 
       {/* Add Product */}
-      <form
-        onSubmit={handleCreateProduct}
-        className="card max-w-md grid gap-3"
-      >
+      <form onSubmit={handleCreateProduct} className="card max-w-md grid gap-3">
         <h3 className="font-semibold">Add Product</h3>
-
-        <input
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-        />
-
-        <textarea
-          placeholder="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-        />
-
-        <input
-          type="number"
-          placeholder="Price"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          required
-        />
-
-        <input
-          placeholder="Category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          required
-        />
-
-        <input
-          type="number"
-          placeholder="Stock"
-          value={stock}
-          onChange={(e) => setStock(e.target.value)}
-          required
-        />
-
+        <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required />
+        <input type="number" placeholder="Price" value={price} onChange={(e) => setPrice(e.target.value)} required />
+        <input placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} required />
+        <input type="number" placeholder="Stock" value={stock} onChange={(e) => setStock(e.target.value)} required />
         <button className="btn btnTech" disabled={saving}>
           {saving ? "Creating…" : "Create Product"}
         </button>
-
-        <p className="text-xs opacity-60">
-          Images can be uploaded after product creation.
-        </p>
       </form>
+
+      {/* Upload image immediately after product creation */}
+      {newProductId && (
+        <div className="card max-w-md grid gap-3">
+          <h3 className="font-semibold">Upload Image for New Product</h3>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImageUpload(file);
+            }}
+          />
+        </div>
+      )}
 
       {/* Product List */}
       <section>
@@ -144,31 +128,15 @@ export default function AdminProductsPage() {
             <div key={p.id} className="card grid gap-3">
               <div className="flex gap-4 items-center">
                 {p.main_image && (
-                  <img
-                    src={p.main_image}
-                    alt={p.title}
-                    className="w-16 h-16 object-cover rounded-lg"
-                  />
+                  <img src={p.main_image} alt={p.title} className="w-16 h-16 object-cover rounded-lg" />
                 )}
                 <div className="flex-1">
                   <strong>{p.title}</strong>
                   <div className="text-sm opacity-60">
-                    {p.category} • Stock: {p.stock} •{" "}
-                    {p.in_stock ? "In Stock" : "Out of Stock"}
+                    {p.category} • Stock: {p.stock} • {p.in_stock ? "In Stock" : "Out of Stock"}
                   </div>
                 </div>
-                <Link href={`/admin/products/${p.id}`} className="btn btnGhost">
-                  Manage
-                </Link>
               </div>
-
-              {/* Inline image uploader */}
-              <ProductImageUploader
-                productId={p.id}
-                value={p.main_image || ""}
-                onChange={() => {}}
-                onUploaded={loadProducts}
-              />
             </div>
           ))}
         </div>
