@@ -19,7 +19,7 @@ export default function OrderSuccessPage() {
           marginBottom: 8,
         }}
       >
-        Order Confirmed
+        Order placed
       </h1>
 
       <p
@@ -28,7 +28,8 @@ export default function OrderSuccessPage() {
           marginBottom: 24,
         }}
       >
-        Thank you for your purchase. We are processing your order.
+        Your order has been created and is currently pending.
+        Please complete payment to proceed.
       </p>
 
       <Suspense
@@ -44,7 +45,7 @@ export default function OrderSuccessPage() {
             }}
           >
             <p className="mutedText">
-              Finalizing your order details…
+              Loading order details…
             </p>
           </div>
         }

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+
 import { useAuth } from "@/lib/auth";
 import { updateMe } from "@/lib/api";
 
@@ -43,14 +45,16 @@ export default function EditProfilePage() {
     setSaving(true);
 
     try {
-      // ✅ PASS REQUIRED PAYLOAD
       await updateMe({
         full_name: fullName,
         phone: phone,
       });
 
+      toast.success("Profile updated successfully");
       router.replace("/account/profile");
       router.refresh();
+    } catch {
+      toast.error("Update failed. Please try again.");
     } finally {
       setSaving(false);
     }
