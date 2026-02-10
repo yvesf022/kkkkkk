@@ -1,15 +1,15 @@
 /**
- * PRODUCTS API — AUTHORITATIVE
+ * PRODUCTS API — AUTHORITATIVE (FIXED)
  *
  * Backend contract:
  * - Public listing: GET /api/products
  * - Admin create: POST /api/products
- * - Admin update: PATCH /api/products/admin/{id}
+ * - Admin update status: POST /api/admin/products/{id}/status
  * - Images handled via multipart/form-data
- * - Auth via cookies only (credentials included globally)
+ * - Auth via cookies only
  */
 
-import { productsApi } from "./api";
+import { productsApi, adminApi } from "./api";
 import type {
   Product,
   ProductListItem,
@@ -43,10 +43,11 @@ export async function listProducts(
    ADMIN — PRODUCT CRUD
 ===================================================== */
 
+// ✅ FIXED: Admin uses same GET endpoint
 export async function getAdminProduct(
   productId: string,
 ): Promise<Product> {
-  return (await productsApi.getAdmin(productId)) as Product;
+  return (await productsApi.get(productId)) as Product;
 }
 
 export type CreateProductPayload = {
@@ -96,16 +97,18 @@ export async function updateProduct(
   await productsApi.update(productId, payload);
 }
 
+// ✅ FIXED: Use admin API
 export async function disableProduct(
   productId: string,
 ): Promise<void> {
-  await productsApi.disable(productId);
+  await adminApi.updateProductStatus(productId, "inactive");
 }
 
+// ✅ FIXED: Use admin API
 export async function restoreProduct(
   productId: string,
 ): Promise<void> {
-  await productsApi.restore(productId);
+  await adminApi.updateProductStatus(productId, "active");
 }
 
 /* =====================================================
