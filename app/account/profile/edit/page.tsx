@@ -43,12 +43,11 @@ export default function EditProfilePage() {
     setSaving(true);
 
     try {
-      /**
-       * BACKEND CONTRACT:
-       * updateMe DOES NOT accept payload yet
-       * This call is intentionally empty
-       */
-      await updateMe();
+      // ✅ PASS REQUIRED PAYLOAD
+      await updateMe({
+        full_name: fullName,
+        phone: phone,
+      });
 
       router.replace("/account/profile");
       router.refresh();
