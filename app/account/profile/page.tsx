@@ -118,7 +118,8 @@ export default function AccountProfilePage() {
           )}
 
           <div style={{ marginTop: 18, fontSize: 13, opacity: 0.55 }}>
-            Account type: {user.is_admin ? "Admin" : "User"}
+            Account type:{" "}
+            {user.role === "admin" ? "Admin" : "User"}
             <br />
             Member since:{" "}
             {user.created_at
