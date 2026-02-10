@@ -1,5 +1,5 @@
 /**
- * API CLIENT — AUTHORITATIVE (FIXED)
+ * API CLIENT — AUTHORITATIVE (FINAL)
  *
  * Backend facts (DO NOT CHANGE):
  * - Auth is cookie-based (HTTP-only)
@@ -179,7 +179,7 @@ export const productsApi = {
 };
 
 /* =====================================================
-   ORDERS (🔥 FIXED TYPING)
+   ORDERS
 ===================================================== */
 
 export const ordersApi = {
@@ -191,7 +191,6 @@ export const ordersApi = {
     });
   },
 
-  // ✅ FIXED: Explicit return type
   myOrders(): Promise<Order[]> {
     return request<Order[]>("/api/orders/my");
   },
@@ -210,7 +209,7 @@ export const ordersApi = {
 };
 
 /* =====================================================
-   PAYMENTS
+   PAYMENTS (🔥 FIXED PATHS)
 ===================================================== */
 
 export const paymentsApi = {
@@ -230,12 +229,14 @@ export const paymentsApi = {
     });
   },
 
+  // ✅ FIXED: correct backend path
   adminList() {
-    return request("/api/payments/admin");
+    return request("/api/api/payments/admin");
   },
 
+  // ✅ FIXED: correct backend path
   review(paymentId: string, status: "paid" | "rejected") {
-    return request(`/api/payments/admin/${paymentId}`, {
+    return request(`/api/api/payments/admin/${paymentId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
@@ -353,7 +354,7 @@ export const passwordResetApi = {
 };
 
 /* =====================================================
-   BACKWARD COMPAT (REQUIRED BY PAGES)
+   BACKWARD COMPAT
 ===================================================== */
 
 export function getMyOrders(): Promise<Order[]> {
