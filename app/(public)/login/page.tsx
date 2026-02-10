@@ -13,18 +13,12 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* -----------------------
-     REDIRECT WHEN AUTH STATE UPDATES
-  ----------------------- */
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user?.role === "user") {
       router.replace("/account");
     }
   }, [loading, user, router]);
 
-  /* -----------------------
-     SUBMIT HANDLER
-  ----------------------- */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy || loading) return;
@@ -34,7 +28,12 @@ export default function LoginPage() {
 
     try {
       await login(email.trim(), password);
-      // ❌ DO NOT redirect here
+
+      // Explicit role check
+      if (user?.role !== "user") {
+        setError("This account cannot log in here.");
+        return;
+      }
     } catch {
       setError("Incorrect email or password.");
     } finally {
@@ -43,101 +42,40 @@ export default function LoginPage() {
   }
 
   return (
-    <main
-      style={{
-        display: "grid",
-        placeItems: "center",
-        minHeight: "100vh",
-      }}
-    >
-      <section
-        style={{
-          width: "100%",
-          maxWidth: 380,
-          padding: "40px 28px",
-        }}
-      >
-        {/* HEADER */}
+    <main style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
+      <section style={{ width: "100%", maxWidth: 380, padding: "40px 28px" }}>
         <header style={{ marginBottom: 28 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 900 }}>
-            Sign in
-          </h1>
+          <h1 style={{ fontSize: 28, fontWeight: 900 }}>Sign in</h1>
           <p style={{ marginTop: 6, opacity: 0.6, fontWeight: 600 }}>
             Welcome back. Let’s get you in.
           </p>
         </header>
 
-        {/* ERROR */}
         {error && (
-          <div
-            style={{
-              marginBottom: 18,
-              padding: "12px 14px",
-              borderRadius: 14,
-              background: "#fee2e2",
-              color: "#7f1d1d",
-              fontWeight: 700,
-            }}
-          >
+          <div style={{
+            marginBottom: 18,
+            padding: "12px 14px",
+            borderRadius: 14,
+            background: "#fee2e2",
+            color: "#7f1d1d",
+            fontWeight: 700,
+          }}>
             {error}
           </div>
         )}
 
-        {/* FORM */}
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            required
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            required
-            onChange={(e) => setPassword(e.target.value)}
-          />
-
-          <button
-            type="submit"
-            className="btn btnPrimary"
-            disabled={busy || loading}
-          >
+          <input type="email" placeholder="Email address" value={email} required onChange={(e) => setEmail(e.target.value)} />
+          <input type="password" placeholder="Password" value={password} required onChange={(e) => setPassword(e.target.value)} />
+          <button type="submit" className="btn btnPrimary" disabled={busy || loading}>
             {busy ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
-        {/* FOOTER ACTIONS */}
-        <div
-          style={{
-            marginTop: 26,
-            display: "grid",
-            gap: 12,
-            textAlign: "center",
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          <button
-            className="btn btnGhost"
-            onClick={() => router.push("/store")}
-          >
-            Continue as guest
-          </button>
-
-          <span style={{ opacity: 0.6 }}>
-            New here?
-          </span>
-
-          <button
-            className="btn btnGhost"
-            onClick={() => router.push("/register")}
-          >
-            Create an account
-          </button>
+        <div style={{ marginTop: 26, display: "grid", gap: 12, textAlign: "center", fontSize: 13, fontWeight: 600 }}>
+          <button className="btn btnGhost" onClick={() => router.push("/store")}>Continue as guest</button>
+          <span style={{ opacity: 0.6 }}>New here?</span>
+          <button className="btn btnGhost" onClick={() => router.push("/register")}>Create an account</button>
         </div>
       </section>
     </main>

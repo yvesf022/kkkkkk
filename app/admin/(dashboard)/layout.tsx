@@ -5,24 +5,10 @@ import { useRouter } from "next/navigation";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { useAdminAuth } from "@/lib/adminAuth";
 
-/**
- * ADMIN DASHBOARD LAYOUT — AUTHORITATIVE
- *
- * - This is the ONLY place hydrate() is allowed
- * - Protects all admin dashboard routes
- */
-
-export default function AdminDashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { admin, loading, hydrate } = useAdminAuth();
 
-  /* -----------------------
-     MOBILE DETECTION
-  ----------------------- */
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -33,38 +19,19 @@ export default function AdminDashboardLayout({
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  /* -----------------------
-     HYDRATE ONCE
-  ----------------------- */
   useEffect(() => {
     hydrate();
-    // hydrate must run ONCE
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hydrate]);
 
-  /* -----------------------
-     REDIRECT IF NOT ADMIN
-  ----------------------- */
   useEffect(() => {
     if (!loading && !admin) {
       router.replace("/admin/login");
     }
   }, [loading, admin, router]);
 
-  /* -----------------------
-     LOADING STATE
-  ----------------------- */
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          background: "#f8fafc",
-          fontWeight: 700,
-        }}
-      >
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 font-bold">
         Loading admin console…
       </div>
     );
@@ -73,65 +40,42 @@ export default function AdminDashboardLayout({
   if (!admin) return null;
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
-      {/* MOBILE OVERLAY */}
+    <div className="flex min-h-screen w-full">
+      {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,.4)",
-            zIndex: 40,
-          }}
+          className="fixed inset-0 bg-black/40 z-40"
         />
       )}
 
-      {/* SIDEBAR */}
+      {/* Sidebar */}
       {(!isMobile || sidebarOpen) && (
         <aside
-          style={{
-            width: 260,
-            background: "#ffffff",
-            borderRight: "1px solid #e5e7eb",
-            position: isMobile ? "fixed" : "static",
-            inset: isMobile ? "0 auto 0 0" : undefined,
-            zIndex: 50,
-          }}
+          className={`w-64 bg-slate-900 text-white border-r border-slate-700 ${
+            isMobile ? "fixed inset-y-0 left-0 z-50" : ""
+          }`}
         >
-          <AdminSidebar
-            onClose={() => setSidebarOpen(false)}
-            isMobile={isMobile}
-          />
+          <AdminSidebar onClose={() => setSidebarOpen(false)} isMobile={isMobile} />
         </aside>
       )}
 
-      {/* MAIN CONTENT */}
-      <main
-        style={{
-          flex: 1,
-          minWidth: 0,
-          padding: 24,
-          background: "#f8fafc",
-          overflowY: "auto",
-        }}
-      >
+      {/* Main content */}
+      <main className="flex-1 min-w-0 p-6 bg-gray-50 overflow-y-auto">
         {isMobile && (
           <button
             onClick={() => setSidebarOpen(true)}
-            style={{
-              marginBottom: 16,
-              padding: "10px 14px",
-              borderRadius: 10,
-              fontWeight: 800,
-              border: "1px solid rgba(0,0,0,.15)",
-              background: "#fff",
-              cursor: "pointer",
-            }}
+            className="mb-4 px-4 py-2 rounded-lg border border-gray-300 bg-white font-bold"
           >
             ☰ Menu
           </button>
         )}
+
+        {/* Top bar */}
+        <header className="flex justify-between items-center mb-6">
+          <h1 className="text-xl font-bold">Admin Console</h1>
+          <span className="text-sm text-gray-600">Logged in as {admin?.email}</span>
+        </header>
 
         {children}
       </main>

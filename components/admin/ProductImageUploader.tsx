@@ -8,6 +8,7 @@ type Props = {
   productId: string;
   value?: string; // Cloudinary URL
   onChange: (url: string) => void;
+  onUploaded?: () => void; // optional callback to refresh product list
 };
 
 type UploadImageResponse = {
@@ -18,21 +19,19 @@ export default function ProductImageUploader({
   productId,
   value,
   onChange,
+  onUploaded,
 }: Props) {
-  const [preview, setPreview] = useState<string | null>(
-    value || null
-  );
+  const [preview, setPreview] = useState<string | null>(value || null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  function handleFileSelect(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-
     setFile(f);
     setPreview(URL.createObjectURL(f));
+    setMessage(null);
   }
 
   async function uploadImage() {
@@ -42,37 +41,31 @@ export default function ProductImageUploader({
     }
 
     setUploading(true);
+    setMessage(null);
 
     try {
-      const result =
-        (await productsApi.uploadImage(
-          productId,
-          file
-        )) as UploadImageResponse;
+      const result = (await productsApi.uploadImage(productId, file)) as UploadImageResponse;
 
-      if (!result?.url) {
-        throw new Error("Invalid upload response");
-      }
+      if (!result?.url) throw new Error("Invalid upload response");
 
-      setPreview(result.url); // ✅ Cloudinary URL
+      setPreview(result.url);
       onChange(result.url);
 
-      toast.success("Image uploaded successfully");
+      toast.success("✅ Image uploaded successfully");
+      setMessage(`Image uploaded successfully for product ID: ${productId}`);
+
+      if (onUploaded) onUploaded();
     } catch (err: any) {
-      toast.error(
-        err?.message || "Image upload failed"
-      );
+      const errorMsg = err?.message || "Image upload failed";
+      toast.error(errorMsg);
+      setMessage(errorMsg);
     } finally {
       setUploading(false);
     }
   }
 
   const previewSrc =
-    preview?.startsWith("blob:")
-      ? preview
-      : preview?.startsWith("http")
-      ? preview
-      : null;
+    preview?.startsWith("blob:") || preview?.startsWith("http") ? preview : null;
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -90,12 +83,7 @@ export default function ProductImageUploader({
         />
       )}
 
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        disabled={uploading}
-      />
+      <input type="file" accept="image/*" onChange={handleFileSelect} disabled={uploading} />
 
       <button
         type="button"
@@ -106,14 +94,14 @@ export default function ProductImageUploader({
         {uploading ? "Uploading…" : "Upload Image"}
       </button>
 
+      {message && (
+        <div style={{ fontSize: 12, opacity: 0.8, color: message.includes("successfully") ? "green" : "red" }}>
+          {message}
+        </div>
+      )}
+
       {value && (
-        <div
-          style={{
-            fontSize: 12,
-            opacity: 0.6,
-            wordBreak: "break-all",
-          }}
-        >
+        <div style={{ fontSize: 12, opacity: 0.6, wordBreak: "break-all" }}>
           Image URL: {value}
         </div>
       )}
