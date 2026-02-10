@@ -8,9 +8,8 @@ import type { Product } from "./types";
  * BACKEND CONTRACT (DO NOT CHANGE):
  *
  * - Cart is FRONTEND-ONLY
- * - Backend does NOT validate item structure
+ * - Backend does NOT accept cart items
  * - Backend trusts:
- *     - items (any)
  *     - total_amount (number)
  * - Order is created via POST /api/orders
  */
@@ -136,12 +135,10 @@ export const useCart = create<CartState>((set, get) => ({
 
     /**
      * IMPORTANT:
-     * - Backend does NOT validate items
-     * - Backend trusts total_amount
-     * - Items are stored as-is
+     * - Backend accepts ONLY total_amount
+     * - Cart items are frontend-only
      */
     const order = (await ordersApi.create({
-      items,
       total_amount,
     })) as {
       order_id: string;
