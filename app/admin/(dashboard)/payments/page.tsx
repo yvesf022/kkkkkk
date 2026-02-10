@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-
 import { paymentsApi } from "@/lib/api";
 
 /* ======================
@@ -14,7 +13,7 @@ type Payment = {
   id: string;
   order_id: string;
   amount: number;
-  status: "initiated" | "proof_submitted" | "approved" | "rejected";
+  status: "pending" | "on_hold" | "paid" | "rejected";
   created_at: string;
 };
 
@@ -26,14 +25,15 @@ export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [loadedOnce, setLoadedOnce] = useState(false);
 
   /* ======================
-     LOAD PAYMENTS
+     LOAD PAYMENTS (ONCE)
   ====================== */
   async function load() {
-    setLoading(true);
     try {
-      const data = await paymentsApi.adminList(); // ✅ CORRECT
+      setLoading(true);
+      const data = await paymentsApi.adminList();
       setPayments(data as Payment[]);
     } catch {
       toast.error("Failed to load payments");
@@ -43,27 +43,35 @@ export default function AdminPaymentsPage() {
   }
 
   useEffect(() => {
-    load(); // ✅ runs ONCE → no polling loop
-  }, []);
+    if (loadedOnce) return;
+    load();
+    setLoadedOnce(true);
+  }, [loadedOnce]);
 
   /* ======================
      REVIEW PAYMENT
   ====================== */
   async function reviewPayment(
     id: string,
-    status: "approved" | "rejected"
+    action: "approve" | "reject"
   ) {
     setUpdating(true);
     try {
-      await paymentsApi.review(id, status); // ✅ CORRECT
+      // 🔑 TRANSLATION LAYER (UI → BACKEND)
+      const status =
+        action === "approve" ? "paid" : "rejected";
+
+      await paymentsApi.review(id, status);
+
       toast.success(
-        status === "approved"
+        status === "paid"
           ? "Payment approved"
           : "Payment rejected"
       );
+
       await load();
     } catch (err: any) {
-      toast.error(err?.message || "Failed to update payment");
+      toast.error(err?.message || "Update failed");
     } finally {
       setUpdating(false);
     }
@@ -73,6 +81,7 @@ export default function AdminPaymentsPage() {
 
   return (
     <div style={{ display: "grid", gap: 28 }}>
+      {/* HEADER */}
       <header>
         <h1 style={{ fontSize: 28, fontWeight: 900 }}>
           Payments Review
@@ -89,7 +98,7 @@ export default function AdminPaymentsPage() {
       <div style={{ display: "grid", gap: 14 }}>
         {payments.map((p) => {
           const needsReview =
-            p.status === "proof_submitted";
+            p.status === "pending" || p.status === "on_hold";
 
           return (
             <div
@@ -106,38 +115,63 @@ export default function AdminPaymentsPage() {
                   : "#ffffff",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong>Payment #{p.id.slice(0, 8)}</strong>
+              {/* TOP */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
+              >
+                <strong>
+                  Payment #{p.id.slice(0, 8)}
+                </strong>
                 <strong>{fmtM(p.amount)}</strong>
               </div>
 
+              {/* META */}
               <div style={{ fontSize: 13, opacity: 0.75 }}>
                 Order{" "}
                 <Link
                   href={`/admin/orders/${p.order_id}`}
-                  style={{ fontWeight: 700, textDecoration: "underline" }}
+                  style={{
+                    fontWeight: 700,
+                    textDecoration: "underline",
+                  }}
                 >
                   #{p.order_id.slice(0, 8)}
                 </Link>
               </div>
 
+              {/* STATUS */}
               <div style={{ fontSize: 13 }}>
-                Status: <b>{paymentLabel(p.status)}</b>
+                Status: <b>{p.status}</b>
               </div>
 
+              {/* ACTIONS */}
               {needsReview && (
-                <div style={{ display: "flex", gap: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    marginTop: 6,
+                  }}
+                >
                   <button
                     className="btn btnTech"
                     disabled={updating}
-                    onClick={() => reviewPayment(p.id, "approved")}
+                    onClick={() =>
+                      reviewPayment(p.id, "approve")
+                    }
                   >
                     Approve
                   </button>
+
                   <button
                     className="btn btnGhost"
                     disabled={updating}
-                    onClick={() => reviewPayment(p.id, "rejected")}
+                    onClick={() =>
+                      reviewPayment(p.id, "reject")
+                    }
                   >
                     Reject
                   </button>
@@ -149,19 +183,4 @@ export default function AdminPaymentsPage() {
       </div>
     </div>
   );
-}
-
-function paymentLabel(status: Payment["status"]) {
-  switch (status) {
-    case "initiated":
-      return "Payment initiated";
-    case "proof_submitted":
-      return "Proof submitted (needs review)";
-    case "approved":
-      return "Payment approved";
-    case "rejected":
-      return "Payment rejected";
-    default:
-      return status;
-  }
 }
