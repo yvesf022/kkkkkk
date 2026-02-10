@@ -42,11 +42,15 @@ export default function AdminDashboardLayout({
   }, []);
 
   /* -----------------------
-     ADMIN AUTH CHECK
+     ADMIN AUTH CHECK (🔥 FIXED)
+     hydrate MUST run once
   ----------------------- */
   useEffect(() => {
     hydrate();
-  }, [hydrate]);
+    // IMPORTANT:
+    // hydrate must NOT be in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!loading && !admin) {

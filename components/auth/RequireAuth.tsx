@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 /**
- * REQUIRE AUTH — AUTHORITATIVE
+ * REQUIRE AUTH — FINAL & AUTHORITATIVE
  *
  * BACKEND CONTRACT:
  * - Auth is cookie-based (HTTP-only)
@@ -13,10 +13,9 @@ import { useAuth } from "@/lib/auth";
  * - /api/auth/me is the source of truth
  *
  * FRONTEND RULES:
- * - Middleware handles FIRST-LAYER protection
- * - This component handles SECOND-LAYER (UI safety)
- * - NEVER decode JWT
- * - NEVER read cookies directly
+ * - NO auth in middleware
+ * - Hydration happens ONCE
+ * - UI guards only (backend enforces security)
  */
 
 type RequireAuthProps = {
@@ -27,44 +26,45 @@ export default function RequireAuth({ children }: RequireAuthProps) {
   const router = useRouter();
   const { user, loading, hydrate } = useAuth();
 
-  /**
-   * Hydrate user session on mount
-   * (safe even if already hydrated)
-   */
+  /* ======================
+     HYDRATE ONCE
+  ====================== */
   useEffect(() => {
     hydrate();
-    // hydrate is stable from Zustand
-  }, [hydrate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  /**
-   * Redirect logic
-   */
+  /* ======================
+     REDIRECT UNAUTH USERS
+  ====================== */
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/login");
     }
   }, [loading, user, router]);
 
-  /**
-   * Loading state
-   * IMPORTANT:
-   * - Do NOT render protected UI while checking auth
-   */
+  /* ======================
+     LOADING STATE
+  ====================== */
   if (loading) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
-        <span>Loading...</span>
+      <div
+        style={{
+          minHeight: "100%",
+          display: "grid",
+          placeItems: "center",
+          fontWeight: 700,
+        }}
+      >
+        Loading…
       </div>
     );
   }
 
-  /**
-   * Safety fallback
-   * (middleware should already block unauth users)
-   */
-  if (!user) {
-    return null;
-  }
+  /* ======================
+     SAFETY FALLBACK
+  ====================== */
+  if (!user) return null;
 
   return <>{children}</>;
 }

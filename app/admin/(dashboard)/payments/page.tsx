@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
-const API = process.env.NEXT_PUBLIC_API_URL!;
+import { paymentsApi } from "@/lib/api";
 
 /* ======================
    TYPES (BACKEND-ALIGNED)
@@ -33,13 +33,8 @@ export default function AdminPaymentsPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch(
-        `${API}/api/payments/admin`,
-        { credentials: "include" }
-      );
-
-      if (!res.ok) throw new Error();
-      setPayments(await res.json());
+      const data = await paymentsApi.adminList(); // ✅ CORRECT
+      setPayments(data as Payment[]);
     } catch {
       toast.error("Failed to load payments");
     } finally {
@@ -48,7 +43,7 @@ export default function AdminPaymentsPage() {
   }
 
   useEffect(() => {
-    load();
+    load(); // ✅ runs ONCE → no polling loop
   }, []);
 
   /* ======================
@@ -60,32 +55,15 @@ export default function AdminPaymentsPage() {
   ) {
     setUpdating(true);
     try {
-      const res = await fetch(
-        `${API}/api/payments/admin/${id}`, // ✅ CORRECT ENDPOINT
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.detail || "Update failed");
-      }
-
+      await paymentsApi.review(id, status); // ✅ CORRECT
       toast.success(
         status === "approved"
           ? "Payment approved"
           : "Payment rejected"
       );
-
       await load();
     } catch (err: any) {
-      toast.error(
-        err?.message || "Failed to update payment"
-      );
+      toast.error(err?.message || "Failed to update payment");
     } finally {
       setUpdating(false);
     }
@@ -95,7 +73,6 @@ export default function AdminPaymentsPage() {
 
   return (
     <div style={{ display: "grid", gap: 28 }}>
-      {/* HEADER */}
       <header>
         <h1 style={{ fontSize: 28, fontWeight: 900 }}>
           Payments Review
@@ -106,9 +83,7 @@ export default function AdminPaymentsPage() {
       </header>
 
       {payments.length === 0 && (
-        <div className="card">
-          No payments found.
-        </div>
+        <div className="card">No payments found.</div>
       )}
 
       <div style={{ display: "grid", gap: 14 }}>
@@ -131,69 +106,38 @@ export default function AdminPaymentsPage() {
                   : "#ffffff",
               }}
             >
-              {/* TOP */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                }}
-              >
-                <strong>
-                  Payment #{p.id.slice(0, 8)}
-                </strong>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <strong>Payment #{p.id.slice(0, 8)}</strong>
                 <strong>{fmtM(p.amount)}</strong>
               </div>
 
-              {/* META */}
-              <div
-                style={{
-                  fontSize: 13,
-                  opacity: 0.75,
-                }}
-              >
+              <div style={{ fontSize: 13, opacity: 0.75 }}>
                 Order{" "}
                 <Link
                   href={`/admin/orders/${p.order_id}`}
-                  style={{
-                    fontWeight: 700,
-                    textDecoration: "underline",
-                  }}
+                  style={{ fontWeight: 700, textDecoration: "underline" }}
                 >
                   #{p.order_id.slice(0, 8)}
                 </Link>
               </div>
 
-              {/* STATUS */}
               <div style={{ fontSize: 13 }}>
-                Status:{" "}
-                <b>{paymentLabel(p.status)}</b>
+                Status: <b>{paymentLabel(p.status)}</b>
               </div>
 
-              {/* ACTIONS */}
               {needsReview && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    marginTop: 6,
-                  }}
-                >
+                <div style={{ display: "flex", gap: 12 }}>
                   <button
                     className="btn btnTech"
                     disabled={updating}
-                    onClick={() =>
-                      reviewPayment(p.id, "approved")
-                    }
+                    onClick={() => reviewPayment(p.id, "approved")}
                   >
                     Approve
                   </button>
-
                   <button
                     className="btn btnGhost"
                     disabled={updating}
-                    onClick={() =>
-                      reviewPayment(p.id, "rejected")
-                    }
+                    onClick={() => reviewPayment(p.id, "rejected")}
                   >
                     Reject
                   </button>
@@ -206,10 +150,6 @@ export default function AdminPaymentsPage() {
     </div>
   );
 }
-
-/* ======================
-   LABEL HELPERS
-====================== */
 
 function paymentLabel(status: Payment["status"]) {
   switch (status) {
