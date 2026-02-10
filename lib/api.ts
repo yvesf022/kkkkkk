@@ -1,5 +1,5 @@
 /**
- * API CLIENT — AUTHORITATIVE
+ * API CLIENT — AUTHORITATIVE (FIXED)
  *
  * Backend facts (DO NOT CHANGE):
  * - Auth is cookie-based (HTTP-only)
@@ -10,6 +10,7 @@
  */
 
 import type { Admin } from "@/lib/adminAuth";
+import type { Order } from "@/lib/types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
@@ -115,7 +116,6 @@ export const adminAuthApi = {
 ===================================================== */
 
 export const productsApi = {
-  // ✅ Public product listing
   list(params: Record<string, any> = {}) {
     const query = new URLSearchParams();
 
@@ -127,12 +127,10 @@ export const productsApi = {
     return request(`/api/products${qs ? `?${qs}` : ""}`);
   },
 
-  // ✅ Get single product (public)
   get(productId: string) {
     return request(`/api/products/${productId}`);
   },
 
-  // ✅ FIXED: Admin create product
   create(payload: Record<string, any>) {
     return request("/api/products", {
       method: "POST",
@@ -141,7 +139,6 @@ export const productsApi = {
     });
   },
 
-  // ✅ FIXED: Admin update product (if this endpoint exists in backend)
   update(productId: string, payload: Record<string, any>) {
     return request(`/api/products/${productId}`, {
       method: "PUT",
@@ -150,7 +147,6 @@ export const productsApi = {
     });
   },
 
-  // ✅ Admin upload product image
   uploadImage(productId: string, file: File) {
     const form = new FormData();
     form.append("file", file);
@@ -161,14 +157,12 @@ export const productsApi = {
     });
   },
 
-  // ✅ Admin delete product image
   deleteImage(imageId: string) {
     return request(`/api/products/admin/images/${imageId}`, {
       method: "DELETE",
     });
   },
 
-  // ✅ Admin reorder product images
   reorderImages(productId: string, imageIds: string[]) {
     return request(`/api/products/admin/${productId}/images/reorder`, {
       method: "PUT",
@@ -177,7 +171,6 @@ export const productsApi = {
     });
   },
 
-  // ✅ Admin set main image
   setMainImage(imageId: string) {
     return request(`/api/products/admin/images/${imageId}/set-main`, {
       method: "POST",
@@ -186,11 +179,10 @@ export const productsApi = {
 };
 
 /* =====================================================
-   ORDERS
+   ORDERS (🔥 FIXED TYPING)
 ===================================================== */
 
 export const ordersApi = {
-  // ✅ FIXED: Corrected payload structure
   create(payload: { total_amount: number }) {
     return request("/api/orders", {
       method: "POST",
@@ -199,17 +191,15 @@ export const ordersApi = {
     });
   },
 
-  // ✅ Get user's orders
-  myOrders() {
-    return request("/api/orders/my");
+  // ✅ FIXED: Explicit return type
+  myOrders(): Promise<Order[]> {
+    return request<Order[]>("/api/orders/my");
   },
 
-  // ✅ Admin get all orders
   adminOrders() {
     return request("/api/orders/admin");
   },
 
-  // ✅ Admin update shipping status
   updateShipping(orderId: string, payload: { status: string }) {
     return request(`/api/orders/admin/${orderId}/shipping`, {
       method: "POST",
@@ -224,14 +214,12 @@ export const ordersApi = {
 ===================================================== */
 
 export const paymentsApi = {
-  // ✅ Create payment for order
   create(orderId: string) {
     return request(`/api/payments/${orderId}`, {
       method: "POST",
     });
   },
 
-  // ✅ Upload payment proof
   uploadProof(paymentId: string, file: File) {
     const form = new FormData();
     form.append("proof", file);
@@ -242,12 +230,10 @@ export const paymentsApi = {
     });
   },
 
-  // ✅ Admin list all payments
   adminList() {
     return request("/api/payments/admin");
   },
 
-  // ✅ Admin review payment
   review(paymentId: string, status: "paid" | "rejected") {
     return request(`/api/payments/admin/${paymentId}`, {
       method: "POST",
@@ -258,16 +244,14 @@ export const paymentsApi = {
 };
 
 /* =====================================================
-   ADMIN (Dashboard & Management)
+   ADMIN
 ===================================================== */
 
 export const adminApi = {
-  // ✅ Get dashboard stats
   getDashboard() {
     return request("/api/admin/dashboard");
   },
 
-  // ✅ Update product status
   updateProductStatus(productId: string, status: string) {
     return request(`/api/admin/products/${productId}/status`, {
       method: "POST",
@@ -276,14 +260,12 @@ export const adminApi = {
     });
   },
 
-  // ✅ Cancel order
   cancelOrder(orderId: string) {
     return request(`/api/admin/orders/${orderId}/cancel`, {
       method: "POST",
     });
   },
 
-  // ✅ Update shipping status (alternative endpoint)
   updateOrderShipping(orderId: string, status: string) {
     return request(`/api/admin/orders/${orderId}/shipping`, {
       method: "POST",
@@ -294,30 +276,26 @@ export const adminApi = {
 };
 
 /* =====================================================
-   ADMIN USERS MANAGEMENT
+   ADMIN USERS
 ===================================================== */
 
 export const adminUsersApi = {
-  // ✅ List all users
   list() {
     return request("/api/admin/users");
   },
 
-  // ✅ Disable user
   disable(userId: string) {
     return request(`/api/admin/users/${userId}/disable`, {
       method: "POST",
     });
   },
 
-  // ✅ Enable user
   enable(userId: string) {
     return request(`/api/admin/users/${userId}/enable`, {
       method: "POST",
     });
   },
 
-  // ✅ Change user role
   changeRole(userId: string, role: "user" | "admin") {
     return request(`/api/admin/users/${userId}/role`, {
       method: "POST",
@@ -341,10 +319,6 @@ export async function uploadAvatar(file: File) {
   });
 }
 
-/**
- * Update user profile
- * Note: Backend endpoint may not be fully implemented yet
- */
 export async function updateMe(payload: {
   full_name?: string;
   phone?: string;
@@ -361,7 +335,6 @@ export async function updateMe(payload: {
 ===================================================== */
 
 export const passwordResetApi = {
-  // ✅ Request password reset
   request(email: string) {
     return request("/api/auth/password/request", {
       method: "POST",
@@ -370,7 +343,6 @@ export const passwordResetApi = {
     });
   },
 
-  // ✅ Confirm password reset
   confirm(token: string, new_password: string) {
     return request("/api/auth/password/confirm", {
       method: "POST",
@@ -384,6 +356,6 @@ export const passwordResetApi = {
    BACKWARD COMPAT (REQUIRED BY PAGES)
 ===================================================== */
 
-export function getMyOrders() {
+export function getMyOrders(): Promise<Order[]> {
   return ordersApi.myOrders();
 }
