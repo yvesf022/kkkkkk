@@ -42,8 +42,11 @@ export default function OrdersPage() {
             id: o.id,
             created_at: o.created_at,
             total_amount: o.total_amount,
-            status: o.status ?? "created",          // ✅ REQUIRED
+
+            // ✅ REQUIRED BY Order TYPE
+            status: o.status ?? "created",
             payment_status: o.payment_status ?? null,
+            shipping_status: o.shipping_status ?? null,
             tracking_number: o.tracking_number ?? null,
           }))
         );
@@ -119,7 +122,7 @@ export default function OrdersPage() {
             <div style={{ textAlign: "right" }}>
               <strong>{fmtM(order.total_amount)}</strong>
               <div style={{ fontSize: 13 }}>
-                {order.status}
+                {order.shipping_status ?? order.status}
               </div>
             </div>
           </button>
