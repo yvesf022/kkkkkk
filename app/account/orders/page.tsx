@@ -42,8 +42,7 @@ export default function OrdersPage() {
             id: o.id,
             created_at: o.created_at,
             total_amount: o.total_amount,
-            order_status: o.order_status ?? "created",
-            shipping_status: o.shipping_status ?? null,
+            status: o.status ?? "created",          // ✅ REQUIRED
             payment_status: o.payment_status ?? null,
             tracking_number: o.tracking_number ?? null,
           }))
@@ -111,7 +110,7 @@ export default function OrdersPage() {
             }}
           >
             <div>
-              <strong>Order #{order.id.slice(0, 8)}</strong>
+              <strong>Order #{String(order.id).slice(0, 8)}</strong>
               <div style={{ fontSize: 13, opacity: 0.6 }}>
                 {new Date(order.created_at).toLocaleDateString()}
               </div>
@@ -120,7 +119,7 @@ export default function OrdersPage() {
             <div style={{ textAlign: "right" }}>
               <strong>{fmtM(order.total_amount)}</strong>
               <div style={{ fontSize: 13 }}>
-                {order.payment_status ?? "Processing"}
+                {order.status}
               </div>
             </div>
           </button>
