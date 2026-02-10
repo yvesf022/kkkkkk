@@ -4,32 +4,15 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { productsApi } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL!;
-
 type Props = {
-  productId: string; // 🔒 REQUIRED by backend
-  value?: string;    // backend image URL (/uploads/...)
+  productId: string;
+  value?: string; // Cloudinary URL
   onChange: (url: string) => void;
 };
 
-/** ✅ BACKEND RESPONSE SHAPE */
 type UploadImageResponse = {
   url: string;
 };
-
-/**
- * PRODUCT IMAGE UPLOADER — AUTHORITATIVE
- *
- * BACKEND CONTRACT:
- * - POST /api/products/admin/{product_id}/images
- * - Field name: "file"
- * - Admin cookie required
- *
- * NOTES:
- * - Uploads ONE image
- * - Returns uploaded image URL
- * - Does NOT manage ordering or main-image state
- */
 
 export default function ProductImageUploader({
   productId,
@@ -67,11 +50,13 @@ export default function ProductImageUploader({
           file
         )) as UploadImageResponse;
 
-      if (!result.url) {
+      if (!result?.url) {
         throw new Error("Invalid upload response");
       }
 
+      setPreview(result.url); // ✅ Cloudinary URL
       onChange(result.url);
+
       toast.success("Image uploaded successfully");
     } catch (err: any) {
       toast.error(
@@ -83,10 +68,10 @@ export default function ProductImageUploader({
   }
 
   const previewSrc =
-    preview && preview.startsWith("blob:")
+    preview?.startsWith("blob:")
       ? preview
-      : preview
-      ? `${API}${preview}`
+      : preview?.startsWith("http")
+      ? preview
       : null;
 
   return (
@@ -129,7 +114,7 @@ export default function ProductImageUploader({
             wordBreak: "break-all",
           }}
         >
-          Current image URL: {value}
+          Image URL: {value}
         </div>
       )}
     </div>

@@ -18,15 +18,16 @@ export type UserRole = "user" | "admin";
 
 export type ProductStatus = "active" | "inactive" | "discontinued";
 
+// ✅ FIXED: Match backend OrderStatus exactly
 export type OrderStatus =
-  | "awaiting_payment"
+  | "pending"
   | "paid"
   | "cancelled"
   | "shipped"
   | "completed";
 
+// ✅ FIXED: Match backend ShippingStatus exactly (removed "created")
 export type ShippingStatus =
-  | "created"
   | "pending"
   | "processing"
   | "shipped"
@@ -110,12 +111,13 @@ export type ProductListItem = {
    ORDER
 ===================================================== */
 
+// ✅ FIXED: Changed order_status to status to match backend
 export type Order = {
   id: string;
   user_id?: string;
   items?: any;
   total_amount: number;
-  order_status: OrderStatus;
+  status: OrderStatus; // ✅ FIXED: was order_status
   payment_status?: PaymentStatus | null;
   shipping_status: ShippingStatus;
   tracking_number?: string | null;
@@ -138,7 +140,7 @@ export type Payment = {
   amount: number;
   status: PaymentStatus;
   method: PaymentMethod;
-  proofs?: PaymentProof[];
+  proof?: PaymentProof | null; // ✅ FIXED: Backend returns single proof, not array
   created_at: string;
 };
 
