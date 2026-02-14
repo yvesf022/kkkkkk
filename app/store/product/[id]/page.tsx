@@ -2,46 +2,24 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AddToCartClient from "./AddToCartClient";
+import type { Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
 /* ======================
-   TYPES (BACKEND-ALIGNED)
-====================== */
-
-type Product = {
-  id: string;
-  title: string;
-  price: number;
-  compare_price?: number | null;
-  main_image?: string | null;
-  category?: string | null;
-  stock: number;
-  in_stock?: boolean;
-  description?: string | null;
-};
-
-/* ======================
    DATA FETCH
 ====================== */
 
 async function getProductById(id: string): Promise<Product | null> {
-  const res = await fetch(
-    `${API}/api/products?page=1&per_page=100`,
-    { cache: "no-store" }
-  );
+  const res = await fetch(`${API}/api/products/${id}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) return null;
 
-  const json = await res.json();
-
-  // Your backend is paginated — handle safely
-  const products: Product[] =
-    json.items ?? json.data ?? json.results ?? [];
-
-  return products.find((p) => p.id === id) ?? null;
+  return res.json();
 }
 
 /* ======================
@@ -66,12 +44,7 @@ export default async function ProductPage({
       ? `${API}${product.main_image}`
       : "/placeholder.png";
 
-  const categorySlug = product.category ?? "all";
-
-  const isInStock =
-    product.in_stock !== undefined
-      ? product.in_stock
-      : product.stock > 0;
+  const isInStock = product.stock > 0;
 
   return (
     <div style={{ display: "grid", gap: 32 }}>
@@ -79,10 +52,14 @@ export default async function ProductPage({
       <nav style={{ fontSize: 14, opacity: 0.7 }}>
         <Link href="/store">Store</Link>
         {" / "}
-        <Link href={`/store/${categorySlug}`}>
-          {product.category ?? "Category"}
-        </Link>
-        {" / "}
+        {product.category && (
+          <>
+            <Link href={`/store/${product.category}`}>
+              {product.category}
+            </Link>
+            {" / "}
+          </>
+        )}
         <span>{product.title}</span>
       </nav>
 
@@ -152,12 +129,12 @@ export default async function ProductPage({
             </p>
           )}
 
-          {/* ACTIONS (CLIENT) */}
+          {/* ACTIONS */}
           <AddToCartClient product={product} />
         </div>
       </div>
 
-      {/* ===== DESCRIPTION ===== */}
+      {/* DESCRIPTION */}
       {product.description && (
         <section style={{ maxWidth: 900 }}>
           <h2 style={{ fontSize: 20, fontWeight: 800 }}>
