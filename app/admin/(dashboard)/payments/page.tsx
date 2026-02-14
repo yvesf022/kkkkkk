@@ -187,12 +187,7 @@ export default function AdminPaymentsPage() {
 
               {/* ACTIONS */}
               {needsReview && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                  }}
-                >
+                <div style={{ display: "flex", gap: 12 }}>
                   <button
                     disabled={updatingId === p.id}
                     onClick={() =>
@@ -235,7 +230,7 @@ function StatusBadge({
 }) {
   let bg = "#f3f4f6";
   let text = "#374151";
-  let label = status;
+  let label: string = status; // ✅ FIXED (explicit string)
 
   if (status === "pending") {
     bg = "#fef3c7";
