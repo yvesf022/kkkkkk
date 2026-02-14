@@ -145,7 +145,7 @@ export const productsApi = {
 
   update(productId: string, payload: Record<string, any>) {
     return request(`/api/products/${productId}`, {
-      method: "PATCH", // aligned with OpenAPI
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -217,7 +217,7 @@ export const ordersApi = {
 };
 
 /* =====================================================
-   PAYMENTS (OPENAPI ALIGNED — IMPORTANT)
+   PAYMENTS
 ===================================================== */
 
 export const paymentsApi = {
@@ -300,6 +300,31 @@ export const paymentsApi = {
     );
   },
 };
+
+/* =====================================================
+   USER PROFILE (RESTORED — REQUIRED FOR BUILD)
+===================================================== */
+
+export async function uploadAvatar(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+
+  return request("/api/users/me/avatar", {
+    method: "POST",
+    body: form,
+  });
+}
+
+export async function updateMe(payload: {
+  full_name?: string;
+  phone?: string;
+}): Promise<void> {
+  return request("/api/users/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
 
 /* =====================================================
    BULK UPLOAD
