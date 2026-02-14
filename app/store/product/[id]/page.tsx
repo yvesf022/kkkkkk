@@ -4,14 +4,21 @@ import type { Product } from "@/lib/types";
 import AddToCartClient from "./AddToCartClient";
 
 interface Props {
-  params: { id: string };
+  params: { id?: string };
 }
 
 export default async function ProductPage({ params }: Props) {
+  const id = params?.id;
+
+  // 🔥 CRITICAL GUARD
+  if (!id || id === "undefined") {
+    notFound();
+  }
+
   let product: Product;
 
   try {
-    product = await productsApi.get(params.id);
+    product = await productsApi.get(id);
   } catch {
     notFound();
   }
@@ -54,7 +61,6 @@ export default async function ProductPage({ params }: Props) {
 
       {/* DETAILS SECTION */}
       <div style={{ display: "grid", gap: 20 }}>
-        {/* CATEGORY BADGE */}
         {product.category && (
           <div
             style={{
@@ -71,22 +77,19 @@ export default async function ProductPage({ params }: Props) {
           </div>
         )}
 
-        {/* TITLE */}
         <h1 style={{ fontSize: 34, fontWeight: 900 }}>
           {product.title}
         </h1>
 
-        {/* PRICE */}
         <div
           style={{
             fontSize: 28,
             fontWeight: 900,
           }}
         >
-          R {Math.round(product.price).toLocaleString()}
+          M {Math.round(product.price).toLocaleString("en-ZA")}
         </div>
 
-        {/* STOCK STATUS */}
         <div
           style={{
             fontSize: 14,
@@ -102,7 +105,6 @@ export default async function ProductPage({ params }: Props) {
             : "Out of stock"}
         </div>
 
-        {/* DESCRIPTION */}
         {product.description && (
           <div
             style={{
@@ -115,7 +117,6 @@ export default async function ProductPage({ params }: Props) {
           </div>
         )}
 
-        {/* ADD TO CART */}
         <AddToCartClient product={product} />
       </div>
     </div>
