@@ -2,16 +2,15 @@
 
 import { create } from "zustand";
 import { authApi } from "./api";
+import type { User as AppUser } from "./types";
 
-export type User = {
-  id: string;
-  email: string;
-  full_name?: string | null;
-  phone?: string | null;
-  role: "user";
-  created_at?: string;
-  avatar_url?: string | null;
-};
+/**
+ * IMPORTANT:
+ * We reuse the authoritative User type from lib/types.ts
+ * DO NOT redefine User here.
+ */
+
+export type User = AppUser;
 
 type AuthState = {
   user: User | null;
