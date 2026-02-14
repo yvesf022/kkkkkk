@@ -18,15 +18,24 @@ export type UserRole = "user" | "admin";
 
 export type ProductStatus = "active" | "inactive" | "discontinued";
 
-// ✅ FIXED: Match backend OrderStatus exactly
+/**
+ * ✅ ORDER STATUS
+ * Backend payment lifecycle:
+ * pending → on_hold → paid → rejected
+ */
 export type OrderStatus =
   | "pending"
+  | "on_hold"
   | "paid"
+  | "rejected"
   | "cancelled"
   | "shipped"
   | "completed";
 
-// ✅ FIXED: Match backend ShippingStatus exactly (removed "created")
+/**
+ * ✅ SHIPPING STATUS
+ * Exact backend match
+ */
 export type ShippingStatus =
   | "pending"
   | "processing"
@@ -34,7 +43,11 @@ export type ShippingStatus =
   | "delivered"
   | "returned";
 
-export type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
+export type PaymentStatus =
+  | "pending"
+  | "on_hold"
+  | "paid"
+  | "rejected";
 
 export type PaymentMethod =
   | "card"
@@ -111,13 +124,18 @@ export type ProductListItem = {
    ORDER
 ===================================================== */
 
-// ✅ FIXED: Changed order_status to status to match backend
 export type Order = {
   id: string;
   user_id?: string;
   items?: any;
   total_amount: number;
-  status: OrderStatus; // ✅ FIXED: was order_status
+
+  /**
+   * ✅ IMPORTANT
+   * Must match OrderStatus union exactly
+   */
+  status: OrderStatus;
+
   payment_status?: PaymentStatus | null;
   shipping_status: ShippingStatus;
   tracking_number?: string | null;
@@ -140,7 +158,7 @@ export type Payment = {
   amount: number;
   status: PaymentStatus;
   method: PaymentMethod;
-  proof?: PaymentProof | null; // ✅ FIXED: Backend returns single proof, not array
+  proof?: PaymentProof | null;
   created_at: string;
 };
 
