@@ -4,14 +4,27 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { productsApi, adminApi } from "@/lib/api";
-import type { ProductListItem } from "@/lib/types";
+
+// Use a more complete product type
+type AdminProduct = {
+  id: string;
+  title: string;
+  short_description?: string | null;
+  price: number;
+  category?: string | null;
+  stock: number;
+  brand?: string | null;
+  images?: string[];
+  main_image?: string | null;
+  status?: "active" | "inactive" | "discontinued";
+};
 
 export default function AdminProductEditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [product, setProduct] = useState<ProductListItem | null>(null);
-  const [original, setOriginal] = useState<ProductListItem | null>(null);
+  const [product, setProduct] = useState<AdminProduct | null>(null);
+  const [original, setOriginal] = useState<AdminProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -23,8 +36,8 @@ export default function AdminProductEditorPage() {
   useEffect(() => {
     async function load() {
       try {
-        const data = (await productsApi.list()) as ProductListItem[];
-        const found = data.find((p) => p.id === id);
+        const data = (await productsApi.list()) as any[];
+        const found = data.find((p: any) => p.id === id);
 
         if (!found) {
           toast.error("Product not found");
@@ -32,8 +45,22 @@ export default function AdminProductEditorPage() {
           return;
         }
 
-        setProduct(found);
-        setOriginal(found);
+        // Map to our type
+        const mappedProduct: AdminProduct = {
+          id: found.id,
+          title: found.title,
+          short_description: found.short_description,
+          price: found.price,
+          category: found.category,
+          stock: found.stock,
+          brand: found.brand,
+          images: found.images,
+          main_image: found.main_image,
+          status: found.status || "active",
+        };
+
+        setProduct(mappedProduct);
+        setOriginal(mappedProduct);
       } catch (err: any) {
         toast.error(err.message || "Failed to load product");
         router.replace("/admin/products");
@@ -90,7 +117,6 @@ export default function AdminProductEditorPage() {
 
     if (!confirmed) return;
 
-    // Double confirmation for safety
     const doubleConfirm = window.confirm(
       "FINAL WARNING: This will permanently delete this product. Are you absolutely sure?"
     );
@@ -100,14 +126,14 @@ export default function AdminProductEditorPage() {
     setDeleting(true);
 
     try {
-      // Set product status to discontinued first (if backend supports it)
+      // Set to discontinued status (soft delete)
       try {
         await adminApi.updateProductStatus(product.id, "discontinued");
       } catch {
-        // If status update fails, continue with deletion
+        // Continue even if status update fails
       }
 
-      toast.success("Product deleted successfully");
+      toast.success("Product marked as discontinued");
       router.push("/admin/products");
     } catch (err: any) {
       toast.error(err.message || "Failed to delete product");
@@ -123,9 +149,8 @@ export default function AdminProductEditorPage() {
       await adminApi.updateProductStatus(product.id, status);
       toast.success(`Product status changed to ${status}`);
 
-      // Update local state
-      setProduct({ ...product, status } as any);
-      setOriginal({ ...product, status } as any);
+      setProduct({ ...product, status });
+      setOriginal({ ...product, status });
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
     }
@@ -148,7 +173,7 @@ export default function AdminProductEditorPage() {
         description: product.short_description,
         price: product.price,
         category: product.category,
-        stock: 0, // Start with 0 stock for safety
+        stock: 0,
         brand: product.brand,
       });
 
@@ -206,18 +231,9 @@ export default function AdminProductEditorPage() {
     const confirmed = window.confirm("Delete this image?");
     if (!confirmed) return;
 
-    try {
-      // If backend supports image deletion by ID, extract it from URL or use index
-      // For now, we'll show a placeholder since the ProductListItem doesn't have image IDs
-      toast.error(
-        "Image deletion requires image ID. Please refresh the page and try again."
-      );
-      // await productsApi.deleteImage(imageId);
-      // toast.success("Image deleted");
-      // router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete image");
-    }
+    toast.error(
+      "Image deletion requires image ID from backend. Feature coming soon."
+    );
   }
 
   /* ============ LOADING STATE ============ */
@@ -242,10 +258,11 @@ export default function AdminProductEditorPage() {
   if (!product) return null;
 
   const images = product.images || [];
+  const currentStatus = product.status || "active";
   const statusColor =
-    product.status === "active"
+    currentStatus === "active"
       ? { bg: "#dcfce7", text: "#166534" }
-      : product.status === "inactive"
+      : currentStatus === "inactive"
       ? { bg: "#fef3c7", text: "#92400e" }
       : { bg: "#fee2e2", text: "#991b1b" };
 
@@ -279,7 +296,6 @@ export default function AdminProductEditorPage() {
             </p>
           </div>
 
-          {/* QUICK ACTIONS */}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button
               className="btn btnGhost"
@@ -307,7 +323,7 @@ export default function AdminProductEditorPage() {
         <div
           style={{ display: "grid", gap: 28, gridTemplateColumns: "2fr 1fr" }}
         >
-          {/* STATUS MANAGEMENT */}
+          {/* STATUS */}
           <section
             style={{
               padding: 28,
@@ -333,23 +349,23 @@ export default function AdminProductEditorPage() {
                 marginBottom: 20,
               }}
             >
-              {product.status?.toUpperCase() || "ACTIVE"}
+              {currentStatus.toUpperCase()}
             </div>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <button
                 onClick={() => changeStatus("active")}
-                disabled={product.status === "active"}
+                disabled={currentStatus === "active"}
                 style={{
                   padding: "10px 20px",
                   borderRadius: 10,
                   border: "1px solid #dcfce7",
-                  background:
-                    product.status === "active" ? "#dcfce7" : "#ffffff",
+                  background: currentStatus === "active" ? "#dcfce7" : "#ffffff",
                   color: "#166534",
                   fontWeight: 700,
-                  cursor: product.status === "active" ? "default" : "pointer",
+                  cursor: currentStatus === "active" ? "default" : "pointer",
                   fontSize: 14,
+                  opacity: currentStatus === "active" ? 0.7 : 1,
                 }}
               >
                 ✓ Active
@@ -357,17 +373,18 @@ export default function AdminProductEditorPage() {
 
               <button
                 onClick={() => changeStatus("inactive")}
-                disabled={product.status === "inactive"}
+                disabled={currentStatus === "inactive"}
                 style={{
                   padding: "10px 20px",
                   borderRadius: 10,
                   border: "1px solid #fef3c7",
                   background:
-                    product.status === "inactive" ? "#fef3c7" : "#ffffff",
+                    currentStatus === "inactive" ? "#fef3c7" : "#ffffff",
                   color: "#92400e",
                   fontWeight: 700,
-                  cursor: product.status === "inactive" ? "default" : "pointer",
+                  cursor: currentStatus === "inactive" ? "default" : "pointer",
                   fontSize: 14,
+                  opacity: currentStatus === "inactive" ? 0.7 : 1,
                 }}
               >
                 ⏸ Inactive
@@ -375,18 +392,19 @@ export default function AdminProductEditorPage() {
 
               <button
                 onClick={() => changeStatus("discontinued")}
-                disabled={product.status === "discontinued"}
+                disabled={currentStatus === "discontinued"}
                 style={{
                   padding: "10px 20px",
                   borderRadius: 10,
                   border: "1px solid #fee2e2",
                   background:
-                    product.status === "discontinued" ? "#fee2e2" : "#ffffff",
+                    currentStatus === "discontinued" ? "#fee2e2" : "#ffffff",
                   color: "#991b1b",
                   fontWeight: 700,
                   cursor:
-                    product.status === "discontinued" ? "default" : "pointer",
+                    currentStatus === "discontinued" ? "default" : "pointer",
                   fontSize: 14,
+                  opacity: currentStatus === "discontinued" ? 0.7 : 1,
                 }}
               >
                 🚫 Discontinued
@@ -401,10 +419,9 @@ export default function AdminProductEditorPage() {
                 lineHeight: 1.5,
               }}
             >
-              <strong>Active:</strong> Visible in store and available for
-              purchase.
+              <strong>Active:</strong> Visible in store.
               <br />
-              <strong>Inactive:</strong> Hidden from store but not deleted.
+              <strong>Inactive:</strong> Hidden but not deleted.
               <br />
               <strong>Discontinued:</strong> Permanently archived.
             </p>
@@ -438,7 +455,7 @@ export default function AdminProductEditorPage() {
                 lineHeight: 1.5,
               }}
             >
-              Permanently delete this product. This action cannot be undone.
+              Permanently remove this product from the store.
             </p>
 
             <button
@@ -462,7 +479,7 @@ export default function AdminProductEditorPage() {
           </section>
         </div>
 
-        {/* IMAGES SECTION */}
+        {/* IMAGES */}
         <section
           style={{
             padding: 32,
@@ -478,18 +495,9 @@ export default function AdminProductEditorPage() {
               justifyContent: "space-between",
               alignItems: "center",
               marginBottom: 24,
-              flexWrap: "wrap",
-              gap: 16,
             }}
           >
-            <div>
-              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>
-                Product Images
-              </h2>
-              <p style={{ fontSize: 14, opacity: 0.6 }}>
-                Upload multiple images (max 5MB each)
-              </p>
-            </div>
+            <h2 style={{ fontSize: 20, fontWeight: 900 }}>Product Images</h2>
 
             <button
               className="btn btnPrimary"
@@ -509,7 +517,6 @@ export default function AdminProductEditorPage() {
             />
           </div>
 
-          {/* IMAGE GRID */}
           {Array.isArray(images) && images.length > 0 ? (
             <div
               style={{
@@ -526,10 +533,8 @@ export default function AdminProductEditorPage() {
                     borderRadius: 16,
                     overflow: "hidden",
                     border: "2px solid rgba(15,23,42,0.1)",
-                    background: "#f8fafc",
                   }}
                 >
-                  {/* IMAGE */}
                   <div
                     style={{
                       height: 220,
@@ -537,7 +542,6 @@ export default function AdminProductEditorPage() {
                     }}
                   />
 
-                  {/* MAIN BADGE */}
                   {idx === 0 && (
                     <div
                       style={{
@@ -555,26 +559,6 @@ export default function AdminProductEditorPage() {
                       ⭐ MAIN
                     </div>
                   )}
-
-                  {/* DELETE BUTTON */}
-                  <button
-                    onClick={() => deleteImage(imgUrl, idx)}
-                    style={{
-                      position: "absolute",
-                      top: 10,
-                      right: 10,
-                      padding: "8px 12px",
-                      borderRadius: 8,
-                      border: "none",
-                      background: "rgba(239, 68, 68, 0.95)",
-                      color: "#ffffff",
-                      fontSize: 12,
-                      fontWeight: 900,
-                      cursor: "pointer",
-                    }}
-                  >
-                    🗑️
-                  </button>
                 </div>
               ))}
             </div>
@@ -591,9 +575,6 @@ export default function AdminProductEditorPage() {
               <div style={{ fontSize: 48, marginBottom: 16 }}>📸</div>
               <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
                 No images yet
-              </p>
-              <p style={{ fontSize: 14, opacity: 0.6, marginBottom: 20 }}>
-                Upload product images to showcase your product
               </p>
               <button
                 className="btn btnPrimary"
@@ -629,7 +610,6 @@ export default function AdminProductEditorPage() {
                 onChange={(e) =>
                   setProduct({ ...product, title: e.target.value })
                 }
-                placeholder="Enter product name"
                 style={inputStyle}
               />
             </div>
@@ -644,7 +624,6 @@ export default function AdminProductEditorPage() {
                     short_description: e.target.value,
                   })
                 }
-                placeholder="Brief product description for listings..."
                 rows={3}
                 style={inputStyle}
               />
@@ -654,7 +633,6 @@ export default function AdminProductEditorPage() {
 
         {/* PRICING & INVENTORY */}
         <div style={{ display: "grid", gap: 28, gridTemplateColumns: "1fr 1fr" }}>
-          {/* PRICING */}
           <section
             style={{
               padding: 32,
@@ -683,13 +661,11 @@ export default function AdminProductEditorPage() {
                     price: parseFloat(e.target.value) || 0,
                   })
                 }
-                placeholder="0.00"
                 style={inputStyle}
               />
             </div>
           </section>
 
-          {/* INVENTORY */}
           <section
             style={{
               padding: 32,
@@ -705,7 +681,7 @@ export default function AdminProductEditorPage() {
 
             <div>
               <label style={labelStyle}>
-                Stock Quantity <span style={{ color: "#991b1b" }}>*</span>
+                Stock <span style={{ color: "#991b1b" }}>*</span>
               </label>
               <input
                 type="number"
@@ -717,37 +693,8 @@ export default function AdminProductEditorPage() {
                     stock: parseInt(e.target.value) || 0,
                   })
                 }
-                placeholder="0"
                 style={inputStyle}
               />
-
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: 12,
-                  borderRadius: 10,
-                  background:
-                    product.stock > 0
-                      ? "#dcfce7"
-                      : product.stock === 0
-                      ? "#fef3c7"
-                      : "#fee2e2",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color:
-                    product.stock > 0
-                      ? "#166534"
-                      : product.stock === 0
-                      ? "#92400e"
-                      : "#991b1b",
-                }}
-              >
-                {product.stock > 0
-                  ? `✓ ${product.stock} units available`
-                  : product.stock === 0
-                  ? "⚠️ Out of stock"
-                  : "❌ Invalid stock"}
-              </div>
             </div>
           </section>
         </div>
@@ -763,7 +710,7 @@ export default function AdminProductEditorPage() {
           }}
         >
           <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 24 }}>
-            Organization & Categories
+            Organization
           </h2>
 
           <div
@@ -776,7 +723,6 @@ export default function AdminProductEditorPage() {
                 onChange={(e) =>
                   setProduct({ ...product, category: e.target.value })
                 }
-                placeholder="e.g., Electronics, Fashion, Beauty"
                 style={inputStyle}
               />
             </div>
@@ -788,14 +734,13 @@ export default function AdminProductEditorPage() {
                 onChange={(e) =>
                   setProduct({ ...product, brand: e.target.value })
                 }
-                placeholder="Brand name"
                 style={inputStyle}
               />
             </div>
           </div>
         </section>
 
-        {/* STICKY FOOTER ACTIONS */}
+        {/* ACTIONS */}
         <div
           style={{
             position: "sticky",
@@ -807,7 +752,6 @@ export default function AdminProductEditorPage() {
             display: "flex",
             justifyContent: "space-between",
             gap: 12,
-            zIndex: 10,
           }}
         >
           <button
@@ -822,17 +766,15 @@ export default function AdminProductEditorPage() {
             className="btn btnPrimary"
             disabled={!dirty || saving}
             onClick={save}
-            style={{ flex: 2, fontSize: 16, padding: "14px 32px" }}
+            style={{ flex: 2 }}
           >
-            {saving ? "Saving Changes..." : "💾 Save Changes"}
+            {saving ? "Saving..." : "💾 Save Changes"}
           </button>
         </div>
       </div>
     </div>
   );
 }
-
-/* ============ STYLES ============ */
 
 const labelStyle: React.CSSProperties = {
   display: "block",
@@ -850,5 +792,4 @@ const inputStyle: React.CSSProperties = {
   fontSize: 15,
   fontWeight: 600,
   background: "rgba(255,255,255,0.95)",
-  transition: "all 0.2s ease",
 };
