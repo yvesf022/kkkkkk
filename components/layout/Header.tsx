@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useUI } from "@/components/layout/uiStore";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/lib/auth";
+import toast from "react-hot-toast";
 
 /* ---------------------------------
    Helpers
@@ -44,33 +45,47 @@ function CountBadge({ n }: { n: number }) {
 
 function CapsuleLink({
   href,
+  onClick,
   children,
 }: {
-  href: string;
+  href?: string;
+  onClick?: () => void;
   children: React.ReactNode;
 }) {
-  return (
-    <Link
-      href={href}
-      style={{
-        position: "relative",
-        padding: "11px 16px",
-        borderRadius: 999,
-        fontWeight: 900,
-        letterSpacing: 0.3,
-        fontSize: 14,
-        textDecoration: "none",
-        color: "#f8fbff",
-        background:
-          "linear-gradient(180deg, rgba(8,14,28,.75), rgba(6,10,20,.75))",
-        border: "1px solid rgba(255,255,255,.18)",
-        boxShadow: "0 10px 26px rgba(0,0,0,.35)",
-        backdropFilter: "blur(6px)",
-      }}
-    >
-      {children}
-    </Link>
-  );
+  const baseStyle: React.CSSProperties = {
+    position: "relative",
+    padding: "11px 16px",
+    borderRadius: 999,
+    fontWeight: 900,
+    letterSpacing: 0.3,
+    fontSize: 14,
+    textDecoration: "none",
+    color: "#f8fbff",
+    background:
+      "linear-gradient(180deg, rgba(8,14,28,.75), rgba(6,10,20,.75))",
+    border: "1px solid rgba(255,255,255,.18)",
+    boxShadow: "0 10px 26px rgba(0,0,0,.35)",
+    backdropFilter: "blur(6px)",
+    cursor: "pointer",
+  };
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} style={baseStyle}>
+        {children}
+      </button>
+    );
+  }
+
+  if (href) {
+    return (
+      <Link href={href} style={baseStyle}>
+        {children}
+      </Link>
+    );
+  }
+
+  return null;
 }
 
 /* ---------------------------------
@@ -93,11 +108,57 @@ export default function Header() {
   const cartCount = items.reduce((a, b) => a + b.quantity, 0);
   const isStoreRoute = pathname.startsWith("/store");
 
-  // ✅ FINAL, SAFE LOGOUT
+  /* ============ ROLE-BASED NAVIGATION ============ */
+
+  // Prevent admin from accessing user pages
+  React.useEffect(() => {
+    if (!user) return;
+
+    if (user.role === "admin" && !pathname.startsWith("/admin")) {
+      toast.error("Admin accounts cannot access user pages");
+      router.replace("/admin");
+    }
+  }, [user, pathname, router]);
+
+  /* ============ LOGOUT ============ */
   async function handleLogout() {
-    await logout();
-    router.replace("/login");
-    router.refresh();
+    try {
+      await logout();
+      toast.success("Logged out successfully");
+      router.replace("/login");
+      router.refresh();
+    } catch (err) {
+      toast.error("Logout failed");
+    }
+  }
+
+  /* ============ GO TO ACCOUNT ============ */
+  function goToAccount() {
+    if (!user) {
+      toast.error("Please log in first");
+      router.push("/login");
+      return;
+    }
+
+    // Block admin from accessing user account
+    if (user.role === "admin") {
+      toast.error("Admin accounts should use /admin");
+      router.push("/admin");
+      return;
+    }
+
+    router.push("/account");
+  }
+
+  /* ============ GO TO CART ============ */
+  function goToCart() {
+    // Anyone can view cart (even guests)
+    router.push("/store/cart");
+  }
+
+  /* ============ GO TO LOGIN ============ */
+  function goToLogin() {
+    router.push("/login");
   }
 
   return (
@@ -131,7 +192,7 @@ export default function Header() {
               }}
             >
               <span style={{ fontSize: 36, fontWeight: 900, color: "#ff2fa0" }}>
-                Karabo’s
+                Karabo's
               </span>
               <span style={{ fontSize: 32, fontWeight: 800, color: "#00e6ff" }}>
                 Boutique
@@ -140,37 +201,68 @@ export default function Header() {
 
             {/* NAV */}
             <nav style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* SHOP */}
               <CapsuleLink href="/store">Shop</CapsuleLink>
 
+              {/* CART (with count) */}
               <div style={{ position: "relative" }}>
-                <CapsuleLink href="/store/cart">Cart</CapsuleLink>
+                <CapsuleLink onClick={goToCart}>Cart</CapsuleLink>
                 <CountBadge n={cartCount} />
               </div>
 
-              {!user && <CapsuleLink href="/login">Login</CapsuleLink>}
+              {/* NOT LOGGED IN */}
+              {!user && <CapsuleLink onClick={goToLogin}>Login</CapsuleLink>}
 
-              {user && (
-                <CapsuleLink href="/account/profile">
-                  Hello, {user.full_name || user.email}
-                </CapsuleLink>
+              {/* LOGGED IN AS USER */}
+              {user && user.role === "user" && (
+                <>
+                  <CapsuleLink onClick={goToAccount}>
+                    Hello, {user.full_name || user.email.split("@")[0]}
+                  </CapsuleLink>
+
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      padding: "11px 16px",
+                      borderRadius: 999,
+                      background:
+                        "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
+                      border: "1px solid rgba(255,255,255,.18)",
+                      color: "#fff",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    Logout
+                  </button>
+                </>
               )}
 
-              {user && (
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    padding: "11px 16px",
-                    borderRadius: 999,
-                    background:
-                      "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
-                    border: "1px solid rgba(255,255,255,.18)",
-                    color: "#fff",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  Logout
-                </button>
+              {/* LOGGED IN AS ADMIN (blocked from user pages) */}
+              {user && user.role === "admin" && (
+                <>
+                  <CapsuleLink href="/admin">Admin Panel</CapsuleLink>
+
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      padding: "11px 16px",
+                      borderRadius: 999,
+                      background:
+                        "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
+                      border: "1px solid rgba(255,255,255,.18)",
+                      color: "#fff",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    Logout
+                  </button>
+                </>
               )}
 
               {/* Mobile menu — STORE ONLY */}
