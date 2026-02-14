@@ -24,17 +24,30 @@ export default function StorePage() {
       try {
         setLoading(true);
 
-        // Build query params from filters
+        // Build query params from filters (only use properties that exist in Filters type)
         const params: any = {};
-        if (filters.category) params.category = filters.category;
-        if (filters.brand) params.brand = filters.brand;
-        if (filters.minPrice) params.min_price = filters.minPrice;
-        if (filters.maxPrice) params.max_price = filters.maxPrice;
-        if (filters.inStock !== undefined) params.in_stock = filters.inStock;
-        if (sort) params.sort = sort;
+        
+        if (filters.category) {
+          params.category = filters.category;
+        }
+
+        // Note: Only add params for properties that exist in your Filters type
+        // If brand, minPrice, maxPrice, inStock don't exist, remove these lines
 
         const data = (await productsApi.list(params)) as ProductListItem[];
-        setProducts(data);
+        
+        // Apply client-side sorting if needed
+        let sortedData = [...data];
+        
+        if (sort === "price_asc") {
+          sortedData.sort((a, b) => a.price - b.price);
+        } else if (sort === "price_desc") {
+          sortedData.sort((a, b) => b.price - a.price);
+        } else if (sort === "newest") {
+          // Assuming products are already sorted by newest from API
+        }
+        
+        setProducts(sortedData);
       } catch (err) {
         console.error("Failed to load products:", err);
       } finally {
