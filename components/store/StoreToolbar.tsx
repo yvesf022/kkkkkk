@@ -4,9 +4,9 @@ import React from "react";
 
 export type SortMode =
   | "featured"
-  | "price_low"
-  | "price_high"
-  | "rating";
+  | "newest"
+  | "price_asc"
+  | "price_desc";
 
 export type Filters = {
   q?: string;
@@ -17,9 +17,9 @@ export type Filters = {
 
 const SORT_OPTIONS: SortMode[] = [
   "featured",
-  "rating",
-  "price_low",
-  "price_high",
+  "newest",
+  "price_asc",
+  "price_desc",
 ];
 
 export default function StoreToolbar({
@@ -103,8 +103,7 @@ export default function StoreToolbar({
         style={{
           marginTop: 14,
           display: "grid",
-          gridTemplateColumns:
-            "1.2fr 0.9fr 0.9fr 1fr",
+          gridTemplateColumns: "1.2fr 0.9fr 0.9fr 1fr",
           gap: 10,
         }}
         className="storeToolbarGrid"
@@ -197,11 +196,11 @@ export default function StoreToolbar({
           }}
         >
           <option value="featured">Featured</option>
-          <option value="rating">Top Rated</option>
-          <option value="price_low">
+          <option value="newest">Newest</option>
+          <option value="price_asc">
             Price: Low → High
           </option>
-          <option value="price_high">
+          <option value="price_desc">
             Price: High → Low
           </option>
         </select>
