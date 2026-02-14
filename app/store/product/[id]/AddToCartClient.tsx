@@ -11,7 +11,9 @@ interface Props {
 
 export default function AddToCartClient({ product }: Props) {
   const [qty, setQty] = useState(1);
-  const addToCart = useCart((s) => s.add);
+
+  // ✅ Matches CartState exactly
+  const addItem = useCart((s) => s.addItem);
 
   function handleAdd() {
     if (!product.in_stock || product.stock <= 0) {
@@ -24,20 +26,20 @@ export default function AddToCartClient({ product }: Props) {
       return;
     }
 
-    addToCart({
-      id: product.id,
-      title: product.title,
-      price: product.price,
-      main_image: product.main_image || null, // ✅ correct field
-      quantity: qty,
-    });
+    if (qty > product.stock) {
+      toast.error("Not enough stock available");
+      return;
+    }
+
+    // ✅ CORRECT — pass full Product + quantity
+    addItem(product, qty);
 
     toast.success("Added to cart");
   }
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      {/* Quantity Selector */}
+      {/* Quantity Controls */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button
           type="button"
@@ -54,9 +56,7 @@ export default function AddToCartClient({ product }: Props) {
         <button
           type="button"
           onClick={() =>
-            setQty((q) =>
-              Math.min(product.stock, q + 1)
-            )
+            setQty((q) => Math.min(product.stock, q + 1))
           }
           style={qtyBtn}
         >
@@ -64,7 +64,7 @@ export default function AddToCartClient({ product }: Props) {
         </button>
       </div>
 
-      {/* Add Button */}
+      {/* Add to Cart Button */}
       <button
         onClick={handleAdd}
         disabled={!product.in_stock}
