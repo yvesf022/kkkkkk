@@ -9,30 +9,19 @@ export const dynamic = "force-dynamic";
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
 /* ======================
-   VALIDATE UUID
-====================== */
-
-function isValidUUID(id: string) {
-  return /^[0-9a-fA-F-]{36}$/.test(id);
-}
-
-/* ======================
    DATA FETCH
 ====================== */
 
 async function getProductById(id: string): Promise<Product | null> {
-  try {
-    const res = await fetch(`${API}/api/products/${id}`, {
-      cache: "no-store",
-    });
+  if (!id || id === "undefined") return null;
 
-    if (!res.ok) return null;
+  const res = await fetch(`${API}/api/products/${id}`, {
+    cache: "no-store",
+  });
 
-    const data: Product = await res.json();
-    return data;
-  } catch {
-    return null;
-  }
+  if (!res.ok) return null;
+
+  return res.json();
 }
 
 /* ======================
@@ -42,12 +31,11 @@ async function getProductById(id: string): Promise<Product | null> {
 export default async function ProductPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const id = params?.id;
+  const { id } = await params;
 
-  // 🔒 Prevent backend crash
-  if (!id || !isValidUUID(id)) {
+  if (!id) {
     notFound();
   }
 
@@ -68,7 +56,7 @@ export default async function ProductPage({
 
   return (
     <div style={{ display: "grid", gap: 32 }}>
-      {/* ===== BREADCRUMB ===== */}
+      {/* BREADCRUMB */}
       <nav style={{ fontSize: 14, opacity: 0.7 }}>
         <Link href="/store">Store</Link>
         {" / "}
@@ -83,7 +71,7 @@ export default async function ProductPage({
         <span>{product.title}</span>
       </nav>
 
-      {/* ===== PRODUCT MAIN ===== */}
+      {/* MAIN */}
       <div
         style={{
           display: "grid",
@@ -91,7 +79,6 @@ export default async function ProductPage({
           gap: 40,
         }}
       >
-        {/* IMAGE */}
         <div
           style={{
             border: "1px solid #eee",
@@ -110,17 +97,14 @@ export default async function ProductPage({
           />
         </div>
 
-        {/* INFO */}
         <div style={{ display: "grid", gap: 16 }}>
           <h1 style={{ fontSize: 28, fontWeight: 900 }}>
             {product.title}
           </h1>
 
-          {/* PRICE */}
           <div>
             <div style={{ fontSize: 26, fontWeight: 900 }}>
-              M{" "}
-              {Math.round(product.price).toLocaleString("en-ZA")}
+              M {Math.round(product.price).toLocaleString("en-ZA")}
             </div>
 
             {product.compare_price && (
@@ -131,14 +115,11 @@ export default async function ProductPage({
                 }}
               >
                 M{" "}
-                {Math.round(product.compare_price).toLocaleString(
-                  "en-ZA"
-                )}
+                {Math.round(product.compare_price).toLocaleString("en-ZA")}
               </div>
             )}
           </div>
 
-          {/* STOCK */}
           {isInStock ? (
             <p style={{ color: "#16a34a", fontWeight: 700 }}>
               In stock
@@ -149,13 +130,12 @@ export default async function ProductPage({
             </p>
           )}
 
-          {/* ACTIONS */}
           <AddToCartClient
             product={{
               id: product.id,
               title: product.title,
               price: product.price,
-              main_image: product.main_image || "",
+              main_image: product.main_image ?? "",
               in_stock: product.in_stock,
               stock: product.stock,
             }}
@@ -163,7 +143,6 @@ export default async function ProductPage({
         </div>
       </div>
 
-      {/* DESCRIPTION */}
       {product.description && (
         <section style={{ maxWidth: 900 }}>
           <h2 style={{ fontSize: 20, fontWeight: 800 }}>
