@@ -10,7 +10,7 @@
  */
 
 import type { Admin } from "@/lib/adminAuth";
-import type { Order } from "@/lib/types";
+import type { Order, ProductListItem, Product } from "@/lib/types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
@@ -116,19 +116,26 @@ export const adminAuthApi = {
 ===================================================== */
 
 export const productsApi = {
-  list(params: Record<string, any> = {}) {
+  // ✅ FIXED — PROPERLY TYPED
+  list(params: Record<string, any> = {}): Promise<ProductListItem[]> {
     const query = new URLSearchParams();
 
     Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) query.append(k, String(v));
+      if (v !== undefined && v !== null) {
+        query.append(k, String(v));
+      }
     });
 
     const qs = query.toString();
-    return request(`/api/products${qs ? `?${qs}` : ""}`);
+
+    return request<ProductListItem[]>(
+      `/api/products${qs ? `?${qs}` : ""}`
+    );
   },
 
-  get(productId: string) {
-    return request(`/api/products/${productId}`);
+  // ✅ FIXED — PROPERLY TYPED
+  get(productId: string): Promise<Product> {
+    return request<Product>(`/api/products/${productId}`);
   },
 
   create(payload: Record<string, any>) {
@@ -209,7 +216,7 @@ export const ordersApi = {
 };
 
 /* =====================================================
-   PAYMENTS (🔥 FIXED PATHS)
+   PAYMENTS
 ===================================================== */
 
 export const paymentsApi = {
@@ -229,12 +236,10 @@ export const paymentsApi = {
     });
   },
 
-  // ✅ FIXED: correct backend path
   adminList() {
     return request("/api/api/payments/admin");
   },
 
-  // ✅ FIXED: correct backend path
   review(paymentId: string, status: "paid" | "rejected") {
     return request(`/api/api/payments/admin/${paymentId}`, {
       method: "POST",

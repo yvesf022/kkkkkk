@@ -9,17 +9,30 @@ export const dynamic = "force-dynamic";
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
 /* ======================
+   VALIDATE UUID
+====================== */
+
+function isValidUUID(id: string) {
+  return /^[0-9a-fA-F-]{36}$/.test(id);
+}
+
+/* ======================
    DATA FETCH
 ====================== */
 
 async function getProductById(id: string): Promise<Product | null> {
-  const res = await fetch(`${API}/api/products/${id}`, {
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${API}/api/products/${id}`, {
+      cache: "no-store",
+    });
 
-  if (!res.ok) return null;
+    if (!res.ok) return null;
 
-  return res.json();
+    const data: Product = await res.json();
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 /* ======================
@@ -31,7 +44,14 @@ export default async function ProductPage({
 }: {
   params: { id: string };
 }) {
-  const product = await getProductById(params.id);
+  const id = params?.id;
+
+  // 🔒 Prevent backend crash
+  if (!id || !isValidUUID(id)) {
+    notFound();
+  }
+
+  const product = await getProductById(id);
 
   if (!product) {
     notFound();
@@ -130,7 +150,16 @@ export default async function ProductPage({
           )}
 
           {/* ACTIONS */}
-          <AddToCartClient product={product} />
+          <AddToCartClient
+            product={{
+              id: product.id,
+              title: product.title,
+              price: product.price,
+              main_image: product.main_image || "",
+              in_stock: product.in_stock,
+              stock: product.stock,
+            }}
+          />
         </div>
       </div>
 
