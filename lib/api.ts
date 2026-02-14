@@ -1,5 +1,5 @@
 /**
- * API CLIENT — AUTHORITATIVE (FINAL)
+ * API CLIENT — AUTHORITATIVE (FINAL — OPENAPI ALIGNED)
  *
  * Backend facts (DO NOT CHANGE):
  * - Auth is cookie-based (HTTP-only)
@@ -116,7 +116,6 @@ export const adminAuthApi = {
 ===================================================== */
 
 export const productsApi = {
-  // ✅ FIXED — PROPERLY TYPED
   list(params: Record<string, any> = {}): Promise<ProductListItem[]> {
     const query = new URLSearchParams();
 
@@ -127,13 +126,11 @@ export const productsApi = {
     });
 
     const qs = query.toString();
-
     return request<ProductListItem[]>(
       `/api/products${qs ? `?${qs}` : ""}`
     );
   },
 
-  // ✅ FIXED — PROPERLY TYPED
   get(productId: string): Promise<Product> {
     return request<Product>(`/api/products/${productId}`);
   },
@@ -148,7 +145,7 @@ export const productsApi = {
 
   update(productId: string, payload: Record<string, any>) {
     return request(`/api/products/${productId}`, {
-      method: "PUT",
+      method: "PATCH", // aligned with OpenAPI
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -171,17 +168,21 @@ export const productsApi = {
   },
 
   reorderImages(productId: string, imageIds: string[]) {
-    return request(`/api/products/admin/${productId}/images/reorder`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(imageIds),
-    });
+    return request(
+      `/api/products/admin/${productId}/images/reorder`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(imageIds),
+      },
+    );
   },
 
   setMainImage(imageId: string) {
-    return request(`/api/products/admin/images/${imageId}/set-main`, {
-      method: "POST",
-    });
+    return request(
+      `/api/products/admin/images/${imageId}/set-main`,
+      { method: "POST" },
+    );
   },
 };
 
@@ -202,8 +203,8 @@ export const ordersApi = {
     return request<Order[]>("/api/orders/my");
   },
 
-  adminOrders() {
-    return request("/api/orders/admin");
+  adminOrders(): Promise<Order[]> {
+    return request<Order[]>("/api/orders/admin");
   },
 
   updateShipping(orderId: string, payload: { status: string }) {
@@ -216,12 +217,12 @@ export const ordersApi = {
 };
 
 /* =====================================================
-   PAYMENTS
+   PAYMENTS (OPENAPI ALIGNED — IMPORTANT)
 ===================================================== */
 
 export const paymentsApi = {
   create(orderId: string) {
-    return request(`/api/payments/${orderId}`, {
+    return request(`/api/api/payments/${orderId}`, {
       method: "POST",
     });
   },
@@ -230,7 +231,7 @@ export const paymentsApi = {
     const form = new FormData();
     form.append("proof", file);
 
-    return request(`/api/payments/${paymentId}/proof`, {
+    return request(`/api/api/payments/${paymentId}/proof`, {
       method: "POST",
       body: form,
     });
@@ -240,6 +241,10 @@ export const paymentsApi = {
     return request("/api/api/payments/admin");
   },
 
+  getPaymentDetails(paymentId: string) {
+    return request(`/api/api/payments/admin/${paymentId}`);
+  },
+
   review(paymentId: string, status: "paid" | "rejected") {
     return request(`/api/api/payments/admin/${paymentId}`, {
       method: "POST",
@@ -247,10 +252,81 @@ export const paymentsApi = {
       body: JSON.stringify({ status }),
     });
   },
+
+  getBankDetails() {
+    return request("/api/api/payments/bank-details");
+  },
+
+  getBankSettings() {
+    return request("/api/api/payments/admin/bank-settings");
+  },
+
+  createBankSettings(data: any) {
+    return request("/api/api/payments/admin/bank-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateBankSettings(bankId: string, data: any) {
+    return request(
+      `/api/api/payments/admin/bank-settings/${bankId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      },
+    );
+  },
+
+  deleteBankSettings(bankId: string) {
+    return request(
+      `/api/api/payments/admin/bank-settings/${bankId}`,
+      { method: "DELETE" },
+    );
+  },
+
+  uploadQrCode(bankId: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+
+    return request(
+      `/api/api/payments/admin/bank-settings/${bankId}/qr-code`,
+      {
+        method: "POST",
+        body: form,
+      },
+    );
+  },
 };
 
 /* =====================================================
-   ADMIN
+   BULK UPLOAD
+===================================================== */
+
+export const bulkUploadApi = {
+  upload(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return request("/api/products/admin/bulk-upload", {
+      method: "POST",
+      body: formData,
+    });
+  },
+
+  getStatus(uploadId: string) {
+    return request(`/api/products/admin/bulk-uploads/${uploadId}`);
+  },
+
+  listUploads() {
+    return request("/api/products/admin/bulk-uploads");
+  },
+};
+
+/* =====================================================
+   ADMIN CORE
 ===================================================== */
 
 export const adminApi = {
@@ -277,83 +353,6 @@ export const adminApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
-    });
-  },
-};
-
-/* =====================================================
-   ADMIN USERS
-===================================================== */
-
-export const adminUsersApi = {
-  list() {
-    return request("/api/admin/users");
-  },
-
-  disable(userId: string) {
-    return request(`/api/admin/users/${userId}/disable`, {
-      method: "POST",
-    });
-  },
-
-  enable(userId: string) {
-    return request(`/api/admin/users/${userId}/enable`, {
-      method: "POST",
-    });
-  },
-
-  changeRole(userId: string, role: "user" | "admin") {
-    return request(`/api/admin/users/${userId}/role`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
-    });
-  },
-};
-
-/* =====================================================
-   USER PROFILE
-===================================================== */
-
-export async function uploadAvatar(file: File) {
-  const form = new FormData();
-  form.append("file", file);
-
-  return request("/api/users/me/avatar", {
-    method: "POST",
-    body: form,
-  });
-}
-
-export async function updateMe(payload: {
-  full_name?: string;
-  phone?: string;
-}): Promise<void> {
-  return request("/api/users/me", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-}
-
-/* =====================================================
-   PASSWORD RESET
-===================================================== */
-
-export const passwordResetApi = {
-  request(email: string) {
-    return request("/api/auth/password/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-  },
-
-  confirm(token: string, new_password: string) {
-    return request("/api/auth/password/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, new_password }),
     });
   },
 };

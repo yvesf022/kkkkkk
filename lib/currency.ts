@@ -1,8 +1,10 @@
-export function formatCurrency(amount: number): string {
-  if (isNaN(amount)) return "M0";
+export function formatCurrency(amount: number | null | undefined): string {
+  const value = Number(amount);
 
-  return `M${amount.toLocaleString("en-ZA", {
-    minimumFractionDigits: 0,
+  if (!isFinite(value)) return "M 0";
+
+  return `M ${value.toLocaleString("en-ZA", {
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
 }

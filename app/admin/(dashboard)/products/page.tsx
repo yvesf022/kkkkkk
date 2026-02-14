@@ -16,7 +16,6 @@ export default function AdminProductsPage() {
   /* ============ LOAD PRODUCTS ============ */
   async function loadProducts() {
     try {
-      // ✅ FIX: Cast the response to the correct type
       const data = (await productsApi.list()) as ProductListItem[];
       setProducts(data);
     } catch (err: any) {
@@ -49,17 +48,28 @@ export default function AdminProductsPage() {
             Products
           </h1>
           <p style={{ fontSize: 15, opacity: 0.65 }}>
-            Manage your product catalog
+            {products.length} products in catalog
           </p>
         </div>
 
-        <button
-          className="btn btnPrimary"
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          style={{ whiteSpace: "nowrap" }}
-        >
-          {showCreateForm ? "Cancel" : "+ Add Product"}
-        </button>
+        {/* ACTIONS */}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button
+            className="btn btnGhost"
+            onClick={() => router.push("/admin/products/bulk-upload")}
+            style={{ whiteSpace: "nowrap" }}
+          >
+            📊 Bulk Upload
+          </button>
+
+          <button
+            className="btn btnPrimary"
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            style={{ whiteSpace: "nowrap" }}
+          >
+            {showCreateForm ? "Cancel" : "+ Add Product"}
+          </button>
+        </div>
       </header>
 
       {/* CREATE FORM */}
@@ -89,6 +99,7 @@ export default function AdminProductsPage() {
                 height: 400,
                 borderRadius: 20,
                 background: "#f8fafc",
+                animation: "pulse 2s infinite",
               }}
             />
           ))}
@@ -96,32 +107,41 @@ export default function AdminProductsPage() {
       ) : products.length === 0 ? (
         <div
           style={{
-            padding: 60,
+            padding: 80,
             textAlign: "center",
             borderRadius: 22,
             background: "linear-gradient(135deg, #ffffff, #f8fbff)",
             boxShadow: "0 20px 60px rgba(15,23,42,0.12)",
           }}
         >
-          <h3 style={{ fontSize: 22, fontWeight: 900, marginBottom: 12 }}>
+          <div style={{ fontSize: 64, marginBottom: 24 }}>📦</div>
+          <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 12 }}>
             No products yet
           </h3>
-          <p style={{ opacity: 0.65, marginBottom: 24 }}>
-            Create your first product to get started
+          <p style={{ fontSize: 16, opacity: 0.65, marginBottom: 32 }}>
+            Get started by adding your first product or uploading in bulk
           </p>
-          <button
-            className="btn btnPrimary"
-            onClick={() => setShowCreateForm(true)}
-          >
-            + Add Product
-          </button>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <button
+              className="btn btnPrimary"
+              onClick={() => setShowCreateForm(true)}
+            >
+              + Add Product
+            </button>
+            <button
+              className="btn btnGhost"
+              onClick={() => router.push("/admin/products/bulk-upload")}
+            >
+              📊 Bulk Upload CSV
+            </button>
+          </div>
         </div>
       ) : (
         <div
           style={{
             display: "grid",
             gap: 24,
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
           }}
         >
           {products.map((product) => (
@@ -175,48 +195,84 @@ function ProductCard({ product, onClick }: ProductCardProps) {
             : "linear-gradient(135deg, #e0e7ff, #dbeafe)",
           display: "grid",
           placeItems: "center",
+          position: "relative",
         }}
       >
         {!product.main_image && (
           <div style={{ fontSize: 48, opacity: 0.3 }}>📦</div>
         )}
+        
+        {/* Stock Badge */}
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            padding: "6px 12px",
+            borderRadius: 999,
+            background: product.stock > 0 ? "#dcfce7" : "#fee2e2",
+            color: product.stock > 0 ? "#166534" : "#991b1b",
+            fontSize: 11,
+            fontWeight: 900,
+          }}
+        >
+          {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+        </div>
       </div>
 
       {/* CONTENT */}
       <div style={{ padding: 20 }}>
+        {/* Category & Store */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          {product.category && (
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                padding: "4px 10px",
+                borderRadius: 999,
+                background: "#e0e7ff",
+                color: "#3730a3",
+              }}
+            >
+              {product.category}
+            </div>
+          )}
+          
+          {product.store && (
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                padding: "4px 10px",
+                borderRadius: 999,
+                background: "#fef3c7",
+                color: "#92400e",
+              }}
+            >
+              {product.store}
+            </div>
+          )}
+        </div>
+
         {/* Title */}
         <h3
           style={{
-            fontSize: 18,
+            fontSize: 17,
             fontWeight: 900,
             marginBottom: 8,
             overflow: "hidden",
             textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            lineHeight: 1.3,
           }}
         >
           {product.title}
         </h3>
 
-        {/* Category */}
-        {product.category && (
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              padding: "4px 10px",
-              borderRadius: 999,
-              background: "#e0e7ff",
-              color: "#3730a3",
-              display: "inline-block",
-              marginBottom: 12,
-            }}
-          >
-            {product.category}
-          </div>
-        )}
-
-        {/* Price & Stock */}
+        {/* Price & Rating */}
         <div
           style={{
             display: "flex",
@@ -229,18 +285,11 @@ function ProductCard({ product, onClick }: ProductCardProps) {
             R {Math.round(product.price).toLocaleString()}
           </div>
 
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 800,
-              padding: "6px 12px",
-              borderRadius: 999,
-              background: product.stock > 0 ? "#dcfce7" : "#fee2e2",
-              color: product.stock > 0 ? "#166534" : "#991b1b",
-            }}
-          >
-            {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
-          </div>
+          {product.rating && product.rating > 0 && (
+            <div style={{ fontSize: 13, opacity: 0.7 }}>
+              ⭐ {product.rating.toFixed(1)} ({product.rating_number || 0})
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -260,9 +309,11 @@ function CreateProductForm({ onSuccess, onCancel }: CreateProductFormProps) {
   const [description, setDescription] = useState("");
   const [sku, setSku] = useState("");
   const [brand, setBrand] = useState("");
+  const [store, setStore] = useState("");
   const [price, setPrice] = useState("");
   const [comparePrice, setComparePrice] = useState("");
   const [category, setCategory] = useState("");
+  const [mainCategory, setMainCategory] = useState("");
   const [stock, setStock] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -287,15 +338,17 @@ function CreateProductForm({ onSuccess, onCancel }: CreateProductFormProps) {
       if (description) payload.description = description;
       if (sku) payload.sku = sku;
       if (brand) payload.brand = brand;
+      if (store) payload.store = store;
       if (comparePrice) payload.compare_price = parseFloat(comparePrice);
       if (category) payload.category = category;
+      if (mainCategory) payload.main_category = mainCategory;
 
       const result: any = await productsApi.create(payload);
 
-      toast.success("Product created! Now add images.");
+      toast.success("Product created! Add images next.");
       onSuccess();
 
-      // Redirect to edit page to upload images
+      // Redirect to edit page
       window.location.href = `/admin/products/${result.id}`;
     } catch (err: any) {
       toast.error(err.message || "Failed to create product");
@@ -355,8 +408,8 @@ function CreateProductForm({ onSuccess, onCancel }: CreateProductFormProps) {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Detailed product description, features, specifications..."
-              rows={5}
+              placeholder="Detailed product description..."
+              rows={4}
               style={inputStyle}
             />
           </div>
@@ -381,7 +434,7 @@ function CreateProductForm({ onSuccess, onCancel }: CreateProductFormProps) {
           </div>
 
           <div>
-            <label style={labelStyle}>Compare Price (Optional)</label>
+            <label style={labelStyle}>Compare Price</label>
             <input
               type="number"
               step="0.01"
@@ -419,11 +472,11 @@ function CreateProductForm({ onSuccess, onCancel }: CreateProductFormProps) {
 
         <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
           <div>
-            <label style={labelStyle}>Category</label>
+            <label style={labelStyle}>Store Name</label>
             <input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g., Electronics, Fashion"
+              value={store}
+              onChange={(e) => setStore(e.target.value)}
+              placeholder="Store or seller name"
               style={inputStyle}
             />
           </div>
@@ -439,6 +492,28 @@ function CreateProductForm({ onSuccess, onCancel }: CreateProductFormProps) {
               onChange={(e) => setStock(e.target.value)}
               placeholder="0"
               required
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
+          <div>
+            <label style={labelStyle}>Main Category</label>
+            <input
+              value={mainCategory}
+              onChange={(e) => setMainCategory(e.target.value)}
+              placeholder="e.g., All Beauty, Electronics"
+              style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Category</label>
+            <input
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="e.g., Beauty, Fashion"
               style={inputStyle}
             />
           </div>

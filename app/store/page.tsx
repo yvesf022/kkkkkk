@@ -10,6 +10,16 @@ import StoreToolbar, {
 } from "@/components/store/StoreToolbar";
 import StoreTabs from "@/components/store/StoreTabs";
 
+const API = process.env.NEXT_PUBLIC_API_URL || "";
+
+/* =========================
+   MALOTI FORMATTER
+========================= */
+function formatM(amount: number) {
+  if (isNaN(amount)) return "M0";
+  return `M ${Math.round(amount).toLocaleString("en-ZA")}`;
+}
+
 export default function StorePage() {
   const router = useRouter();
 
@@ -24,29 +34,20 @@ export default function StorePage() {
       try {
         setLoading(true);
 
-        // Build query params from filters (only use properties that exist in Filters type)
         const params: any = {};
-        
         if (filters.category) {
           params.category = filters.category;
         }
 
-        // Note: Only add params for properties that exist in your Filters type
-        // If brand, minPrice, maxPrice, inStock don't exist, remove these lines
-
-        const data = (await productsApi.list(params)) as ProductListItem[];
-        
-        // Apply client-side sorting if needed
+        const data = await productsApi.list(params);
         let sortedData = [...data];
-        
+
         if (sort === "price_asc") {
           sortedData.sort((a, b) => a.price - b.price);
         } else if (sort === "price_desc") {
           sortedData.sort((a, b) => b.price - a.price);
-        } else if (sort === "newest") {
-          // Assuming products are already sorted by newest from API
         }
-        
+
         setProducts(sortedData);
       } catch (err) {
         console.error("Failed to load products:", err);
@@ -59,8 +60,7 @@ export default function StorePage() {
   }, [filters, sort]);
 
   return (
-    <div style={{ display: "grid", gap: 28, maxWidth: 1400, margin: "0 auto" }}>
-      {/* STORE HEADER / FILTERS */}
+    <div style={{ display: "grid", gap: 32, maxWidth: 1400, margin: "0 auto" }}>
       <StoreToolbar
         filters={filters}
         setFilters={setFilters}
@@ -68,24 +68,19 @@ export default function StorePage() {
         setSort={setSort}
       />
 
-      {/* CATEGORY TABS */}
       <StoreTabs filters={filters} setFilters={setFilters} />
 
-      {/* PRODUCTS SECTION */}
       <section>
-        {/* Header */}
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8 }}>
-            {filters.category
-              ? `${filters.category} Products`
-              : "All Products"}
+        <div style={{ marginBottom: 28 }}>
+          <h2 style={{ fontSize: 28, fontWeight: 900 }}>
+            {filters.category ? `${filters.category}` : "All Products"}
           </h2>
           <p style={{ fontSize: 14, opacity: 0.6 }}>
-            {products.length} product{products.length !== 1 ? "s" : ""} found
+            {products.length} product{products.length !== 1 ? "s" : ""}
           </p>
         </div>
 
-        {/* LOADING */}
+        {/* LOADING SKELETON */}
         {loading && (
           <div
             style={{
@@ -94,13 +89,13 @@ export default function StorePage() {
               gap: 24,
             }}
           >
-            {[1, 2, 3, 4, 5, 6].map((i) => (
+            {[...Array(6)].map((_, i) => (
               <div
                 key={i}
                 style={{
-                  height: 400,
+                  height: 420,
                   borderRadius: 20,
-                  background: "#f8fafc",
+                  background: "#f3f4f6",
                 }}
               />
             ))}
@@ -113,47 +108,39 @@ export default function StorePage() {
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 24,
+              gap: 28,
             }}
           >
             {products.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
-                onClick={() => router.push(`/store/product/${product.id}`)}
+                onClick={() =>
+                  router.push(`/store/product/${product.id}`)
+                }
               />
             ))}
           </div>
         )}
 
-        {/* EMPTY STATE */}
+        {/* EMPTY */}
         {!loading && products.length === 0 && (
           <div
             style={{
               padding: 80,
               textAlign: "center",
               borderRadius: 22,
-              background: "linear-gradient(135deg, #ffffff, #f8fbff)",
+              background: "#ffffff",
               boxShadow: "0 20px 60px rgba(15,23,42,0.12)",
             }}
           >
-            <div style={{ fontSize: 64, marginBottom: 24 }}>🔍</div>
-            <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 12 }}>
+            <div style={{ fontSize: 60, marginBottom: 20 }}>🔍</div>
+            <h3 style={{ fontSize: 22, fontWeight: 900 }}>
               No products found
             </h3>
-            <p style={{ fontSize: 16, opacity: 0.65, marginBottom: 32 }}>
-              {filters.category
-                ? `No products in the "${filters.category}" category yet.`
-                : "Try adjusting your filters or check back later."}
+            <p style={{ opacity: 0.6, marginTop: 10 }}>
+              Try adjusting filters or check back later.
             </p>
-            {Object.keys(filters).length > 0 && (
-              <button
-                className="btn btnPrimary"
-                onClick={() => setFilters({})}
-              >
-                Clear Filters
-              </button>
-            )}
           </div>
         )}
       </section>
@@ -161,7 +148,9 @@ export default function StorePage() {
   );
 }
 
-/* ============ PRODUCT CARD ============ */
+/* =========================
+   PRODUCT CARD
+========================= */
 
 interface ProductCardProps {
   product: ProductListItem;
@@ -169,12 +158,21 @@ interface ProductCardProps {
 }
 
 function ProductCard({ product, onClick }: ProductCardProps) {
+  const imageUrl =
+    product.main_image?.startsWith("http")
+      ? product.main_image
+      : product.main_image
+      ? `${API}${product.main_image}`
+      : null;
+
+  const inStock = product.stock > 0;
+
   return (
     <div
       onClick={onClick}
       style={{
         borderRadius: 20,
-        background: "linear-gradient(135deg, #ffffff, #f8fbff)",
+        background: "#ffffff",
         border: "1px solid rgba(15,23,42,0.08)",
         boxShadow: "0 18px 50px rgba(15,23,42,0.12)",
         overflow: "hidden",
@@ -183,118 +181,103 @@ function ProductCard({ product, onClick }: ProductCardProps) {
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "translateY(-6px)";
-        e.currentTarget.style.boxShadow = "0 28px 70px rgba(15,23,42,0.2)";
+        e.currentTarget.style.boxShadow =
+          "0 28px 70px rgba(15,23,42,0.2)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 18px 50px rgba(15,23,42,0.12)";
+        e.currentTarget.style.boxShadow =
+          "0 18px 50px rgba(15,23,42,0.12)";
       }}
     >
       {/* IMAGE */}
       <div
         style={{
           height: 280,
-          background: product.main_image
-            ? `url(${product.main_image}) center/cover`
-            : "linear-gradient(135deg, #e0e7ff, #dbeafe)",
+          background: imageUrl
+            ? `url(${imageUrl}) center/cover`
+            : "#e5e7eb",
           display: "grid",
           placeItems: "center",
         }}
       >
-        {!product.main_image && (
-          <div style={{ fontSize: 64, opacity: 0.3 }}>📦</div>
+        {!imageUrl && (
+          <div style={{ fontSize: 60, opacity: 0.3 }}>📦</div>
         )}
       </div>
 
       {/* CONTENT */}
       <div style={{ padding: 20 }}>
-        {/* Category */}
-        {product.category && (
+        {/* STORE BADGE */}
+        {product.store && (
           <div
             style={{
               fontSize: 11,
               fontWeight: 800,
               padding: "4px 10px",
               borderRadius: 999,
-              background: "#e0e7ff",
+              background: "#eef2ff",
               color: "#3730a3",
               display: "inline-block",
-              marginBottom: 12,
+              marginBottom: 10,
               textTransform: "uppercase",
-              letterSpacing: "0.5px",
             }}
           >
-            {product.category}
+            {product.store}
           </div>
         )}
 
-        {/* Title */}
+        {/* TITLE */}
         <h3
           style={{
             fontSize: 18,
             fontWeight: 900,
-            marginBottom: 8,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
+            marginBottom: 6,
             lineHeight: 1.3,
           }}
         >
           {product.title}
         </h3>
 
-        {/* Description */}
+        {/* SHORT DESC */}
         {product.short_description && (
           <p
             style={{
               fontSize: 14,
               opacity: 0.6,
-              marginBottom: 16,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
+              marginBottom: 14,
             }}
           >
             {product.short_description}
           </p>
         )}
 
-        {/* Price & Stock */}
+        {/* PRICE */}
+        <div style={{ fontSize: 22, fontWeight: 900 }}>
+          {formatM(product.price)}
+        </div>
+
+        {/* RATING */}
+        {product.rating_number && product.rating_number > 0 && (
+          <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
+            ⭐ {product.rating_number} reviews
+          </div>
+        )}
+
+        {/* STOCK BADGE */}
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 16,
+            marginTop: 12,
+            fontSize: 12,
+            fontWeight: 800,
+            padding: "6px 12px",
+            borderRadius: 999,
+            background: inStock ? "#dcfce7" : "#fee2e2",
+            color: inStock ? "#166534" : "#991b1b",
+            display: "inline-block",
           }}
         >
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 900 }}>
-              R {Math.round(product.price).toLocaleString()}
-            </div>
-            {product.rating && product.rating > 0 && (
-              <div style={{ fontSize: 13, opacity: 0.6, marginTop: 4 }}>
-                ⭐ {product.rating.toFixed(1)} ({product.sales || 0} sold)
-              </div>
-            )}
-          </div>
-
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              padding: "6px 12px",
-              borderRadius: 999,
-              background: product.stock > 0 ? "#dcfce7" : "#fee2e2",
-              color: product.stock > 0 ? "#166534" : "#991b1b",
-            }}
-          >
-            {product.stock > 0 ? "In Stock" : "Out of Stock"}
-          </div>
+          {inStock ? "In Stock" : "Out of Stock"}
         </div>
       </div>
     </div>

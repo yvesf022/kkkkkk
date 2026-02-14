@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { paymentsApi } from "@/lib/api";
 
 /* ======================
-   TYPES (BACKEND-ALIGNED)
+   TYPES
 ====================== */
 
 type Payment = {
@@ -15,21 +15,27 @@ type Payment = {
   amount: number;
   status: "pending" | "on_hold" | "paid" | "rejected";
   created_at: string;
+  proof?: {
+    file_url: string;
+  } | null;
 };
 
-/** Lesotho currency formatter (Maloti) */
+/* ======================
+   MALOTI FORMAT
+====================== */
+
 const fmtM = (v: number) =>
   `M ${Math.round(v).toLocaleString("en-ZA")}`;
+
+/* ======================
+   PAGE
+====================== */
 
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
-  const [loadedOnce, setLoadedOnce] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  /* ======================
-     LOAD PAYMENTS (ONCE)
-  ====================== */
   async function load() {
     try {
       setLoading(true);
@@ -43,21 +49,16 @@ export default function AdminPaymentsPage() {
   }
 
   useEffect(() => {
-    if (loadedOnce) return;
     load();
-    setLoadedOnce(true);
-  }, [loadedOnce]);
+  }, []);
 
-  /* ======================
-     REVIEW PAYMENT
-  ====================== */
   async function reviewPayment(
     id: string,
     action: "approve" | "reject"
   ) {
-    setUpdating(true);
+    setUpdatingId(id);
+
     try {
-      // 🔑 TRANSLATION LAYER (UI → BACKEND)
       const status =
         action === "approve" ? "paid" : "rejected";
 
@@ -73,21 +74,21 @@ export default function AdminPaymentsPage() {
     } catch (err: any) {
       toast.error(err?.message || "Update failed");
     } finally {
-      setUpdating(false);
+      setUpdatingId(null);
     }
   }
 
   if (loading) return <p>Loading payments…</p>;
 
   return (
-    <div style={{ display: "grid", gap: 28 }}>
+    <div style={{ display: "grid", gap: 32 }}>
       {/* HEADER */}
       <header>
-        <h1 style={{ fontSize: 28, fontWeight: 900 }}>
+        <h1 style={{ fontSize: 30, fontWeight: 900 }}>
           Payments Review
         </h1>
-        <p style={{ opacity: 0.6, marginTop: 4 }}>
-          Review and approve customer payment proofs
+        <p style={{ opacity: 0.6 }}>
+          Approve or reject uploaded payment proofs
         </p>
       </header>
 
@@ -95,46 +96,68 @@ export default function AdminPaymentsPage() {
         <div className="card">No payments found.</div>
       )}
 
-      <div style={{ display: "grid", gap: 14 }}>
+      <div style={{ display: "grid", gap: 18 }}>
         {payments.map((p) => {
-          const needsReview =
-            p.status === "pending" || p.status === "on_hold";
+          const needsReview = p.status === "on_hold";
 
           return (
             <div
               key={p.id}
-              className="card"
               style={{
-                display: "grid",
-                gap: 10,
+                padding: 22,
+                borderRadius: 18,
+                background: "#ffffff",
                 border: needsReview
-                  ? "2px solid #fed7aa"
-                  : "1px solid #e5e7eb",
-                background: needsReview
-                  ? "#fff7ed"
-                  : "#ffffff",
+                  ? "2px solid #f59e0b"
+                  : "1px solid rgba(0,0,0,0.08)",
+                boxShadow:
+                  "0 12px 30px rgba(15,23,42,0.08)",
+                display: "grid",
+                gap: 14,
               }}
             >
-              {/* TOP */}
+              {/* TOP ROW */}
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
-                <strong>
-                  Payment #{p.id.slice(0, 8)}
-                </strong>
-                <strong>{fmtM(p.amount)}</strong>
+                <div>
+                  <div style={{ fontWeight: 900 }}>
+                    Payment #{p.id.slice(0, 8)}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      opacity: 0.6,
+                      marginTop: 2,
+                    }}
+                  >
+                    {new Date(
+                      p.created_at
+                    ).toLocaleString()}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 900,
+                  }}
+                >
+                  {fmtM(p.amount)}
+                </div>
               </div>
 
-              {/* META */}
-              <div style={{ fontSize: 13, opacity: 0.75 }}>
+              {/* ORDER LINK */}
+              <div style={{ fontSize: 14 }}>
                 Order{" "}
                 <Link
                   href={`/admin/orders/${p.order_id}`}
                   style={{
-                    fontWeight: 700,
+                    fontWeight: 800,
                     textDecoration: "underline",
                   }}
                 >
@@ -142,10 +165,25 @@ export default function AdminPaymentsPage() {
                 </Link>
               </div>
 
-              {/* STATUS */}
-              <div style={{ fontSize: 13 }}>
-                Status: <b>{p.status}</b>
-              </div>
+              {/* STATUS BADGE */}
+              <StatusBadge status={p.status} />
+
+              {/* PROOF */}
+              {p.proof?.file_url && (
+                <a
+                  href={p.proof.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#2563eb",
+                    textDecoration: "underline",
+                  }}
+                >
+                  View Payment Proof
+                </a>
+              )}
 
               {/* ACTIONS */}
               {needsReview && (
@@ -153,25 +191,26 @@ export default function AdminPaymentsPage() {
                   style={{
                     display: "flex",
                     gap: 12,
-                    marginTop: 6,
                   }}
                 >
                   <button
-                    className="btn btnTech"
-                    disabled={updating}
+                    disabled={updatingId === p.id}
                     onClick={() =>
                       reviewPayment(p.id, "approve")
                     }
+                    style={approveBtn}
                   >
-                    Approve
+                    {updatingId === p.id
+                      ? "Processing..."
+                      : "Approve"}
                   </button>
 
                   <button
-                    className="btn btnGhost"
-                    disabled={updating}
+                    disabled={updatingId === p.id}
                     onClick={() =>
                       reviewPayment(p.id, "reject")
                     }
+                    style={rejectBtn}
                   >
                     Reject
                   </button>
@@ -184,3 +223,81 @@ export default function AdminPaymentsPage() {
     </div>
   );
 }
+
+/* ======================
+   STATUS BADGE
+====================== */
+
+function StatusBadge({
+  status,
+}: {
+  status: "pending" | "on_hold" | "paid" | "rejected";
+}) {
+  let bg = "#f3f4f6";
+  let text = "#374151";
+  let label = status;
+
+  if (status === "pending") {
+    bg = "#fef3c7";
+    text = "#92400e";
+    label = "Pending";
+  }
+
+  if (status === "on_hold") {
+    bg = "#ffedd5";
+    text = "#c2410c";
+    label = "Awaiting Review";
+  }
+
+  if (status === "paid") {
+    bg = "#dcfce7";
+    text = "#166534";
+    label = "Approved";
+  }
+
+  if (status === "rejected") {
+    bg = "#fee2e2";
+    text = "#991b1b";
+    label = "Rejected";
+  }
+
+  return (
+    <span
+      style={{
+        padding: "6px 14px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 800,
+        background: bg,
+        color: text,
+        display: "inline-block",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/* ======================
+   BUTTONS
+====================== */
+
+const approveBtn: React.CSSProperties = {
+  padding: "10px 18px",
+  borderRadius: 10,
+  border: "none",
+  background: "#16a34a",
+  color: "white",
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const rejectBtn: React.CSSProperties = {
+  padding: "10px 18px",
+  borderRadius: 10,
+  border: "none",
+  background: "#dc2626",
+  color: "white",
+  fontWeight: 800,
+  cursor: "pointer",
+};
