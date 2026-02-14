@@ -5,9 +5,9 @@ import type { Filters, SortMode } from "./StoreToolbar";
 
 const SORT_OPTIONS: SortMode[] = [
   "featured",
-  "rating",
-  "price_low",
-  "price_high",
+  "newest",
+  "price_asc",
+  "price_desc",
 ];
 
 export default function FiltersBar({
@@ -97,9 +97,9 @@ export default function FiltersBar({
         }}
       >
         <option value="featured">Featured</option>
-        <option value="rating">Top Rated</option>
-        <option value="price_low">Price ↑</option>
-        <option value="price_high">Price ↓</option>
+        <option value="newest">Newest</option>
+        <option value="price_asc">Price ↑</option>
+        <option value="price_desc">Price ↓</option>
       </select>
 
       <style>{`
