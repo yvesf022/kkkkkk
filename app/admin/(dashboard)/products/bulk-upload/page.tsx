@@ -10,13 +10,28 @@ import { bulkUploadApi } from "@/lib/api";
 
 type UploadStatus = {
   id: string;
-  file_name: string;
+  file_name?: string;
+  filename?: string; // fallback if backend uses this
   status: "processing" | "completed" | "failed";
   total_rows?: number;
-  success_count?: number;
-  error_count?: number;
-  created_at: string;
+  successful_rows?: number;
+  failed_rows?: number;
+  success_count?: number; // backward compatibility
+  error_count?: number;   // backward compatibility
+  started_at?: string;
+  completed_at?: string;
+  created_at?: string;
 };
+
+/* =====================================================
+   HELPERS
+===================================================== */
+
+function formatDate(dateString?: string) {
+  if (!dateString) return "—";
+  const d = new Date(dateString);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleString();
+}
 
 /* =====================================================
    PAGE
@@ -33,11 +48,8 @@ export default function AdminBulkUploadPage() {
   async function loadHistory() {
     try {
       setLoadingHistory(true);
-
       const data = await bulkUploadApi.listUploads();
-
-      // Explicit cast for strict TypeScript
-      setHistory(data as UploadStatus[]);
+      setHistory((data || []) as UploadStatus[]);
     } catch {
       toast.error("Failed to load upload history");
     } finally {
@@ -61,11 +73,11 @@ export default function AdminBulkUploadPage() {
 
     try {
       await bulkUploadApi.upload(file);
-      toast.success("Upload started");
+      toast.success("Upload started successfully");
       setFile(null);
       await loadHistory();
     } catch (err: any) {
-      toast.error(err.message || "Upload failed");
+      toast.error(err?.message || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -116,30 +128,73 @@ export default function AdminBulkUploadPage() {
           <p>No uploads yet.</p>
         ) : (
           <div style={{ display: "grid", gap: 14 }}>
-            {history.map((item) => (
-              <div
-                key={item.id}
-                style={historyItemStyle}
-              >
-                <div>
-                  <strong>{item.file_name}</strong>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      opacity: 0.6,
-                    }}
-                  >
-                    {new Date(
-                      item.created_at
-                    ).toLocaleString()}
+            {history.map((item) => {
+              const fileName =
+                item.file_name ||
+                item.filename ||
+                "Unknown file";
+
+              const total =
+                item.total_rows ?? 0;
+
+              const success =
+                item.successful_rows ??
+                item.success_count ??
+                0;
+
+              const failed =
+                item.failed_rows ??
+                item.error_count ??
+                0;
+
+              return (
+                <div
+                  key={item.id}
+                  style={historyItemStyle}
+                >
+                  <div>
+                    <strong>{fileName}</strong>
+
+                    <div
+                      style={{
+                        fontSize: 12,
+                        opacity: 0.6,
+                        marginTop: 4,
+                      }}
+                    >
+                      Started: {formatDate(item.started_at || item.created_at)}
+                    </div>
+
+                    {item.completed_at && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          opacity: 0.6,
+                        }}
+                      >
+                        Completed: {formatDate(item.completed_at)}
+                      </div>
+                    )}
+
+                    {item.status !== "processing" && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          marginTop: 4,
+                          opacity: 0.7,
+                        }}
+                      >
+                        Total: {total} | Success: {success} | Failed: {failed}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <StatusBadge status={item.status} />
                   </div>
                 </div>
-
-                <div>
-                  <StatusBadge status={item.status} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -183,6 +238,7 @@ function StatusBadge({
         fontWeight: 800,
         background: bg,
         color: text,
+        textTransform: "capitalize",
       }}
     >
       {status}
