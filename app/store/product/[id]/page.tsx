@@ -4,22 +4,23 @@ import type { Product } from "@/lib/types";
 import AddToCartClient from "./AddToCartClient";
 
 interface Props {
-  params: { id?: string };
+  params: { id: string };
 }
 
 export default async function ProductPage({ params }: Props) {
-  const id = params?.id;
+  const productId = params?.id;
 
-  // 🔥 CRITICAL GUARD
-  if (!id || id === "undefined") {
+  // 🚨 HARD PROTECTION
+  if (!productId || productId === "undefined") {
     notFound();
   }
 
   let product: Product;
 
   try {
-    product = await productsApi.get(id);
-  } catch {
+    product = await productsApi.get(productId);
+  } catch (err: any) {
+    console.error("Product fetch failed:", err);
     notFound();
   }
 
@@ -38,7 +39,6 @@ export default async function ProductPage({ params }: Props) {
         gridTemplateColumns: "1fr 1fr",
       }}
     >
-      {/* IMAGE SECTION */}
       <div>
         <div
           style={{
@@ -59,7 +59,6 @@ export default async function ProductPage({ params }: Props) {
         </div>
       </div>
 
-      {/* DETAILS SECTION */}
       <div style={{ display: "grid", gap: 20 }}>
         {product.category && (
           <div
