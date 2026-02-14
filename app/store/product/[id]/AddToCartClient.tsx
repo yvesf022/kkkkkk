@@ -2,148 +2,99 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { useCart } from "@/lib/cart"; // assuming you use a cart store
+import type { Product } from "@/lib/types";
+import { useCart } from "@/lib/cart";
 
-type Props = {
-  product: {
-    id: string;
-    title: string;
-    price: number;
-    main_image: string;
-    in_stock?: boolean;
-    stock: number;
-  };
-};
+interface Props {
+  product: Product;
+}
 
 export default function AddToCartClient({ product }: Props) {
-  const addItem = useCart((s) => s.addItem);
-
   const [qty, setQty] = useState(1);
-  const [adding, setAdding] = useState(false);
+  const addToCart = useCart((s) => s.add);
 
-  const isInStock = product.stock > 0;
-
-  function increase() {
-    if (qty >= product.stock) {
-      toast.error("Maximum available stock reached");
-      return;
-    }
-    setQty((q) => q + 1);
-  }
-
-  function decrease() {
-    if (qty <= 1) return;
-    setQty((q) => q - 1);
-  }
-
-  async function handleAdd() {
-    if (!isInStock) {
+  function handleAdd() {
+    if (!product.in_stock || product.stock <= 0) {
       toast.error("Product is out of stock");
       return;
     }
 
-    setAdding(true);
-
-    try {
-      addItem({
-        id: product.id,
-        title: product.title,
-        price: product.price,
-        image: product.main_image,
-        quantity: qty,
-      });
-
-      toast.success("Added to cart");
-    } catch {
-      toast.error("Failed to add to cart");
-    } finally {
-      setAdding(false);
+    if (qty < 1) {
+      toast.error("Invalid quantity");
+      return;
     }
+
+    addToCart({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      main_image: product.main_image || null, // ✅ correct field
+      quantity: qty,
+    });
+
+    toast.success("Added to cart");
   }
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gap: 16,
-        marginTop: 10,
-        maxWidth: 320,
-      }}
-    >
-      {/* QUANTITY SELECTOR */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
+    <div style={{ display: "grid", gap: 16 }}>
+      {/* Quantity Selector */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button
-          onClick={decrease}
-          disabled={qty <= 1}
-          style={qtyButton}
+          type="button"
+          onClick={() => setQty((q) => Math.max(1, q - 1))}
+          style={qtyBtn}
         >
-          −
+          -
         </button>
 
-        <span style={{ fontWeight: 800 }}>
+        <span style={{ fontWeight: 800, fontSize: 16 }}>
           {qty}
         </span>
 
         <button
-          onClick={increase}
-          disabled={qty >= product.stock}
-          style={qtyButton}
+          type="button"
+          onClick={() =>
+            setQty((q) =>
+              Math.min(product.stock, q + 1)
+            )
+          }
+          style={qtyBtn}
         >
           +
         </button>
       </div>
 
-      {/* ADD BUTTON */}
+      {/* Add Button */}
       <button
-        disabled={!isInStock || adding}
         onClick={handleAdd}
+        disabled={!product.in_stock}
         style={{
           padding: "14px 20px",
           borderRadius: 12,
-          background: isInStock ? "#111827" : "#9ca3af",
-          color: "white",
-          fontWeight: 800,
           border: "none",
-          cursor: isInStock ? "pointer" : "not-allowed",
-          fontSize: 15,
+          fontWeight: 900,
+          background: product.in_stock
+            ? "#111827"
+            : "#9ca3af",
+          color: "#ffffff",
+          cursor: product.in_stock
+            ? "pointer"
+            : "not-allowed",
         }}
       >
-        {adding
-          ? "Adding..."
-          : isInStock
+        {product.in_stock
           ? "Add to Cart"
           : "Out of Stock"}
       </button>
-
-      {/* STOCK INFO */}
-      {isInStock && product.stock <= 5 && (
-        <div
-          style={{
-            fontSize: 13,
-            color: "#dc2626",
-            fontWeight: 700,
-          }}
-        >
-          Only {product.stock} left in stock
-        </div>
-      )}
     </div>
   );
 }
 
-const qtyButton: React.CSSProperties = {
-  width: 36,
-  height: 36,
+const qtyBtn: React.CSSProperties = {
+  padding: "6px 12px",
   borderRadius: 8,
-  border: "1px solid #d1d5db",
-  background: "white",
-  fontSize: 18,
-  fontWeight: 900,
+  border: "1px solid rgba(0,0,0,0.15)",
+  background: "#ffffff",
+  fontWeight: 800,
   cursor: "pointer",
 };
