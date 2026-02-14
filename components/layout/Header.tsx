@@ -106,11 +106,15 @@ export default function Header() {
   const logout = useAuth((s) => s.logout);
 
   const cartCount = items.reduce((a, b) => a + b.quantity, 0);
-  const isStoreRoute = pathname.startsWith("/store");
+
+  // Check if we should show menu button
+  const shouldShowMenu =
+    !pathname.startsWith("/login") &&
+    !pathname.startsWith("/register") &&
+    !pathname.startsWith("/verify-email");
 
   /* ============ ROLE-BASED NAVIGATION ============ */
 
-  // Prevent admin from accessing user pages
   React.useEffect(() => {
     if (!user) return;
 
@@ -140,7 +144,6 @@ export default function Header() {
       return;
     }
 
-    // Block admin from accessing user account
     if (user.role === "admin") {
       toast.error("Admin accounts should use /admin");
       router.push("/admin");
@@ -152,7 +155,6 @@ export default function Header() {
 
   /* ============ GO TO CART ============ */
   function goToCart() {
-    // Anyone can view cart (even guests)
     router.push("/store/cart");
   }
 
@@ -240,7 +242,7 @@ export default function Header() {
                 </>
               )}
 
-              {/* LOGGED IN AS ADMIN (blocked from user pages) */}
+              {/* LOGGED IN AS ADMIN */}
               {user && user.role === "admin" && (
                 <>
                   <CapsuleLink href="/admin">Admin Panel</CapsuleLink>
@@ -265,18 +267,19 @@ export default function Header() {
                 </>
               )}
 
-              {/* Mobile menu — STORE ONLY */}
-              {isStoreRoute && (
+              {/* MENU BUTTON - Shows on all pages except login/register */}
+              {shouldShowMenu && (
                 <button
                   onClick={toggleSidebar}
-                  aria-label="Open menu"
+                  aria-label="Toggle menu"
                   style={{
                     fontSize: 20,
                     padding: "8px 12px",
                     borderRadius: 12,
-                    background: "transparent",
+                    background:
+                      "linear-gradient(180deg, rgba(8,14,28,.75), rgba(6,10,20,.75))",
+                    border: "1px solid rgba(255,255,255,.18)",
                     color: "#fff",
-                    border: "none",
                     cursor: "pointer",
                   }}
                 >

@@ -3,121 +3,157 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUI } from "./uiStore";
+import { useEffect } from "react";
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { sidebarOpen, toggleSidebar } = useUI();
+  const { sidebarOpen, toggleSidebar, closeSidebar } = useUI();
+
+  // Auto-close sidebar when navigating on mobile
+  useEffect(() => {
+    closeSidebar();
+  }, [pathname, closeSidebar]);
+
+  // Don't render sidebar on admin or auth pages
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/verify-email")
+  ) {
+    return null;
+  }
 
   return (
-    <aside
-      style={{
-        position: "fixed",
-        top: "var(--headerH, 86px)",
-        left: sidebarOpen ? 0 : "-100%",
-        width: "var(--sidebarW, 300px)",
-        height: "calc(100vh - var(--headerH, 86px))",
-        padding: 18,
-        zIndex: 20,
-        transition: "left 0.3s ease",
-      }}
-    >
-      <div
+    <>
+      {/* OVERLAY (for mobile) */}
+      {sidebarOpen && (
+        <div
+          onClick={closeSidebar}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            zIndex: 19,
+            backdropFilter: "blur(4px)",
+          }}
+        />
+      )}
+
+      {/* SIDEBAR */}
+      <aside
         style={{
-          height: "100%",
-          background: "rgba(255, 255, 255, 0.92)",
-          borderRadius: 22,
-          boxShadow:
-            "0 20px 60px rgba(12, 14, 20, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.6)",
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
+          position: "fixed",
+          top: "var(--headerH, 86px)",
+          left: sidebarOpen ? 0 : "-100%",
+          width: "var(--sidebarW, 300px)",
+          height: "calc(100vh - var(--headerH, 86px))",
+          padding: 18,
+          zIndex: 20,
+          transition: "left 0.3s ease",
         }}
       >
-        {/* HEADER */}
         <div
           style={{
+            height: "100%",
+            background: "rgba(255, 255, 255, 0.92)",
+            borderRadius: 22,
+            boxShadow:
+              "0 20px 60px rgba(12, 14, 20, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.6)",
+            padding: 16,
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 14,
+            flexDirection: "column",
           }}
         >
-          <div>
-            <div
-              style={{
-                fontWeight: 900,
-                fontSize: 18,
-              }}
-            >
-              Sub-Stores
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: "rgba(12, 14, 20, 0.55)",
-              }}
-            >
-              Choose your store
-            </div>
-          </div>
-
-          <button
-            onClick={toggleSidebar}
-            aria-label="Close sidebar"
+          {/* HEADER */}
+          <div
             style={{
-              background: "none",
-              border: "none",
-              fontSize: 24,
-              cursor: "pointer",
-              color: "rgba(12, 14, 20, 0.6)",
-              padding: 4,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 14,
             }}
           >
-            ‹
-          </button>
+            <div>
+              <div
+                style={{
+                  fontWeight: 900,
+                  fontSize: 18,
+                }}
+              >
+                Sub-Stores
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "rgba(12, 14, 20, 0.55)",
+                }}
+              >
+                Choose your store
+              </div>
+            </div>
+
+            <button
+              onClick={toggleSidebar}
+              aria-label="Close sidebar"
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: 24,
+                cursor: "pointer",
+                color: "rgba(12, 14, 20, 0.6)",
+                padding: 4,
+              }}
+            >
+              ‹
+            </button>
+          </div>
+
+          {/* NAVIGATION */}
+          <nav
+            style={{
+              overflowY: "auto",
+              display: "grid",
+              gap: 10,
+            }}
+          >
+            <SidebarItem
+              title="All Products"
+              subtitle="Browse everything"
+              href="/store"
+              active={pathname === "/store"}
+            />
+
+            <SidebarItem
+              title="Beauty Products"
+              subtitle="Glow, skincare, cosmetics"
+              badge="Glow"
+              href="/store/beauty"
+              active={pathname.includes("/store/beauty")}
+            />
+
+            <SidebarItem
+              title="Mobile & Accessories"
+              subtitle="Cases, chargers, add-ons"
+              badge="Tech"
+              href="/store/mobile"
+              active={pathname.includes("/store/mobile")}
+            />
+
+            <SidebarItem
+              title="Fashion Store"
+              subtitle="Streetwear & outfits"
+              badge="Style"
+              href="/store/fashion"
+              active={pathname.includes("/store/fashion")}
+            />
+          </nav>
         </div>
-
-        {/* NAVIGATION */}
-        <nav
-          style={{
-            overflowY: "auto",
-            display: "grid",
-            gap: 10,
-          }}
-        >
-          <SidebarItem
-            title="All Products"
-            subtitle="Browse everything"
-            href="/store"
-            active={pathname === "/store"}
-          />
-
-          <SidebarItem
-            title="Beauty Products"
-            subtitle="Glow, skincare, cosmetics"
-            badge="Glow"
-            href="/store/beauty"
-            active={pathname.includes("/store/beauty")}
-          />
-
-          <SidebarItem
-            title="Mobile & Accessories"
-            subtitle="Cases, chargers, add-ons"
-            badge="Tech"
-            href="/store/mobile"
-            active={pathname.includes("/store/mobile")}
-          />
-
-          <SidebarItem
-            title="Fashion Store"
-            subtitle="Streetwear & outfits"
-            badge="Style"
-            href="/store/fashion"
-            active={pathname.includes("/store/fashion")}
-          />
-        </nav>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
@@ -156,9 +192,7 @@ function SidebarItem({
           ? "1px solid rgba(255, 255, 255, 0.3)"
           : "1px solid rgba(12, 14, 20, 0.06)",
         transition: "all 0.25s ease",
-        boxShadow: active
-          ? "0 10px 28px rgba(99, 102, 241, 0.3)"
-          : "none",
+        boxShadow: active ? "0 10px 28px rgba(99, 102, 241, 0.3)" : "none",
       }}
       onMouseEnter={(e) => {
         if (!active) {
