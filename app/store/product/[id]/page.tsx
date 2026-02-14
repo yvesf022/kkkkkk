@@ -16,10 +16,10 @@ type Product = {
   title: string;
   price: number;
   compare_price?: number | null;
-  main_image: string;
-  category: string;
+  main_image?: string | null;
+  category?: string | null;
   stock: number;
-  in_stock: boolean;
+  in_stock?: boolean;
   description?: string | null;
 };
 
@@ -28,13 +28,19 @@ type Product = {
 ====================== */
 
 async function getProductById(id: string): Promise<Product | null> {
-  const res = await fetch(`${API}/api/products`, {
-    cache: "no-store",
-  });
+  const res = await fetch(
+    `${API}/api/products?page=1&per_page=100`,
+    { cache: "no-store" }
+  );
 
   if (!res.ok) return null;
 
-  const products: Product[] = await res.json();
+  const json = await res.json();
+
+  // Your backend is paginated — handle safely
+  const products: Product[] =
+    json.items ?? json.data ?? json.results ?? [];
+
   return products.find((p) => p.id === id) ?? null;
 }
 
@@ -53,9 +59,19 @@ export default async function ProductPage({
     notFound();
   }
 
-  const imageUrl = product.main_image.startsWith("http")
-    ? product.main_image
-    : `${API}${product.main_image}`;
+  const imageUrl =
+    product.main_image && product.main_image.startsWith("http")
+      ? product.main_image
+      : product.main_image
+      ? `${API}${product.main_image}`
+      : "/placeholder.png";
+
+  const categorySlug = product.category ?? "all";
+
+  const isInStock =
+    product.in_stock !== undefined
+      ? product.in_stock
+      : product.stock > 0;
 
   return (
     <div style={{ display: "grid", gap: 32 }}>
@@ -63,8 +79,8 @@ export default async function ProductPage({
       <nav style={{ fontSize: 14, opacity: 0.7 }}>
         <Link href="/store">Store</Link>
         {" / "}
-        <Link href={`/store/${product.category}`}>
-          {product.category}
+        <Link href={`/store/${categorySlug}`}>
+          {product.category ?? "Category"}
         </Link>
         {" / "}
         <span>{product.title}</span>
@@ -106,7 +122,8 @@ export default async function ProductPage({
           {/* PRICE */}
           <div>
             <div style={{ fontSize: 26, fontWeight: 900 }}>
-              M {Math.round(product.price).toLocaleString("en-ZA")}
+              M{" "}
+              {Math.round(product.price).toLocaleString("en-ZA")}
             </div>
 
             {product.compare_price && (
@@ -125,7 +142,7 @@ export default async function ProductPage({
           </div>
 
           {/* STOCK */}
-          {product.in_stock && product.stock > 0 ? (
+          {isInStock ? (
             <p style={{ color: "#16a34a", fontWeight: 700 }}>
               In stock
             </p>
