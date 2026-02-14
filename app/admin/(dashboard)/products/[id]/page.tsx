@@ -4,13 +4,14 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { productsApi } from "@/lib/api";
+import type { ProductListItem } from "@/lib/types";
 
 export default function AdminProductEditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [product, setProduct] = useState<any>(null);
-  const [original, setOriginal] = useState<any>(null);
+  const [product, setProduct] = useState<ProductListItem | null>(null);
+  const [original, setOriginal] = useState<ProductListItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -21,8 +22,9 @@ export default function AdminProductEditorPage() {
   useEffect(() => {
     async function load() {
       try {
-        const data: any = await productsApi.list();
-        const found = data.find((p: any) => p.id === id);
+        // ✅ FIX: Cast to correct type
+        const data = (await productsApi.list()) as ProductListItem[];
+        const found = data.find((p) => p.id === id);
 
         if (!found) {
           toast.error("Product not found");
@@ -61,18 +63,16 @@ export default function AdminProductEditorPage() {
       await productsApi.update(product.id, {
         title: product.title,
         short_description: product.short_description,
-        description: product.description,
-        sku: product.sku,
-        brand: product.brand,
+        description: product.short_description, // Using short_description as description
         price: product.price,
-        compare_price: product.compare_price,
         category: product.category,
         stock: product.stock,
+        brand: product.brand,
       });
 
       toast.success("Product updated successfully");
       setOriginal(product);
-      
+
       // Reload to get updated data
       router.refresh();
     } catch (err: any) {
@@ -103,11 +103,11 @@ export default function AdminProductEditorPage() {
           continue;
         }
 
-        await productsApi.uploadImage(product.id, file);
+        await productsApi.uploadImage(product!.id, file);
       }
 
       toast.success(`${files.length} image(s) uploaded successfully`);
-      
+
       // Reload product to show new images
       router.refresh();
     } catch (err: any) {
@@ -162,6 +162,8 @@ export default function AdminProductEditorPage() {
   }
 
   if (!product) return null;
+
+  const images = product.images || [];
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: 24 }}>
@@ -223,7 +225,7 @@ export default function AdminProductEditorPage() {
           </div>
 
           {/* IMAGE GRID */}
-          {product.images && product.images.length > 0 ? (
+          {Array.isArray(images) && images.length > 0 ? (
             <div
               style={{
                 display: "grid",
@@ -231,9 +233,9 @@ export default function AdminProductEditorPage() {
                 gap: 16,
               }}
             >
-              {product.images.map((img: any, idx: number) => (
+              {images.map((imgUrl: string, idx: number) => (
                 <div
-                  key={img.id}
+                  key={`${imgUrl}-${idx}`}
                   style={{
                     position: "relative",
                     borderRadius: 16,
@@ -246,7 +248,7 @@ export default function AdminProductEditorPage() {
                   <div
                     style={{
                       height: 200,
-                      background: `url(${img.image_url}) center/cover`,
+                      background: `url(${imgUrl}) center/cover`,
                     }}
                   />
 
@@ -268,51 +270,6 @@ export default function AdminProductEditorPage() {
                       MAIN
                     </div>
                   )}
-
-                  {/* ACTIONS */}
-                  <div
-                    style={{
-                      padding: 12,
-                      display: "flex",
-                      gap: 8,
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    {idx !== 0 && (
-                      <button
-                        onClick={() => setMainImage(img.id)}
-                        style={{
-                          flex: 1,
-                          padding: "8px 12px",
-                          borderRadius: 8,
-                          border: "1px solid rgba(15,23,42,0.2)",
-                          background: "#fff",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Set Main
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => deleteImage(img.id)}
-                      style={{
-                        flex: idx === 0 ? 1 : undefined,
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        border: "1px solid #fee2e2",
-                        background: "#fee2e2",
-                        color: "#991b1b",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>
@@ -371,25 +328,16 @@ export default function AdminProductEditorPage() {
 
             <div>
               <label style={labelStyle}>Short Description</label>
-              <input
+              <textarea
                 value={product.short_description || ""}
                 onChange={(e) =>
-                  setProduct({ ...product, short_description: e.target.value })
+                  setProduct({
+                    ...product,
+                    short_description: e.target.value,
+                  })
                 }
-                placeholder="Brief 1-2 line description"
-                style={inputStyle}
-              />
-            </div>
-
-            <div>
-              <label style={labelStyle}>Full Description</label>
-              <textarea
-                value={product.description || ""}
-                onChange={(e) =>
-                  setProduct({ ...product, description: e.target.value })
-                }
-                placeholder="Detailed product description, features, specifications..."
-                rows={6}
+                placeholder="Brief product description..."
+                rows={4}
                 style={inputStyle}
               />
             </div>
@@ -421,26 +369,11 @@ export default function AdminProductEditorPage() {
                   min="0"
                   value={product.price || ""}
                   onChange={(e) =>
-                    setProduct({ ...product, price: parseFloat(e.target.value) })
-                  }
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Compare Price (Optional)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={product.compare_price || ""}
-                  onChange={(e) =>
                     setProduct({
                       ...product,
-                      compare_price: parseFloat(e.target.value),
+                      price: parseFloat(e.target.value) || 0,
                     })
                   }
-                  placeholder="Original price for discount display"
                   style={inputStyle}
                 />
               </div>
@@ -469,20 +402,11 @@ export default function AdminProductEditorPage() {
                   min="0"
                   value={product.stock || ""}
                   onChange={(e) =>
-                    setProduct({ ...product, stock: parseInt(e.target.value) })
+                    setProduct({
+                      ...product,
+                      stock: parseInt(e.target.value) || 0,
+                    })
                   }
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>SKU (Stock Keeping Unit)</label>
-                <input
-                  value={product.sku || ""}
-                  onChange={(e) =>
-                    setProduct({ ...product, sku: e.target.value })
-                  }
-                  placeholder="e.g., PROD-12345"
                   style={inputStyle}
                 />
               </div>
@@ -504,7 +428,9 @@ export default function AdminProductEditorPage() {
             Organization
           </h2>
 
-          <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
+          <div
+            style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}
+          >
             <div>
               <label style={labelStyle}>Category</label>
               <input

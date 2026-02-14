@@ -4,18 +4,20 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { productsApi } from "@/lib/api";
+import type { ProductListItem } from "@/lib/types";
 
 export default function AdminProductsPage() {
   const router = useRouter();
 
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   /* ============ LOAD PRODUCTS ============ */
   async function loadProducts() {
     try {
-      const data = await productsApi.list();
+      // ✅ FIX: Cast the response to the correct type
+      const data = (await productsApi.list()) as ProductListItem[];
       setProducts(data);
     } catch (err: any) {
       toast.error("Failed to load products");
@@ -137,7 +139,12 @@ export default function AdminProductsPage() {
 
 /* ============ PRODUCT CARD ============ */
 
-function ProductCard({ product, onClick }: any) {
+interface ProductCardProps {
+  product: ProductListItem;
+  onClick: () => void;
+}
+
+function ProductCard({ product, onClick }: ProductCardProps) {
   return (
     <div
       onClick={onClick}
@@ -228,11 +235,11 @@ function ProductCard({ product, onClick }: any) {
               fontWeight: 800,
               padding: "6px 12px",
               borderRadius: 999,
-              background: product.in_stock ? "#dcfce7" : "#fee2e2",
-              color: product.in_stock ? "#166534" : "#991b1b",
+              background: product.stock > 0 ? "#dcfce7" : "#fee2e2",
+              color: product.stock > 0 ? "#166534" : "#991b1b",
             }}
           >
-            {product.in_stock ? `${product.stock} in stock` : "Out of stock"}
+            {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
           </div>
         </div>
       </div>
@@ -242,7 +249,12 @@ function ProductCard({ product, onClick }: any) {
 
 /* ============ CREATE FORM ============ */
 
-function CreateProductForm({ onSuccess, onCancel }: any) {
+interface CreateProductFormProps {
+  onSuccess: () => void;
+  onCancel: () => void;
+}
+
+function CreateProductForm({ onSuccess, onCancel }: CreateProductFormProps) {
   const [title, setTitle] = useState("");
   const [shortDescription, setShortDescription] = useState("");
   const [description, setDescription] = useState("");
@@ -451,11 +463,7 @@ function CreateProductForm({ onSuccess, onCancel }: any) {
           Cancel
         </button>
 
-        <button
-          type="submit"
-          className="btn btnPrimary"
-          disabled={saving}
-        >
+        <button type="submit" className="btn btnPrimary" disabled={saving}>
           {saving ? "Creating..." : "Create Product"}
         </button>
       </div>
