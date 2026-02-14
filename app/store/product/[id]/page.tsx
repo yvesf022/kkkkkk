@@ -3,25 +3,28 @@ import { productsApi } from "@/lib/api";
 import type { Product } from "@/lib/types";
 import AddToCartClient from "./AddToCartClient";
 
-interface Props {
-  params: { id: string };
-}
+type PageProps = {
+  params: {
+    id: string;
+  };
+};
 
-export default async function ProductPage({ params }: Props) {
-  const productId = params?.id;
+export default async function ProductPage({ params }: PageProps) {
+  const { id } = params;
 
-  // 🚨 HARD PROTECTION
-  if (!productId || productId === "undefined") {
+  if (!id) {
     notFound();
   }
 
   let product: Product;
 
   try {
-    product = await productsApi.get(productId);
-  } catch (err: any) {
-    console.error("Product fetch failed:", err);
-    notFound();
+    product = await productsApi.get(id);
+  } catch (error: any) {
+    if (error?.status === 404) {
+      notFound();
+    }
+    throw error;
   }
 
   if (!product) {
@@ -80,12 +83,7 @@ export default async function ProductPage({ params }: Props) {
           {product.title}
         </h1>
 
-        <div
-          style={{
-            fontSize: 28,
-            fontWeight: 900,
-          }}
-        >
+        <div style={{ fontSize: 28, fontWeight: 900 }}>
           M {Math.round(product.price).toLocaleString("en-ZA")}
         </div>
 
