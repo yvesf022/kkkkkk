@@ -4,340 +4,286 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { productsApi } from "@/lib/api";
+import type { Product } from "@/lib/types";
 
-type AdminProduct = {
-  id: string;
-  title: string;
-  short_description?: string | null;
-  price: number;
-  category?: string | null;
-  stock: number;
-  brand?: string | null;
-  images?: string[];
-  main_image?: string | null;
-  status?: "active" | "inactive" | "discontinued";
-
-  store?: string | null;
-  main_category?: string | null;
-  categories?: string[];
-  features?: string[];
-  details?: Record<string, any>;
-  parent_asin?: string | null;
-  rating_number?: number;
-};
-
-export default function AdminProductEditorPage() {
+export default function AdminProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [product, setProduct] = useState<AdminProduct | null>(null);
-  const [original, setOriginal] = useState<AdminProduct | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  /* ================= LOAD PRODUCT ================= */
+
+  async function loadProduct() {
+    try {
+      const data = await productsApi.get(id);
+      setProduct(data);
+    } catch {
+      toast.error("Failed to load product");
+      router.replace("/admin/products");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        const found = await productsApi.get(id);
+    if (id) loadProduct();
+  }, [id]);
 
-        const mapped: AdminProduct = {
-          ...found,
-          categories: found.categories || [],
-          features: found.features || [],
-          details: found.details || {},
-          rating_number: found.rating_number || 0,
-        };
+  /* ================= UPDATE PRODUCT ================= */
 
-        setProduct(mapped);
-        setOriginal(mapped);
-      } catch (err: any) {
-        toast.error("Product not found");
-        router.replace("/admin/products");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
-  }, [id, router]);
-
-  const dirty =
-    JSON.stringify(product) !== JSON.stringify(original);
-
-  async function save() {
+  async function handleSave() {
     if (!product) return;
-
-    if (product.price < 0 || product.stock < 0) {
-      toast.error("Price and stock must be non-negative");
-      return;
-    }
 
     setSaving(true);
 
     try {
       await productsApi.update(product.id, {
-        ...product,
+        title: product.title,
+        short_description: product.short_description,
+        description: product.description,
+        price: product.price,
+        compare_price: product.compare_price,
+        stock: product.stock,
+        category: product.category,
+        brand: product.brand,
+        sku: product.sku,
       });
 
-      toast.success("Product updated successfully");
-      setOriginal(product);
-      router.refresh();
+      toast.success("Product updated");
+      await loadProduct();
     } catch (err: any) {
-      toast.error(err.message || "Failed to update product");
+      toast.error(err.message || "Update failed");
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading || !product) {
-    return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        Loading product...
-      </div>
-    );
+  /* ================= IMAGE UPLOAD ================= */
+
+  async function handleImageUpload(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+    if (!file || !product) return;
+
+    setUploading(true);
+
+    try {
+      await productsApi.uploadImage(product.id, file);
+      toast.success("Image uploaded");
+      await loadProduct();
+    } catch {
+      toast.error("Upload failed");
+    } finally {
+      setUploading(false);
+    }
   }
 
+  async function handleDeleteImage(imageId: string) {
+    try {
+      await productsApi.deleteImage(imageId);
+      toast.success("Image deleted");
+      await loadProduct();
+    } catch {
+      toast.error("Failed to delete image");
+    }
+  }
+
+  if (loading) return <p>Loading product…</p>;
+  if (!product) return null;
+
   return (
-    <div style={{ maxWidth: 1300, margin: "0 auto", padding: 32 }}>
-      <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 24 }}>
-        Edit Product
-      </h1>
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: 24 }}>
+      {/* HEADER */}
+      <header style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 900 }}>
+          Edit Product
+        </h1>
+        <p style={{ opacity: 0.6 }}>
+          ID: {product.id.slice(0, 8)}
+        </p>
+      </header>
 
-      {/* IMAGE PREVIEW */}
-      {product.images && product.images.length > 0 && (
-        <Section title="Product Images">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))",
-              gap: 16,
-            }}
-          >
-            {product.images.map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                alt="Product"
-                style={{
-                  width: "100%",
-                  height: 140,
-                  objectFit: "cover",
-                  borderRadius: 12,
-                  border: "1px solid rgba(0,0,0,0.1)",
-                }}
-              />
-            ))}
-          </div>
-        </Section>
-      )}
+      {/* BASIC INFO */}
+      <div style={cardStyle}>
+        <h2 style={sectionTitle}>Basic Info</h2>
 
-      <div style={{ display: "grid", gap: 24 }}>
-        <Section title="Basic Information">
-          <Input
-            label="Title"
-            value={product.title}
-            onChange={(v: string) =>
-              setProduct({ ...product, title: v })
-            }
-          />
-
-          <Textarea
-            label="Short Description"
-            value={product.short_description || ""}
-            onChange={(v: string) =>
-              setProduct({ ...product, short_description: v })
-            }
-          />
-        </Section>
-
-        <Section title="Pricing & Inventory">
-          <PriceInput
-            value={product.price}
-            onChange={(v: number) =>
-              setProduct({ ...product, price: v })
-            }
-          />
-
-          <Input
-            label="Stock"
-            type="number"
-            value={product.stock}
-            onChange={(v: string) =>
-              setProduct({
-                ...product,
-                stock: parseInt(v) || 0,
-              })
-            }
-          />
-        </Section>
-
-        <Section title="Organization">
-          <Input
-            label="Category"
-            value={product.category || ""}
-            onChange={(v: string) =>
-              setProduct({ ...product, category: v })
-            }
-          />
-
-          <Input
-            label="Brand"
-            value={product.brand || ""}
-            onChange={(v: string) =>
-              setProduct({ ...product, brand: v })
-            }
-          />
-
-          <Input
-            label="Store"
-            value={product.store || ""}
-            onChange={(v: string) =>
-              setProduct({ ...product, store: v })
-            }
-          />
-
-          <Input
-            label="Main Category"
-            value={product.main_category || ""}
-            onChange={(v: string) =>
-              setProduct({
-                ...product,
-                main_category: v,
-              })
-            }
-          />
-        </Section>
-
-        <Section title="Amazon Advanced">
-          <Input
-            label="Parent ASIN"
-            value={product.parent_asin || ""}
-            onChange={(v: string) =>
-              setProduct({
-                ...product,
-                parent_asin: v,
-              })
-            }
-          />
-
-          <Textarea
-            label="Features (one per line)"
-            value={(product.features || []).join("\n")}
-            onChange={(v: string) =>
-              setProduct({
-                ...product,
-                features: v.split("\n"),
-              })
-            }
-          />
-
-          <Textarea
-            label="Details (JSON)"
-            value={JSON.stringify(
-              product.details || {},
-              null,
-              2
-            )}
-            onChange={(v: string) => {
-              try {
-                const parsed = JSON.parse(v);
-                setProduct({
-                  ...product,
-                  details: parsed,
-                });
-              } catch {}
-            }}
-          />
-
-          <RatingDisplay count={product.rating_number || 0} />
-        </Section>
-
-        <div style={{ display: "flex", gap: 12 }}>
-          <button
-            onClick={() =>
-              router.push("/admin/products")
-            }
-            style={btnGhost}
-          >
-            Cancel
-          </button>
-
-          <button
-            disabled={!dirty || saving}
-            onClick={save}
-            style={btnPrimary}
-          >
-            {saving ? "Saving..." : "💾 Save Changes"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* COMPONENTS */
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={sectionStyle}>
-      <h2 style={sectionTitle}>{title}</h2>
-      <div style={{ display: "grid", gap: 16 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function PriceInput({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div>
-      <label style={labelStyle}>Price (M)</label>
-      <div style={{ position: "relative" }}>
-        <span style={currencySymbol}>M</span>
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          value={value}
-          onChange={(e) =>
-            onChange(parseFloat(e.target.value) || 0)
+        <Input
+          label="Title"
+          value={product.title}
+          onChange={(v) =>
+            setProduct({ ...product, title: v })
           }
-          style={{
-            ...inputStyle,
-            paddingLeft: 28,
-          }}
+        />
+
+        <Input
+          label="Short Description"
+          value={product.short_description || ""}
+          onChange={(v) =>
+            setProduct({ ...product, short_description: v })
+          }
+        />
+
+        <Textarea
+          label="Description"
+          value={product.description || ""}
+          onChange={(v) =>
+            setProduct({ ...product, description: v })
+          }
+        />
+
+        <Input
+          label="Category"
+          value={product.category || ""}
+          onChange={(v) =>
+            setProduct({ ...product, category: v })
+          }
+        />
+
+        <Input
+          label="Brand"
+          value={product.brand || ""}
+          onChange={(v) =>
+            setProduct({ ...product, brand: v })
+          }
+        />
+
+        <Input
+          label="SKU"
+          value={product.sku || ""}
+          onChange={(v) =>
+            setProduct({ ...product, sku: v })
+          }
         />
       </div>
-    </div>
-  );
-}
 
-function RatingDisplay({ count }: { count: number }) {
-  return (
-    <div>
-      <label style={labelStyle}>Rating Count</label>
-      <div style={{ fontSize: 16 }}>
-        ⭐ {count.toLocaleString()}
+      {/* PRICING */}
+      <div style={cardStyle}>
+        <h2 style={sectionTitle}>Pricing</h2>
+
+        <Input
+          label="Price"
+          type="number"
+          value={String(product.price)}
+          onChange={(v) =>
+            setProduct({ ...product, price: Number(v) })
+          }
+        />
+
+        <Input
+          label="Compare Price"
+          type="number"
+          value={String(product.compare_price || "")}
+          onChange={(v) =>
+            setProduct({
+              ...product,
+              compare_price: v ? Number(v) : null,
+            })
+          }
+        />
+
+        <Input
+          label="Stock"
+          type="number"
+          value={String(product.stock)}
+          onChange={(v) =>
+            setProduct({ ...product, stock: Number(v) })
+          }
+        />
+      </div>
+
+      {/* IMAGES */}
+      <div style={cardStyle}>
+        <h2 style={sectionTitle}>Images</h2>
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          disabled={uploading}
+        />
+
+        <div
+          style={{
+            display: "grid",
+            gap: 16,
+            gridTemplateColumns:
+              "repeat(auto-fill, minmax(150px, 1fr))",
+            marginTop: 20,
+          }}
+        >
+          {product.images?.map((img) => (
+            <div key={img.id} style={imageCard}>
+              <img
+                src={img.image_url}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: 120,
+                  objectFit: "cover",
+                  borderRadius: 8,
+                }}
+              />
+
+              <button
+                onClick={() =>
+                  handleDeleteImage(img.id)
+                }
+                style={deleteBtn}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ACTIONS */}
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          marginTop: 24,
+        }}
+      >
+        <button
+          className="btn btnGhost"
+          onClick={() => router.push("/admin/products")}
+        >
+          Back
+        </button>
+
+        <button
+          className="btn btnPrimary"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? "Saving…" : "Save Changes"}
+        </button>
       </div>
     </div>
   );
 }
 
-function Input({ label, value, onChange, type = "text" }: any) {
+/* ================= UI COMPONENTS ================= */
+
+function Input({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
   return (
-    <div>
+    <div style={{ marginBottom: 16 }}>
       <label style={labelStyle}>{label}</label>
       <input
         type={type}
@@ -349,9 +295,17 @@ function Input({ label, value, onChange, type = "text" }: any) {
   );
 }
 
-function Textarea({ label, value, onChange }: any) {
+function Textarea({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
-    <div>
+    <div style={{ marginBottom: 16 }}>
       <label style={labelStyle}>{label}</label>
       <textarea
         rows={4}
@@ -363,11 +317,14 @@ function Textarea({ label, value, onChange }: any) {
   );
 }
 
-const sectionStyle: React.CSSProperties = {
-  padding: 24,
-  borderRadius: 16,
-  border: "1px solid rgba(0,0,0,0.08)",
+/* ================= STYLES ================= */
+
+const cardStyle: React.CSSProperties = {
   background: "#ffffff",
+  padding: 24,
+  borderRadius: 18,
+  boxShadow: "0 20px 60px rgba(15,23,42,0.12)",
+  marginBottom: 24,
 };
 
 const sectionTitle: React.CSSProperties = {
@@ -378,43 +335,33 @@ const sectionTitle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: 14,
+  fontSize: 13,
   fontWeight: 700,
   marginBottom: 6,
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "10px 14px",
+  padding: "10px 12px",
   borderRadius: 10,
   border: "1px solid rgba(0,0,0,0.15)",
-  fontSize: 14,
 };
 
-const currencySymbol: React.CSSProperties = {
-  position: "absolute",
-  left: 12,
-  top: "50%",
-  transform: "translateY(-50%)",
-  fontWeight: 900,
-  opacity: 0.7,
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: "12px 24px",
+const imageCard: React.CSSProperties = {
+  border: "1px solid #eee",
+  padding: 8,
   borderRadius: 10,
-  background: "#111827",
+  background: "#fafafa",
+};
+
+const deleteBtn: React.CSSProperties = {
+  marginTop: 6,
+  width: "100%",
+  background: "#dc2626",
   color: "white",
-  fontWeight: 800,
   border: "none",
-  cursor: "pointer",
-};
-
-const btnGhost: React.CSSProperties = {
-  padding: "12px 24px",
-  borderRadius: 10,
-  background: "transparent",
-  border: "1px solid rgba(0,0,0,0.2)",
-  fontWeight: 800,
+  padding: "6px 8px",
+  borderRadius: 6,
+  fontWeight: 700,
   cursor: "pointer",
 };
