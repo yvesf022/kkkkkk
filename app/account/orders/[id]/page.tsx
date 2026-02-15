@@ -9,10 +9,6 @@ import { useAuth } from "@/lib/auth";
 import { getMyOrders, paymentsApi } from "@/lib/api";
 import type { Order } from "@/lib/types";
 
-/* ======================
-   FORMAT
-====================== */
-
 const fmtM = (v: number) =>
   `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
@@ -95,7 +91,7 @@ export default function OrderDetailsPage() {
     try {
       const result: any = await paymentsApi.create(order.id);
       setPaymentId(result.payment_id);
-      toast.success("Payment created. Follow instructions below.");
+      toast.success("Payment created. Please transfer and upload proof.");
     } catch (err: any) {
       toast.error(err.message || "Failed to create payment");
     } finally {
@@ -117,7 +113,7 @@ export default function OrderDetailsPage() {
       !file.type.startsWith("image/") &&
       file.type !== "application/pdf"
     ) {
-      toast.error("Only images and PDFs allowed");
+      toast.error("Only images or PDF allowed");
       return;
     }
 
@@ -131,7 +127,9 @@ export default function OrderDetailsPage() {
     try {
       await paymentsApi.uploadProof(paymentId, file);
       toast.success("Payment proof uploaded successfully");
+
       if (fileRef.current) fileRef.current.value = "";
+
       await loadOrder();
     } catch {
       toast.error("Upload failed");
@@ -144,197 +142,131 @@ export default function OrderDetailsPage() {
      STATES
   ====================== */
 
-  if (authLoading)
-    return <div className="pageContentWrap">Loading…</div>;
-
+  if (authLoading) return <div className="pageContentWrap">Loading…</div>;
   if (!user) return null;
-
   if (loading || !order)
-    return (
-      <div className="pageContentWrap">
-        Loading order…
-      </div>
-    );
+    return <div className="pageContentWrap">Loading order…</div>;
 
   const isPending = order.status === "pending";
+  const isOnHold = order.status === "on_hold";
   const isPaid = order.status === "paid";
-  const isCancelled = order.status === "cancelled";
+  const isRejected = order.status === "rejected";
+
+  const canCreatePayment = isPending && !paymentId;
+  const canUploadProof = isPending && paymentId;
 
   return (
     <div className="pageContentWrap" style={{ maxWidth: 1000 }}>
-      {/* HEADER */}
-      <div style={{ marginBottom: 30 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 900 }}>
-          Order #{order.id.slice(0, 8)}
-        </h1>
-        <p style={{ opacity: 0.6 }}>
-          {new Date(order.created_at).toLocaleDateString("en-ZA")}
-        </p>
-      </div>
 
-      {/* TOTAL CARD */}
-      <div
-        style={{
-          padding: 40,
-          borderRadius: 24,
-          background:
-            "linear-gradient(135deg,#0F2027,#203A43,#2C5364)",
-          color: "white",
-          marginBottom: 40,
-        }}
-      >
-        <div style={{ opacity: 0.8 }}>Amount To Pay</div>
-        <div style={{ fontSize: 48, fontWeight: 900 }}>
+      {/* HEADER */}
+      <h1 style={{ fontSize: 32, fontWeight: 900 }}>
+        Order #{order.id.slice(0, 8)}
+      </h1>
+
+      {/* ORDER SUMMARY */}
+      <div className="card">
+        <div style={{ opacity: 0.6 }}>Order Total</div>
+        <div style={{ fontSize: 36, fontWeight: 900 }}>
           {fmtM(order.total_amount)}
         </div>
       </div>
 
-      {/* PAYMENT FLOW */}
+      {/* PAYMENT SECTION */}
       {isPending && (
-        <div
-          style={{
-            padding: 30,
-            borderRadius: 24,
-            background: "white",
-            boxShadow:
-              "0 20px 60px rgba(15,23,42,0.12)",
-            display: "grid",
-            gap: 24,
-          }}
-        >
-          <h2 style={{ fontSize: 22, fontWeight: 900 }}>
-            Payment Instructions
+        <div className="card" style={{ display: "grid", gap: 20 }}>
+
+          <h2 style={{ fontSize: 20, fontWeight: 900 }}>
+            Complete Your Payment
           </h2>
 
-          {/* STEP 1 */}
           {bankDetails && (
-            <div>
-              <h3 style={{ fontWeight: 800 }}>
-                Step 1 — Transfer Payment
-              </h3>
+            <div
+              style={{
+                padding: 20,
+                borderRadius: 16,
+                background: "linear-gradient(135deg,#f0fdf4,#dcfce7)",
+                border: "1px solid #86efac",
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              <div><strong>Bank:</strong> {bankDetails.bank_name}</div>
+              <div><strong>Account Name:</strong> {bankDetails.account_name}</div>
+              <div><strong>Account Number:</strong> {bankDetails.account_number}</div>
+
+              {bankDetails.qr_code_url && (
+                <img
+                  src={bankDetails.qr_code_url}
+                  alt="QR Code"
+                  style={{ maxWidth: 200, marginTop: 12 }}
+                />
+              )}
 
               <div
                 style={{
                   marginTop: 12,
-                  padding: 20,
-                  borderRadius: 18,
-                  background: "#f0fdf4",
-                  border: "1px solid #86efac",
+                  padding: 14,
+                  borderRadius: 10,
+                  background: "#fffbeb",
                 }}
               >
-                <div><strong>Bank:</strong> {bankDetails.bank_name}</div>
-                <div><strong>Account Name:</strong> {bankDetails.account_name}</div>
-                <div>
-                  <strong>Account Number:</strong>{" "}
-                  {bankDetails.account_number}
-                </div>
-                <div>
-                  <strong>Reference:</strong>{" "}
-                  {order.id.slice(0, 8)}
-                </div>
+                🔔 Use reference:
+                <strong> {order.id.slice(0, 8)}</strong>
+              </div>
 
-                {bankDetails.instructions && (
-                  <div
-                    style={{
-                      marginTop: 12,
-                      fontStyle: "italic",
-                      opacity: 0.8,
-                    }}
-                  >
-                    {bankDetails.instructions}
-                  </div>
-                )}
+              <div style={{ fontSize: 14, opacity: 0.8 }}>
+                📸 After transfer, upload:
+                <ul>
+                  <li>Screenshot of bank transfer</li>
+                  <li>Photo of payment receipt</li>
+                  <li>Mobile banking confirmation</li>
+                </ul>
               </div>
             </div>
           )}
 
-          {/* STEP 2 */}
-          {!paymentId && (
+          {canCreatePayment && (
             <button
               className="btn btnPrimary"
               onClick={handleCreatePayment}
               disabled={creatingPayment}
             >
-              {creatingPayment
-                ? "Preparing payment..."
-                : "Confirm Transfer & Upload Proof"}
+              {creatingPayment ? "Creating..." : "Confirm Transfer"}
             </button>
           )}
 
-          {/* STEP 3 */}
-          {paymentId && (
-            <div>
-              <h3 style={{ fontWeight: 800 }}>
-                Step 2 — Upload Proof
-              </h3>
-
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: 24,
-                  borderRadius: 18,
-                  border: "2px dashed #cbd5e1",
-                  textAlign: "center",
-                }}
-              >
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={handleUpload}
-                  disabled={uploading}
-                />
-
-                {uploading && (
-                  <div style={{ marginTop: 10 }}>
-                    Uploading…
-                  </div>
-                )}
-              </div>
+          {canUploadProof && (
+            <div style={{ display: "grid", gap: 12 }}>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+              {uploading && <div>Uploading…</div>}
             </div>
           )}
         </div>
       )}
 
+      {isOnHold && (
+        <div className="card" style={{ background: "#fef3c7" }}>
+          ⏳ Payment submitted. Awaiting verification.
+        </div>
+      )}
+
       {isPaid && (
-        <div
-          style={{
-            padding: 24,
-            borderRadius: 20,
-            background: "#dcfce7",
-            color: "#166534",
-            fontWeight: 700,
-          }}
-        >
-          ✓ Payment approved. Preparing shipment.
+        <div className="card" style={{ background: "#dcfce7" }}>
+          ✅ Payment confirmed. Preparing shipment.
         </div>
       )}
 
-      {isCancelled && (
-        <div
-          style={{
-            padding: 24,
-            borderRadius: 20,
-            background: "#fee2e2",
-            color: "#991b1b",
-            fontWeight: 700,
-          }}
-        >
-          ❌ Order cancelled.
+      {isRejected && (
+        <div className="card" style={{ background: "#fee2e2" }}>
+          ❌ Payment rejected. Please contact support.
         </div>
       )}
-
-      {/* FOOTER */}
-      <div style={{ marginTop: 40 }}>
-        <button
-          className="btn btnGhost"
-          onClick={() =>
-            router.push("/account/orders")
-          }
-        >
-          ← Back to Orders
-        </button>
-      </div>
     </div>
   );
 }
