@@ -1,42 +1,35 @@
 "use client";
-import { formatCurrency } from '@/lib/currency';
 
-import Link from "next/link";
+import { formatCurrency } from "@/lib/currency";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
 
 export default function CartPage() {
   const router = useRouter();
   const cart = useCart();
-  
+
   const items = cart.items;
   const total = cart.subtotal();
 
   if (items.length === 0) {
     return (
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: 32 }}>
-        <div
-          style={{
-            padding: 80,
-            textAlign: "center",
-            borderRadius: 22,
-            background: "linear-gradient(135deg, #ffffff, #f8fbff)",
-            boxShadow: "0 20px 60px rgba(15,23,42,0.12)",
-          }}
-        >
-          <div style={{ fontSize: 64, marginBottom: 24 }}>🛒</div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 12 }}>
+      <div className="container" style={{ padding: "80px 0" }}>
+        <div className="card text-center" style={{ padding: 60 }}>
+          <div style={{ fontSize: 70, marginBottom: 20 }}>🛒</div>
+
+          <h1 style={{ fontSize: 32, fontWeight: 900 }}>
             Your Cart is Empty
           </h1>
-          <p style={{ opacity: 0.6, marginBottom: 32 }}>
-            Browse products and add them to your cart.
+
+          <p style={{ opacity: 0.6, margin: "16px 0 30px" }}>
+            Looks like you haven't added anything yet.
           </p>
 
           <button
             onClick={() => router.push("/store")}
             className="btn btnPrimary"
           >
-            Go to Store
+            Browse Products
           </button>
         </div>
       </div>
@@ -44,129 +37,190 @@ export default function CartPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 32 }}>
+    <div className="container" style={{ padding: "70px 0" }}>
+      <h1
+        style={{
+          fontSize: 36,
+          fontWeight: 900,
+          marginBottom: 40,
+        }}
+      >
         Shopping Cart
       </h1>
 
-      <div style={{ display: "grid", gap: 32, gridTemplateColumns: "2fr 1fr" }}>
-        {/* ITEMS */}
-        <div style={{ display: "grid", gap: 18 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr",
+          gap: 40,
+        }}
+      >
+        {/* ================= ITEMS ================= */}
+        <div style={{ display: "grid", gap: 24 }}>
           {items.map((item) => (
             <div
               key={item.product_id}
+              className="card"
               style={{
                 display: "grid",
-                gridTemplateColumns: "auto 1fr auto auto",
+                gridTemplateColumns: "120px 1fr auto",
                 gap: 20,
                 alignItems: "center",
-                padding: 20,
-                borderRadius: 18,
-                background: "#fff",
-                border: "1px solid rgba(15,23,42,0.08)",
-                boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
+                padding: 24,
               }}
             >
-              {/* Placeholder for image */}
+              {/* IMAGE */}
               <div
                 style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 12,
-                  background: "linear-gradient(135deg, #e0e7ff, #dbeafe)",
+                  width: 120,
+                  height: 120,
+                  borderRadius: 16,
+                  background: item.main_image
+                    ? `url(${item.main_image}) center/cover`
+                    : "var(--gradient-surface)",
                   display: "grid",
                   placeItems: "center",
-                  fontSize: 32,
+                  fontSize: 40,
                 }}
               >
-                📦
+                {!item.main_image && "📦"}
               </div>
 
-              {/* Info */}
+              {/* INFO */}
               <div>
-                <div style={{ fontWeight: 800, marginBottom: 4 }}>
+                <div
+                  style={{
+                    fontWeight: 900,
+                    fontSize: 18,
+                    marginBottom: 8,
+                  }}
+                >
                   {item.title}
                 </div>
-                <div style={{ fontSize: 14, opacity: 0.6 }}>
-                  {formatCurrency(item.price.toFixed(2))} × {item.quantity}
+
+                <div style={{ opacity: 0.6, marginBottom: 12 }}>
+                  {formatCurrency(item.price)} each
+                </div>
+
+                {/* Quantity Control */}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    className="btn btnGhost"
+                    onClick={() =>
+                      cart.updateQuantity(
+                        item.product_id,
+                        Math.max(1, item.quantity - 1)
+                      )
+                    }
+                  >
+                    −
+                  </button>
+
+                  <div
+                    style={{
+                      minWidth: 40,
+                      textAlign: "center",
+                      fontWeight: 800,
+                    }}
+                  >
+                    {item.quantity}
+                  </div>
+
+                  <button
+                    className="btn btnGhost"
+                    onClick={() =>
+                      cart.updateQuantity(
+                        item.product_id,
+                        item.quantity + 1
+                      )
+                    }
+                  >
+                    +
+                  </button>
                 </div>
               </div>
 
-              {/* Price */}
-              <div style={{ fontSize: 18, fontWeight: 900 }}>
-                {formatCurrency((item.price * item.quantity).toFixed(2))}
-              </div>
+              {/* TOTAL */}
+              <div style={{ textAlign: "right" }}>
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 900,
+                    marginBottom: 10,
+                  }}
+                >
+                  {formatCurrency(item.price * item.quantity)}
+                </div>
 
-              {/* Remove */}
-              <button
-                className="btn btnGhost"
-                onClick={() => cart.removeItem(item.product_id)}
-                style={{ whiteSpace: "nowrap" }}
-              >
-                Remove
-              </button>
+                <button
+                  className="btn btnGhost"
+                  onClick={() =>
+                    cart.removeItem(item.product_id)
+                  }
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* SUMMARY */}
+        {/* ================= SUMMARY ================= */}
         <div>
           <div
+            className="card"
             style={{
               position: "sticky",
               top: 100,
-              padding: 24,
-              borderRadius: 22,
-              background: "linear-gradient(135deg, #ffffff, #f4f9ff)",
-              boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
+              padding: 32,
               display: "grid",
-              gap: 16,
+              gap: 20,
             }}
           >
-            <div style={{ fontSize: 20, fontWeight: 900 }}>
+            <h2 style={{ fontWeight: 900, fontSize: 22 }}>
               Order Summary
-            </div>
+            </h2>
 
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
+                borderTop: "1px solid var(--gray-200)",
                 paddingTop: 16,
-                borderTop: "1px solid rgba(15,23,42,0.1)",
               }}
             >
-              <span style={{ fontWeight: 700 }}>Subtotal</span>
-              <span style={{ fontWeight: 700 }}>
-                {formatCurrency(total.toFixed(2))}
-              </span>
+              <span>Subtotal</span>
+              <span>{formatCurrency(total)}</span>
             </div>
 
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: 900,
+                borderTop: "2px solid var(--gray-300)",
                 paddingTop: 16,
-                borderTop: "2px solid rgba(15,23,42,0.1)",
               }}
             >
               <span>Total</span>
-              <span>{formatCurrency(total.toFixed(2))}</span>
+              <span>{formatCurrency(total)}</span>
             </div>
 
             <button
-              onClick={() => router.push("/store/checkout")}
               className="btn btnPrimary"
-              style={{ width: "100%", marginTop: 8 }}
+              style={{ width: "100%", marginTop: 10 }}
+              onClick={() =>
+                router.push("/store/checkout")
+              }
             >
               Proceed to Checkout
             </button>
 
             <button
               className="btn btnGhost"
-              onClick={() => cart.clear()}
               style={{ width: "100%" }}
+              onClick={() => cart.clear()}
             >
               Clear Cart
             </button>
