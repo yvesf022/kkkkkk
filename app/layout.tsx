@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import ClientShell from "@/components/layout/ClientShell";
 import { KeepAliveProvider } from "@/components/KeepAliveProvider";
 import WhatsAppButton from "@/components/WhatsAppWidget";
+import ToastProvider from "@/components/ui/ToastProvider"; // ✅ ADD THIS
 
 export const metadata: Metadata = {
   title: "Karabo Online Store",
@@ -20,10 +21,12 @@ export default function RootLayout({
       <body>
         <KeepAliveProvider>
           <ClientShell>{children}</ClientShell>
-          
+
+          {/* GLOBAL TOAST SYSTEM */}
+          <ToastProvider />
+
           {/* WhatsApp Chat Button */}
           <WhatsAppButton />
-          {/* OR use advanced widget: <WhatsAppWidget /> */}
         </KeepAliveProvider>
       </body>
     </html>
