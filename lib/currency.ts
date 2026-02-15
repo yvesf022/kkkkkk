@@ -9,6 +9,6 @@ export function formatCurrency(
 
   if (!isFinite(value)) return "M 0.00";
 
-  return `M ${formatCurrency(value)}`;
+  return `M ${value.toLocaleDateString("en-ZA")}`;
 }
 

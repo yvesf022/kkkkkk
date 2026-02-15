@@ -30,7 +30,7 @@ type UploadStatus = {
 function formatDate(dateString?: string) {
   if (!dateString) return "—";
   const d = new Date(dateString);
-  return isNaN(d.getTime()) ? "—" : formatCurrency(d);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-ZA");
 }
 
 /* =====================================================
