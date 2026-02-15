@@ -33,7 +33,7 @@ export default function QuickViewModal({
   product: Product | null;
   onClose: () => void;
 }) {
-  const { addToCart } = useCart();
+  const { addItem } = useCart();
 
   const isOutOfStock =
     !product || product.in_stock === false || product.stock <= 0;
@@ -128,7 +128,7 @@ export default function QuickViewModal({
                       return;
                     }
 
-                    addToCart({
+                    addItem({
                       id: product.id,
                       title: product.title,
                       price: product.price,
@@ -149,3 +149,4 @@ export default function QuickViewModal({
     </AnimatePresence>
   );
 }
+
