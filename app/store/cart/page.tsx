@@ -24,7 +24,7 @@ export default function CartPage() {
           </h1>
 
           <p style={{ opacity: 0.7, marginTop: 10 }}>
-            Discover premium products and start shopping.
+            Discover premium products from Lesotho’s finest boutique.
           </p>
 
           <button
@@ -65,22 +65,24 @@ export default function CartPage() {
                   alignItems: "center",
                 }}
               >
-                {/* IMAGE PLACEHOLDER */}
+                {/* PRODUCT IMAGE */}
                 <div
                   style={{
                     width: 120,
                     height: 120,
                     borderRadius: 16,
-                    background: "var(--gradient-surface)",
+                    background: item.main_image
+                      ? `url(${item.main_image}) center/cover`
+                      : "var(--gradient-surface)",
                     display: "grid",
                     placeItems: "center",
-                    fontSize: 42,
+                    fontSize: 40,
                   }}
                 >
-                  📦
+                  {!item.main_image && "📦"}
                 </div>
 
-                {/* INFO */}
+                {/* PRODUCT INFO */}
                 <div>
                   <div
                     style={{
@@ -92,8 +94,47 @@ export default function CartPage() {
                     {item.title}
                   </div>
 
-                  <div style={{ fontSize: 14, opacity: 0.6 }}>
-                    {formatCurrency(item.price)} × {item.quantity}
+                  <div
+                    style={{
+                      fontSize: 14,
+                      opacity: 0.6,
+                      marginBottom: 12,
+                    }}
+                  >
+                    {formatCurrency(item.price)}
+                  </div>
+
+                  {/* QUANTITY CONTROLS */}
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <button
+                      className="btn btnGhost"
+                      style={{ padding: "4px 10px" }}
+                      onClick={() =>
+                        cart.updateQuantity(
+                          item.product_id,
+                          item.quantity - 1
+                        )
+                      }
+                    >
+                      −
+                    </button>
+
+                    <span style={{ fontWeight: 700 }}>
+                      {item.quantity}
+                    </span>
+
+                    <button
+                      className="btn btnGhost"
+                      style={{ padding: "4px 10px" }}
+                      onClick={() =>
+                        cart.updateQuantity(
+                          item.product_id,
+                          item.quantity + 1
+                        )
+                      }
+                    >
+                      +
+                    </button>
                   </div>
 
                   <button
@@ -105,7 +146,7 @@ export default function CartPage() {
                   </button>
                 </div>
 
-                {/* TOTAL PRICE */}
+                {/* ITEM TOTAL */}
                 <div
                   style={{
                     fontSize: 18,

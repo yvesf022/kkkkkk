@@ -21,6 +21,7 @@ export type CartProduct = {
   id: string;
   title: string;
   price: number;
+  main_image?: string;   // ✅ added
 };
 
 /* =========================
@@ -32,6 +33,7 @@ export type CartItem = {
   title: string;
   price: number;
   quantity: number;
+  main_image?: string;   // ✅ added
 };
 
 /* =========================
@@ -86,6 +88,7 @@ export const useCart = create<CartState>((set, get) => ({
             title: product.title,
             price: product.price,
             quantity,
+            main_image: product.main_image, // ✅ stored
           },
         ],
       };
