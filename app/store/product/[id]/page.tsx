@@ -1,275 +1,252 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import toast from "react-hot-toast";
 
-const WHATSAPP_NUMBER = "919253258848"; // no +
+import { productsApi } from "@/lib/api";
+import type { Product } from "@/lib/types";
+import { formatCurrency } from "@/lib/currency";
+import AddToCartClient from "./AddToCartClient";
 
-export default function PaymentPage() {
-  const searchParams = useSearchParams();
-  const orderId = searchParams.get("order_id");
+export default function ProductPage() {
+  const params = useParams();
+  const productId = params?.id as string;
 
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!orderId) {
+  useEffect(() => {
+    async function loadProduct() {
+      try {
+        const data = await productsApi.get(productId);
+        setProduct(data as Product);
+      } catch {
+        toast.error("Failed to load product");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (productId) loadProduct();
+  }, [productId]);
+
+  if (loading) {
     return (
-      <div style={{ padding: 100, textAlign: "center" }}>
-        Invalid payment link.
+      <div style={{ padding: 80, textAlign: "center" }}>
+        Loading product...
       </div>
     );
   }
 
-  /* ================= UPLOAD ================= */
-
-  async function handleUpload() {
-    if (!file) {
-      toast.error("Select payment proof first.");
-      return;
-    }
-
-    setUploading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${orderId}/upload-payment-proof`,
-        {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        }
-      );
-
-      if (!res.ok) throw new Error();
-
-      setUploaded(true);
-      toast.success("Payment proof uploaded successfully.");
-    } catch {
-      toast.error("Upload failed. Try again.");
-    } finally {
-      setUploading(false);
-    }
+  if (!product) {
+    return (
+      <div style={{ padding: 80, textAlign: "center" }}>
+        Product not found.
+      </div>
+    );
   }
 
-  /* ================= WHATSAPP ================= */
-
-  const message = encodeURIComponent(
-    `Hello, I have completed payment for Order ${orderId}. Please verify.`
-  );
-
-  const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+  const discount =
+    product.compare_price &&
+    product.compare_price > product.price
+      ? Math.round(
+          ((product.compare_price - product.price) /
+            product.compare_price) *
+            100,
+        )
+      : null;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg,#f8fafc,#ffffff)",
-        padding: "100px 20px",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 820,
-          margin: "0 auto",
-          background: "#ffffff",
-          borderRadius: 32,
-          padding: 70,
-          boxShadow: "0 50px 120px rgba(0,0,0,0.08)",
-        }}
-      >
-        {/* ================= HEADER ================= */}
-        <div style={{ textAlign: "center", marginBottom: 70 }}>
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              margin: "0 auto 25px",
-              borderRadius: "50%",
-              background: "#111827",
-              color: "#ffffff",
-              display: "grid",
-              placeItems: "center",
-              fontSize: 28,
-              fontWeight: 900,
-            }}
-          >
-            1
+    <div style={{ padding: "80px 0" }}>
+      <div className="container">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.2fr 1fr",
+            gap: 60,
+            alignItems: "start",
+          }}
+        >
+          {/* ================= LEFT IMAGE SECTION ================= */}
+          <div>
+            <div
+              style={{
+                borderRadius: 24,
+                overflow: "hidden",
+                background: "#f9fafb",
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <div
+                style={{
+                  height: 500,
+                  background: product.main_image
+                    ? `url(${product.main_image}) center/cover`
+                    : "#e5e7eb",
+                }}
+              />
+            </div>
           </div>
 
-          <h1
-            style={{
-              fontSize: 36,
-              fontWeight: 900,
-              marginBottom: 12,
-            }}
-          >
-            Complete Your Payment
-          </h1>
+          {/* ================= RIGHT CONTENT ================= */}
+          <div style={{ display: "grid", gap: 30 }}>
+            {/* BRAND */}
+            {product.brand && (
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  opacity: 0.6,
+                  letterSpacing: 1,
+                }}
+              >
+                {product.brand.toUpperCase()}
+              </div>
+            )}
 
-          <p style={{ opacity: 0.6 }}>
-            Order Reference: <strong>{orderId}</strong>
-          </p>
-        </div>
+            {/* TITLE */}
+            <h1
+              style={{
+                fontSize: 34,
+                fontWeight: 900,
+                lineHeight: 1.2,
+              }}
+            >
+              {product.title}
+            </h1>
 
-        {/* ================= STEP 1 ================= */}
-        <SectionTitle number="1" title="Make Bank Transfer" />
+            {/* RATING */}
+            {product.rating && (
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#f59e0b",
+                }}
+              >
+                ★ {product.rating} / 5
+              </div>
+            )}
 
-        <div style={bankBox}>
-          <BankRow label="Bank" value="Standard Lesotho Bank" />
-          <BankRow label="Account Name" value="Karabo Online Store" />
-          <BankRow label="Account Number" value="123456789" />
-          <BankRow label="Reference" value={orderId} strong />
-        </div>
+            {/* PRICE SECTION */}
+            <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+              <div
+                style={{
+                  fontSize: 28,
+                  fontWeight: 900,
+                  color: "var(--primary)",
+                }}
+              >
+                {formatCurrency(product.price)}
+              </div>
 
-        {/* ================= STEP 2 ================= */}
-        <SectionTitle number="2" title="Upload Payment Proof" />
+              {product.compare_price && (
+                <div
+                  style={{
+                    fontSize: 18,
+                    textDecoration: "line-through",
+                    opacity: 0.5,
+                  }}
+                >
+                  {formatCurrency(product.compare_price)}
+                </div>
+              )}
 
-        <div style={uploadBox}>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) =>
-              setFile(e.target.files?.[0] || null)
-            }
-            style={{
-              fontSize: 14,
-            }}
-          />
+              {discount && (
+                <div
+                  style={{
+                    background: "#dc2626",
+                    color: "#fff",
+                    padding: "6px 12px",
+                    borderRadius: 12,
+                    fontWeight: 800,
+                    fontSize: 12,
+                  }}
+                >
+                  -{discount}%
+                </div>
+              )}
+            </div>
 
-          <button
-            onClick={handleUpload}
-            disabled={uploading || uploaded}
-            style={{
-              padding: "16px",
-              borderRadius: 14,
-              border: "none",
-              fontWeight: 900,
-              background: uploaded ? "#16a34a" : "#111827",
-              color: "#fff",
-              cursor: uploading ? "wait" : "pointer",
-              transition: "all 0.2s ease",
-            }}
-          >
-            {uploading
-              ? "Uploading..."
-              : uploaded
-              ? "Uploaded ✓"
-              : "Upload Proof"}
-          </button>
-        </div>
+            {/* SHORT DESCRIPTION */}
+            {product.short_description && (
+              <p style={{ opacity: 0.7, fontSize: 15 }}>
+                {product.short_description}
+              </p>
+            )}
 
-        {/* ================= STEP 3 ================= */}
-        <SectionTitle number="3" title="Notify on WhatsApp" />
+            {/* ADD TO CART */}
+            <AddToCartClient product={product} />
 
-        <div style={whatsappBox}>
-          <p
-            style={{
-              opacity: 0.7,
-              marginBottom: 25,
-            }}
-          >
-            After uploading your proof, notify us for faster verification.
-          </p>
+            {/* FULL DESCRIPTION */}
+            {product.description && (
+              <div
+                style={{
+                  marginTop: 40,
+                  paddingTop: 40,
+                  borderTop: "1px solid rgba(0,0,0,0.08)",
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 900,
+                    marginBottom: 16,
+                  }}
+                >
+                  Product Details
+                </h2>
+                <p style={{ opacity: 0.75, lineHeight: 1.7 }}>
+                  {product.description}
+                </p>
+              </div>
+            )}
 
-          <a
-            href={whatsappLink}
-            target="_blank"
-            style={{
-              display: "inline-block",
-              padding: "18px 50px",
-              borderRadius: 18,
-              fontWeight: 900,
-              background: "#25D366",
-              color: "#ffffff",
-              textDecoration: "none",
-              fontSize: 16,
-              transition: "all 0.2s ease",
-            }}
-          >
-            Open WhatsApp →
-          </a>
+            {/* SPECS */}
+            {product.specs && Object.keys(product.specs).length > 0 && (
+              <div
+                style={{
+                  marginTop: 30,
+                  padding: 24,
+                  borderRadius: 20,
+                  background: "#f9fafb",
+                  border: "1px solid #e5e7eb",
+                }}
+              >
+                <h3
+                  style={{
+                    fontWeight: 900,
+                    marginBottom: 16,
+                  }}
+                >
+                  Specifications
+                </h3>
+
+                <div style={{ display: "grid", gap: 8 }}>
+                  {Object.entries(product.specs).map(
+                    ([key, value]) => (
+                      <div
+                        key={key}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: 14,
+                        }}
+                      >
+                        <span style={{ opacity: 0.6 }}>{key}</span>
+                        <span style={{ fontWeight: 700 }}>
+                          {String(value)}
+                        </span>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-/* ================= UI PARTS ================= */
-
-function SectionTitle({
-  number,
-  title,
-}: {
-  number: string;
-  title: string;
-}) {
-  return (
-    <div style={{ marginBottom: 20, marginTop: 50 }}>
-      <h2
-        style={{
-          fontSize: 22,
-          fontWeight: 900,
-        }}
-      >
-        {number}. {title}
-      </h2>
-    </div>
-  );
-}
-
-function BankRow({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-      }}
-    >
-      <span style={{ opacity: 0.7 }}>{label}</span>
-      <span style={{ fontWeight: strong ? 900 : 700 }}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-/* ================= STYLES ================= */
-
-const bankBox: React.CSSProperties = {
-  padding: 35,
-  borderRadius: 24,
-  background: "#f9fafb",
-  border: "1px solid #e5e7eb",
-  display: "grid",
-  gap: 14,
-};
-
-const uploadBox: React.CSSProperties = {
-  padding: 35,
-  borderRadius: 24,
-  background: "#f9fafb",
-  border: "1px solid #e5e7eb",
-  display: "grid",
-  gap: 20,
-};
-
-const whatsappBox: React.CSSProperties = {
-  padding: 45,
-  borderRadius: 28,
-  background: "#f0fdf4",
-  border: "1px solid #bbf7d0",
-  textAlign: "center",
-};
