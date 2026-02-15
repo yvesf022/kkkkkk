@@ -4,11 +4,10 @@ import { useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import { UIProvider } from "@/components/layout/uiStore";
-import { CartProvider } from "@/app/context/CartContext";
 import { useAuth } from "@/lib/auth";
 
 /**
- * CLIENT SHELL — FINAL & CORRECT
+ * CLIENT SHELL — FINAL & CORRECT (Zustand version)
  *
  * RESPONSIBILITIES:
  * - Global UI shell
@@ -18,6 +17,9 @@ import { useAuth } from "@/lib/auth";
  * - Hydrate auth ONCE here
  * - NO redirects here
  * - NO conditional rendering here
+ *
+ * NOTE:
+ * - Zustand does NOT require CartProvider
  */
 
 export default function ClientShell({
@@ -34,14 +36,12 @@ export default function ClientShell({
 
   return (
     <UIProvider>
-      <CartProvider>
-        <Header />
+      <Header />
 
-        <div className="appShell">
-          <Sidebar />
-          <main className="pageContentWrap">{children}</main>
-        </div>
-      </CartProvider>
+      <div className="appShell">
+        <Sidebar />
+        <main className="pageContentWrap">{children}</main>
+      </div>
     </UIProvider>
   );
 }
