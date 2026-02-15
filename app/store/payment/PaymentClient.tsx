@@ -11,17 +11,17 @@ export default function PaymentPage() {
   const orderId = searchParams.get("order_id");
 
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
-  const [initializing, setInitializing] = useState(true);
 
   /* =====================================================
-     INITIALIZE PAYMENT (CREATE OR FETCH)
+     CREATE / FETCH PAYMENT
   ===================================================== */
 
   useEffect(() => {
-    async function createPayment() {
+    async function initializePayment() {
       if (!orderId) return;
 
       try {
@@ -39,17 +39,15 @@ export default function PaymentPage() {
           throw new Error(data.detail || "Failed to initialize payment");
         }
 
-        // ✅ CORRECT FIELD
         setPaymentId(data.payment_id);
       } catch (err: any) {
-        console.error("Payment init error:", err);
         toast.error(err.message || "Failed to initialize payment.");
       } finally {
         setInitializing(false);
       }
     }
 
-    createPayment();
+    initializePayment();
   }, [orderId]);
 
   if (!orderId) {
@@ -61,12 +59,12 @@ export default function PaymentPage() {
   }
 
   /* =====================================================
-     HANDLE PROOF UPLOAD
+     HANDLE UPLOAD
   ===================================================== */
 
   async function handleUpload() {
     if (!file) {
-      toast.error("Select payment proof first.");
+      toast.error("Please select a payment proof file.");
       return;
     }
 
@@ -79,8 +77,6 @@ export default function PaymentPage() {
 
     try {
       const formData = new FormData();
-
-      // 🔥 IMPORTANT: backend expects "proof"
       formData.append("proof", file);
 
       const res = await fetch(
@@ -98,32 +94,20 @@ export default function PaymentPage() {
         throw new Error(data.detail || "Upload failed");
       }
 
-      console.log("Upload success:", data);
-
       setUploaded(true);
       toast.success("Payment proof uploaded successfully.");
-
     } catch (err: any) {
-      console.error("Upload error:", err);
       toast.error(err.message || "Upload failed. Try again.");
     } finally {
       setUploading(false);
     }
   }
 
-  /* =====================================================
-     WHATSAPP LINK
-  ===================================================== */
-
   const message = encodeURIComponent(
     `Hello, I have completed payment for Order ${orderId}. Please verify.`
   );
 
   const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
-
-  /* =====================================================
-     UI
-  ===================================================== */
 
   return (
     <div
@@ -177,7 +161,7 @@ export default function PaymentPage() {
           </p>
 
           {initializing && (
-            <p style={{ marginTop: 10, opacity: 0.6 }}>
+            <p style={{ marginTop: 15, fontSize: 14, opacity: 0.6 }}>
               Initializing payment...
             </p>
           )}
@@ -197,26 +181,39 @@ export default function PaymentPage() {
         <SectionTitle number="2" title="Upload Payment Proof" />
 
         <div style={uploadBox}>
+          <div style={infoBox}>
+            Please upload a clear proof of payment such as:
+            <ul style={{ marginTop: 8, paddingLeft: 18 }}>
+              <li>Bank transfer receipt photo</li>
+              <li>Mobile banking screenshot</li>
+              <li>ATM deposit slip image</li>
+              <li>PDF payment confirmation</li>
+            </ul>
+            Ensure the transaction reference and amount are clearly visible.
+          </div>
+
           <input
             type="file"
             accept="image/*,application/pdf"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            onChange={(e) => {
+              setFile(e.target.files?.[0] || null);
+              setUploaded(false);
+            }}
+            style={fileInputStyle}
           />
+
+          {file && (
+            <div style={{ fontSize: 13, opacity: 0.7 }}>
+              Selected: {file.name}
+            </div>
+          )}
 
           <button
             onClick={handleUpload}
             disabled={!paymentId || uploading || uploaded}
             style={{
-              padding: "16px",
-              borderRadius: 14,
-              border: "none",
-              fontWeight: 900,
+              ...uploadButtonStyle,
               background: uploaded ? "#16a34a" : "#111827",
-              color: "#fff",
-              cursor:
-                !paymentId || uploading || uploaded
-                  ? "not-allowed"
-                  : "pointer",
               opacity: !paymentId ? 0.6 : 1,
             }}
           >
@@ -224,8 +221,14 @@ export default function PaymentPage() {
               ? "Uploading..."
               : uploaded
               ? "Uploaded ✓"
-              : "Upload Proof"}
+              : "Upload Payment Proof"}
           </button>
+
+          {uploaded && (
+            <div style={successText}>
+              ✓ Your proof has been received and is awaiting admin verification.
+            </div>
+          )}
         </div>
 
         {/* STEP 3 */}
@@ -235,16 +238,7 @@ export default function PaymentPage() {
           <a
             href={whatsappLink}
             target="_blank"
-            style={{
-              display: "inline-block",
-              padding: "18px 50px",
-              borderRadius: 18,
-              fontWeight: 900,
-              background: "#25D366",
-              color: "#ffffff",
-              textDecoration: "none",
-              fontSize: 16,
-            }}
+            style={whatsappButtonStyle}
           >
             Open WhatsApp →
           </a>
@@ -255,7 +249,7 @@ export default function PaymentPage() {
 }
 
 /* =====================================================
-   UI PARTS
+   UI COMPONENTS
 ===================================================== */
 
 function SectionTitle({
@@ -267,12 +261,7 @@ function SectionTitle({
 }) {
   return (
     <div style={{ marginBottom: 20, marginTop: 50 }}>
-      <h2
-        style={{
-          fontSize: 22,
-          fontWeight: 900,
-        }}
-      >
+      <h2 style={{ fontSize: 22, fontWeight: 900 }}>
         {number}. {title}
       </h2>
     </div>
@@ -289,12 +278,7 @@ function BankRow({
   strong?: boolean;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-      }}
-    >
+    <div style={{ display: "flex", justifyContent: "space-between" }}>
       <span style={{ opacity: 0.7 }}>{label}</span>
       <span style={{ fontWeight: strong ? 900 : 700 }}>{value}</span>
     </div>
@@ -323,10 +307,55 @@ const uploadBox: React.CSSProperties = {
   gap: 20,
 };
 
+const infoBox: React.CSSProperties = {
+  background: "#f8fafc",
+  padding: "16px 18px",
+  borderRadius: 12,
+  border: "1px solid #e2e8f0",
+  fontSize: 14,
+  lineHeight: 1.6,
+  color: "#334155",
+};
+
+const fileInputStyle: React.CSSProperties = {
+  padding: "12px",
+  borderRadius: 12,
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  fontSize: 14,
+};
+
+const uploadButtonStyle: React.CSSProperties = {
+  padding: "16px",
+  borderRadius: 14,
+  border: "none",
+  fontWeight: 900,
+  color: "#fff",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+};
+
+const successText: React.CSSProperties = {
+  fontSize: 14,
+  color: "#166534",
+  fontWeight: 600,
+};
+
 const whatsappBox: React.CSSProperties = {
   padding: 45,
   borderRadius: 28,
   background: "#f0fdf4",
   border: "1px solid #bbf7d0",
   textAlign: "center",
+};
+
+const whatsappButtonStyle: React.CSSProperties = {
+  display: "inline-block",
+  padding: "18px 50px",
+  borderRadius: 18,
+  fontWeight: 900,
+  background: "#25D366",
+  color: "#ffffff",
+  textDecoration: "none",
+  fontSize: 16,
 };
