@@ -1,4 +1,5 @@
 "use client";
+import { formatCurrency } from '@/lib/currency';
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
