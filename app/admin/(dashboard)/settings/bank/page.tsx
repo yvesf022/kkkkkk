@@ -43,7 +43,7 @@ export default function AdminBankSettingsPage() {
   async function loadSettings() {
     try {
       const res = await fetch(
-        `${API}/api/api/payments/admin/bank-settings`,
+        `${API}/api/payments/admin/bank-settings`,
         { credentials: "include" }
       );
 
@@ -91,7 +91,7 @@ export default function AdminBankSettingsPage() {
       if (existingId) {
         // UPDATE
         const res = await fetch(
-          `${API}/api/api/payments/admin/bank-settings/${existingId}`,
+          `${API}/api/payments/admin/bank-settings/${existingId}`,
           {
             method: "PATCH",
             credentials: "include",
@@ -106,7 +106,7 @@ export default function AdminBankSettingsPage() {
       } else {
         // CREATE
         const res = await fetch(
-          `${API}/api/api/payments/admin/bank-settings`,
+          `${API}/api/payments/admin/bank-settings`,
           {
             method: "POST",
             credentials: "include",
