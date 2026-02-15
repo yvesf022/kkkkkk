@@ -5,10 +5,10 @@
  * Re-exports from lib/cart for backward compatibility
  */
 
-import { useCart as useCartZustand } from "@/lib/cart";
+import { useCart as CartProviderZustand } from "@/lib/cart";
 
-export function useCart() {
-  const cart = useCartZustand();
+export function CartProvider() {
+  const cart = CartProviderZustand();
   
   return {
     items: cart.items,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useKeepAlive } from "@/hooks/useKeepAlive";
+import { useKeepAlive } from "@/lib/useKeepAlive";
 
 /**
  * Keep-Alive Provider Component
