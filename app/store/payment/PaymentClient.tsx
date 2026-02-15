@@ -1,18 +1,46 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
-const WHATSAPP_NUMBER = "919253258848"; // no +
+const WHATSAPP_NUMBER = "919253258848";
 
 export default function PaymentPage() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
 
+  const [paymentId, setPaymentId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
+
+  /* ================= CREATE PAYMENT ================= */
+
+  useEffect(() => {
+    async function createPayment() {
+      if (!orderId) return;
+
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/payments/${orderId}`,
+          {
+            method: "POST",
+            credentials: "include",
+          }
+        );
+
+        if (!res.ok) throw new Error();
+
+        const data = await res.json();
+        setPaymentId(data.id);
+      } catch {
+        toast.error("Failed to initialize payment.");
+      }
+    }
+
+    createPayment();
+  }, [orderId]);
 
   if (!orderId) {
     return (
@@ -30,6 +58,11 @@ export default function PaymentPage() {
       return;
     }
 
+    if (!paymentId) {
+      toast.error("Payment not initialized yet.");
+      return;
+    }
+
     setUploading(true);
 
     try {
@@ -37,7 +70,7 @@ export default function PaymentPage() {
       formData.append("file", file);
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${orderId}/upload-payment-proof`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/payments/${paymentId}/proof`,
         {
           method: "POST",
           body: formData,
@@ -82,7 +115,6 @@ export default function PaymentPage() {
           boxShadow: "0 50px 120px rgba(0,0,0,0.08)",
         }}
       >
-        {/* ================= HEADER ================= */}
         <div style={{ textAlign: "center", marginBottom: 70 }}>
           <div
             style={{
@@ -116,7 +148,6 @@ export default function PaymentPage() {
           </p>
         </div>
 
-        {/* ================= STEP 1 ================= */}
         <SectionTitle number="1" title="Make Bank Transfer" />
 
         <div style={bankBox}>
@@ -126,19 +157,13 @@ export default function PaymentPage() {
           <BankRow label="Reference" value={orderId} strong />
         </div>
 
-        {/* ================= STEP 2 ================= */}
         <SectionTitle number="2" title="Upload Payment Proof" />
 
         <div style={uploadBox}>
           <input
             type="file"
             accept="image/*"
-            onChange={(e) =>
-              setFile(e.target.files?.[0] || null)
-            }
-            style={{
-              fontSize: 14,
-            }}
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
           />
 
           <button
@@ -152,7 +177,6 @@ export default function PaymentPage() {
               background: uploaded ? "#16a34a" : "#111827",
               color: "#fff",
               cursor: uploading ? "wait" : "pointer",
-              transition: "all 0.2s ease",
             }}
           >
             {uploading
@@ -163,19 +187,9 @@ export default function PaymentPage() {
           </button>
         </div>
 
-        {/* ================= STEP 3 ================= */}
         <SectionTitle number="3" title="Notify on WhatsApp" />
 
         <div style={whatsappBox}>
-          <p
-            style={{
-              opacity: 0.7,
-              marginBottom: 25,
-            }}
-          >
-            After uploading your proof, notify us for faster verification.
-          </p>
-
           <a
             href={whatsappLink}
             target="_blank"
@@ -188,7 +202,6 @@ export default function PaymentPage() {
               color: "#ffffff",
               textDecoration: "none",
               fontSize: 16,
-              transition: "all 0.2s ease",
             }}
           >
             Open WhatsApp →
@@ -198,78 +211,3 @@ export default function PaymentPage() {
     </div>
   );
 }
-
-/* ================= UI PARTS ================= */
-
-function SectionTitle({
-  number,
-  title,
-}: {
-  number: string;
-  title: string;
-}) {
-  return (
-    <div style={{ marginBottom: 20, marginTop: 50 }}>
-      <h2
-        style={{
-          fontSize: 22,
-          fontWeight: 900,
-        }}
-      >
-        {number}. {title}
-      </h2>
-    </div>
-  );
-}
-
-function BankRow({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-      }}
-    >
-      <span style={{ opacity: 0.7 }}>{label}</span>
-      <span style={{ fontWeight: strong ? 900 : 700 }}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-/* ================= STYLES ================= */
-
-const bankBox: React.CSSProperties = {
-  padding: 35,
-  borderRadius: 24,
-  background: "#f9fafb",
-  border: "1px solid #e5e7eb",
-  display: "grid",
-  gap: 14,
-};
-
-const uploadBox: React.CSSProperties = {
-  padding: 35,
-  borderRadius: 24,
-  background: "#f9fafb",
-  border: "1px solid #e5e7eb",
-  display: "grid",
-  gap: 20,
-};
-
-const whatsappBox: React.CSSProperties = {
-  padding: 45,
-  borderRadius: 28,
-  background: "#f0fdf4",
-  border: "1px solid #bbf7d0",
-  textAlign: "center",
-};
