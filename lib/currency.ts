@@ -6,7 +6,7 @@ export function formatCurrency(
   if (!isFinite(value)) return "M 0.00";
 
   return "M " + value.toLocaleString("en-ZA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 2.
+    maximumFractionDigits: 2.
   });
 }
