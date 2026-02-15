@@ -1,12 +1,5 @@
 /**
- * API CLIENT — AUTHORITATIVE (FINAL — OPENAPI ALIGNED)
- *
- * Backend facts (DO NOT CHANGE):
- * - Auth is cookie-based (HTTP-only)
- * - User cookie:  access_token
- * - Admin cookie: admin_access_token
- * - Credentials MUST be included
- * - No Authorization headers
+ * API CLIENT – FIXED PAYMENT ENDPOINTS
  */
 
 import type { Admin } from "@/lib/adminAuth";
@@ -14,10 +7,6 @@ import type { Order, ProductListItem, Product } from "@/lib/types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
-
-/* =====================================================
-   LOW-LEVEL REQUEST
-===================================================== */
 
 async function request<T>(
   path: string,
@@ -144,7 +133,7 @@ export const productsApi = {
   },
 
   update(productId: string, payload: Record<string, any>) {
-    return request(`/api/products/${productId}`, {
+    return request(`/api/products/admin/${productId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -217,12 +206,13 @@ export const ordersApi = {
 };
 
 /* =====================================================
-   PAYMENTS
+   PAYMENTS - FIXED ENDPOINTS
 ===================================================== */
 
 export const paymentsApi = {
+  // ✅ FIXED: Remove double /api
   create(orderId: string) {
-    return request(`/api/api/payments/${orderId}`, {
+    return request(`/api/payments/${orderId}`, {
       method: "POST",
     });
   },
@@ -231,22 +221,22 @@ export const paymentsApi = {
     const form = new FormData();
     form.append("proof", file);
 
-    return request(`/api/api/payments/${paymentId}/proof`, {
+    return request(`/api/payments/${paymentId}/proof`, {
       method: "POST",
       body: form,
     });
   },
 
   adminList() {
-    return request("/api/api/payments/admin");
+    return request("/api/payments/admin");
   },
 
   getPaymentDetails(paymentId: string) {
-    return request(`/api/api/payments/admin/${paymentId}`);
+    return request(`/api/payments/admin/${paymentId}`);
   },
 
   review(paymentId: string, status: "paid" | "rejected") {
-    return request(`/api/api/payments/admin/${paymentId}`, {
+    return request(`/api/payments/admin/${paymentId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
@@ -254,15 +244,15 @@ export const paymentsApi = {
   },
 
   getBankDetails() {
-    return request("/api/api/payments/bank-details");
+    return request("/api/payments/bank-details");
   },
 
   getBankSettings() {
-    return request("/api/api/payments/admin/bank-settings");
+    return request("/api/payments/admin/bank-settings");
   },
 
   createBankSettings(data: any) {
-    return request("/api/api/payments/admin/bank-settings", {
+    return request("/api/payments/admin/bank-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -271,7 +261,7 @@ export const paymentsApi = {
 
   updateBankSettings(bankId: string, data: any) {
     return request(
-      `/api/api/payments/admin/bank-settings/${bankId}`,
+      `/api/payments/admin/bank-settings/${bankId}`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -282,7 +272,7 @@ export const paymentsApi = {
 
   deleteBankSettings(bankId: string) {
     return request(
-      `/api/api/payments/admin/bank-settings/${bankId}`,
+      `/api/payments/admin/bank-settings/${bankId}`,
       { method: "DELETE" },
     );
   },
@@ -292,7 +282,7 @@ export const paymentsApi = {
     form.append("file", file);
 
     return request(
-      `/api/api/payments/admin/bank-settings/${bankId}/qr-code`,
+      `/api/payments/admin/bank-settings/${bankId}/qr-code`,
       {
         method: "POST",
         body: form,
@@ -302,7 +292,7 @@ export const paymentsApi = {
 };
 
 /* =====================================================
-   USER PROFILE (RESTORED — REQUIRED FOR BUILD)
+   USER PROFILE
 ===================================================== */
 
 export async function uploadAvatar(file: File) {
