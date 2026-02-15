@@ -1,71 +1,34 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 export default function OrderSuccessClient() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
 
+  if (!orderId) return null;
+
   return (
     <div
       style={{
         marginTop: 30,
-        display: "grid",
-        gap: 30,
+        padding: 24,
+        borderRadius: 16,
+        background: "#f8fafc",
         textAlign: "center",
       }}
     >
-      {/* ORDER NUMBER */}
-      {orderId && (
-        <div
-          style={{
-            padding: 24,
-            borderRadius: 16,
-            background: "#f8fafc",
-            fontSize: 16,
-          }}
-        >
-          <strong>Order Number:</strong>
-          <div
-            style={{
-              marginTop: 8,
-              fontSize: 20,
-              fontWeight: 900,
-              letterSpacing: 1,
-            }}
-          >
-            {orderId}
-          </div>
-        </div>
-      )}
-
-      {/* SIMPLE MESSAGE */}
+      <strong>Order Number:</strong>
       <div
         style={{
-          fontSize: 16,
-          opacity: 0.8,
+          marginTop: 8,
+          fontSize: 20,
+          fontWeight: 900,
+          letterSpacing: 1,
         }}
       >
-        Your order has been created successfully.
-        <br />
-        Please proceed to complete payment.
+        {orderId}
       </div>
-
-      {/* SINGLE ACTION */}
-      {orderId && (
-        <Link
-          href={`/account/orders/${orderId}`}
-          className="btn btnPrimary"
-          style={{
-            padding: "16px 40px",
-            fontSize: 18,
-            justifySelf: "center",
-          }}
-        >
-          Proceed to Payment →
-        </Link>
-      )}
     </div>
   );
 }
