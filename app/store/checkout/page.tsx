@@ -61,12 +61,23 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (
+      !shipping.fullName ||
+      !shipping.phone ||
+      !shipping.address
+    ) {
+      toast.error("Please complete shipping information");
+      return;
+    }
+
     setPlacing(true);
 
     try {
       const order = await cart.createOrder();
 
-      router.push(`/order-success?order_id=${order.order_id}`);
+      router.push(
+        `/order-success?order_id=${order.order_id}`
+      );
     } catch (err: any) {
       toast.error(err.message || "Failed to place order");
     } finally {
@@ -76,44 +87,72 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center" }}>
+      <div style={{ padding: 60, textAlign: "center" }}>
         <h2>Your cart is empty</h2>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 30 }}>
-      <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 30 }}>
+    <div
+      style={{
+        maxWidth: 1100,
+        margin: "0 auto",
+        padding: 40,
+      }}
+    >
+      <h1
+        style={{
+          fontSize: 32,
+          fontWeight: 900,
+          marginBottom: 40,
+        }}
+      >
         Checkout
       </h1>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 40 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr",
+          gap: 50,
+        }}
+      >
         {/* ================= LEFT SIDE ================= */}
         <div>
-          {/* STEP 1: SHIPPING */}
+          {/* STEP 1 – SHIPPING */}
           {step === 1 && (
             <>
-              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 20 }}>
+              <h2
+                style={{
+                  fontSize: 20,
+                  fontWeight: 900,
+                  marginBottom: 20,
+                }}
+              >
                 Shipping Address
               </h2>
 
               {savedAddress && useSaved ? (
-                <div
-                  style={{
-                    padding: 30,
-                    borderRadius: 20,
-                    background: "#ffffff",
-                    boxShadow: "0 15px 40px rgba(15,23,42,0.08)",
-                  }}
-                >
-                  <p><strong>{savedAddress.fullName}</strong></p>
+                <div className="card">
+                  <p>
+                    <strong>
+                      {savedAddress.fullName}
+                    </strong>
+                  </p>
                   <p>{savedAddress.phone}</p>
                   <p>{savedAddress.address}</p>
                   <p>{savedAddress.city}</p>
                   <p>{savedAddress.district}</p>
 
-                  <div style={{ marginTop: 20, display: "flex", gap: 15 }}>
+                  <div
+                    style={{
+                      marginTop: 24,
+                      display: "flex",
+                      gap: 16,
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <button
                       className="btn btnPrimary"
                       onClick={() => setStep(2)}
@@ -123,7 +162,9 @@ export default function CheckoutPage() {
 
                     <button
                       className="btn btnGhost"
-                      onClick={() => setUseSaved(false)}
+                      onClick={() =>
+                        setUseSaved(false)
+                      }
                     >
                       Use Different Address
                     </button>
@@ -131,20 +172,17 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 <div
-                  style={{
-                    padding: 30,
-                    borderRadius: 20,
-                    background: "#ffffff",
-                    boxShadow: "0 15px 40px rgba(15,23,42,0.08)",
-                    display: "grid",
-                    gap: 18,
-                  }}
+                  className="card"
+                  style={{ display: "grid", gap: 16 }}
                 >
                   <Input
                     placeholder="Full Name"
                     value={shipping.fullName}
                     onChange={(e) =>
-                      setShipping({ ...shipping, fullName: e.target.value })
+                      setShipping({
+                        ...shipping,
+                        fullName: e.target.value,
+                      })
                     }
                   />
 
@@ -152,7 +190,10 @@ export default function CheckoutPage() {
                     placeholder="Phone Number"
                     value={shipping.phone}
                     onChange={(e) =>
-                      setShipping({ ...shipping, phone: e.target.value })
+                      setShipping({
+                        ...shipping,
+                        phone: e.target.value,
+                      })
                     }
                   />
 
@@ -160,7 +201,10 @@ export default function CheckoutPage() {
                     placeholder="Street Address"
                     value={shipping.address}
                     onChange={(e) =>
-                      setShipping({ ...shipping, address: e.target.value })
+                      setShipping({
+                        ...shipping,
+                        address: e.target.value,
+                      })
                     }
                   />
 
@@ -168,7 +212,10 @@ export default function CheckoutPage() {
                     placeholder="City"
                     value={shipping.city}
                     onChange={(e) =>
-                      setShipping({ ...shipping, city: e.target.value })
+                      setShipping({
+                        ...shipping,
+                        city: e.target.value,
+                      })
                     }
                   />
 
@@ -176,7 +223,10 @@ export default function CheckoutPage() {
                     placeholder="District"
                     value={shipping.district}
                     onChange={(e) =>
-                      setShipping({ ...shipping, district: e.target.value })
+                      setShipping({
+                        ...shipping,
+                        district: e.target.value,
+                      })
                     }
                   />
 
@@ -184,70 +234,105 @@ export default function CheckoutPage() {
                     className="btn btnPrimary"
                     onClick={() => setStep(2)}
                   >
-                    Continue
+                    Continue to Review
                   </button>
                 </div>
               )}
             </>
           )}
 
-          {/* STEP 2: PAYMENT */}
+          {/* STEP 2 – REVIEW ORDER */}
           {step === 2 && (
-            <div
-              style={{
-                padding: 30,
-                borderRadius: 20,
-                background: "#ffffff",
-                boxShadow: "0 15px 40px rgba(15,23,42,0.08)",
-              }}
-            >
-              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 20 }}>
-                Payment Instructions
-              </h2>
-
-              <p style={{ marginBottom: 20 }}>
-                Please transfer the total amount to the bank account below.
-              </p>
-
-              <div
+            <div className="card">
+              <h2
                 style={{
-                  padding: 20,
-                  borderRadius: 16,
-                  background: "#f0fdf4",
+                  fontSize: 20,
+                  fontWeight: 900,
                   marginBottom: 20,
                 }}
               >
-                <p><strong>Bank:</strong> Standard Lesotho Bank</p>
-                <p><strong>Account Name:</strong> Karabo Online Store</p>
-                <p><strong>Account Number:</strong> 123456789</p>
-                <p><strong>Reference:</strong> Your Order ID</p>
+                Review Your Order
+              </h2>
+
+              {items.map((item) => (
+                <div
+                  key={item.product_id}
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <span>
+                    {item.title} × {item.quantity}
+                  </span>
+                  <span>
+                    {formatCurrency(
+                      item.price *
+                        item.quantity
+                    )}
+                  </span>
+                </div>
+              ))}
+
+              <div
+                style={{
+                  marginTop: 20,
+                  paddingTop: 20,
+                  borderTop:
+                    "1px solid rgba(0,0,0,0.1)",
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  fontWeight: 900,
+                  fontSize: 18,
+                }}
+              >
+                <span>Total</span>
+                <span>
+                  {formatCurrency(subtotal)}
+                </span>
               </div>
 
-              <button
-                onClick={handlePlaceOrder}
-                disabled={placing}
-                className="btn btnPrimary"
-                style={{ width: "100%" }}
+              <div
+                style={{
+                  marginTop: 30,
+                  display: "flex",
+                  gap: 16,
+                  flexWrap: "wrap",
+                }}
               >
-                {placing ? "Placing Order..." : "Confirm Order"}
-              </button>
+                <button
+                  className="btn btnGhost"
+                  onClick={() => setStep(1)}
+                >
+                  Back
+                </button>
+
+                <button
+                  onClick={handlePlaceOrder}
+                  disabled={placing}
+                  className="btn btnPrimary"
+                >
+                  {placing
+                    ? "Placing Order..."
+                    : "Confirm Order"}
+                </button>
+              </div>
             </div>
           )}
         </div>
 
         {/* ================= ORDER SUMMARY ================= */}
         <div>
-          <div
-            style={{
-              position: "sticky",
-              top: 100,
-              padding: 30,
-              borderRadius: 20,
-              background: "#ffffff",
-              boxShadow: "0 15px 40px rgba(15,23,42,0.08)",
-            }}
-          >
-            <h3 style={{ fontWeight: 900, marginBottom: 20 }}>
+          <div className="card">
+            <h3
+              style={{
+                fontWeight: 900,
+                marginBottom: 20,
+              }}
+            >
               Order Summary
             </h3>
 
@@ -256,16 +341,20 @@ export default function CheckoutPage() {
                 key={item.product_id}
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: 10,
+                  justifyContent:
+                    "space-between",
                   fontSize: 14,
+                  marginBottom: 8,
                 }}
               >
                 <span>
                   {item.title} × {item.quantity}
                 </span>
                 <span>
-                  {formatCurrency(item.price * item.quantity)}
+                  {formatCurrency(
+                    item.price *
+                      item.quantity
+                  )}
                 </span>
               </div>
             ))}
@@ -274,15 +363,18 @@ export default function CheckoutPage() {
               style={{
                 marginTop: 20,
                 paddingTop: 20,
-                borderTop: "1px solid #eee",
-                fontWeight: 900,
-                fontSize: 18,
+                borderTop:
+                  "1px solid rgba(0,0,0,0.1)",
                 display: "flex",
-                justifyContent: "space-between",
+                justifyContent:
+                  "space-between",
+                fontWeight: 900,
               }}
             >
               <span>Total</span>
-              <span>{formatCurrency(subtotal)}</span>
+              <span>
+                {formatCurrency(subtotal)}
+              </span>
             </div>
           </div>
         </div>
@@ -300,10 +392,19 @@ function Input(props: any) {
       style={{
         padding: "14px 16px",
         borderRadius: 12,
-        border: "1px solid #e5e7eb",
+        border:
+          "2px solid var(--gray-200)",
         fontSize: 15,
-        outline: "none",
+        transition: "all 0.2s ease",
       }}
+      onFocus={(e) =>
+        (e.currentTarget.style.border =
+          "2px solid var(--primary)")
+      }
+      onBlur={(e) =>
+        (e.currentTarget.style.border =
+          "2px solid var(--gray-200)")
+      }
     />
   );
 }
