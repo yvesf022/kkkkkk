@@ -30,133 +30,149 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* ================= HERO SECTION ================= */}
-      <section
+{/* ================= HERO SECTION ================= */}
+<section
+  style={{
+    position: "relative",
+    padding: "120px 0",
+    background: "linear-gradient(135deg,#004d28,#006838 40%,#0047ab)",
+    color: "white",
+  }}
+>
+  {/* DARK OVERLAY FOR READABILITY */}
+  <div
+    style={{
+      position: "absolute",
+      inset: 0,
+      background: "rgba(0,0,0,0.35)",
+    }}
+  />
+
+  <div
+    className="container"
+    style={{
+      position: "relative",
+      zIndex: 2,
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 60,
+      alignItems: "center",
+    }}
+  >
+    {/* LEFT */}
+    <div>
+      <div
         style={{
-          background: "var(--gradient-hero)",
-          color: "white",
-          padding: "120px 0",
-          position: "relative",
-          overflow: "hidden",
+          display: "inline-block",
+          padding: "8px 14px",
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.15)",
+          fontWeight: 700,
+          marginBottom: 24,
         }}
       >
-        <div
-          className="container"
+        🇱🇸 Lesotho Premium Boutique
+      </div>
+
+      <h1
+        style={{
+          fontSize: 64,
+          fontWeight: 900,
+          lineHeight: 1.05,
+          marginBottom: 24,
+          color: "white",
+        }}
+      >
+        Discover <br /> Your Style.
+      </h1>
+
+      <p
+        style={{
+          fontSize: 20,
+          opacity: 0.95,
+          marginBottom: 40,
+          maxWidth: 500,
+        }}
+      >
+        Elevate your confidence with curated fashion and beauty
+        collections designed for modern elegance and timeless
+        sophistication.
+      </p>
+
+      <div style={{ display: "flex", gap: 16 }}>
+        <button
+          className="btn btnAccent"
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 80,
-            alignItems: "center",
+            background: "var(--accent)",
+            color: "#000",
           }}
+          onClick={() => router.push("/store")}
         >
-          {/* LEFT SIDE */}
-          <div style={{ animation: "fadeIn 0.6s ease-out" }}>
-            <div
-              className="badge badge-primary"
-              style={{ marginBottom: 24 }}
-            >
-              🇱🇸 Lesotho Premium Boutique
-            </div>
+          Shop Collection
+        </button>
 
-            <h1
-              className="text-display"
-              style={{
-                fontSize: 64,
-                lineHeight: 1.05,
-                marginBottom: 28,
-              }}
-            >
-              Discover
-              <br />
-              Your Style.
-            </h1>
+        <button
+          className="btn btnOutline"
+          style={{
+            borderColor: "white",
+            color: "white",
+          }}
+          onClick={() => router.push("/store")}
+        >
+          Explore Now
+        </button>
+      </div>
+    </div>
 
-            <p
-              style={{
-                fontSize: 20,
-                opacity: 0.92,
-                marginBottom: 40,
-                maxWidth: 520,
-              }}
-            >
-              Elevate your confidence with curated fashion and beauty
-              collections designed for modern elegance and timeless
-              sophistication.
-            </p>
+    {/* FEATURED PRODUCT */}
+    {!loading && featured && (
+      <div
+        className="card"
+        style={{
+          padding: 0,
+          overflow: "hidden",
+          cursor: "pointer",
+          background: "white",
+        }}
+        onClick={() =>
+          router.push(`/store/product/${featured.id}`)
+        }
+      >
+        <div
+          style={{
+            height: 400,
+            background: featured.main_image
+              ? `url(${featured.main_image}) center/cover`
+              : "#e2e8f0",
+          }}
+        />
 
-            <div style={{ display: "flex", gap: 18 }}>
-              <button
-                className="btn btnAccent"
-                onClick={() => router.push("/store")}
-              >
-                Shop Collection
-              </button>
+        <div style={{ padding: 28 }}>
+          <h3
+            style={{
+              fontSize: 22,
+              fontWeight: 800,
+              marginBottom: 10,
+              color: "var(--gray-900)",
+            }}
+          >
+            {featured.title}
+          </h3>
 
-              <button
-                className="btn btnGhost"
-                onClick={() => router.push("/store")}
-              >
-                Explore Now
-              </button>
-            </div>
+          <div
+            style={{
+              fontSize: 30,
+              fontWeight: 900,
+              color: "var(--primary)",
+            }}
+          >
+            {formatCurrency(featured.price)}
           </div>
-
-          {/* FEATURED PRODUCT */}
-          {!loading && featured && (
-            <div
-              className="card"
-              style={{
-                padding: 0,
-                overflow: "hidden",
-                cursor: "pointer",
-                transition: "transform 0.4s ease",
-              }}
-              onClick={() =>
-                router.push(`/store/product/${featured.id}`)
-              }
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.transform =
-                  "translateY(-6px)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.transform =
-                  "translateY(0)")
-              }
-            >
-              <div
-                style={{
-                  height: 420,
-                  background: featured.main_image
-                    ? `url(${featured.main_image}) center/cover`
-                    : "var(--gradient-surface)",
-                }}
-              />
-
-              <div style={{ padding: 32 }}>
-                <h3
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 800,
-                    marginBottom: 12,
-                  }}
-                >
-                  {featured.title}
-                </h3>
-
-                <div
-                  style={{
-                    fontSize: 32,
-                    fontWeight: 900,
-                    color: "var(--primary)",
-                  }}
-                >
-                  {formatCurrency(featured.price)}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-      </section>
+      </div>
+    )}
+  </div>
+</section>
 
       {/* ================= FEATURED PRODUCTS ================= */}
       <section style={{ padding: "110px 0" }}>
