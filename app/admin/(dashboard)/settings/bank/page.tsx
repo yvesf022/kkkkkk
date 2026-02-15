@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
+import { notify } from "@/components/ui/ToastProvider";
 import Link from "next/link";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
@@ -41,9 +41,6 @@ export default function AdminBankSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  /* =============================
-     LOAD SETTINGS
-  ============================= */
   async function loadSettings() {
     try {
       const res = await fetch(`${API}/api/payments/admin/bank-settings`, {
@@ -55,11 +52,9 @@ export default function AdminBankSettingsPage() {
       const data = await res.json();
       const bank = Array.isArray(data) ? data[0] : data;
 
-      if (bank) {
-        setSettings(bank);
-      }
-    } catch {
-      toast.error("Failed to load bank settings");
+      if (bank) setSettings(bank);
+    } catch (err) {
+      notify.error(err);
     } finally {
       setLoading(false);
     }
@@ -69,150 +64,168 @@ export default function AdminBankSettingsPage() {
     loadSettings();
   }, []);
 
-  /* =============================
-     SAVE SETTINGS
-  ============================= */
   async function handleSave() {
     if (!settings.bank_name || !settings.account_name || !settings.account_number) {
-      toast.error("Bank name, account name and account number are required");
+      notify.error("Bank name, account name and account number are required");
       return;
     }
 
     setSaving(true);
 
     try {
-      // Always POST (backend creates new record)
-      const res = await fetch(`${API}/api/payments/admin/bank-settings`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(settings),
-      });
+      await notify.promise(
+        fetch(`${API}/api/payments/admin/bank-settings`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(settings),
+        }).then((r) => {
+          if (!r.ok) throw new Error("Failed to save");
+        }),
+        {
+          loading: "Saving payment configuration...",
+          success: "Payment configuration updated",
+          error: "Failed to save configuration",
+        }
+      );
 
-      if (!res.ok) throw new Error();
-
-      toast.success("Bank settings saved successfully");
       await loadSettings();
-    } catch {
-      toast.error("Failed to save settings");
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <div style={{ padding: 40 }}>Loading settings…</div>;
+    return (
+      <div className="adminContainer">
+        <div className="card skeleton" />
+        <div className="card skeleton" />
+      </div>
+    );
   }
 
   return (
-    <div style={{ display: "grid", gap: 28, maxWidth: 900 }}>
+    <div className="adminContainer">
       {/* HEADER */}
-      <header>
-        <div style={{ fontSize: 13, opacity: 0.6 }}>
-          <Link href="/admin">Admin</Link> › Bank Settings
+      <div className="pageHeader">
+        <div>
+          <div className="breadcrumb">
+            <Link href="/admin">Admin</Link> / Payment Configuration
+          </div>
+          <h1>Payment Infrastructure</h1>
+          <p>
+            Configure bank accounts and mobile money details customers will use
+            to complete payments.
+          </p>
         </div>
 
-        <h1 style={{ fontSize: 32, fontWeight: 900 }}>Bank & Payment Settings</h1>
+        {settings.is_primary && <div className="primaryBadge">PRIMARY</div>}
+      </div>
 
-        <p style={{ opacity: 0.6, marginTop: 4 }}>
-          Configure bank accounts and mobile money details visible to customers.
-        </p>
-      </header>
+      {/* BANK SECTION */}
+      <Section title="Bank Account">
+        <Grid>
+          <Input label="Bank Name" value={settings.bank_name} onChange={(v) => setSettings({ ...settings, bank_name: v })} />
+          <Input label="Account Name" value={settings.account_name} onChange={(v) => setSettings({ ...settings, account_name: v })} />
+          <Input label="Account Number" value={settings.account_number} onChange={(v) => setSettings({ ...settings, account_number: v })} />
+          <Input label="Branch" value={settings.branch || ""} onChange={(v) => setSettings({ ...settings, branch: v })} />
+          <Input label="SWIFT Code" value={settings.swift_code || ""} onChange={(v) => setSettings({ ...settings, swift_code: v })} />
+        </Grid>
+      </Section>
 
-      {/* FORM */}
-      <div
-        style={{
-          padding: 32,
-          borderRadius: 22,
-          background: "#ffffff",
-          boxShadow: "0 20px 60px rgba(15,23,42,0.12)",
-          display: "grid",
-          gap: 20,
-        }}
-      >
-        <Input label="Bank Name" value={settings.bank_name} onChange={(v) => setSettings({ ...settings, bank_name: v })} />
-        <Input label="Account Name" value={settings.account_name} onChange={(v) => setSettings({ ...settings, account_name: v })} />
-        <Input label="Account Number" value={settings.account_number} onChange={(v) => setSettings({ ...settings, account_number: v })} />
-        <Input label="Branch" value={settings.branch || ""} onChange={(v) => setSettings({ ...settings, branch: v })} />
-        <Input label="Swift Code" value={settings.swift_code || ""} onChange={(v) => setSettings({ ...settings, swift_code: v })} />
-        <Input label="Mobile Money Provider" value={settings.mobile_money_provider || ""} onChange={(v) => setSettings({ ...settings, mobile_money_provider: v })} />
-        <Input label="Mobile Money Number" value={settings.mobile_money_number || ""} onChange={(v) => setSettings({ ...settings, mobile_money_number: v })} />
-        <Input label="Mobile Money Name" value={settings.mobile_money_name || ""} onChange={(v) => setSettings({ ...settings, mobile_money_name: v })} />
-        <Input label="QR Code Image URL" value={settings.qr_code_url || ""} onChange={(v) => setSettings({ ...settings, qr_code_url: v })} />
+      {/* MOBILE MONEY */}
+      <Section title="Mobile Money">
+        <Grid>
+          <Input label="Provider" value={settings.mobile_money_provider || ""} onChange={(v) => setSettings({ ...settings, mobile_money_provider: v })} />
+          <Input label="Number" value={settings.mobile_money_number || ""} onChange={(v) => setSettings({ ...settings, mobile_money_number: v })} />
+          <Input label="Account Name" value={settings.mobile_money_name || ""} onChange={(v) => setSettings({ ...settings, mobile_money_name: v })} />
+        </Grid>
+      </Section>
+
+      {/* QR + INSTRUCTIONS */}
+      <Section title="Customer Instructions">
+        <Textarea
+          label="Payment Instructions"
+          value={settings.instructions || ""}
+          onChange={(v) => setSettings({ ...settings, instructions: v })}
+        />
+
+        <Input
+          label="QR Code URL"
+          value={settings.qr_code_url || ""}
+          onChange={(v) => setSettings({ ...settings, qr_code_url: v })}
+        />
 
         {settings.qr_code_url && (
-          <img
-            src={settings.qr_code_url}
-            alt="QR Code"
-            style={{ maxWidth: 200, borderRadius: 12, border: "1px solid #e5e7eb" }}
-          />
+          <div className="qrPreview">
+            <img src={settings.qr_code_url} alt="QR Code" />
+          </div>
         )}
+      </Section>
 
-        <Textarea label="Payment Instructions" value={settings.instructions || ""} onChange={(v) => setSettings({ ...settings, instructions: v })} />
+      {/* CONTROLS */}
+      <div className="toggleRow">
+        <Toggle
+          label="Active (visible to customers)"
+          checked={settings.is_active}
+          onChange={(v) => setSettings({ ...settings, is_active: v })}
+        />
+        <Toggle
+          label="Primary account"
+          checked={settings.is_primary || false}
+          onChange={(v) => setSettings({ ...settings, is_primary: v })}
+        />
+      </div>
 
-        {/* ACTIVE TOGGLE */}
-        <div style={{ display: "flex", gap: 10 }}>
-          <input
-            type="checkbox"
-            checked={settings.is_active}
-            onChange={(e) => setSettings({ ...settings, is_active: e.target.checked })}
-          />
-          <label style={{ fontWeight: 600 }}>Active (visible to customers)</label>
-        </div>
-
-        {/* PRIMARY TOGGLE */}
-        <div style={{ display: "flex", gap: 10 }}>
-          <input
-            type="checkbox"
-            checked={settings.is_primary || false}
-            onChange={(e) => setSettings({ ...settings, is_primary: e.target.checked })}
-          />
-          <label style={{ fontWeight: 600 }}>Primary account</label>
-        </div>
-
-        <button className="btn btnPrimary" onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : "Save Settings"}
+      {/* SAVE BAR */}
+      <div className="saveBar">
+        <button onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save Configuration"}
         </button>
       </div>
     </div>
   );
 }
 
-/* =============================
-   UI COMPONENTS
-============================= */
+/* ============================= COMPONENTS ============================= */
 
-function Input({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Section({ title, children }: any) {
   return (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      <input value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />
+    <div className="card">
+      <h2>{title}</h2>
+      {children}
     </div>
   );
 }
 
-function Textarea({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Grid({ children }: any) {
+  return <div className="grid">{children}</div>;
+}
+
+function Input({ label, value, onChange }: any) {
   return (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      <textarea rows={4} value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />
+    <div className="field">
+      <label>{label}</label>
+      <input value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 14,
-  fontWeight: 700,
-  marginBottom: 6,
-};
+function Textarea({ label, value, onChange }: any) {
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <textarea rows={4} value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: "1px solid rgba(0,0,0,0.15)",
-  fontSize: 14,
-};
+function Toggle({ label, checked, onChange }: any) {
+  return (
+    <label className="toggle">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span />
+      {label}
+    </label>
+  );
+}
