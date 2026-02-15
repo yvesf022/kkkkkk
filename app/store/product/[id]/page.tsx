@@ -3,32 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { useCart } from "@/app/context/CartContext";
+import { useCart } from "@/lib/cart";
+import type { Product } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-type Product = {
-  id: string;
-  title: string;
-  short_description?: string;
-  description?: string;
-  price: number;
-  compare_price?: number;
-  brand?: string;
-  store?: string;
-  category?: string;
-  main_category?: string;
-  rating?: number;
-  rating_number?: number;
-  sales?: number;
-  stock: number;
-  in_stock: boolean;
-  main_image?: string;
-  images?: string[];
-  features?: string[];
-  details?: any;
-  created_at: string;
-};
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -82,18 +60,8 @@ export default function ProductDetailPage() {
     setAdding(true);
 
     try {
-      addItem({
-        id: product.id,
-        title: product.title,
-        price: product.price,
-        image: product.main_image || product.images?.[0] || "",
-        quantity,
-      });
-
+      addItem(product, quantity);
       toast.success("Added to cart!");
-      
-      // Optionally redirect to cart
-      // router.push("/store/cart");
     } catch (err) {
       toast.error("Failed to add to cart");
     } finally {
@@ -129,6 +97,10 @@ export default function ProductDetailPage() {
   }
 
   const images = product.images || [];
+  const imageUrls = images.map((img: any) => 
+    typeof img === 'string' ? img : img.image_url
+  );
+  
   const hasDiscount = product.compare_price && product.compare_price > product.price;
   const discountPercent = hasDiscount
     ? Math.round(((product.compare_price! - product.price) / product.compare_price!) * 100)
@@ -187,15 +159,17 @@ export default function ProductDetailPage() {
             style={{
               height: 500,
               borderRadius: 22,
-              background: images[selectedImage]
-                ? `url(${images[selectedImage]}) center/contain no-repeat`
+              background: imageUrls[selectedImage]
+                ? `url(${imageUrls[selectedImage]}) center/contain no-repeat`
+                : product.main_image
+                ? `url(${product.main_image}) center/contain no-repeat`
                 : "linear-gradient(135deg, #e0e7ff, #dbeafe)",
               border: "1px solid rgba(15,23,42,0.08)",
               marginBottom: 16,
               position: "relative",
             }}
           >
-            {!images[selectedImage] && (
+            {!imageUrls[selectedImage] && !product.main_image && (
               <div
                 style={{
                   height: "100%",
@@ -230,9 +204,9 @@ export default function ProductDetailPage() {
           </div>
 
           {/* THUMBNAILS */}
-          {images.length > 1 && (
+          {imageUrls.length > 1 && (
             <div style={{ display: "flex", gap: 12, overflowX: "auto" }}>
-              {images.map((img, idx) => (
+              {imageUrls.map((img: string, idx: number) => (
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
@@ -273,21 +247,6 @@ export default function ProductDetailPage() {
               </span>
             )}
 
-            {product.store && (
-              <span
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 999,
-                  background: "#fef3c7",
-                  color: "#92400e",
-                  fontSize: 12,
-                  fontWeight: 800,
-                }}
-              >
-                {product.store}
-              </span>
-            )}
-
             {product.brand && (
               <span
                 style={{
@@ -324,9 +283,6 @@ export default function ProductDetailPage() {
               </div>
               <span style={{ fontSize: 14, fontWeight: 700 }}>
                 {product.rating.toFixed(1)}
-              </span>
-              <span style={{ fontSize: 14, opacity: 0.6 }}>
-                ({product.rating_number || 0} reviews)
               </span>
               {product.sales && product.sales > 0 && (
                 <span style={{ fontSize: 14, opacity: 0.6 }}>
@@ -489,49 +445,6 @@ export default function ProductDetailPage() {
 
       {/* DESCRIPTION & FEATURES */}
       <div style={{ display: "grid", gap: 28 }}>
-        {/* FEATURES */}
-        {product.features && product.features.length > 0 && (
-          <section
-            style={{
-              padding: 32,
-              borderRadius: 22,
-              background: "#ffffff",
-              border: "1px solid rgba(15,23,42,0.08)",
-              boxShadow: "0 10px 30px rgba(15,23,42,0.08)",
-            }}
-          >
-            <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 20 }}>
-              Features
-            </h2>
-
-            <ul style={{ display: "grid", gap: 12, paddingLeft: 0 }}>
-              {product.features.map((feature, idx) => (
-                <li
-                  key={idx}
-                  style={{
-                    fontSize: 15,
-                    lineHeight: 1.6,
-                    paddingLeft: 28,
-                    position: "relative",
-                  }}
-                >
-                  <span
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      color: "#6366f1",
-                      fontWeight: 900,
-                    }}
-                  >
-                    ✓
-                  </span>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
         {/* DESCRIPTION */}
         {product.description && (
           <section
@@ -556,40 +469,6 @@ export default function ProductDetailPage() {
               }}
             >
               {product.description}
-            </div>
-          </section>
-        )}
-
-        {/* PRODUCT DETAILS */}
-        {product.details && Object.keys(product.details).length > 0 && (
-          <section
-            style={{
-              padding: 32,
-              borderRadius: 22,
-              background: "#ffffff",
-              border: "1px solid rgba(15,23,42,0.08)",
-              boxShadow: "0 10px 30px rgba(15,23,42,0.08)",
-            }}
-          >
-            <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 20 }}>
-              Product Details
-            </h2>
-
-            <div style={{ display: "grid", gap: 12 }}>
-              {Object.entries(product.details).map(([key, value]) => (
-                <div
-                  key={key}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "150px 1fr",
-                    padding: "12px 0",
-                    borderBottom: "1px solid rgba(15,23,42,0.05)",
-                  }}
-                >
-                  <div style={{ fontWeight: 700, opacity: 0.7 }}>{key}:</div>
-                  <div>{String(value)}</div>
-                </div>
-              ))}
             </div>
           </section>
         )}
