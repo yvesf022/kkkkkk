@@ -10,7 +10,7 @@ import { getMyOrders, paymentsApi } from "@/lib/api";
 import type { Order } from "@/lib/types";
 
 /* ======================
-   MALOTI FORMAT
+   FORMAT
 ====================== */
 
 const fmtM = (v: number) =>
@@ -51,14 +51,7 @@ export default function OrderDetailsPage() {
       const found = orders.find((o) => o.id === id);
       if (!found) throw new Error();
 
-      setOrder({
-        id: found.id,
-        created_at: found.created_at,
-        total_amount: found.total_amount,
-        status: found.status,
-        shipping_status: found.shipping_status,
-        tracking_number: found.tracking_number ?? null,
-      });
+      setOrder(found);
     } catch {
       toast.error("Unable to access this order");
       router.replace("/account/orders");
@@ -102,7 +95,7 @@ export default function OrderDetailsPage() {
     try {
       const result: any = await paymentsApi.create(order.id);
       setPaymentId(result.payment_id);
-      toast.success("Payment created. Upload proof below.");
+      toast.success("Payment created. Follow instructions below.");
     } catch (err: any) {
       toast.error(err.message || "Failed to create payment");
     } finally {
@@ -137,7 +130,7 @@ export default function OrderDetailsPage() {
 
     try {
       await paymentsApi.uploadProof(paymentId, file);
-      toast.success("Payment proof uploaded");
+      toast.success("Payment proof uploaded successfully");
       if (fileRef.current) fileRef.current.value = "";
       await loadOrder();
     } catch {
@@ -164,208 +157,182 @@ export default function OrderDetailsPage() {
     );
 
   const isPending = order.status === "pending";
-  const isOnHold = order.status === "on_hold";
   const isPaid = order.status === "paid";
-  const isRejected = order.status === "rejected";
-
-  const canCreatePayment = isPending && !paymentId;
-  const canUploadProof = isPending && paymentId;
+  const isCancelled = order.status === "cancelled";
 
   return (
-    <div className="pageContentWrap" style={{ maxWidth: 1100 }}>
-      {/* BREADCRUMB */}
-      <div style={{ fontSize: 13, opacity: 0.6, marginBottom: 16 }}>
-        <Link href="/account/orders">Orders</Link> ›{" "}
-        <strong>Order #{order.id.slice(0, 8)}</strong>
-      </div>
-
+    <div className="pageContentWrap" style={{ maxWidth: 1000 }}>
       {/* HEADER */}
-      <header style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 30 }}>
         <h1 style={{ fontSize: 32, fontWeight: 900 }}>
           Order #{order.id.slice(0, 8)}
         </h1>
         <p style={{ opacity: 0.6 }}>
-          Placed{" "}
-          {new Date(order.created_at).toLocaleDateString(
-            "en-ZA"
-          )}
+          {new Date(order.created_at).toLocaleDateString("en-ZA")}
         </p>
-      </header>
+      </div>
 
-      {/* SUMMARY */}
+      {/* TOTAL CARD */}
       <div
         style={{
-          padding: 28,
-          borderRadius: 22,
-          background: "#ffffff",
-          boxShadow: "0 20px 60px rgba(15,23,42,0.12)",
-          marginBottom: 28,
+          padding: 40,
+          borderRadius: 24,
+          background:
+            "linear-gradient(135deg,#0F2027,#203A43,#2C5364)",
+          color: "white",
+          marginBottom: 40,
         }}
       >
-        <div style={{ fontSize: 13, opacity: 0.6 }}>
-          Order Total
-        </div>
-        <div style={{ fontSize: 36, fontWeight: 900 }}>
+        <div style={{ opacity: 0.8 }}>Amount To Pay</div>
+        <div style={{ fontSize: 48, fontWeight: 900 }}>
           {fmtM(order.total_amount)}
         </div>
       </div>
 
-      {/* PAYMENT SECTION */}
-      <div
-        style={{
-          padding: 28,
-          borderRadius: 22,
-          background: "#ffffff",
-          border: "1px solid rgba(15,23,42,0.08)",
-          marginBottom: 28,
-          display: "grid",
-          gap: 20,
-        }}
-      >
-        <h2 style={{ fontSize: 20, fontWeight: 900 }}>
-          Payment
-        </h2>
+      {/* PAYMENT FLOW */}
+      {isPending && (
+        <div
+          style={{
+            padding: 30,
+            borderRadius: 24,
+            background: "white",
+            boxShadow:
+              "0 20px 60px rgba(15,23,42,0.12)",
+            display: "grid",
+            gap: 24,
+          }}
+        >
+          <h2 style={{ fontSize: 22, fontWeight: 900 }}>
+            Payment Instructions
+          </h2>
 
-        {/* BANK DETAILS */}
-        {bankDetails && isPending && (
-          <div
-            style={{
-              padding: 20,
-              borderRadius: 16,
-              background: "#f0fdf4",
-              border: "2px solid #86efac",
-            }}
-          >
-            <h3
-              style={{
-                fontWeight: 900,
-                marginBottom: 12,
-              }}
-            >
-              Bank Details
-            </h3>
+          {/* STEP 1 */}
+          {bankDetails && (
+            <div>
+              <h3 style={{ fontWeight: 800 }}>
+                Step 1 — Transfer Payment
+              </h3>
 
-            <div style={{ display: "grid", gap: 8 }}>
-              <div>
-                <strong>Bank:</strong>{" "}
-                {bankDetails.bank_name}
-              </div>
-              <div>
-                <strong>Account Name:</strong>{" "}
-                {bankDetails.account_name}
-              </div>
-              <div>
-                <strong>Account Number:</strong>{" "}
-                {bankDetails.account_number}
-              </div>
-
-              {bankDetails.instructions && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    padding: 12,
-                    background: "#fffbeb",
-                    borderRadius: 8,
-                    fontStyle: "italic",
-                  }}
-                >
-                  📝 {bankDetails.instructions}
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 20,
+                  borderRadius: 18,
+                  background: "#f0fdf4",
+                  border: "1px solid #86efac",
+                }}
+              >
+                <div><strong>Bank:</strong> {bankDetails.bank_name}</div>
+                <div><strong>Account Name:</strong> {bankDetails.account_name}</div>
+                <div>
+                  <strong>Account Number:</strong>{" "}
+                  {bankDetails.account_number}
                 </div>
-              )}
+                <div>
+                  <strong>Reference:</strong>{" "}
+                  {order.id.slice(0, 8)}
+                </div>
+
+                {bankDetails.instructions && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      fontStyle: "italic",
+                      opacity: 0.8,
+                    }}
+                  >
+                    {bankDetails.instructions}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* CREATE PAYMENT */}
-        {canCreatePayment && (
-          <button
-            className="btn btnPrimary"
-            onClick={handleCreatePayment}
-            disabled={creatingPayment}
-          >
-            {creatingPayment
-              ? "Creating payment…"
-              : "Create Payment"}
-          </button>
-        )}
+          {/* STEP 2 */}
+          {!paymentId && (
+            <button
+              className="btn btnPrimary"
+              onClick={handleCreatePayment}
+              disabled={creatingPayment}
+            >
+              {creatingPayment
+                ? "Preparing payment..."
+                : "Confirm Transfer & Upload Proof"}
+            </button>
+          )}
 
-        {/* UPLOAD PROOF */}
-        {canUploadProof && (
-          <div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-            {uploading && (
-              <p style={{ fontSize: 13, opacity: 0.6 }}>
-                Uploading…
-              </p>
-            )}
-          </div>
-        )}
+          {/* STEP 3 */}
+          {paymentId && (
+            <div>
+              <h3 style={{ fontWeight: 800 }}>
+                Step 2 — Upload Proof
+              </h3>
 
-        {/* ON HOLD */}
-        {isOnHold && (
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 14,
-              background: "#fef3c7",
-              color: "#92400e",
-            }}
-          >
-            ⏳ Payment submitted. Awaiting admin review.
-          </div>
-        )}
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 24,
+                  borderRadius: 18,
+                  border: "2px dashed #cbd5e1",
+                  textAlign: "center",
+                }}
+              >
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                />
 
-        {/* PAID */}
-        {isPaid && (
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 14,
-              background: "#dcfce7",
-              color: "#166534",
-            }}
-          >
-            ✓ Payment approved. Preparing for shipment.
-          </div>
-        )}
+                {uploading && (
+                  <div style={{ marginTop: 10 }}>
+                    Uploading…
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* REJECTED */}
-        {isRejected && (
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 14,
-              background: "#fee2e2",
-              color: "#991b1b",
-            }}
-          >
-            ❌ Payment rejected. Please contact support.
-          </div>
-        )}
-      </div>
+      {isPaid && (
+        <div
+          style={{
+            padding: 24,
+            borderRadius: 20,
+            background: "#dcfce7",
+            color: "#166534",
+            fontWeight: 700,
+          }}
+        >
+          ✓ Payment approved. Preparing shipment.
+        </div>
+      )}
 
-      {/* ACTIONS */}
-      <div style={{ display: "flex", gap: 12 }}>
+      {isCancelled && (
+        <div
+          style={{
+            padding: 24,
+            borderRadius: 20,
+            background: "#fee2e2",
+            color: "#991b1b",
+            fontWeight: 700,
+          }}
+        >
+          ❌ Order cancelled.
+        </div>
+      )}
+
+      {/* FOOTER */}
+      <div style={{ marginTop: 40 }}>
         <button
           className="btn btnGhost"
           onClick={() =>
             router.push("/account/orders")
           }
         >
-          ← Back
-        </button>
-
-        <button
-          className="btn btnPrimary"
-          onClick={() => router.push("/store")}
-        >
-          Continue shopping
+          ← Back to Orders
         </button>
       </div>
     </div>
