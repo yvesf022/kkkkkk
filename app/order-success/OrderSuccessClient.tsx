@@ -30,12 +30,13 @@ export default function OrderSuccessClient() {
           letterSpacing: 0.5,
         }}
       >
-        Order Reference: <span style={{ fontWeight: 900 }}>{orderId}</span>
+        Order Reference:{" "}
+        <span style={{ fontWeight: 900 }}>{orderId}</span>
       </div>
 
       {/* MAIN CTA */}
       <Link
-        href={`/account/orders/${orderId}`}
+        href={`/store/payment?order_id=${orderId}`}
         className="btn btnPrimary"
         style={{
           padding: "18px 60px",
