@@ -16,7 +16,7 @@ export default function OrderSuccessClient() {
         textAlign: "center",
       }}
     >
-      {/* ORDER REFERENCE */}
+      {/* ORDER NUMBER */}
       {orderId && (
         <div
           style={{
@@ -30,7 +30,7 @@ export default function OrderSuccessClient() {
           <div
             style={{
               marginTop: 8,
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: 900,
               letterSpacing: 1,
             }}
@@ -40,14 +40,16 @@ export default function OrderSuccessClient() {
         </div>
       )}
 
-      {/* SIMPLE INSTRUCTION */}
+      {/* SIMPLE MESSAGE */}
       <div
         style={{
           fontSize: 16,
           opacity: 0.8,
         }}
       >
-        Please complete your payment to activate your order.
+        Your order has been created successfully.
+        <br />
+        Please proceed to complete payment.
       </div>
 
       {/* SINGLE ACTION */}
@@ -61,7 +63,7 @@ export default function OrderSuccessClient() {
             justifySelf: "center",
           }}
         >
-          Upload Payment Proof →
+          Proceed to Payment →
         </Link>
       )}
     </div>
