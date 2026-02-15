@@ -211,3 +211,77 @@ export default function PaymentPage() {
     </div>
   );
 }
+/* ================= UI PARTS ================= */
+
+function SectionTitle({
+  number,
+  title,
+}: {
+  number: string;
+  title: string;
+}) {
+  return (
+    <div style={{ marginBottom: 20, marginTop: 50 }}>
+      <h2
+        style={{
+          fontSize: 22,
+          fontWeight: 900,
+        }}
+      >
+        {number}. {title}
+      </h2>
+    </div>
+  );
+}
+
+function BankRow({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+      }}
+    >
+      <span style={{ opacity: 0.7 }}>{label}</span>
+      <span style={{ fontWeight: strong ? 900 : 700 }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/* ================= STYLES ================= */
+
+const bankBox: React.CSSProperties = {
+  padding: 35,
+  borderRadius: 24,
+  background: "#f9fafb",
+  border: "1px solid #e5e7eb",
+  display: "grid",
+  gap: 14,
+};
+
+const uploadBox: React.CSSProperties = {
+  padding: 35,
+  borderRadius: 24,
+  background: "#f9fafb",
+  border: "1px solid #e5e7eb",
+  display: "grid",
+  gap: 20,
+};
+
+const whatsappBox: React.CSSProperties = {
+  padding: 45,
+  borderRadius: 28,
+  background: "#f0fdf4",
+  border: "1px solid #bbf7d0",
+  textAlign: "center",
+};
