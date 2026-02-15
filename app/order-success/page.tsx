@@ -1,100 +1,134 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import OrderSuccessClient from "./OrderSuccessClient";
 
 export default function OrderSuccessPage() {
   return (
     <div
       style={{
-        maxWidth: 900,
+        maxWidth: 1000,
         margin: "0 auto",
-        padding: "48px 20px",
-        textAlign: "center",
+        padding: "60px 24px",
       }}
     >
-      {/* SUCCESS ICON */}
+      {/* MAIN CARD */}
       <div
         style={{
-          width: 90,
-          height: 90,
-          margin: "0 auto 24px",
-          borderRadius: "50%",
-          background: "linear-gradient(135deg,#16a34a,#22c55e)",
-          display: "grid",
-          placeItems: "center",
-          fontSize: 42,
-          color: "#fff",
-          boxShadow: "0 20px 50px rgba(34,197,94,0.4)",
+          borderRadius: 28,
+          padding: 50,
+          background: "var(--gradient-surface)",
+          boxShadow: "var(--shadow-xl)",
+          border: "1px solid rgba(0,0,0,0.05)",
         }}
       >
-        ✓
-      </div>
-
-      <h1
-        style={{
-          fontSize: 32,
-          fontWeight: 900,
-          marginBottom: 12,
-        }}
-      >
-        Order Successfully Created
-      </h1>
-
-      <p
-        style={{
-          fontSize: 16,
-          opacity: 0.7,
-          marginBottom: 32,
-        }}
-      >
-        Your order has been placed and is currently{" "}
-        <strong>Pending Payment</strong>.
-        <br />
-        To process your order, please complete your payment
-        and upload proof.
-      </p>
-
-      <Suspense
-        fallback={
+        {/* TOP SUCCESS STRIP */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 20,
+            marginBottom: 40,
+            flexWrap: "wrap",
+          }}
+        >
           <div
             style={{
-              padding: 24,
-              borderRadius: 18,
-              background: "#ffffff",
-              boxShadow:
-                "0 18px 50px rgba(15,23,42,0.1)",
+              width: 80,
+              height: 80,
+              borderRadius: "50%",
+              background: "var(--gradient-primary)",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 36,
+              color: "#fff",
+              fontWeight: 900,
+              boxShadow: "var(--shadow-lg)",
             }}
           >
-            Loading order details…
+            ✓
           </div>
-        }
-      >
-        <OrderSuccessClient />
-      </Suspense>
 
-      {/* ACTION BUTTONS */}
-      <div
-        style={{
-          marginTop: 40,
-          display: "flex",
-          justifyContent: "center",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <Link
-          href="/store"
-          className="btn btnGhost"
-        >
-          Continue Shopping
-        </Link>
+          <div>
+            <h1
+              style={{
+                fontSize: 34,
+                fontWeight: 900,
+                marginBottom: 8,
+              }}
+            >
+              Order Successfully Created
+            </h1>
 
-        <Link
-          href="/store/pay"
-          className="btn btnPrimary"
+            <p
+              style={{
+                fontSize: 16,
+                opacity: 0.7,
+              }}
+            >
+              Your order is now <strong>Pending Payment</strong>.
+              Complete payment to activate processing.
+            </p>
+          </div>
+        </div>
+
+        {/* ORDER INFO */}
+        <Suspense
+          fallback={
+            <div
+              style={{
+                padding: 24,
+                borderRadius: 16,
+                background: "#ffffff",
+                boxShadow: "var(--shadow-md)",
+              }}
+            >
+              Loading order details…
+            </div>
+          }
         >
-          Proceed to Payment
-        </Link>
+          <OrderSuccessClient />
+        </Suspense>
+
+        {/* PAYMENT CALL TO ACTION */}
+        <div
+          style={{
+            marginTop: 40,
+            padding: 30,
+            borderRadius: 22,
+            background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)",
+            border: "1px solid rgba(0,0,0,0.05)",
+            display: "grid",
+            gap: 20,
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                fontSize: 22,
+                fontWeight: 900,
+                marginBottom: 8,
+              }}
+            >
+              Next Step: Complete Payment
+            </h2>
+
+            <p style={{ opacity: 0.7 }}>
+              Your order will only be processed after payment
+              confirmation. Upload proof once transfer is complete.
+            </p>
+          </div>
+
+          <a
+            href="/store/pay"
+            className="btn btnPrimary"
+            style={{
+              width: "fit-content",
+              padding: "16px 32px",
+              fontSize: 16,
+            }}
+          >
+            Proceed to Payment →
+          </a>
+        </div>
       </div>
     </div>
   );
