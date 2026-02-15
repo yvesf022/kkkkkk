@@ -1,402 +1,275 @@
 "use client";
 
-import { formatCurrency } from "@/lib/currency";
-
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import toast from "react-hot-toast";
-import { useCart } from "@/lib/cart";
-import type { Product } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const WHATSAPP_NUMBER = "919253258848"; // no +
 
-export default function ProductDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const { addItem } = useCart();
+export default function PaymentPage() {
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get("order_id");
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [quantity, setQuantity] = useState(1);
-  const [adding, setAdding] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
 
-  /* ================= LOAD PRODUCT ================= */
-  useEffect(() => {
-    async function loadProduct() {
-      try {
-        const res = await fetch(`${API_URL}/api/products/${id}`);
-
-        if (!res.ok) {
-          toast.error("Product not found");
-          router.push("/store");
-          return;
-        }
-
-        const data = await res.json();
-        setProduct(data);
-      } catch (err) {
-        toast.error("Failed to load product");
-        router.push("/store");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadProduct();
-  }, [id, router]);
-
-  if (loading)
+  if (!orderId) {
     return (
-      <div className="container" style={{ padding: "80px 0" }}>
-        <div className="animate-pulse text-center">
-          Loading product...
-        </div>
+      <div style={{ padding: 100, textAlign: "center" }}>
+        Invalid payment link.
       </div>
     );
+  }
 
-  if (!product)
-    return (
-      <div className="container" style={{ padding: "80px 0" }}>
-        Product not found
-      </div>
-    );
+  /* ================= UPLOAD ================= */
 
-  const images = product.images || [];
-  const imageUrls = images.map((img: any) =>
-    typeof img === "string" ? img : img.image_url
-  );
-
-  const hasDiscount =
-    product.compare_price &&
-    product.compare_price > product.price;
-
-  const discountPercent = hasDiscount
-    ? Math.round(
-        ((product.compare_price! - product.price) /
-          product.compare_price!) *
-          100
-      )
-    : 0;
-
-  /* ================= ADD TO CART ================= */
-  function handleAddToCart() {
-    if (!product) return;
-
-    if (product.stock < quantity) {
-      toast.error("Not enough stock available");
+  async function handleUpload() {
+    if (!file) {
+      toast.error("Select payment proof first.");
       return;
     }
 
-    setAdding(true);
+    setUploading(true);
 
     try {
-      addItem(product, quantity);
-      toast.success("Added to cart");
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${orderId}/upload-payment-proof`,
+        {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        }
+      );
+
+      if (!res.ok) throw new Error();
+
+      setUploaded(true);
+      toast.success("Payment proof uploaded successfully.");
     } catch {
-      toast.error("Failed to add to cart");
+      toast.error("Upload failed. Try again.");
     } finally {
-      setAdding(false);
+      setUploading(false);
     }
   }
 
+  /* ================= WHATSAPP ================= */
+
+  const message = encodeURIComponent(
+    `Hello, I have completed payment for Order ${orderId}. Please verify.`
+  );
+
+  const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+
   return (
-    <div style={{ padding: "60px 0" }}>
-      <div className="container">
-        {/* ================= GRID ================= */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(340px, 1fr))",
-            gap: 60,
-          }}
-        >
-          {/* ================= LEFT: IMAGES ================= */}
-          <div>
-            <div
-              className="card"
-              style={{
-                height: 520,
-                background:
-                  imageUrls[selectedImage]
-                    ? `url(${imageUrls[selectedImage]}) center/contain no-repeat`
-                    : product.main_image
-                    ? `url(${product.main_image}) center/contain no-repeat`
-                    : "var(--gradient-surface)",
-                position: "relative",
-              }}
-            >
-              {!imageUrls[selectedImage] &&
-                !product.main_image && (
-                  <div
-                    style={{
-                      height: "100%",
-                      display: "grid",
-                      placeItems: "center",
-                      fontSize: 60,
-                      opacity: 0.3,
-                    }}
-                  >
-                    📦
-                  </div>
-                )}
-
-              {hasDiscount && (
-                <div
-                  className="badge badge-error"
-                  style={{
-                    position: "absolute",
-                    top: 20,
-                    left: 20,
-                  }}
-                >
-                  -{discountPercent}% OFF
-                </div>
-              )}
-            </div>
-
-            {/* THUMBNAILS */}
-            {imageUrls.length > 1 && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  marginTop: 16,
-                }}
-              >
-                {imageUrls.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() =>
-                      setSelectedImage(idx)
-                    }
-                    style={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: 12,
-                      background: `url(${img}) center/cover`,
-                      border:
-                        selectedImage === idx
-                          ? "3px solid var(--primary)"
-                          : "1px solid var(--gray-200)",
-                      cursor: "pointer",
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(180deg,#f8fafc,#ffffff)",
+        padding: "100px 20px",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 820,
+          margin: "0 auto",
+          background: "#ffffff",
+          borderRadius: 32,
+          padding: 70,
+          boxShadow: "0 50px 120px rgba(0,0,0,0.08)",
+        }}
+      >
+        {/* ================= HEADER ================= */}
+        <div style={{ textAlign: "center", marginBottom: 70 }}>
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              margin: "0 auto 25px",
+              borderRadius: "50%",
+              background: "#111827",
+              color: "#ffffff",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 28,
+              fontWeight: 900,
+            }}
+          >
+            1
           </div>
 
-          {/* ================= RIGHT: INFO ================= */}
-          <div>
-            {/* CATEGORY */}
-            {product.category && (
-              <div className="badge badge-primary mb-sm">
-                {product.category}
-              </div>
-            )}
+          <h1
+            style={{
+              fontSize: 36,
+              fontWeight: 900,
+              marginBottom: 12,
+            }}
+          >
+            Complete Your Payment
+          </h1>
 
-            {/* TITLE */}
-            <h1
-              className="text-display"
-              style={{
-                fontSize: 36,
-                marginBottom: 16,
-              }}
-            >
-              {product.title}
-            </h1>
-
-            {/* PRICE */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 16,
-                marginBottom: 20,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 42,
-                  fontWeight: 900,
-                }}
-              >
-                {formatCurrency(product.price)}
-              </div>
-
-              {hasDiscount && (
-                <div
-                  style={{
-                    fontSize: 22,
-                    textDecoration:
-                      "line-through",
-                    opacity: 0.5,
-                  }}
-                >
-                  {formatCurrency(
-                    product.compare_price!
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* STOCK */}
-            <div
-              className={
-                product.stock > 0
-                  ? "badge badge-success mb-md"
-                  : "badge badge-error mb-md"
-              }
-            >
-              {product.stock > 0
-                ? `In Stock (${product.stock})`
-                : "Out of Stock"}
-            </div>
-
-            {/* SHORT DESCRIPTION */}
-            {product.short_description && (
-              <p
-                style={{
-                  opacity: 0.8,
-                  lineHeight: 1.6,
-                  marginBottom: 24,
-                }}
-              >
-                {product.short_description}
-              </p>
-            )}
-
-            {/* QUANTITY */}
-            {product.stock > 0 && (
-              <div className="mb-md">
-                <label
-                  style={{
-                    fontWeight: 700,
-                    display: "block",
-                    marginBottom: 8,
-                  }}
-                >
-                  Quantity
-                </label>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    alignItems: "center",
-                  }}
-                >
-                  <button
-                    className="btn btnGhost"
-                    onClick={() =>
-                      setQuantity(
-                        Math.max(1, quantity - 1)
-                      )
-                    }
-                  >
-                    −
-                  </button>
-
-                  <input
-                    type="number"
-                    min="1"
-                    max={product.stock}
-                    value={quantity}
-                    onChange={(e) =>
-                      setQuantity(
-                        Math.min(
-                          product.stock,
-                          Math.max(
-                            1,
-                            Number(e.target.value)
-                          )
-                        )
-                      )
-                    }
-                    style={{
-                      width: 80,
-                      textAlign: "center",
-                    }}
-                  />
-
-                  <button
-                    className="btn btnGhost"
-                    onClick={() =>
-                      setQuantity(
-                        Math.min(
-                          product.stock,
-                          quantity + 1
-                        )
-                      )
-                    }
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ACTION BUTTONS */}
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                marginTop: 20,
-              }}
-            >
-              <button
-                onClick={handleAddToCart}
-                disabled={
-                  product.stock === 0 || adding
-                }
-                className="btn btnPrimary"
-                style={{ flex: 1 }}
-              >
-                {adding
-                  ? "Adding..."
-                  : "Add to Cart"}
-              </button>
-
-              <button
-                onClick={() =>
-                  router.push("/store/cart")
-                }
-                className="btn btnGhost"
-                style={{ flex: 1 }}
-              >
-                View Cart
-              </button>
-            </div>
-          </div>
+          <p style={{ opacity: 0.6 }}>
+            Order Reference: <strong>{orderId}</strong>
+          </p>
         </div>
 
-        {/* ================= DESCRIPTION ================= */}
-        {product.description && (
-          <div
-            className="card mt-xl"
-            style={{ padding: 40 }}
-          >
-            <h2
-              className="text-display mb-md"
-              style={{ fontSize: 26 }}
-            >
-              Product Description
-            </h2>
+        {/* ================= STEP 1 ================= */}
+        <SectionTitle number="1" title="Make Bank Transfer" />
 
-            <div
-              style={{
-                lineHeight: 1.8,
-                opacity: 0.85,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {product.description}
-            </div>
-          </div>
-        )}
+        <div style={bankBox}>
+          <BankRow label="Bank" value="Standard Lesotho Bank" />
+          <BankRow label="Account Name" value="Karabo Online Store" />
+          <BankRow label="Account Number" value="123456789" />
+          <BankRow label="Reference" value={orderId} strong />
+        </div>
+
+        {/* ================= STEP 2 ================= */}
+        <SectionTitle number="2" title="Upload Payment Proof" />
+
+        <div style={uploadBox}>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) =>
+              setFile(e.target.files?.[0] || null)
+            }
+            style={{
+              fontSize: 14,
+            }}
+          />
+
+          <button
+            onClick={handleUpload}
+            disabled={uploading || uploaded}
+            style={{
+              padding: "16px",
+              borderRadius: 14,
+              border: "none",
+              fontWeight: 900,
+              background: uploaded ? "#16a34a" : "#111827",
+              color: "#fff",
+              cursor: uploading ? "wait" : "pointer",
+              transition: "all 0.2s ease",
+            }}
+          >
+            {uploading
+              ? "Uploading..."
+              : uploaded
+              ? "Uploaded ✓"
+              : "Upload Proof"}
+          </button>
+        </div>
+
+        {/* ================= STEP 3 ================= */}
+        <SectionTitle number="3" title="Notify on WhatsApp" />
+
+        <div style={whatsappBox}>
+          <p
+            style={{
+              opacity: 0.7,
+              marginBottom: 25,
+            }}
+          >
+            After uploading your proof, notify us for faster verification.
+          </p>
+
+          <a
+            href={whatsappLink}
+            target="_blank"
+            style={{
+              display: "inline-block",
+              padding: "18px 50px",
+              borderRadius: 18,
+              fontWeight: 900,
+              background: "#25D366",
+              color: "#ffffff",
+              textDecoration: "none",
+              fontSize: 16,
+              transition: "all 0.2s ease",
+            }}
+          >
+            Open WhatsApp →
+          </a>
+        </div>
       </div>
     </div>
   );
 }
+
+/* ================= UI PARTS ================= */
+
+function SectionTitle({
+  number,
+  title,
+}: {
+  number: string;
+  title: string;
+}) {
+  return (
+    <div style={{ marginBottom: 20, marginTop: 50 }}>
+      <h2
+        style={{
+          fontSize: 22,
+          fontWeight: 900,
+        }}
+      >
+        {number}. {title}
+      </h2>
+    </div>
+  );
+}
+
+function BankRow({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+      }}
+    >
+      <span style={{ opacity: 0.7 }}>{label}</span>
+      <span style={{ fontWeight: strong ? 900 : 700 }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/* ================= STYLES ================= */
+
+const bankBox: React.CSSProperties = {
+  padding: 35,
+  borderRadius: 24,
+  background: "#f9fafb",
+  border: "1px solid #e5e7eb",
+  display: "grid",
+  gap: 14,
+};
+
+const uploadBox: React.CSSProperties = {
+  padding: 35,
+  borderRadius: 24,
+  background: "#f9fafb",
+  border: "1px solid #e5e7eb",
+  display: "grid",
+  gap: 20,
+};
+
+const whatsappBox: React.CSSProperties = {
+  padding: 45,
+  borderRadius: 28,
+  background: "#f0fdf4",
+  border: "1px solid #bbf7d0",
+  textAlign: "center",
+};
