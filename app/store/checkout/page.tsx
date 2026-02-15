@@ -1,237 +1,227 @@
 "use client";
-import { formatCurrency } from '@/lib/currency';
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
-import { useAuth } from "@/lib/auth";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { formatCurrency } from "@/lib/currency";
+import toast from "react-hot-toast";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const user = useAuth((s) => s.user);
   const cart = useCart();
-  
-  const [loading, setLoading] = useState(false);
 
   const items = cart.items;
   const total = cart.subtotal();
 
-  // Redirect to login if not authenticated
-  if (!user) {
-    router.push("/login");
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const [shipping, setShipping] = useState({
+    fullName: "",
+    phone: "",
+    address: "",
+    city: "",
+    district: "",
+  });
+
+  /* ================= EMPTY CART ================= */
+
+  if (items.length === 0) {
+    router.push("/store");
     return null;
   }
 
-  // Empty cart check
-  if (items.length === 0) {
-    return (
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: 32 }}>
-        <div
-          style={{
-            padding: 80,
-            textAlign: "center",
-            borderRadius: 22,
-            background: "linear-gradient(135deg, #ffffff, #f8fbff)",
-            boxShadow: "0 20px 60px rgba(15,23,42,0.12)",
-          }}
-        >
-          <div style={{ fontSize: 64, marginBottom: 24 }}>📦</div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 12 }}>
-            Your cart is empty
-          </h1>
-          <p style={{ opacity: 0.6, marginBottom: 32 }}>
-            Add some items to checkout
-          </p>
-          <button
-            onClick={() => router.push("/store")}
-            className="btn btnPrimary"
-          >
-            Go to Store
-          </button>
-        </div>
-      </div>
-    );
-  }
+  /* ================= CREATE ORDER ================= */
 
   async function handlePlaceOrder() {
-    setLoading(true);
-
     try {
-      // Create order (backend only needs total_amount)
-      const res = await fetch(`${API_URL}/api/orders`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ total_amount: total }),
-      });
+      setLoading(true);
 
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.detail || "Failed to create order");
-      }
-
-      const order = await res.json();
-
-      // Clear cart
-      cart.clear();
+      const order = await cart.createOrder();
 
       toast.success("Order placed successfully!");
-      
-      // Redirect to order details to upload payment proof
-      router.push(`/account/orders/${order.order_id}`);
 
+      router.push(`/account/orders/${order.order_id}`);
     } catch (err: any) {
-      console.error("Order creation failed:", err);
-      toast.error(err.message || "Failed to place order");
+      toast.error(err.message || "Failed to create order");
     } finally {
       setLoading(false);
     }
   }
 
+  /* ================= PAGE ================= */
+
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 32 }}>
+    <div className="container" style={{ padding: "60px 0" }}>
+      <h1 className="text-display mb-xl" style={{ fontSize: 34 }}>
         Checkout
       </h1>
 
-      <div style={{ display: "grid", gap: 32, gridTemplateColumns: "2fr 1fr" }}>
-        {/* ORDER ITEMS */}
-        <div>
-          <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 20 }}>
-            Order Items
-          </h2>
-
-          <div style={{ display: "grid", gap: 18 }}>
-            {items.map((item) => (
-              <div
-                key={item.product_id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "auto 1fr auto",
-                  gap: 20,
-                  alignItems: "center",
-                  padding: 20,
-                  borderRadius: 18,
-                  background: "#fff",
-                  border: "1px solid rgba(15,23,42,0.08)",
-                  boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
-                }}
-              >
-                {/* Placeholder */}
-                <div
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 12,
-                    background: "linear-gradient(135deg, #e0e7ff, #dbeafe)",
-                    display: "grid",
-                    placeItems: "center",
-                    fontSize: 32,
-                  }}
-                >
-                  📦
-                </div>
-
-                {/* Info */}
-                <div>
-                  <div style={{ fontWeight: 800, marginBottom: 4 }}>
-                    {item.title}
-                  </div>
-                  <div style={{ fontSize: 14, opacity: 0.6 }}>
-                    {formatCurrency(item.price.toFixed(2))} × {item.quantity}
-                  </div>
-                </div>
-
-                {/* Price */}
-                <div style={{ fontSize: 18, fontWeight: 900 }}>
-                  {formatCurrency((item.price * item.quantity).toFixed(2))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ORDER SUMMARY */}
-        <div>
+      {/* STEP INDICATOR */}
+      <div style={{ display: "flex", gap: 40, marginBottom: 40 }}>
+        {["Shipping", "Review", "Confirm"].map((label, index) => (
           <div
+            key={label}
             style={{
-              position: "sticky",
-              top: 100,
-              padding: 24,
-              borderRadius: 22,
-              background: "linear-gradient(135deg, #ffffff, #f4f9ff)",
-              boxShadow: "0 18px 50px rgba(15,23,42,0.14)",
-              display: "grid",
-              gap: 16,
+              fontWeight: step === index + 1 ? 900 : 600,
+              opacity: step >= index + 1 ? 1 : 0.4,
             }}
           >
-            <div style={{ fontSize: 20, fontWeight: 900 }}>
-              Order Summary
-            </div>
+            {index + 1}. {label}
+          </div>
+        ))}
+      </div>
 
-            <div style={{ display: "grid", gap: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ opacity: 0.7 }}>Subtotal</span>
-                <span style={{ fontWeight: 700 }}>
-                  {formatCurrency(total.toFixed(2))}
-                </span>
-              </div>
+      {/* STEP 1 - SHIPPING */}
+      {step === 1 && (
+        <div className="card" style={{ padding: 30 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 20 }}>
+            Shipping Information
+          </h2>
 
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ opacity: 0.7 }}>Shipping</span>
-                <span style={{ fontWeight: 700 }}>Free</span>
-              </div>
+          <div style={{ display: "grid", gap: 16 }}>
+            <input
+              placeholder="Full Name"
+              value={shipping.fullName}
+              onChange={(e) =>
+                setShipping({ ...shipping, fullName: e.target.value })
+              }
+            />
+
+            <input
+              placeholder="Phone Number"
+              value={shipping.phone}
+              onChange={(e) =>
+                setShipping({ ...shipping, phone: e.target.value })
+              }
+            />
+
+            <input
+              placeholder="Address"
+              value={shipping.address}
+              onChange={(e) =>
+                setShipping({ ...shipping, address: e.target.value })
+              }
+            />
+
+            <input
+              placeholder="City"
+              value={shipping.city}
+              onChange={(e) =>
+                setShipping({ ...shipping, city: e.target.value })
+              }
+            />
+
+            <input
+              placeholder="District"
+              value={shipping.district}
+              onChange={(e) =>
+                setShipping({ ...shipping, district: e.target.value })
+              }
+            />
+          </div>
+
+          <button
+            className="btn btnPrimary mt-lg"
+            onClick={() => {
+              if (
+                !shipping.fullName ||
+                !shipping.phone ||
+                !shipping.address
+              ) {
+                toast.error("Please complete all required fields");
+                return;
+              }
+              setStep(2);
+            }}
+          >
+            Continue to Review
+          </button>
+        </div>
+      )}
+
+      {/* STEP 2 - REVIEW */}
+      {step === 2 && (
+        <div style={{ display: "grid", gap: 30 }}>
+          <div className="card" style={{ padding: 30 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 20 }}>
+              Order Review
+            </h2>
+
+            <div style={{ display: "grid", gap: 14 }}>
+              {items.map((item) => (
+                <div
+                  key={item.product_id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span>
+                    {item.title} × {item.quantity}
+                  </span>
+                  <span>
+                    {formatCurrency(item.price * item.quantity)}
+                  </span>
+                </div>
+              ))}
             </div>
 
             <div
               style={{
+                marginTop: 20,
+                paddingTop: 20,
+                borderTop: "1px solid var(--gray-200)",
+                fontWeight: 900,
                 display: "flex",
                 justifyContent: "space-between",
-                fontSize: 20,
-                fontWeight: 900,
-                paddingTop: 16,
-                borderTop: "2px solid rgba(15,23,42,0.1)",
               }}
             >
               <span>Total</span>
-              <span>{formatCurrency(total.toFixed(2))}</span>
+              <span>{formatCurrency(total)}</span>
             </div>
+          </div>
 
+          <div style={{ display: "flex", gap: 16 }}>
             <button
-              onClick={handlePlaceOrder}
-              disabled={loading}
-              className="btn btnPrimary"
-              style={{ width: "100%", marginTop: 8 }}
+              className="btn btnGhost"
+              onClick={() => setStep(1)}
             >
-              {loading ? "Processing..." : "Place Order"}
+              Back
             </button>
 
-            <div
-              style={{
-                padding: 12,
-                borderRadius: 10,
-                background: "#fef3c7",
-                color: "#92400e",
-                fontSize: 13,
-                lineHeight: 1.5,
-              }}
-            >
-              💳 <strong>Next Step:</strong> After placing your order, you'll see bank details to make payment and upload proof.
-            </div>
-
             <button
-              onClick={() => router.push("/store/cart")}
-              className="btn btnGhost"
-              style={{ width: "100%" }}
+              className="btn btnPrimary"
+              onClick={() => setStep(3)}
             >
-              ← Back to Cart
+              Confirm & Continue
             </button>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* STEP 3 - CONFIRM */}
+      {step === 3 && (
+        <div className="card" style={{ padding: 30 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 20 }}>
+            Confirm Order
+          </h2>
+
+          <p style={{ marginBottom: 20 }}>
+            Total Payment:{" "}
+            <strong>{formatCurrency(total)}</strong>
+          </p>
+
+          <button
+            className="btn btnPrimary"
+            onClick={handlePlaceOrder}
+            disabled={loading}
+            style={{ width: "100%" }}
+          >
+            {loading ? "Processing..." : "Place Order"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
