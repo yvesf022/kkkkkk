@@ -1,84 +1,48 @@
 /**
- * KARABO DESIGN SYSTEM
- * Lesotho-themed, modern, professional
+ * KARABO COMPLETE DESIGN SYSTEM
+ * Launch Ready – Lesotho Themed
  */
 
+/* ================= ROOT VARIABLES ================= */
+
 :root {
-  /* Primary Colors - Lesotho Flag Inspired */
   --primary: #006838;
   --primary-dark: #004d28;
   --primary-light: #00914d;
-  
-  /* Secondary - Blue from Lesotho Flag */
+
   --secondary: #0047ab;
-  --secondary-dark: #003380;
   --secondary-light: #2b6fcc;
-  
-  /* Accent - Warm Gold */
+
   --accent: #d4af37;
-  --accent-dark: #b8941f;
   --accent-light: #e6c966;
-  
-  /* Neutrals */
+
   --gray-50: #fafafa;
   --gray-100: #f5f5f5;
   --gray-200: #e5e5e5;
   --gray-300: #d4d4d4;
-  --gray-400: #a3a3a3;
   --gray-500: #737373;
-  --gray-600: #525252;
   --gray-700: #404040;
-  --gray-800: #262626;
   --gray-900: #171717;
-  
-  /* Status Colors */
+
   --success: #16a34a;
-  --success-bg: #dcfce7;
-  --warning: #eab308;
-  --warning-bg: #fef3c7;
   --error: #dc2626;
-  --error-bg: #fee2e2;
-  --info: #0ea5e9;
-  --info-bg: #e0f2fe;
-  
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.15);
-  
-  /* Gradients */
+
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --shadow-xl: 0 16px 48px rgba(0,0,0,0.15);
+
   --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
   --gradient-secondary: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-light) 100%);
-  --gradient-accent: linear-gradient(135deg, var(--accent-dark) 0%, var(--accent-light) 100%);
   --gradient-surface: linear-gradient(135deg, #ffffff 0%, #f8fafb 100%);
-  --gradient-hero: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--secondary) 100%);
-  
-  /* Spacing */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-2xl: 48px;
-  --spacing-3xl: 64px;
-  
-  /* Border Radius */
-  --radius-sm: 8px;
+
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-full: 9999px;
-  
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-base: 250ms ease;
-  --transition-slow: 350ms ease;
-  
-  /* Typography */
-  --font-display: 'Space Grotesk', -apple-system, system-ui, sans-serif;
-  --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+
+/* ================= RESET ================= */
 
 * {
   box-sizing: border-box;
@@ -87,48 +51,25 @@
 }
 
 body {
-  font-family: var(--font-body);
-  color: var(--gray-900);
+  font-family: system-ui, -apple-system, sans-serif;
   background: var(--gray-50);
+  color: var(--gray-900);
   line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Typography Utilities */
-.text-display {
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
+/* ================= BUTTON SYSTEM ================= */
 
-.text-gradient {
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Button System */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-sm);
+  gap: 8px;
   padding: 12px 24px;
-  border: none;
   border-radius: var(--radius-lg);
   font-weight: 700;
-  font-size: 15px;
   cursor: pointer;
-  transition: all var(--transition-base);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  border: none;
+  transition: 0.25s ease;
 }
 
 .btnPrimary {
@@ -137,191 +78,175 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-.btnPrimary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-.btnSecondary {
-  background: var(--gradient-secondary);
-  color: white;
-  box-shadow: var(--shadow-md);
-}
-
-.btnSecondary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-.btnAccent {
-  background: var(--gradient-accent);
-  color: var(--gray-900);
-  box-shadow: var(--shadow-md);
-}
-
-.btnAccent:hover:not(:disabled) {
+.btnPrimary:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
 
 .btnGhost {
   background: white;
-  color: var(--gray-700);
   border: 2px solid var(--gray-200);
 }
 
-.btnGhost:hover:not(:disabled) {
+.btnGhost:hover {
   border-color: var(--primary);
   color: var(--primary);
 }
 
-.btnOutline {
-  background: transparent;
-  color: var(--primary);
-  border: 2px solid var(--primary);
+/* ================= PRODUCT GRID ================= */
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 28px;
 }
 
-.btnOutline:hover:not(:disabled) {
-  background: var(--primary);
+.product-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  transition: 0.3s ease;
+  cursor: pointer;
+}
+
+.product-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl);
+}
+
+.product-image {
+  height: 280px;
+  background-size: cover;
+  background-position: center;
+}
+
+.product-info {
+  padding: 20px;
+}
+
+.product-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.product-price {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--primary);
+  margin: 12px 0;
+}
+
+/* ================= STEP INDICATOR ================= */
+
+.step-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+  margin: 32px 0;
+}
+
+.step-indicator > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.3;
+  transition: 0.3s ease;
+}
+
+.step-indicator > div.active {
+  opacity: 1;
+}
+
+.step-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid var(--gray-200);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.step-indicator > div.active .step-circle {
+  background: var(--gradient-primary);
+  border-color: var(--primary);
   color: white;
 }
 
-/* Card System */
-.card {
+/* ================= PAYMENT INSTRUCTIONS ================= */
+
+.payment-instructions {
   background: white;
+  padding: 32px;
   border-radius: var(--radius-xl);
-  padding: var(--spacing-lg);
-  box-shadow: var(--shadow-md);
-  transition: all var(--transition-base);
-}
-
-.card:hover {
   box-shadow: var(--shadow-lg);
+  margin-bottom: 32px;
 }
 
-.card-gradient {
+.instruction-steps {
+  display: grid;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.step {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
   background: var(--gradient-surface);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-lg);
+  border-left: 4px solid var(--primary);
 }
 
-/* Badge System */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+.step-number {
+  width: 40px;
+  height: 40px;
+  background: var(--gradient-primary);
+  color: white;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
 }
 
-.badge-success {
-  background: var(--success-bg);
-  color: var(--success);
+/* ================= FILE UPLOAD ================= */
+
+.upload-area {
+  padding: 48px;
+  border: 3px dashed var(--gray-300);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: 0.3s ease;
 }
 
-.badge-warning {
-  background: var(--warning-bg);
-  color: #92400e;
-}
-
-.badge-error {
-  background: var(--error-bg);
-  color: var(--error);
-}
-
-.badge-info {
-  background: var(--info-bg);
-  color: #075985;
-}
-
-.badge-primary {
-  background: #e0f2f1;
-  color: var(--primary);
-}
-
-/* Input System */
-input, textarea, select {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid var(--gray-200);
-  border-radius: var(--radius-md);
-  font-size: 15px;
-  font-family: var(--font-body);
-  transition: all var(--transition-fast);
-  background: white;
-}
-
-input:focus, textarea:focus, select:focus {
-  outline: none;
+.upload-area:hover {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 104, 56, 0.1);
 }
 
-/* Toast Notification Overrides */
-.Toaster__toast-container {
-  z-index: 99999 !important;
+.whatsapp-share-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #25D366, #128C7E);
+  color: white;
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: 0.3s ease;
 }
 
-/* Loading Animation */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+.whatsapp-share-btn:hover {
+  transform: translateY(-2px);
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
+/* ================= CONTAINER ================= */
 
-/* Fade In Animation */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Utility Classes */
 .container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
-}
-
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-
-.font-bold { font-weight: 700; }
-.font-black { font-weight: 900; }
-
-.mt-xs { margin-top: var(--spacing-xs); }
-.mt-sm { margin-top: var(--spacing-sm); }
-.mt-md { margin-top: var(--spacing-md); }
-.mt-lg { margin-top: var(--spacing-lg); }
-.mt-xl { margin-top: var(--spacing-xl); }
-
-.mb-xs { margin-bottom: var(--spacing-xs); }
-.mb-sm { margin-bottom: var(--spacing-sm); }
-.mb-md { margin-bottom: var(--spacing-md); }
-.mb-lg { margin-bottom: var(--spacing-lg); }
-.mb-xl { margin-bottom: var(--spacing-xl); }
-
-.gap-sm { gap: var(--spacing-sm); }
-.gap-md { gap: var(--spacing-md); }
-.gap-lg { gap: var(--spacing-lg); }
-
-/* Responsive */
-@media (max-width: 768px) {
-  .container {
-    padding: 0 var(--spacing-md);
-  }
-  
-  .btn {
-    padding: 10px 20px;
-    font-size: 14px;
-  }
+  padding: 0 24px;
 }
