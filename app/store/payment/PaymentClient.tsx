@@ -14,8 +14,11 @@ export default function PaymentPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
-  /* ================= CREATE PAYMENT ================= */
+  /* =====================================================
+     INITIALIZE PAYMENT (CREATE OR FETCH)
+  ===================================================== */
 
   useEffect(() => {
     async function createPayment() {
@@ -30,12 +33,19 @@ export default function PaymentPage() {
           }
         );
 
-        if (!res.ok) throw new Error();
-
         const data = await res.json();
-        setPaymentId(data.id);
-      } catch {
-        toast.error("Failed to initialize payment.");
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Failed to initialize payment");
+        }
+
+        // ✅ CORRECT FIELD
+        setPaymentId(data.payment_id);
+      } catch (err: any) {
+        console.error("Payment init error:", err);
+        toast.error(err.message || "Failed to initialize payment.");
+      } finally {
+        setInitializing(false);
       }
     }
 
@@ -50,7 +60,9 @@ export default function PaymentPage() {
     );
   }
 
-  /* ================= UPLOAD ================= */
+  /* =====================================================
+     HANDLE PROOF UPLOAD
+  ===================================================== */
 
   async function handleUpload() {
     if (!file) {
@@ -67,7 +79,9 @@ export default function PaymentPage() {
 
     try {
       const formData = new FormData();
-      formData.append("file", file);
+
+      // 🔥 IMPORTANT: backend expects "proof"
+      formData.append("proof", file);
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/payments/${paymentId}/proof`,
@@ -78,24 +92,38 @@ export default function PaymentPage() {
         }
       );
 
-      if (!res.ok) throw new Error();
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Upload failed");
+      }
+
+      console.log("Upload success:", data);
 
       setUploaded(true);
       toast.success("Payment proof uploaded successfully.");
-    } catch {
-      toast.error("Upload failed. Try again.");
+
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      toast.error(err.message || "Upload failed. Try again.");
     } finally {
       setUploading(false);
     }
   }
 
-  /* ================= WHATSAPP ================= */
+  /* =====================================================
+     WHATSAPP LINK
+  ===================================================== */
 
   const message = encodeURIComponent(
     `Hello, I have completed payment for Order ${orderId}. Please verify.`
   );
 
   const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+
+  /* =====================================================
+     UI
+  ===================================================== */
 
   return (
     <div
@@ -115,6 +143,7 @@ export default function PaymentPage() {
           boxShadow: "0 50px 120px rgba(0,0,0,0.08)",
         }}
       >
+        {/* HEADER */}
         <div style={{ textAlign: "center", marginBottom: 70 }}>
           <div
             style={{
@@ -146,8 +175,15 @@ export default function PaymentPage() {
           <p style={{ opacity: 0.6 }}>
             Order Reference: <strong>{orderId}</strong>
           </p>
+
+          {initializing && (
+            <p style={{ marginTop: 10, opacity: 0.6 }}>
+              Initializing payment...
+            </p>
+          )}
         </div>
 
+        {/* STEP 1 */}
         <SectionTitle number="1" title="Make Bank Transfer" />
 
         <div style={bankBox}>
@@ -157,18 +193,19 @@ export default function PaymentPage() {
           <BankRow label="Reference" value={orderId} strong />
         </div>
 
+        {/* STEP 2 */}
         <SectionTitle number="2" title="Upload Payment Proof" />
 
         <div style={uploadBox}>
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
           />
 
           <button
             onClick={handleUpload}
-            disabled={uploading || uploaded}
+            disabled={!paymentId || uploading || uploaded}
             style={{
               padding: "16px",
               borderRadius: 14,
@@ -176,7 +213,11 @@ export default function PaymentPage() {
               fontWeight: 900,
               background: uploaded ? "#16a34a" : "#111827",
               color: "#fff",
-              cursor: uploading ? "wait" : "pointer",
+              cursor:
+                !paymentId || uploading || uploaded
+                  ? "not-allowed"
+                  : "pointer",
+              opacity: !paymentId ? 0.6 : 1,
             }}
           >
             {uploading
@@ -187,6 +228,7 @@ export default function PaymentPage() {
           </button>
         </div>
 
+        {/* STEP 3 */}
         <SectionTitle number="3" title="Notify on WhatsApp" />
 
         <div style={whatsappBox}>
@@ -211,7 +253,10 @@ export default function PaymentPage() {
     </div>
   );
 }
-/* ================= UI PARTS ================= */
+
+/* =====================================================
+   UI PARTS
+===================================================== */
 
 function SectionTitle({
   number,
@@ -251,14 +296,14 @@ function BankRow({
       }}
     >
       <span style={{ opacity: 0.7 }}>{label}</span>
-      <span style={{ fontWeight: strong ? 900 : 700 }}>
-        {value}
-      </span>
+      <span style={{ fontWeight: strong ? 900 : 700 }}>{value}</span>
     </div>
   );
 }
 
-/* ================= STYLES ================= */
+/* =====================================================
+   STYLES
+===================================================== */
 
 const bankBox: React.CSSProperties = {
   padding: 35,
