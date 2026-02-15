@@ -2,7 +2,6 @@
 
 import { create } from "zustand";
 import { ordersApi } from "./api";
-import type { Product } from "./types";
 
 /**
  * BACKEND CONTRACT (DO NOT CHANGE):
@@ -14,6 +13,20 @@ import type { Product } from "./types";
  * - Order is created via POST /api/orders
  */
 
+/* =========================
+   SAFE CART PRODUCT TYPE
+========================== */
+
+export type CartProduct = {
+  id: string;
+  title: string;
+  price: number;
+};
+
+/* =========================
+   CART ITEM (STATE)
+========================== */
+
 export type CartItem = {
   product_id: string;
   title: string;
@@ -21,10 +34,14 @@ export type CartItem = {
   quantity: number;
 };
 
+/* =========================
+   CART STATE
+========================== */
+
 type CartState = {
   items: CartItem[];
 
-  addItem: (product: Product, quantity?: number) => void;
+  addItem: (product: CartProduct, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clear: () => void;
@@ -45,7 +62,7 @@ export const useCart = create<CartState>((set, get) => ({
      CART MUTATIONS
   ========================== */
 
-  addItem: (product, quantity = 1) => {
+  addItem: (product: CartProduct, quantity = 1) => {
     set((state) => {
       const existing = state.items.find(
         (i) => i.product_id === product.id
@@ -75,7 +92,7 @@ export const useCart = create<CartState>((set, get) => ({
     });
   },
 
-  removeItem: (productId) => {
+  removeItem: (productId: string) => {
     set((state) => ({
       items: state.items.filter(
         (i) => i.product_id !== productId
@@ -83,7 +100,7 @@ export const useCart = create<CartState>((set, get) => ({
     }));
   },
 
-  updateQuantity: (productId, quantity) => {
+  updateQuantity: (productId: string, quantity: number) => {
     if (quantity <= 0) {
       get().removeItem(productId);
       return;
@@ -133,11 +150,6 @@ export const useCart = create<CartState>((set, get) => ({
 
     const total_amount = get().subtotal();
 
-    /**
-     * IMPORTANT:
-     * - Backend accepts ONLY total_amount
-     * - Cart items are frontend-only
-     */
     const order = (await ordersApi.create({
       total_amount,
     })) as {
@@ -145,7 +157,6 @@ export const useCart = create<CartState>((set, get) => ({
       order_status: string;
     };
 
-    // Clear cart ONLY after successful order creation
     get().clear();
 
     return order;
