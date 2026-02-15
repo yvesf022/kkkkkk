@@ -11,40 +11,38 @@ export default function CartPage() {
   const items = cart.items;
   const total = cart.subtotal();
 
+  /* ================= EMPTY CART ================= */
+
   if (items.length === 0) {
     return (
-      <div className="container" style={{ padding: "80px 0" }}>
+      <div className="container" style={{ padding: "60px 0" }}>
         <div className="card text-center" style={{ padding: 60 }}>
-          <div style={{ fontSize: 70, marginBottom: 20 }}>🛒</div>
+          <div style={{ fontSize: 64, marginBottom: 20 }}>🛒</div>
 
-          <h1 style={{ fontSize: 32, fontWeight: 900 }}>
+          <h1 className="text-display" style={{ fontSize: 32 }}>
             Your Cart is Empty
           </h1>
 
-          <p style={{ opacity: 0.6, margin: "16px 0 30px" }}>
-            Looks like you haven't added anything yet.
+          <p style={{ opacity: 0.7, marginTop: 10 }}>
+            Discover premium products and start shopping.
           </p>
 
           <button
             onClick={() => router.push("/store")}
-            className="btn btnPrimary"
+            className="btn btnPrimary mt-lg"
           >
-            Browse Products
+            Browse Store
           </button>
         </div>
       </div>
     );
   }
 
+  /* ================= CART PAGE ================= */
+
   return (
-    <div className="container" style={{ padding: "70px 0" }}>
-      <h1
-        style={{
-          fontSize: 36,
-          fontWeight: 900,
-          marginBottom: 40,
-        }}
-      >
+    <div className="container" style={{ padding: "60px 0" }}>
+      <h1 className="text-display mb-xl" style={{ fontSize: 34 }}>
         Shopping Cart
       </h1>
 
@@ -56,110 +54,66 @@ export default function CartPage() {
         }}
       >
         {/* ================= ITEMS ================= */}
-        <div style={{ display: "grid", gap: 24 }}>
+        <div style={{ display: "grid", gap: 20 }}>
           {items.map((item) => (
-            <div
-              key={item.product_id}
-              className="card"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "120px 1fr auto",
-                gap: 20,
-                alignItems: "center",
-                padding: 24,
-              }}
-            >
-              {/* IMAGE */}
+            <div key={item.product_id} className="card">
               <div
                 style={{
-                  width: 120,
-                  height: 120,
-                  borderRadius: 16,
-                  background: item.main_image
-                    ? `url(${item.main_image}) center/cover`
-                    : "var(--gradient-surface)",
                   display: "grid",
-                  placeItems: "center",
-                  fontSize: 40,
+                  gridTemplateColumns: "120px 1fr auto",
+                  gap: 20,
+                  alignItems: "center",
                 }}
               >
-                {!item.main_image && "📦"}
-              </div>
-
-              {/* INFO */}
-              <div>
+                {/* IMAGE PLACEHOLDER */}
                 <div
                   style={{
-                    fontWeight: 900,
-                    fontSize: 18,
-                    marginBottom: 8,
+                    width: 120,
+                    height: 120,
+                    borderRadius: 16,
+                    background: "var(--gradient-surface)",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: 42,
                   }}
                 >
-                  {item.title}
+                  📦
                 </div>
 
-                <div style={{ opacity: 0.6, marginBottom: 12 }}>
-                  {formatCurrency(item.price)} each
-                </div>
-
-                {/* Quantity Control */}
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button
-                    className="btn btnGhost"
-                    onClick={() =>
-                      cart.updateQuantity(
-                        item.product_id,
-                        Math.max(1, item.quantity - 1)
-                      )
-                    }
-                  >
-                    −
-                  </button>
-
+                {/* INFO */}
+                <div>
                   <div
                     style={{
-                      minWidth: 40,
-                      textAlign: "center",
                       fontWeight: 800,
+                      fontSize: 16,
+                      marginBottom: 6,
                     }}
                   >
-                    {item.quantity}
+                    {item.title}
+                  </div>
+
+                  <div style={{ fontSize: 14, opacity: 0.6 }}>
+                    {formatCurrency(item.price)} × {item.quantity}
                   </div>
 
                   <button
-                    className="btn btnGhost"
-                    onClick={() =>
-                      cart.updateQuantity(
-                        item.product_id,
-                        item.quantity + 1
-                      )
-                    }
+                    onClick={() => cart.removeItem(item.product_id)}
+                    className="btn btnGhost mt-sm"
+                    style={{ padding: "6px 14px", fontSize: 13 }}
                   >
-                    +
+                    Remove
                   </button>
                 </div>
-              </div>
 
-              {/* TOTAL */}
-              <div style={{ textAlign: "right" }}>
+                {/* TOTAL PRICE */}
                 <div
                   style={{
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: 900,
-                    marginBottom: 10,
                   }}
                 >
                   {formatCurrency(item.price * item.quantity)}
                 </div>
-
-                <button
-                  className="btn btnGhost"
-                  onClick={() =>
-                    cart.removeItem(item.product_id)
-                  }
-                >
-                  Remove
-                </button>
               </div>
             </div>
           ))}
@@ -172,21 +126,24 @@ export default function CartPage() {
             style={{
               position: "sticky",
               top: 100,
-              padding: 32,
               display: "grid",
-              gap: 20,
+              gap: 18,
             }}
           >
-            <h2 style={{ fontWeight: 900, fontSize: 22 }}>
+            <div
+              style={{
+                fontSize: 20,
+                fontWeight: 900,
+              }}
+            >
               Order Summary
-            </h2>
+            </div>
 
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                borderTop: "1px solid var(--gray-200)",
-                paddingTop: 16,
+                fontSize: 15,
               }}
             >
               <span>Subtotal</span>
@@ -199,8 +156,8 @@ export default function CartPage() {
                 justifyContent: "space-between",
                 fontSize: 20,
                 fontWeight: 900,
-                borderTop: "2px solid var(--gray-300)",
-                paddingTop: 16,
+                paddingTop: 12,
+                borderTop: "1px solid var(--gray-200)",
               }}
             >
               <span>Total</span>
@@ -208,19 +165,17 @@ export default function CartPage() {
             </div>
 
             <button
+              onClick={() => router.push("/store/checkout")}
               className="btn btnPrimary"
-              style={{ width: "100%", marginTop: 10 }}
-              onClick={() =>
-                router.push("/store/checkout")
-              }
+              style={{ width: "100%" }}
             >
               Proceed to Checkout
             </button>
 
             <button
+              onClick={() => cart.clear()}
               className="btn btnGhost"
               style={{ width: "100%" }}
-              onClick={() => cart.clear()}
             >
               Clear Cart
             </button>
