@@ -128,12 +128,7 @@ export default function QuickViewModal({
                       return;
                     }
 
-                    addItem({
-                      id: product.id,
-                      title: product.title,
-                      price: product.price,
-                      image: imageUrl,
-                    });
+                    addItem(product, 1);
 
                     toast.success("Added to cart");
                     onClose();
