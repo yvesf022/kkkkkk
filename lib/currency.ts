@@ -1,12 +1,16 @@
-export function formatCurrency(
-  amount: number | string | null | undefined
-): string {
-  const value = Number(amount);
+/**
+ * Currency Formatter — Lesotho Maloti (M)
+ * Dot decimal format (23.4 not 23,4)
+ * No thousands separator
+ */
 
-  if (!isFinite(value)) return "M 0.00";
+export function formatCurrency(value: number): string {
+  if (typeof value !== "number" || isNaN(value)) {
+    return "M 0.0";
+  }
 
-  return "M " + value.toLocaleString("en-ZA", {
-    minimumFractionDigits: 2.
-    maximumFractionDigits: 2.
-  });
+  // Always force dot decimal
+  const formatted = value.toFixed(1);
+
+  return `M ${formatted}`;
 }
