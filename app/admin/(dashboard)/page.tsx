@@ -35,9 +35,8 @@ export default function AdminDashboardPage() {
             lineHeight: 1.6,
           }}
         >
-          Operational overview of orders, payments, and inventory.
-          Monitor performance, review pending actions, and manage
-          the complete store lifecycle.
+          Operational overview of orders, payments, inventory,
+          and payment infrastructure.
         </p>
       </header>
 
@@ -54,7 +53,7 @@ export default function AdminDashboardPage() {
         <AdminAnalytics />
       </section>
 
-      {/* PRIMARY OPERATIONS */}
+      {/* PRIORITY ACTIONS */}
       <section>
         <SectionTitle title="Priority Actions" />
 
@@ -98,6 +97,13 @@ export default function AdminDashboardPage() {
             title="Products"
             description="Manage catalog, pricing, stock levels, and bulk uploads."
             href="/admin/products"
+            tone="light"
+          />
+
+          <ActionCard
+            title="Bank Settings"
+            description="Configure bank accounts, mobile money details, and QR codes for customer payments."
+            href="/admin/settings/bank"
             tone="light"
           />
 
