@@ -71,7 +71,7 @@ export default function AdminAnalytics() {
 
       <Stat
         label="Approved Revenue"
-        value={revenue.toLocaleDateString("en-ZA")}
+        value={formatCurrency(revenue)}
       />
 
       <Stat
