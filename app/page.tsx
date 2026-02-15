@@ -13,18 +13,14 @@ export default function HomePage() {
   useEffect(() => {
     async function loadFeaturedProducts() {
       try {
-        // ✅ NO TYPE CAST — fully typed from API
-        const data = await productsApi.list({ page: 1, per_page: 6 });
+        const data = await productsApi.list({ page: 1, per_page: 8 });
 
-        // Extra safety check (defensive programming)
         if (Array.isArray(data)) {
           setFeaturedProducts(data);
         } else {
-          console.error("Unexpected products response:", data);
           setFeaturedProducts([]);
         }
-      } catch (err) {
-        console.error("Failed to load products:", err);
+      } catch {
         setFeaturedProducts([]);
       } finally {
         setLoading(false);
@@ -35,159 +31,74 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 1400, margin: "0 auto", padding: "40px 24px" }}>
-      {/* HERO */}
-      <section
-        style={{
-          display: "grid",
-          gap: 24,
-          maxWidth: 800,
-          marginBottom: 80,
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 56,
-            fontWeight: 900,
-            lineHeight: 1.1,
-            background: "linear-gradient(135deg, #ff4fa1, #3aa9ff)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-          }}
-        >
-          Karabo's Boutique
-        </h1>
+    <div className="homeWrap">
+      {/* HERO + PRODUCTS ABOVE FOLD */}
+      <section className="heroSplit">
+        <div className="heroContent">
+          <span className="heroTag">Premium Beauty & Lifestyle</span>
 
-        <p
-          style={{
-            fontSize: 20,
-            opacity: 0.75,
-            lineHeight: 1.6,
-            maxWidth: 600,
-          }}
-        >
-          Lesotho's premium online destination for beauty, fashion, and
-          accessories. Discover curated collections that define your style.
-        </p>
+          <h1 className="heroTitle">
+            Discover Your Signature Style
+          </h1>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 16,
-            flexWrap: "wrap",
-            marginTop: 16,
-          }}
-        >
-          <button
-            className="btn btnPrimary"
-            onClick={() => router.push("/store")}
-            style={{ fontSize: 16, padding: "16px 32px" }}
-          >
-            Explore Store →
-          </button>
+          <p className="heroText">
+            Curated elegance from Lesotho’s modern boutique.
+            Beauty, fashion and essentials designed to elevate
+            your everyday.
+          </p>
 
-          <button
-            className="btn btnGhost"
-            onClick={() => router.push("/store")}
-            style={{ fontSize: 16, padding: "16px 32px" }}
-          >
-            Browse Categories
-          </button>
+          <div className="heroActions">
+            <button
+              className="btnModernPrimary"
+              onClick={() => router.push("/store")}
+            >
+              Shop Collection
+            </button>
+
+            <button
+              className="btnModernGhost"
+              onClick={() => router.push("/store")}
+            >
+              Explore Categories
+            </button>
+          </div>
+        </div>
+
+        <div className="heroProducts">
+          {!loading &&
+            featuredProducts.slice(0, 4).map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
         </div>
       </section>
 
-      {/* FEATURED PRODUCTS */}
-      <section>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 32,
-            flexWrap: "wrap",
-            gap: 16,
-          }}
-        >
+      {/* FULL PRODUCT GRID */}
+      <section className="featuredSection">
+        <div className="sectionHeader">
           <div>
-            <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 8 }}>
-              Featured Products
-            </h2>
-            <p style={{ fontSize: 16, opacity: 0.65 }}>
-              Handpicked selections just for you
-            </p>
+            <h2>Featured Collection</h2>
+            <p>Handpicked premium selections</p>
           </div>
 
-          {featuredProducts.length > 0 && (
-            <button
-              className="btn btnTech"
-              onClick={() => router.push("/store")}
-            >
-              View All Products →
-            </button>
-          )}
+          <button
+            className="btnModernDark"
+            onClick={() => router.push("/store")}
+          >
+            View All
+          </button>
         </div>
 
-        {loading && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 24,
-            }}
-          >
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                style={{
-                  height: 400,
-                  borderRadius: 20,
-                  background: "#f8fafc",
-                }}
-              />
+        <div className="productGrid">
+          {loading &&
+            Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="productSkeleton" />
             ))}
-          </div>
-        )}
 
-        {!loading && featuredProducts.length > 0 && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 24,
-            }}
-          >
-            {featuredProducts.map((product) => (
+          {!loading &&
+            featuredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
-          </div>
-        )}
-
-        {!loading && featuredProducts.length === 0 && (
-          <div
-            style={{
-              padding: 80,
-              textAlign: "center",
-              borderRadius: 22,
-              background: "linear-gradient(135deg, #ffffff, #f8fbff)",
-              boxShadow: "0 20px 60px rgba(15,23,42,0.12)",
-            }}
-          >
-            <div style={{ fontSize: 64, marginBottom: 24 }}>🛍️</div>
-            <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 12 }}>
-              Coming Soon
-            </h3>
-            <p style={{ fontSize: 16, opacity: 0.65, marginBottom: 32 }}>
-              Our featured products will appear here soon. Stay tuned!
-            </p>
-            <button
-              className="btn btnPrimary"
-              onClick={() => router.push("/store")}
-            >
-              Browse All Products
-            </button>
-          </div>
-        )}
+        </div>
       </section>
     </div>
   );
@@ -200,37 +111,22 @@ function ProductCard({ product }: { product: ProductListItem }) {
 
   return (
     <div
-      onClick={() => {
-        if (!product.id) {
-          console.error("Product ID missing:", product);
-          return;
-        }
-        router.push(`/store/product/${product.id}`);
-      }}
-      style={{
-        borderRadius: 20,
-        background: "linear-gradient(135deg, #ffffff, #f8fbff)",
-        border: "1px solid rgba(15,23,42,0.08)",
-        boxShadow: "0 18px 50px rgba(15,23,42,0.12)",
-        overflow: "hidden",
-        cursor: "pointer",
-      }}
+      className="productCardModern"
+      onClick={() => router.push(`/store/product/${product.id}`)}
     >
       <div
+        className="productImage"
         style={{
-          height: 280,
           background: product.main_image
             ? `url(${product.main_image}) center/cover`
-            : "linear-gradient(135deg, #e0e7ff, #dbeafe)",
+            : "#f1f5f9",
         }}
       />
 
-      <div style={{ padding: 20 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 900 }}>
-          {product.title}
-        </h3>
+      <div className="productInfo">
+        <h3>{product.title}</h3>
 
-        <div style={{ fontSize: 20, fontWeight: 900 }}>
+        <div className="productPrice">
           M {Math.round(product.price).toLocaleString("en-ZA")}
         </div>
       </div>
