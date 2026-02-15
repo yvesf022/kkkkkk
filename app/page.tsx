@@ -25,169 +25,170 @@ export default function HomePage() {
     load();
   }, []);
 
-  const featured = products[0];
-  const others = products.slice(1);
-
   return (
     <div>
-{/* ================= HERO SECTION ================= */}
-<section
-  style={{
-    position: "relative",
-    padding: "120px 0",
-    background: "linear-gradient(135deg,#004d28,#006838 40%,#0047ab)",
-    color: "white",
-  }}
->
-  {/* DARK OVERLAY FOR READABILITY */}
-  <div
-    style={{
-      position: "absolute",
-      inset: 0,
-      background: "rgba(0,0,0,0.35)",
-    }}
-  />
-
-  <div
-    className="container"
-    style={{
-      position: "relative",
-      zIndex: 2,
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 60,
-      alignItems: "center",
-    }}
-  >
-    {/* LEFT */}
-    <div>
-      <div
+      {/* ================= SHORT HERO + PRODUCTS ================= */}
+      <section
         style={{
-          display: "inline-block",
-          padding: "8px 14px",
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.15)",
-          fontWeight: 700,
-          marginBottom: 24,
-        }}
-      >
-        🇱🇸 Lesotho Premium Boutique
-      </div>
-
-      <h1
-        style={{
-          fontSize: 64,
-          fontWeight: 900,
-          lineHeight: 1.05,
-          marginBottom: 24,
+          padding: "60px 0",
+          background:
+            "linear-gradient(135deg,#006838 0%,#004d28 50%,#0047ab 100%)",
           color: "white",
         }}
       >
-        Discover <br /> Your Style.
-      </h1>
-
-      <p
-        style={{
-          fontSize: 20,
-          opacity: 0.95,
-          marginBottom: 40,
-          maxWidth: 500,
-        }}
-      >
-        Elevate your confidence with curated fashion and beauty
-        collections designed for modern elegance and timeless
-        sophistication.
-      </p>
-
-      <div style={{ display: "flex", gap: 16 }}>
-        <button
-          className="btn btnAccent"
-          style={{
-            background: "var(--accent)",
-            color: "#000",
-          }}
-          onClick={() => router.push("/store")}
-        >
-          Shop Collection
-        </button>
-
-        <button
-          className="btn btnOutline"
-          style={{
-            borderColor: "white",
-            color: "white",
-          }}
-          onClick={() => router.push("/store")}
-        >
-          Explore Now
-        </button>
-      </div>
-    </div>
-
-    {/* FEATURED PRODUCT */}
-    {!loading && featured && (
-      <div
-        className="card"
-        style={{
-          padding: 0,
-          overflow: "hidden",
-          cursor: "pointer",
-          background: "white",
-        }}
-        onClick={() =>
-          router.push(`/store/product/${featured.id}`)
-        }
-      >
         <div
+          className="container"
           style={{
-            height: 400,
-            background: featured.main_image
-              ? `url(${featured.main_image}) center/cover`
-              : "#e2e8f0",
+            display: "grid",
+            gridTemplateColumns: "1fr 1.3fr",
+            gap: 50,
+            alignItems: "center",
           }}
-        />
+        >
+          {/* LEFT MESSAGE */}
+          <div>
+            <div
+              style={{
+                display: "inline-block",
+                padding: "6px 12px",
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.15)",
+                fontWeight: 700,
+                marginBottom: 18,
+              }}
+            >
+              🇱🇸 Lesotho Premium Boutique
+            </div>
 
-        <div style={{ padding: 28 }}>
-          <h3
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              marginBottom: 10,
-              color: "var(--gray-900)",
-            }}
-          >
-            {featured.title}
-          </h3>
+            <h1
+              style={{
+                fontSize: 48,
+                fontWeight: 900,
+                lineHeight: 1.1,
+                marginBottom: 20,
+              }}
+            >
+              Discover Your Style
+            </h1>
 
-          <div
-            style={{
-              fontSize: 30,
-              fontWeight: 900,
-              color: "var(--primary)",
-            }}
-          >
-            {formatCurrency(featured.price)}
+            <p
+              style={{
+                fontSize: 16,
+                opacity: 0.9,
+                marginBottom: 28,
+              }}
+            >
+              Curated fashion and beauty collections crafted
+              for elegance, confidence and modern lifestyle.
+            </p>
+
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                className="btn btnAccent"
+                onClick={() => router.push("/store")}
+              >
+                Shop Now
+              </button>
+
+              <button
+                className="btn btnOutline"
+                style={{ color: "white", borderColor: "white" }}
+                onClick={() => router.push("/store")}
+              >
+                Explore
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT – PRODUCTS VISIBLE IMMEDIATELY */}
+          <div>
+            {loading ? (
+              <div className="text-center">
+                Loading products...
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fill,minmax(180px,1fr))",
+                  gap: 16,
+                }}
+              >
+                {products.slice(0, 4).map((product) => (
+                  <div
+                    key={product.id}
+                    style={{
+                      background: "white",
+                      borderRadius: 16,
+                      overflow: "hidden",
+                      cursor: "pointer",
+                      boxShadow:
+                        "0 12px 30px rgba(0,0,0,0.2)",
+                    }}
+                    onClick={() =>
+                      router.push(
+                        `/store/product/${product.id}`
+                      )
+                    }
+                  >
+                    <div
+                      style={{
+                        height: 140,
+                        background: product.main_image
+                          ? `url(${product.main_image}) center/cover`
+                          : "#e5e7eb",
+                      }}
+                    />
+
+                    <div style={{ padding: 12 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          marginBottom: 4,
+                          color: "#111",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {product.title}
+                      </div>
+
+                      <div
+                        style={{
+                          fontWeight: 900,
+                          color: "#006838",
+                        }}
+                      >
+                        {formatCurrency(product.price)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </div>
-    )}
-  </div>
-</section>
+      </section>
 
-      {/* ================= FEATURED PRODUCTS ================= */}
-      <section style={{ padding: "110px 0" }}>
+      {/* ================= FULL PRODUCT GRID ================= */}
+      <section style={{ padding: "80px 0" }}>
         <div className="container">
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: 60,
+              marginBottom: 40,
             }}
           >
             <h2
-              className="text-display"
-              style={{ fontSize: 40 }}
+              style={{
+                fontSize: 32,
+                fontWeight: 900,
+              }}
             >
               Featured Collection
             </h2>
@@ -196,130 +197,18 @@ export default function HomePage() {
               className="btn btnSecondary"
               onClick={() => router.push("/store")}
             >
-              View All Products
+              View All
             </button>
           </div>
 
-          {loading ? (
-            <div className="text-center animate-pulse">
-              Loading premium selections...
-            </div>
-          ) : (
-            <div className="product-grid">
-              {others.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product as any}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ================= TRUST & VALUE ================= */}
-      <section
-        style={{
-          background: "var(--gradient-surface)",
-          padding: "100px 0",
-        }}
-      >
-        <div
-          className="container"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 50,
-            textAlign: "center",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 48, marginBottom: 18 }}>
-              🚚
-            </div>
-            <h3
-              className="text-display"
-              style={{ marginBottom: 12 }}
-            >
-              Fast Delivery
-            </h3>
-            <p>
-              Reliable and secure shipping across Lesotho
-              and surrounding regions.
-            </p>
+          <div className="product-grid">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product as any}
+              />
+            ))}
           </div>
-
-          <div>
-            <div style={{ fontSize: 48, marginBottom: 18 }}>
-              💳
-            </div>
-            <h3
-              className="text-display"
-              style={{ marginBottom: 12 }}
-            >
-              Secure Payments
-            </h3>
-            <p>
-              Verified and trusted payment handling for
-              your peace of mind.
-            </p>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 48, marginBottom: 18 }}>
-              ⭐
-            </div>
-            <h3
-              className="text-display"
-              style={{ marginBottom: 12 }}
-            >
-              Premium Quality
-            </h3>
-            <p>
-              Handpicked products selected for excellence
-              and durability.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= CALL TO ACTION ================= */}
-      <section
-        style={{
-          padding: "120px 0",
-          textAlign: "center",
-          background: "var(--gradient-primary)",
-          color: "white",
-        }}
-      >
-        <div className="container">
-          <h2
-            className="text-display"
-            style={{
-              fontSize: 48,
-              marginBottom: 24,
-            }}
-          >
-            Ready to Elevate Your Style?
-          </h2>
-
-          <p
-            style={{
-              fontSize: 18,
-              marginBottom: 40,
-              opacity: 0.95,
-            }}
-          >
-            Explore our full collection and find your next
-            favorite look today.
-          </p>
-
-          <button
-            className="btn btnAccent"
-            onClick={() => router.push("/store")}
-          >
-            Start Shopping
-          </button>
         </div>
       </section>
     </div>
