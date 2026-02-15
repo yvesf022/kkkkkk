@@ -153,7 +153,7 @@ export default function AdminPaymentsPage() {
 
               {/* ORDER LINK */}
               <div style={{ fontSize: 14 }}>
-                Orde{formatCurrency(" ")}
+                Orde{" "}
                 <Link
                   href={`/admin/orders/${p.order_id}`}
                   style={{

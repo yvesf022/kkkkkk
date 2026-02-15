@@ -79,7 +79,7 @@ export default function HomePage() {
             <div className="heroProductOverlay">
               <h3>{products[0].title}</h3>
               <span>
-                {formatCurrency(" ")}
+                {" "}
                 {Math.round(products[0].price).toLocaleString(
                   "en-ZA"
                 )}
@@ -122,7 +122,7 @@ export default function HomePage() {
               <div className="modernCardInfo">
                 <h4>{p.title}</h4>
                 <span>
-                  {formatCurrency(" ")}
+                  {" "}
                   {Math.round(p.price).toLocaleString("en-ZA")}
                 </span>
               </div>
