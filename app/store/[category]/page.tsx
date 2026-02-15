@@ -248,7 +248,7 @@ function ProductCard({ product, onClick }: ProductCardProps) {
         >
           <div>
             <div style={{ fontSize: 24, fontWeight: 900 }}>
-              {formatCurrency(Math.round(product.price).toLocaleString())}
+              {formatCurrency(Math.round(product.price))}
             </div>
             {product.rating && product.rating > 0 && (
               <div style={{ fontSize: 13, opacity: 0.6, marginTop: 4 }}>
