@@ -10,17 +10,15 @@ export default function OrderSuccessPage() {
         padding: "60px 24px",
       }}
     >
-      {/* MAIN CARD */}
       <div
         style={{
           borderRadius: 28,
           padding: 50,
           background: "var(--gradient-surface)",
           boxShadow: "var(--shadow-xl)",
-          border: "1px solid rgba(0,0,0,0.05)",
         }}
       >
-        {/* TOP SUCCESS STRIP */}
+        {/* SUCCESS HEADER */}
         <div
           style={{
             display: "flex",
@@ -41,7 +39,6 @@ export default function OrderSuccessPage() {
               fontSize: 36,
               color: "#fff",
               fontWeight: 900,
-              boxShadow: "var(--shadow-lg)",
             }}
           >
             ✓
@@ -58,19 +55,14 @@ export default function OrderSuccessPage() {
               Order Successfully Created
             </h1>
 
-            <p
-              style={{
-                fontSize: 16,
-                opacity: 0.7,
-              }}
-            >
+            <p style={{ opacity: 0.7 }}>
               Your order is now <strong>Pending Payment</strong>.
-              Complete payment to activate processing.
+              Please complete your payment to begin processing.
             </p>
           </div>
         </div>
 
-        {/* ORDER INFO */}
+        {/* ORDER DETAILS */}
         <Suspense
           fallback={
             <div
@@ -88,34 +80,30 @@ export default function OrderSuccessPage() {
           <OrderSuccessClient />
         </Suspense>
 
-        {/* PAYMENT CALL TO ACTION */}
+        {/* NEXT STEP SECTION */}
         <div
           style={{
             marginTop: 40,
             padding: 30,
             borderRadius: 22,
-            background: "linear-gradient(135deg, #f0fdf4, #ecfdf5)",
-            border: "1px solid rgba(0,0,0,0.05)",
+            background: "linear-gradient(135deg,#f0fdf4,#ecfdf5)",
             display: "grid",
             gap: 20,
           }}
         >
-          <div>
-            <h2
-              style={{
-                fontSize: 22,
-                fontWeight: 900,
-                marginBottom: 8,
-              }}
-            >
-              Next Step: Complete Payment
-            </h2>
+          <h2
+            style={{
+              fontSize: 22,
+              fontWeight: 900,
+            }}
+          >
+            Complete Payment to Activate Your Order
+          </h2>
 
-            <p style={{ opacity: 0.7 }}>
-              Your order will only be processed after payment
-              confirmation. Upload proof once transfer is complete.
-            </p>
-          </div>
+          <p style={{ opacity: 0.7 }}>
+            Once payment is received and verified,
+            your order status will be updated automatically.
+          </p>
 
           <a
             href="/store/pay"
