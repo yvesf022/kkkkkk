@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 export default function OrderSuccessClient() {
@@ -9,26 +10,32 @@ export default function OrderSuccessClient() {
   if (!orderId) return null;
 
   return (
-    <div
-      style={{
-        marginTop: 30,
-        padding: 24,
-        borderRadius: 16,
-        background: "#f8fafc",
-        textAlign: "center",
-      }}
-    >
-      <strong>Order Number:</strong>
+    <div style={{ marginTop: 30 }}>
+      {/* ORDER ID */}
       <div
         style={{
-          marginTop: 8,
-          fontSize: 20,
-          fontWeight: 900,
-          letterSpacing: 1,
+          marginBottom: 30,
+          padding: 20,
+          borderRadius: 16,
+          background: "#f4f9ff",
+          fontWeight: 700,
+          fontSize: 14,
         }}
       >
-        {orderId}
+        Order ID: {orderId}
       </div>
+
+      {/* SINGLE ACTION BUTTON */}
+      <Link
+        href={`/account/orders/${orderId}`}
+        className="btn btnPrimary"
+        style={{
+          padding: "16px 50px",
+          fontSize: 18,
+        }}
+      >
+        Proceed to Payment →
+      </Link>
     </div>
   );
 }

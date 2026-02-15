@@ -5,31 +5,31 @@ export default function OrderSuccessPage() {
   return (
     <div
       style={{
-        maxWidth: 700,
+        maxWidth: 720,
         margin: "0 auto",
-        padding: "80px 20px",
-        textAlign: "center",
+        padding: "100px 20px",
       }}
     >
       <div
         style={{
-          padding: 50,
-          borderRadius: 24,
+          padding: 60,
+          borderRadius: 28,
           background: "#ffffff",
-          boxShadow: "0 25px 60px rgba(0,0,0,0.08)",
+          boxShadow: "0 30px 80px rgba(0,0,0,0.08)",
+          textAlign: "center",
         }}
       >
-        {/* BIG SUCCESS ICON */}
+        {/* SUCCESS ICON */}
         <div
           style={{
-            width: 90,
-            height: 90,
-            margin: "0 auto 30px",
+            width: 100,
+            height: 100,
+            margin: "0 auto 40px",
             borderRadius: "50%",
             background: "var(--gradient-primary)",
             display: "grid",
             placeItems: "center",
-            fontSize: 40,
+            fontSize: 44,
             color: "#fff",
             fontWeight: 900,
           }}
@@ -40,43 +40,31 @@ export default function OrderSuccessPage() {
         {/* TITLE */}
         <h1
           style={{
-            fontSize: 30,
+            fontSize: 34,
             fontWeight: 900,
-            marginBottom: 10,
+            marginBottom: 12,
           }}
         >
           Order Confirmed
         </h1>
 
-        {/* SIMPLE INSTRUCTION */}
+        {/* CLEAR INSTRUCTION */}
         <p
           style={{
-            fontSize: 16,
+            fontSize: 17,
             opacity: 0.7,
-            marginBottom: 40,
+            marginBottom: 50,
           }}
         >
-          Next step: Complete your payment.
+          Your order has been created successfully.
+          <br />
+          Please proceed to payment to complete your purchase.
         </p>
 
-        {/* ORDER DETAILS */}
-        <Suspense fallback={<p>Loading...</p>}>
+        {/* ORDER INFO */}
+        <Suspense fallback={<p>Loading order details...</p>}>
           <OrderSuccessClient />
         </Suspense>
-
-        {/* SINGLE CLEAR BUTTON */}
-        <div style={{ marginTop: 40 }}>
-          <a
-            href="/store/pay"
-            className="btn btnPrimary"
-            style={{
-              padding: "16px 40px",
-              fontSize: 18,
-            }}
-          >
-            Proceed to Payment →
-          </a>
-        </div>
       </div>
     </div>
   );
