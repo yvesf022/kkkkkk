@@ -30,7 +30,7 @@ type UploadStatus = {
 function formatDate(dateString?: string) {
   if (!dateString) return "—";
   const d = new Date(dateString);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleString();
+  return isNaN(d.getTime()) ? "—" : formatCurrency(d);
 }
 
 /* =====================================================
@@ -283,3 +283,4 @@ const historyItemStyle: React.CSSProperties = {
   borderRadius: 12,
   border: "1px solid rgba(0,0,0,0.08)",
 };
+

@@ -310,7 +310,7 @@ export default function ProductDetailPage() {
           <div style={{ marginBottom: 24 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
               <div style={{ fontSize: 40, fontWeight: 900 }}>
-                R {Math.round(product.price).toLocaleString()}
+                {formatCurrency(Math.round(product.price).toLocaleString())}
               </div>
 
               {hasDiscount && (
@@ -321,7 +321,7 @@ export default function ProductDetailPage() {
                     textDecoration: "line-through",
                   }}
                 >
-                  R {Math.round(product.compare_price!).toLocaleString()}
+                  {formatCurrency(Math.round(product.compare_price!).toLocaleString())}
                 </div>
               )}
             </div>

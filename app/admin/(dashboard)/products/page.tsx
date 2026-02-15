@@ -286,7 +286,7 @@ function ProductCard({ product, onClick }: any) {
           }}
         >
           <div style={{ fontSize: 22, fontWeight: 900 }}>
-            R {Math.round(product.price).toLocaleString()}
+            {formatCurrency(Math.round(product.price).toLocaleString())}
           </div>
 
           {product.rating && product.rating > 0 && (

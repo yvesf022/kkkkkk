@@ -153,7 +153,7 @@ export default function AdminPaymentsPage() {
 
               {/* ORDER LINK */}
               <div style={{ fontSize: 14 }}>
-                Order{" "}
+                Orde{formatCurrency(" ")}
                 <Link
                   href={`/admin/orders/${p.order_id}`}
                   style={{
@@ -296,3 +296,4 @@ const rejectBtn: React.CSSProperties = {
   fontWeight: 800,
   cursor: "pointer",
 };
+

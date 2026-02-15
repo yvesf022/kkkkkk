@@ -140,13 +140,13 @@ export default function CheckoutPage() {
                     {item.title}
                   </div>
                   <div style={{ fontSize: 14, opacity: 0.6 }}>
-                    R {item.price.toFixed(2)} × {item.quantity}
+                    {formatCurrency(item.price.toFixed(2))} × {item.quantity}
                   </div>
                 </div>
 
                 {/* Price */}
                 <div style={{ fontSize: 18, fontWeight: 900 }}>
-                  R {(item.price * item.quantity).toFixed(2)}
+                  {formatCurrency((item.price * item.quantity).toFixed(2))}
                 </div>
               </div>
             ))}
@@ -175,7 +175,7 @@ export default function CheckoutPage() {
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ opacity: 0.7 }}>Subtotal</span>
                 <span style={{ fontWeight: 700 }}>
-                  R {total.toFixed(2)}
+                  {formatCurrency(total.toFixed(2))}
                 </span>
               </div>
 
@@ -196,7 +196,7 @@ export default function CheckoutPage() {
               }}
             >
               <span>Total</span>
-              <span>R {total.toFixed(2)}</span>
+              <span>{formatCurrency(total.toFixed(2))}</span>
             </div>
 
             <button
