@@ -18,17 +18,12 @@ export default function CategoryStorePage() {
       try {
         setLoading(true);
 
-        // Map URL category to actual category names
-        const categoryMap: Record<string, string> = {
-          beauty: "Beauty",
-          fashion: "Fashion",
-          mobile: "Electronics", // or "Mobile"
-        };
-
-        const actualCategory = categoryMap[category] || category;
+        // Decode URL category (e.g., "beauty" → "Beauty")
+        const decodedCategory = decodeURIComponent(category);
+        const formattedCategory = decodedCategory.charAt(0).toUpperCase() + decodedCategory.slice(1);
 
         const data = (await productsApi.list({
-          category: actualCategory,
+          category: formattedCategory,
         })) as ProductListItem[];
 
         setProducts(data);
@@ -45,7 +40,7 @@ export default function CategoryStorePage() {
   }, [category]);
 
   const categoryTitle = category
-    ? category.charAt(0).toUpperCase() + category.slice(1)
+    ? decodeURIComponent(category).charAt(0).toUpperCase() + decodeURIComponent(category).slice(1)
     : "Store";
 
   return (
@@ -61,7 +56,7 @@ export default function CategoryStorePage() {
         </button>
 
         <h1 style={{ fontSize: 36, fontWeight: 900, marginBottom: 8 }}>
-          {categoryTitle} Store
+          {categoryTitle}
         </h1>
         <p style={{ fontSize: 16, opacity: 0.65 }}>
           {products.length} product{products.length !== 1 ? "s" : ""} available
@@ -122,7 +117,7 @@ export default function CategoryStorePage() {
         >
           <div style={{ fontSize: 64, marginBottom: 24 }}>📦</div>
           <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 12 }}>
-            No products yet
+            No products in this category
           </h3>
           <p style={{ fontSize: 16, opacity: 0.65, marginBottom: 32 }}>
             We're working on adding {categoryTitle.toLowerCase()} products. Check
