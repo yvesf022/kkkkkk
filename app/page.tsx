@@ -7,129 +7,129 @@ import type { ProductListItem } from "@/lib/types";
 
 export default function HomePage() {
   const router = useRouter();
-  const [featuredProducts, setFeaturedProducts] = useState<ProductListItem[]>([]);
+  const [products, setProducts] = useState<ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadFeaturedProducts() {
+    async function load() {
       try {
         const data = await productsApi.list({ page: 1, per_page: 8 });
-
-        if (Array.isArray(data)) {
-          setFeaturedProducts(data);
-        } else {
-          setFeaturedProducts([]);
-        }
-      } catch {
-        setFeaturedProducts([]);
+        if (Array.isArray(data)) setProducts(data);
       } finally {
         setLoading(false);
       }
     }
-
-    loadFeaturedProducts();
+    load();
   }, []);
 
   return (
-    <div className="homeWrap">
-      {/* HERO + PRODUCTS ABOVE FOLD */}
-      <section className="heroSplit">
-        <div className="heroContent">
-          <span className="heroTag">Premium Beauty & Lifestyle</span>
+    <div className="homeContainer">
+      {/* HERO */}
+      <section className="heroModern">
+        <div className="heroLeft">
+          <span className="heroBadge">Lesotho Premium Boutique</span>
 
-          <h1 className="heroTitle">
-            Discover Your Signature Style
+          <h1>
+            Beauty.
+            <br />
+            Confidence.
+            <br />
+            Elegance.
           </h1>
 
-          <p className="heroText">
-            Curated elegance from Lesotho’s modern boutique.
-            Beauty, fashion and essentials designed to elevate
-            your everyday.
+          <p>
+            Discover curated fashion and beauty collections designed
+            for modern lifestyle. Clean. Premium. Timeless.
           </p>
 
-          <div className="heroActions">
+          <div className="heroButtons">
             <button
-              className="btnModernPrimary"
+              className="btnPrimaryModern"
               onClick={() => router.push("/store")}
             >
-              Shop Collection
+              Shop Now
             </button>
 
             <button
-              className="btnModernGhost"
+              className="btnSecondaryModern"
               onClick={() => router.push("/store")}
             >
-              Explore Categories
+              Explore
             </button>
           </div>
         </div>
 
-        <div className="heroProducts">
-          {!loading &&
-            featuredProducts.slice(0, 4).map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-        </div>
+        {/* Featured Product */}
+        {!loading && products[0] && (
+          <div
+            className="heroProduct"
+            onClick={() =>
+              router.push(`/store/product/${products[0].id}`)
+            }
+          >
+            <div
+              className="heroProductImage"
+              style={{
+                background: products[0].main_image
+                  ? `url(${products[0].main_image}) center/cover`
+                  : "#e2e8f0",
+              }}
+            />
+
+            <div className="heroProductOverlay">
+              <h3>{products[0].title}</h3>
+              <span>
+                M{" "}
+                {Math.round(products[0].price).toLocaleString(
+                  "en-ZA"
+                )}
+              </span>
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* FULL PRODUCT GRID */}
-      <section className="featuredSection">
-        <div className="sectionHeader">
-          <div>
-            <h2>Featured Collection</h2>
-            <p>Handpicked premium selections</p>
-          </div>
-
+      {/* PRODUCT GRID */}
+      <section className="modernGridSection">
+        <div className="modernGridHeader">
+          <h2>Featured Collection</h2>
           <button
-            className="btnModernDark"
+            className="btnDarkModern"
             onClick={() => router.push("/store")}
           >
             View All
           </button>
         </div>
 
-        <div className="productGrid">
-          {loading &&
-            Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="productSkeleton" />
-            ))}
+        <div className="modernGrid">
+          {products.slice(1).map((p) => (
+            <div
+              key={p.id}
+              className="modernCard"
+              onClick={() =>
+                router.push(`/store/product/${p.id}`)
+              }
+            >
+              <div
+                className="modernCardImage"
+                style={{
+                  background: p.main_image
+                    ? `url(${p.main_image}) center/cover`
+                    : "#f1f5f9",
+                }}
+              />
 
-          {!loading &&
-            featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+              <div className="modernCardInfo">
+                <h4>{p.title}</h4>
+                <span>
+                  M{" "}
+                  {Math.round(p.price).toLocaleString("en-ZA")}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
-    </div>
-  );
-}
-
-/* PRODUCT CARD */
-
-function ProductCard({ product }: { product: ProductListItem }) {
-  const router = useRouter();
-
-  return (
-    <div
-      className="productCardModern"
-      onClick={() => router.push(`/store/product/${product.id}`)}
-    >
-      <div
-        className="productImage"
-        style={{
-          background: product.main_image
-            ? `url(${product.main_image}) center/cover`
-            : "#f1f5f9",
-        }}
-      />
-
-      <div className="productInfo">
-        <h3>{product.title}</h3>
-
-        <div className="productPrice">
-          M {Math.round(product.price).toLocaleString("en-ZA")}
-        </div>
-      </div>
     </div>
   );
 }
