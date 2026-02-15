@@ -5,113 +5,73 @@ export default function OrderSuccessPage() {
   return (
     <div
       style={{
-        maxWidth: 1000,
+        maxWidth: 700,
         margin: "0 auto",
-        padding: "60px 24px",
+        padding: "80px 20px",
+        textAlign: "center",
       }}
     >
       <div
         style={{
-          borderRadius: 28,
           padding: 50,
-          background: "var(--gradient-surface)",
-          boxShadow: "var(--shadow-xl)",
+          borderRadius: 24,
+          background: "#ffffff",
+          boxShadow: "0 25px 60px rgba(0,0,0,0.08)",
         }}
       >
-        {/* SUCCESS HEADER */}
+        {/* BIG SUCCESS ICON */}
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 20,
-            marginBottom: 40,
-            flexWrap: "wrap",
+            width: 90,
+            height: 90,
+            margin: "0 auto 30px",
+            borderRadius: "50%",
+            background: "var(--gradient-primary)",
+            display: "grid",
+            placeItems: "center",
+            fontSize: 40,
+            color: "#fff",
+            fontWeight: 900,
           }}
         >
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: "50%",
-              background: "var(--gradient-primary)",
-              display: "grid",
-              placeItems: "center",
-              fontSize: 36,
-              color: "#fff",
-              fontWeight: 900,
-            }}
-          >
-            ✓
-          </div>
-
-          <div>
-            <h1
-              style={{
-                fontSize: 34,
-                fontWeight: 900,
-                marginBottom: 8,
-              }}
-            >
-              Order Successfully Created
-            </h1>
-
-            <p style={{ opacity: 0.7 }}>
-              Your order is now <strong>Pending Payment</strong>.
-              Please complete your payment to begin processing.
-            </p>
-          </div>
+          ✓
         </div>
 
-        {/* ORDER DETAILS */}
-        <Suspense
-          fallback={
-            <div
-              style={{
-                padding: 24,
-                borderRadius: 16,
-                background: "#ffffff",
-                boxShadow: "var(--shadow-md)",
-              }}
-            >
-              Loading order details…
-            </div>
-          }
+        {/* TITLE */}
+        <h1
+          style={{
+            fontSize: 30,
+            fontWeight: 900,
+            marginBottom: 10,
+          }}
         >
+          Order Confirmed
+        </h1>
+
+        {/* SIMPLE INSTRUCTION */}
+        <p
+          style={{
+            fontSize: 16,
+            opacity: 0.7,
+            marginBottom: 40,
+          }}
+        >
+          Next step: Complete your payment.
+        </p>
+
+        {/* ORDER DETAILS */}
+        <Suspense fallback={<p>Loading...</p>}>
           <OrderSuccessClient />
         </Suspense>
 
-        {/* NEXT STEP SECTION */}
-        <div
-          style={{
-            marginTop: 40,
-            padding: 30,
-            borderRadius: 22,
-            background: "linear-gradient(135deg,#f0fdf4,#ecfdf5)",
-            display: "grid",
-            gap: 20,
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 22,
-              fontWeight: 900,
-            }}
-          >
-            Complete Payment to Activate Your Order
-          </h2>
-
-          <p style={{ opacity: 0.7 }}>
-            Once payment is received and verified,
-            your order status will be updated automatically.
-          </p>
-
+        {/* SINGLE CLEAR BUTTON */}
+        <div style={{ marginTop: 40 }}>
           <a
             href="/store/pay"
             className="btn btnPrimary"
             style={{
-              width: "fit-content",
-              padding: "16px 32px",
-              fontSize: 16,
+              padding: "16px 40px",
+              fontSize: 18,
             }}
           >
             Proceed to Payment →
