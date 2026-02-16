@@ -195,7 +195,7 @@ export default function HomePage() {
                     e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.2)";
                   }}
                 >
-                  🛍️ Shop Now
+                   Shop Now
                 </button>
 
                 <button
@@ -223,7 +223,7 @@ export default function HomePage() {
                     e.currentTarget.style.transform = "translateY(0)";
                   }}
                 >
-                  ✨ Explore Collection
+                   Explore Collection
                 </button>
               </div>
 
