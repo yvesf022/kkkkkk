@@ -8,8 +8,6 @@ export default function FloatingCartButton() {
   const cart = useCart();
   const [open, setOpen] = useState(false);
 
-  if (!cart.items.length) return null;
-
   return (
     <>
       <div
@@ -17,9 +15,11 @@ export default function FloatingCartButton() {
         onClick={() => setOpen(true)}
       >
         🛒
-        <span className="cart-count">
-          {cart.items.length}
-        </span>
+        {cart.items.length > 0 && (
+          <span className="cart-count">
+            {cart.items.length}
+          </span>
+        )}
       </div>
 
       <CartDrawer open={open} onClose={() => setOpen(false)} />

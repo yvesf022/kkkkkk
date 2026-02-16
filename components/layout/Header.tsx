@@ -107,7 +107,6 @@ export default function Header() {
 
   const cartCount = items.reduce((a, b) => a + b.quantity, 0);
 
-  // Check if we should show menu button
   const shouldShowMenu =
     !pathname.startsWith("/login") &&
     !pathname.startsWith("/register") &&
@@ -175,10 +174,10 @@ export default function Header() {
               gap: 18,
             }}
           >
-            {/* LOGO */}
+            {/* LOGO – NOW LINKS TO HOME */}
             <Link
-              href="/store"
-              aria-label="Go to shop"
+              href="/"
+              aria-label="Go to home"
               style={{
                 display: "flex",
                 alignItems: "baseline",
@@ -193,33 +192,53 @@ export default function Header() {
                 backdropFilter: "blur(10px)",
               }}
             >
-              <span style={{ fontSize: 36, fontWeight: 900, color: "#ff2fa0" }}>
+              <span
+                style={{
+                  fontSize: 36,
+                  fontWeight: 900,
+                  color: "#ff2fa0",
+                }}
+              >
                 Karabo's
               </span>
-              <span style={{ fontSize: 32, fontWeight: 800, color: "#00e6ff" }}>
+              <span
+                style={{
+                  fontSize: 32,
+                  fontWeight: 800,
+                  color: "#00e6ff",
+                }}
+              >
                 Boutique
               </span>
             </Link>
 
             {/* NAV */}
-            <nav style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* SHOP */}
+            <nav
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
               <CapsuleLink href="/store">Shop</CapsuleLink>
 
-              {/* CART (with count) */}
               <div style={{ position: "relative" }}>
                 <CapsuleLink onClick={goToCart}>Cart</CapsuleLink>
                 <CountBadge n={cartCount} />
               </div>
 
-              {/* NOT LOGGED IN */}
-              {!user && <CapsuleLink onClick={goToLogin}>Login</CapsuleLink>}
+              {!user && (
+                <CapsuleLink onClick={goToLogin}>
+                  Login
+                </CapsuleLink>
+              )}
 
-              {/* LOGGED IN AS USER */}
               {user && user.role === "user" && (
                 <>
                   <CapsuleLink onClick={goToAccount}>
-                    Hello, {user.full_name || user.email.split("@")[0]}
+                    Hello,{" "}
+                    {user.full_name ||
+                      user.email.split("@")[0]}
                   </CapsuleLink>
 
                   <button
@@ -229,7 +248,8 @@ export default function Header() {
                       borderRadius: 999,
                       background:
                         "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
-                      border: "1px solid rgba(255,255,255,.18)",
+                      border:
+                        "1px solid rgba(255,255,255,.18)",
                       color: "#fff",
                       fontWeight: 900,
                       cursor: "pointer",
@@ -242,10 +262,11 @@ export default function Header() {
                 </>
               )}
 
-              {/* LOGGED IN AS ADMIN */}
               {user && user.role === "admin" && (
                 <>
-                  <CapsuleLink href="/admin">Admin Panel</CapsuleLink>
+                  <CapsuleLink href="/admin">
+                    Admin Panel
+                  </CapsuleLink>
 
                   <button
                     onClick={handleLogout}
@@ -254,7 +275,8 @@ export default function Header() {
                       borderRadius: 999,
                       background:
                         "linear-gradient(180deg, rgba(120,0,30,.6), rgba(80,0,20,.6))",
-                      border: "1px solid rgba(255,255,255,.18)",
+                      border:
+                        "1px solid rgba(255,255,255,.18)",
                       color: "#fff",
                       fontWeight: 900,
                       cursor: "pointer",
@@ -267,7 +289,6 @@ export default function Header() {
                 </>
               )}
 
-              {/* MENU BUTTON - Shows on all pages except login/register */}
               {shouldShowMenu && (
                 <button
                   onClick={toggleSidebar}
@@ -278,7 +299,8 @@ export default function Header() {
                     borderRadius: 12,
                     background:
                       "linear-gradient(180deg, rgba(8,14,28,.75), rgba(6,10,20,.75))",
-                    border: "1px solid rgba(255,255,255,.18)",
+                    border:
+                      "1px solid rgba(255,255,255,.18)",
                     color: "#fff",
                     cursor: "pointer",
                   }}
