@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 
 import { useCart } from "@/lib/cart";
@@ -23,37 +23,22 @@ export default function ProductCard({
 
   const imageRef = useRef<HTMLDivElement>(null);
 
-  /* ================= DISCOUNT ================= */
-
-  const discount = useMemo(() => {
-    if (!product.compare_price || product.compare_price <= product.price)
-      return null;
-
-    return Math.round(
-      ((product.compare_price - product.price) /
-        product.compare_price) *
-        100,
-    );
-  }, [product.compare_price, product.price]);
-
   /* ================= STOCK ================= */
 
-  const isOutOfStock =
-    product.in_stock === false ||
-    product.stock === 0;
+  const isOutOfStock = product.stock <= 0;
 
   const lowStock =
-    product.stock !== undefined &&
     product.stock > 0 &&
     product.stock <= 5;
 
   /* ================= IMAGE ================= */
 
-  const imageUrl = product.main_image?.startsWith("http")
-    ? product.main_image
-    : product.main_image
-    ? `${API}${product.main_image}`
-    : "";
+  const imageUrl =
+    product.main_image?.startsWith("http")
+      ? product.main_image
+      : product.main_image
+      ? `${API}${product.main_image}`
+      : "";
 
   /* ================= FLY TO CART ================= */
 
@@ -86,7 +71,7 @@ export default function ProductCard({
       clone.style.left = cartRect.left + "px";
       clone.style.width = "30px";
       clone.style.height = "30px";
-      clone.style.opacity = "0.5";
+      clone.style.opacity = "0.4";
     });
 
     setTimeout(() => clone.remove(), 700);
@@ -161,26 +146,6 @@ export default function ProductCard({
             )}
           </motion.div>
         </Link>
-
-        {/* DISCOUNT */}
-        {discount && !isOutOfStock && (
-          <div
-            style={{
-              position: "absolute",
-              top: 14,
-              left: 14,
-              background: "#dc2626",
-              color: "#fff",
-              padding: "6px 12px",
-              borderRadius: 12,
-              fontWeight: 800,
-              fontSize: 12,
-              boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
-            }}
-          >
-            −{discount}%
-          </div>
-        )}
 
         {/* WISHLIST */}
         <motion.button
@@ -279,11 +244,6 @@ export default function ProductCard({
             }}
           >
             ★ {product.rating}
-            {product.rating_number && (
-              <span style={{ opacity: 0.5 }}>
-                {" "}({product.rating_number})
-              </span>
-            )}
           </div>
         )}
 
@@ -306,32 +266,12 @@ export default function ProductCard({
         <div
           style={{
             marginTop: "auto",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
+            fontWeight: 900,
+            fontSize: 18,
+            color: "var(--primary)",
           }}
         >
-          <div
-            style={{
-              fontWeight: 900,
-              fontSize: 18,
-              color: "var(--primary)",
-            }}
-          >
-            {formatCurrency(product.price)}
-          </div>
-
-          {product.compare_price && (
-            <div
-              style={{
-                textDecoration: "line-through",
-                opacity: 0.5,
-                fontSize: 13,
-              }}
-            >
-              {formatCurrency(product.compare_price)}
-            </div>
-          )}
+          {formatCurrency(product.price)}
         </div>
 
         {/* ACTIONS */}
