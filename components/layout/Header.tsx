@@ -159,56 +159,59 @@ export default function Header() {
           flexWrap: "wrap",
         }}
       >
-        {/* ================= LUXURY BRAND LOGO ================= */}
+ {/* ================= LUXURY BRAND LOGO ================= */}
 
         <Link
           href="/"
           style={{
             textDecoration: "none",
-            display: "flex",
-            flexDirection: "column",
-            lineHeight: 1,
-            padding: "4px 6px",
+            position: "relative",
+            padding: "12px 24px",
+            background: "rgba(255,255,255,0.98)",
+            borderRadius: 16,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+            border: "2px solid transparent",
+            backgroundImage: "linear-gradient(rgba(255,255,255,0.98), rgba(255,255,255,0.98)), linear-gradient(135deg, #0033a0, #009543)",
+            backgroundOrigin: "border-box",
+            backgroundClip: "padding-box, border-box",
+            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "translateY(-3px) scale(1.02)";
+            e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.18)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(0) scale(1)";
+            e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.12)";
           }}
         >
-          {/* Karabo's */}
-          <span
+          {/* Karabo's Store - Unified Logo */}
+          <div
             style={{
-              fontSize: "clamp(20px,4vw,30px)",
+              fontSize: "clamp(24px, 4.5vw, 36px)",
               fontWeight: 900,
-              letterSpacing: 1,
-              background:
-                "linear-gradient(90deg,#d4af37,#ffffff,#d4af37)",
+              letterSpacing: 1.5,
+              background: "linear-gradient(135deg, #0033a0 0%, #006b3d 50%, #009543 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              textShadow: "0 4px 14px rgba(0,0,0,0.25)",
+              backgroundClip: "text",
+              textShadow: "0 4px 20px rgba(0,51,160,0.15)",
+              lineHeight: 1,
+              position: "relative",
             }}
           >
-            Karabo's
-          </span>
-
-          {/* STORE */}
-          <span
-            style={{
-              fontSize: "clamp(12px,3vw,15px)",
-              fontWeight: 800,
-              letterSpacing: 6,
-              color: "#111",
-              marginTop: 2,
-            }}
-          >
-            STORE
-          </span>
+            Karabo's Store
+          </div>
 
           {/* Elegant underline accent */}
-          <span
+          <div
             style={{
-              height: 2,
-              width: 60,
-              marginTop: 6,
-              borderRadius: 2,
-              background:
-                "linear-gradient(90deg,#0033a0,#009543)",
+              marginTop: 8,
+              height: 3,
+              width: "100%",
+              borderRadius: 3,
+              background: "linear-gradient(90deg, #0033a0 0%, #009543 100%)",
+              opacity: 0.8,
             }}
           />
         </Link>
