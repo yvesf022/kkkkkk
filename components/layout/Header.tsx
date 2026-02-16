@@ -9,6 +9,38 @@ import { useAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
 
 /* ---------------------------------
+   Basotho Hat Icon (Minimal Luxury)
+---------------------------------- */
+
+function BasothoHat() {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      width="18"
+      height="18"
+      style={{
+        position: "absolute",
+        top: "-14px",
+        left: "50%",
+        transform: "translateX(-50%)",
+      }}
+    >
+      <path
+        d="M8 40 Q32 10 56 40 Q32 34 8 40 Z"
+        fill="#111"
+      />
+      <rect
+        x="18"
+        y="34"
+        width="28"
+        height="4"
+        fill="#0033a0"
+      />
+    </svg>
+  );
+}
+
+/* ---------------------------------
    Helpers
 ---------------------------------- */
 
@@ -54,7 +86,7 @@ function CapsuleLink({
     fontSize: 13,
     textDecoration: "none",
     color: "#fff",
-    background: "rgba(0,0,0,0.6)",
+    background: "rgba(0,0,0,0.65)",
     border: "1px solid rgba(255,255,255,.15)",
     cursor: "pointer",
     whiteSpace: "nowrap",
@@ -101,7 +133,6 @@ export default function Header() {
     !pathname.startsWith("/register") &&
     !pathname.startsWith("/verify-email");
 
-  /* Role guard */
   React.useEffect(() => {
     if (!user) return;
 
@@ -142,9 +173,9 @@ export default function Header() {
         position: "sticky",
         top: 0,
         zIndex: 2000,
+        padding: "12px 16px",
         background:
           "linear-gradient(90deg,#0033a0 0%,#ffffff 50%,#009543 100%)",
-        padding: "10px 16px",
       }}
     >
       <div
@@ -154,47 +185,78 @@ export default function Header() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 12,
+          gap: 16,
           flexWrap: "wrap",
         }}
       >
-        {/* LOGO */}
+        {/* ================= LUXURY LOGO ================= */}
+
         <Link
           href="/"
           style={{
-            display: "flex",
-            alignItems: "baseline",
-            gap: 8,
             textDecoration: "none",
-            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            lineHeight: 1,
+            padding: "4px 6px",
           }}
         >
+          {/* Karabo's */}
           <span
             style={{
-              fontSize: "clamp(18px,4vw,26px)",
+              position: "relative",
+              fontSize: "clamp(22px,4vw,32px)",
               fontWeight: 900,
-              color: "#000",
+              letterSpacing: 1,
+              background:
+                "linear-gradient(90deg,#d4af37,#ffffff,#d4af37)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              textShadow: "0 4px 14px rgba(0,0,0,0.25)",
+              display: "inline-block",
             }}
           >
-            Karabo's
+            Karab
+            <span style={{ position: "relative", display: "inline-block" }}>
+              o
+              <BasothoHat />
+            </span>
+            ’s
           </span>
+
+          {/* STORE */}
           <span
             style={{
-              fontSize: "clamp(16px,4vw,22px)",
+              fontSize: "clamp(12px,3vw,15px)",
               fontWeight: 800,
+              letterSpacing: 6,
               color: "#111",
+              marginTop: 2,
             }}
           >
-            Boutique
+            STORE
           </span>
+
+          {/* Accent underline */}
+          <span
+            style={{
+              height: 2,
+              width: 60,
+              marginTop: 6,
+              borderRadius: 2,
+              background:
+                "linear-gradient(90deg,#0033a0,#009543)",
+            }}
+          />
         </Link>
 
-        {/* NAV */}
+        {/* ================= NAVIGATION ================= */}
+
         <nav
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
+            gap: 10,
             flexWrap: "wrap",
             justifyContent: "flex-end",
           }}
@@ -207,7 +269,9 @@ export default function Header() {
           </div>
 
           {!user && (
-            <CapsuleLink onClick={goToLogin}>Login</CapsuleLink>
+            <CapsuleLink onClick={goToLogin}>
+              Login
+            </CapsuleLink>
           )}
 
           {user && user.role === "user" && (
@@ -238,7 +302,7 @@ export default function Header() {
               style={{
                 padding: "8px 10px",
                 borderRadius: 10,
-                background: "#000",
+                background: "#111",
                 color: "#fff",
                 border: "none",
                 fontSize: 16,
