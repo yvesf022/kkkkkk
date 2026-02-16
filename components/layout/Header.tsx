@@ -9,32 +9,25 @@ import { useAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
 
 /* ---------------------------------
-   Basotho Hat Icon (Minimal Luxury)
+   Clean Basotho Hat Icon
 ---------------------------------- */
 
 function BasothoHat() {
   return (
     <svg
       viewBox="0 0 64 64"
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       style={{
         position: "absolute",
-        top: "-14px",
+        top: "-12px",
         left: "50%",
         transform: "translateX(-50%)",
       }}
     >
       <path
-        d="M8 40 Q32 10 56 40 Q32 34 8 40 Z"
+        d="M10 40 Q32 14 54 40 Q32 34 10 40 Z"
         fill="#111"
-      />
-      <rect
-        x="18"
-        y="34"
-        width="28"
-        height="4"
-        fill="#0033a0"
       />
     </svg>
   );
@@ -86,28 +79,14 @@ function CapsuleLink({
     fontSize: 13,
     textDecoration: "none",
     color: "#fff",
-    background: "rgba(0,0,0,0.65)",
+    background: "rgba(0,0,0,0.7)",
     border: "1px solid rgba(255,255,255,.15)",
     cursor: "pointer",
     whiteSpace: "nowrap",
   };
 
-  if (onClick) {
-    return (
-      <button onClick={onClick} style={baseStyle}>
-        {children}
-      </button>
-    );
-  }
-
-  if (href) {
-    return (
-      <Link href={href} style={baseStyle}>
-        {children}
-      </Link>
-    );
-  }
-
+  if (onClick) return <button onClick={onClick} style={baseStyle}>{children}</button>;
+  if (href) return <Link href={href} style={baseStyle}>{children}</Link>;
   return null;
 }
 
@@ -135,7 +114,6 @@ export default function Header() {
 
   React.useEffect(() => {
     if (!user) return;
-
     if (user.role === "admin" && !pathname.startsWith("/admin")) {
       toast.error("Admin accounts cannot access user pages");
       router.replace("/admin");
@@ -173,9 +151,9 @@ export default function Header() {
         position: "sticky",
         top: 0,
         zIndex: 2000,
-        padding: "12px 16px",
-        background:
-          "linear-gradient(90deg,#0033a0 0%,#ffffff 50%,#009543 100%)",
+        padding: "14px 16px",
+        background: "#ffffff",
+        borderBottom: "1px solid rgba(0,0,0,0.06)",
       }}
     >
       <div
@@ -189,7 +167,7 @@ export default function Header() {
           flexWrap: "wrap",
         }}
       >
-        {/* ================= LUXURY LOGO ================= */}
+        {/* ================= REFINED LOGO ================= */}
 
         <Link
           href="/"
@@ -198,21 +176,14 @@ export default function Header() {
             display: "flex",
             flexDirection: "column",
             lineHeight: 1,
-            padding: "4px 6px",
           }}
         >
-          {/* Karabo's */}
           <span
             style={{
-              position: "relative",
-              fontSize: "clamp(22px,4vw,32px)",
+              fontSize: "clamp(22px,4vw,30px)",
               fontWeight: 900,
               letterSpacing: 1,
-              background:
-                "linear-gradient(90deg,#d4af37,#ffffff,#d4af37)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              textShadow: "0 4px 14px rgba(0,0,0,0.25)",
+              color: "#0033a0",
               display: "inline-block",
             }}
           >
@@ -224,33 +195,32 @@ export default function Header() {
             ’s
           </span>
 
-          {/* STORE */}
           <span
             style={{
-              fontSize: "clamp(12px,3vw,15px)",
+              fontSize: "clamp(11px,3vw,14px)",
               fontWeight: 800,
               letterSpacing: 6,
               color: "#111",
-              marginTop: 2,
+              marginTop: 4,
             }}
           >
             STORE
           </span>
 
-          {/* Accent underline */}
+          {/* Lesotho Accent Stripe */}
           <span
             style={{
-              height: 2,
-              width: 60,
-              marginTop: 6,
+              height: 3,
+              width: 70,
+              marginTop: 8,
               borderRadius: 2,
               background:
-                "linear-gradient(90deg,#0033a0,#009543)",
+                "linear-gradient(90deg,#0033a0 0%,#ffffff 50%,#009543 100%)",
             }}
           />
         </Link>
 
-        {/* ================= NAVIGATION ================= */}
+        {/* ================= NAV ================= */}
 
         <nav
           style={{
@@ -269,30 +239,20 @@ export default function Header() {
           </div>
 
           {!user && (
-            <CapsuleLink onClick={goToLogin}>
-              Login
-            </CapsuleLink>
+            <CapsuleLink onClick={goToLogin}>Login</CapsuleLink>
           )}
 
           {user && user.role === "user" && (
             <>
-              <CapsuleLink onClick={goToAccount}>
-                Account
-              </CapsuleLink>
-              <CapsuleLink onClick={handleLogout}>
-                Logout
-              </CapsuleLink>
+              <CapsuleLink onClick={goToAccount}>Account</CapsuleLink>
+              <CapsuleLink onClick={handleLogout}>Logout</CapsuleLink>
             </>
           )}
 
           {user && user.role === "admin" && (
             <>
-              <CapsuleLink href="/admin">
-                Admin
-              </CapsuleLink>
-              <CapsuleLink onClick={handleLogout}>
-                Logout
-              </CapsuleLink>
+              <CapsuleLink href="/admin">Admin</CapsuleLink>
+              <CapsuleLink onClick={handleLogout}>Logout</CapsuleLink>
             </>
           )}
 
