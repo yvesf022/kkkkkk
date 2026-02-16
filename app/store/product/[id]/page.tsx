@@ -5,16 +5,21 @@ import { useParams } from "next/navigation";
 import toast from "react-hot-toast";
 
 import { productsApi } from "@/lib/api";
-import type { Product } from "@/lib/types";
+import type { Product, ProductListItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/currency";
 import AddToCartClient from "./AddToCartClient";
+import ProductCard from "@/components/store/ProductCard";
 
 export default function ProductPage() {
   const params = useParams();
   const productId = params?.id as string;
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [related, setRelated] = useState<ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+
+  /* ================= LOAD MAIN PRODUCT ================= */
 
   useEffect(() => {
     async function loadProduct() {
@@ -31,9 +36,40 @@ export default function ProductPage() {
     if (productId) loadProduct();
   }, [productId]);
 
+  /* ================= LOAD RELATED PRODUCTS ================= */
+
+  useEffect(() => {
+    async function loadRelated() {
+      if (!product?.category) return;
+
+      try {
+        setLoadingRelated(true);
+
+        const data = await productsApi.list({
+          category: product.category,
+          per_page: 8,
+        });
+
+        const filtered = (data as ProductListItem[])
+          .filter((p) => p.id !== product.id)
+          .slice(0, 4);
+
+        setRelated(filtered);
+      } catch {
+        console.error("Failed to load related products");
+      } finally {
+        setLoadingRelated(false);
+      }
+    }
+
+    if (product) loadRelated();
+  }, [product]);
+
+  /* ================= LOADING STATES ================= */
+
   if (loading) {
     return (
-      <div style={{ padding: 80, textAlign: "center" }}>
+      <div style={{ padding: 120, textAlign: "center" }}>
         Loading product...
       </div>
     );
@@ -41,11 +77,13 @@ export default function ProductPage() {
 
   if (!product) {
     return (
-      <div style={{ padding: 80, textAlign: "center" }}>
+      <div style={{ padding: 120, textAlign: "center" }}>
         Product not found.
       </div>
     );
   }
+
+  /* ================= DISCOUNT ================= */
 
   const discount =
     product.compare_price &&
@@ -53,34 +91,39 @@ export default function ProductPage() {
       ? Math.round(
           ((product.compare_price - product.price) /
             product.compare_price) *
-            100,
+            100
         )
       : null;
 
+  /* ========================================================= */
+
   return (
-    <div style={{ padding: "80px 0" }}>
+    <div style={{ padding: "100px 0" }}>
       <div className="container">
+        {/* ================= MAIN GRID ================= */}
+
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1.2fr 1fr",
-            gap: 60,
+            gap: 80,
             alignItems: "start",
           }}
         >
-          {/* ================= LEFT IMAGE SECTION ================= */}
+          {/* IMAGE SIDE */}
           <div>
             <div
               style={{
-                borderRadius: 24,
+                borderRadius: 28,
                 overflow: "hidden",
                 background: "#f9fafb",
                 border: "1px solid #e5e7eb",
+                boxShadow: "0 30px 80px rgba(0,0,0,0.08)",
               }}
             >
               <div
                 style={{
-                  height: 500,
+                  height: 520,
                   background: product.main_image
                     ? `url(${product.main_image}) center/cover`
                     : "#e5e7eb",
@@ -89,26 +132,36 @@ export default function ProductPage() {
             </div>
           </div>
 
-          {/* ================= RIGHT CONTENT ================= */}
-          <div style={{ display: "grid", gap: 30 }}>
-            {/* BRAND */}
+          {/* BUY BOX */}
+          <div
+            style={{
+              position: "sticky",
+              top: 120,
+              display: "grid",
+              gap: 28,
+              padding: 40,
+              borderRadius: 28,
+              border: "1px solid #e5e7eb",
+              boxShadow: "0 30px 80px rgba(0,0,0,0.06)",
+              background: "#ffffff",
+            }}
+          >
             {product.brand && (
               <div
                 style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  opacity: 0.6,
-                  letterSpacing: 1,
+                  fontSize: 13,
+                  fontWeight: 800,
+                  opacity: 0.5,
+                  letterSpacing: 1.5,
                 }}
               >
                 {product.brand.toUpperCase()}
               </div>
             )}
 
-            {/* TITLE */}
             <h1
               style={{
-                fontSize: 34,
+                fontSize: 32,
                 fontWeight: 900,
                 lineHeight: 1.2,
               }}
@@ -116,7 +169,6 @@ export default function ProductPage() {
               {product.title}
             </h1>
 
-            {/* RATING */}
             {product.rating && (
               <div
                 style={{
@@ -129,11 +181,11 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* PRICE SECTION */}
-            <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+            {/* PRICE */}
+            <div style={{ display: "grid", gap: 6 }}>
               <div
                 style={{
-                  fontSize: 28,
+                  fontSize: 30,
                   fontWeight: 900,
                   color: "var(--primary)",
                 }}
@@ -144,108 +196,123 @@ export default function ProductPage() {
               {product.compare_price && (
                 <div
                   style={{
-                    fontSize: 18,
-                    textDecoration: "line-through",
-                    opacity: 0.5,
+                    display: "flex",
+                    gap: 14,
+                    alignItems: "center",
                   }}
                 >
-                  {formatCurrency(product.compare_price)}
-                </div>
-              )}
+                  <div
+                    style={{
+                      textDecoration: "line-through",
+                      opacity: 0.5,
+                      fontSize: 16,
+                    }}
+                  >
+                    {formatCurrency(product.compare_price)}
+                  </div>
 
-              {discount && (
-                <div
-                  style={{
-                    background: "#dc2626",
-                    color: "#fff",
-                    padding: "6px 12px",
-                    borderRadius: 12,
-                    fontWeight: 800,
-                    fontSize: 12,
-                  }}
-                >
-                  -{discount}%
+                  {discount && (
+                    <div
+                      style={{
+                        background: "#dc2626",
+                        color: "#fff",
+                        padding: "6px 12px",
+                        borderRadius: 12,
+                        fontWeight: 800,
+                        fontSize: 12,
+                      }}
+                    >
+                      Save {discount}%
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* SHORT DESCRIPTION */}
             {product.short_description && (
-              <p style={{ opacity: 0.7, fontSize: 15 }}>
+              <p
+                style={{
+                  fontSize: 15,
+                  lineHeight: 1.6,
+                  opacity: 0.7,
+                }}
+              >
                 {product.short_description}
               </p>
             )}
 
-            {/* ADD TO CART */}
             <AddToCartClient product={product} />
-
-            {/* FULL DESCRIPTION */}
-            {product.description && (
-              <div
-                style={{
-                  marginTop: 40,
-                  paddingTop: 40,
-                  borderTop: "1px solid rgba(0,0,0,0.08)",
-                }}
-              >
-                <h2
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 900,
-                    marginBottom: 16,
-                  }}
-                >
-                  Product Details
-                </h2>
-                <p style={{ opacity: 0.75, lineHeight: 1.7 }}>
-                  {product.description}
-                </p>
-              </div>
-            )}
-
-            {/* SPECS */}
-            {product.specs && Object.keys(product.specs).length > 0 && (
-              <div
-                style={{
-                  marginTop: 30,
-                  padding: 24,
-                  borderRadius: 20,
-                  background: "#f9fafb",
-                  border: "1px solid #e5e7eb",
-                }}
-              >
-                <h3
-                  style={{
-                    fontWeight: 900,
-                    marginBottom: 16,
-                  }}
-                >
-                  Specifications
-                </h3>
-
-                <div style={{ display: "grid", gap: 8 }}>
-                  {Object.entries(product.specs).map(
-                    ([key, value]) => (
-                      <div
-                        key={key}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          fontSize: 14,
-                        }}
-                      >
-                        <span style={{ opacity: 0.6 }}>{key}</span>
-                        <span style={{ fontWeight: 700 }}>
-                          {String(value)}
-                        </span>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
+
+        {/* ================= DETAILS SECTION ================= */}
+
+        {product.description && (
+          <div style={{ marginTop: 100 }}>
+            <div
+              style={{
+                maxWidth: 900,
+                margin: "0 auto",
+                padding: 40,
+                borderRadius: 28,
+                background: "#ffffff",
+                border: "1px solid #e5e7eb",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.05)",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 24,
+                  fontWeight: 900,
+                  marginBottom: 24,
+                }}
+              >
+                Product Details
+              </h2>
+
+              <p
+                style={{
+                  lineHeight: 1.8,
+                  opacity: 0.75,
+                }}
+              >
+                {product.description}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ================= RELATED PRODUCTS ================= */}
+
+        {related.length > 0 && (
+          <div style={{ marginTop: 120 }}>
+            <h2
+              style={{
+                fontSize: 26,
+                fontWeight: 900,
+                marginBottom: 40,
+              }}
+            >
+              Customers Also Bought
+            </h2>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: 30,
+              }}
+            >
+              {related.map((item) => (
+                <ProductCard
+                  key={item.id}
+                  product={item}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
