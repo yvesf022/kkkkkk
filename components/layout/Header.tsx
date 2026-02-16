@@ -9,25 +9,34 @@ import { useAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
 
 /* ---------------------------------
-   Clean Basotho Hat Icon
+   Refined Basotho Hat Icon
 ---------------------------------- */
 
 function BasothoHat() {
   return (
     <svg
       viewBox="0 0 64 64"
-      width="16"
-      height="16"
+      width="20"
+      height="20"
       style={{
         position: "absolute",
-        top: "-12px",
+        top: "-16px",
         left: "50%",
         transform: "translateX(-50%)",
       }}
     >
+      {/* Hat body */}
       <path
-        d="M10 40 Q32 14 54 40 Q32 34 10 40 Z"
+        d="M8 42 Q32 10 56 42 Q32 34 8 42 Z"
         fill="#111"
+      />
+      {/* Blue stripe accent */}
+      <rect
+        x="20"
+        y="34"
+        width="24"
+        height="4"
+        fill="#0033a0"
       />
     </svg>
   );
@@ -79,7 +88,7 @@ function CapsuleLink({
     fontSize: 13,
     textDecoration: "none",
     color: "#fff",
-    background: "rgba(0,0,0,0.7)",
+    background: "rgba(0,0,0,0.65)",
     border: "1px solid rgba(255,255,255,.15)",
     cursor: "pointer",
     whiteSpace: "nowrap",
@@ -151,9 +160,9 @@ export default function Header() {
         position: "sticky",
         top: 0,
         zIndex: 2000,
-        padding: "14px 16px",
-        background: "#ffffff",
-        borderBottom: "1px solid rgba(0,0,0,0.06)",
+        padding: "12px 16px",
+        background:
+          "linear-gradient(90deg,#0033a0 0%,#ffffff 50%,#009543 100%)",
       }}
     >
       <div
@@ -167,7 +176,7 @@ export default function Header() {
           flexWrap: "wrap",
         }}
       >
-        {/* ================= REFINED LOGO ================= */}
+        {/* ================= LOGO ================= */}
 
         <Link
           href="/"
@@ -180,7 +189,7 @@ export default function Header() {
         >
           <span
             style={{
-              fontSize: "clamp(22px,4vw,30px)",
+              fontSize: "clamp(22px,4vw,32px)",
               fontWeight: 900,
               letterSpacing: 1,
               color: "#0033a0",
@@ -206,21 +215,9 @@ export default function Header() {
           >
             STORE
           </span>
-
-          {/* Lesotho Accent Stripe */}
-          <span
-            style={{
-              height: 3,
-              width: 70,
-              marginTop: 8,
-              borderRadius: 2,
-              background:
-                "linear-gradient(90deg,#0033a0 0%,#ffffff 50%,#009543 100%)",
-            }}
-          />
         </Link>
 
-        {/* ================= NAV ================= */}
+        {/* ================= NAVIGATION ================= */}
 
         <nav
           style={{
