@@ -17,21 +17,13 @@ export default function ProductCard({
   product: ProductListItem;
 }) {
   const cart = useCart();
+  const imageRef = useRef<HTMLDivElement>(null);
 
   const [adding, setAdding] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
 
-  const imageRef = useRef<HTMLDivElement>(null);
-
-  /* ================= STOCK ================= */
-
   const isOutOfStock = product.stock <= 0;
-
-  const lowStock =
-    product.stock > 0 &&
-    product.stock <= 5;
-
-  /* ================= IMAGE ================= */
+  const lowStock = product.stock > 0 && product.stock <= 5;
 
   const imageUrl =
     product.main_image?.startsWith("http")
@@ -39,8 +31,6 @@ export default function ProductCard({
       : product.main_image
       ? `${API}${product.main_image}`
       : "";
-
-  /* ================= FLY TO CART ================= */
 
   function animateFlyToCart() {
     const cartIcon = document.querySelector(
@@ -77,8 +67,6 @@ export default function ProductCard({
     setTimeout(() => clone.remove(), 700);
   }
 
-  /* ================= ADD TO CART ================= */
-
   async function handleAddToCart() {
     if (isOutOfStock) {
       notify.error("This product is out of stock");
@@ -98,37 +86,27 @@ export default function ProductCard({
     }
   }
 
-  /* ================= RENDER ================= */
-
   return (
     <motion.div
-      initial={{ opacity: 0, y: 25 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -8 }}
       transition={{ duration: 0.3 }}
-      style={{
-        borderRadius: 24,
-        overflow: "hidden",
-        background: "#ffffff",
-        border: "1px solid #e5e7eb",
-        boxShadow: "0 25px 60px rgba(0,0,0,0.07)",
-        display: "flex",
-        flexDirection: "column",
-        position: "relative",
-      }}
+      className="product-card"
     >
-      {/* ================= IMAGE ================= */}
-
+      {/* IMAGE */}
       <div style={{ position: "relative" }}>
         <Link href={`/store/product/${product.id}`}>
           <motion.div
             ref={imageRef}
-            whileHover={{ scale: 1.06 }}
+            whileHover={{ scale: 1.05 }}
             transition={{ duration: 0.4 }}
+            className="product-image"
             style={{
-              height: 260,
-              background: imageUrl
-                ? `url(${imageUrl}) center/cover`
+              backgroundImage: imageUrl
+                ? `url(${imageUrl})`
+                : undefined,
+              backgroundColor: imageUrl
+                ? undefined
                 : "#f3f4f6",
             }}
           >
@@ -138,7 +116,7 @@ export default function ProductCard({
                   display: "grid",
                   placeItems: "center",
                   height: "100%",
-                  fontSize: 42,
+                  fontSize: 40,
                 }}
               >
                 📦
@@ -149,32 +127,33 @@ export default function ProductCard({
 
         {/* WISHLIST */}
         <motion.button
-          whileTap={{ scale: 0.7 }}
-          animate={{
-            scale: wishlisted ? [1, 1.3, 1] : 1,
-          }}
+          whileTap={{ scale: 0.8 }}
+          animate={
+            wishlisted ? { scale: [1, 1.2, 1] } : {}
+          }
           transition={{ duration: 0.3 }}
           onClick={() => setWishlisted(!wishlisted)}
           style={{
             position: "absolute",
-            top: 14,
-            right: 14,
-            width: 38,
-            height: 38,
+            top: 12,
+            right: 12,
+            width: 36,
+            height: 36,
             borderRadius: "50%",
             border: "none",
             background: "#ffffff",
             display: "grid",
             placeItems: "center",
             cursor: "pointer",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.12)",
+            boxShadow:
+              "0 8px 20px rgba(0,0,0,0.12)",
             fontSize: 18,
           }}
         >
           {wishlisted ? "❤️" : "🤍"}
         </motion.button>
 
-        {/* OUT OF STOCK */}
+        {/* OUT OF STOCK OVERLAY */}
         {isOutOfStock && (
           <div
             style={{
@@ -194,17 +173,8 @@ export default function ProductCard({
         )}
       </div>
 
-      {/* ================= CONTENT ================= */}
-
-      <div
-        style={{
-          padding: 18,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          flexGrow: 1,
-        }}
-      >
+      {/* CONTENT */}
+      <div className="product-info">
         {product.brand && (
           <div
             style={{
@@ -222,19 +192,11 @@ export default function ProductCard({
           href={`/store/product/${product.id}`}
           style={{ textDecoration: "none", color: "inherit" }}
         >
-          <div
-            style={{
-              fontWeight: 700,
-              fontSize: 14,
-              lineHeight: 1.3,
-              minHeight: 40,
-            }}
-          >
+          <div className="product-title">
             {product.title}
           </div>
         </Link>
 
-        {/* RATING */}
         {product.rating && (
           <div
             style={{
@@ -247,11 +209,13 @@ export default function ProductCard({
           </div>
         )}
 
-        {/* LOW STOCK */}
         {lowStock && !isOutOfStock && (
           <motion.div
             animate={{ opacity: [1, 0.6, 1] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
+            transition={{
+              repeat: Infinity,
+              duration: 1.5,
+            }}
             style={{
               fontSize: 12,
               fontWeight: 700,
@@ -262,30 +226,14 @@ export default function ProductCard({
           </motion.div>
         )}
 
-        {/* PRICE */}
-        <div
-          style={{
-            marginTop: "auto",
-            fontWeight: 900,
-            fontSize: 18,
-            color: "var(--primary)",
-          }}
-        >
+        <div className="product-price">
           {formatCurrency(product.price)}
         </div>
 
-        {/* ACTIONS */}
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            marginTop: 12,
-          }}
-        >
+        <div style={{ display: "flex", gap: 8 }}>
           <Link
             href={`/store/product/${product.id}`}
             className="btn btnGhost"
-            style={{ flex: 1, fontSize: 13 }}
           >
             View
           </Link>
@@ -296,8 +244,6 @@ export default function ProductCard({
             disabled={isOutOfStock || adding}
             className="btn btnPrimary"
             style={{
-              flex: 1,
-              fontSize: 13,
               opacity: isOutOfStock ? 0.6 : 1,
               cursor: isOutOfStock
                 ? "not-allowed"

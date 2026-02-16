@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-
 import { productsApi } from "@/lib/api";
 import ProductCard from "@/components/store/ProductCard";
 import type { ProductListItem } from "@/lib/types";
 
 export default function StorePage() {
-  const router = useRouter();
-
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,44 +26,32 @@ export default function StorePage() {
 
   return (
     <div>
-      {/* ================= STORE HEADER ================= */}
-      <section
-        style={{
-          padding: "60px 0",
-          background: "var(--gradient-surface)",
-        }}
-      >
+      {/* ================= HEADER ================= */}
+      <section className="section-spacing">
         <div className="container">
-          <h1
-            className="text-display"
-            style={{ fontSize: 42, marginBottom: 10 }}
-          >
+          <h1 style={{ marginBottom: 12 }}>
             Explore Our Collection
           </h1>
 
-          <p style={{ opacity: 0.7 }}>
-            Discover premium fashion and beauty products curated for elegance and confidence.
+          <p style={{ opacity: 0.7, maxWidth: 600 }}>
+            Discover premium fashion and beauty
+            products curated for elegance and
+            confidence.
           </p>
         </div>
       </section>
 
       {/* ================= PRODUCT GRID ================= */}
-      <section style={{ padding: "70px 0" }}>
+      <section className="section-spacing">
         <div className="container">
           {loading ? (
-            <div className="text-center animate-pulse">
+            <div className="text-center">
               Loading products...
             </div>
           ) : products.length === 0 ? (
-            <div className="card text-center" style={{ padding: 60 }}>
-              <div style={{ fontSize: 60 }}>📦</div>
-              <h3
-                style={{
-                  fontSize: 24,
-                  fontWeight: 900,
-                  marginTop: 20,
-                }}
-              >
+            <div className="card text-center">
+              <div style={{ fontSize: 48 }}>📦</div>
+              <h3 style={{ marginTop: 20 }}>
                 No products available
               </h3>
               <p style={{ opacity: 0.6 }}>
@@ -79,7 +63,7 @@ export default function StorePage() {
               {products.map((product) => (
                 <ProductCard
                   key={product.id}
-                  product={product as any}
+                  product={product}
                 />
               ))}
             </div>

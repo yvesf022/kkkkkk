@@ -1,8 +1,7 @@
-/**
- * KARABO COMPLETE DESIGN SYSTEM v2
- * Amazon-Level Responsive Foundation
- * Global. Fluid. Production-Ready.
- */
+/* ======================================================
+   KARABO DESIGN SYSTEM v3 – CLEAN PRODUCTION BUILD
+   Fully Responsive. Stable. Consistent.
+====================================================== */
 
 /* ================= ROOT VARIABLES ================= */
 
@@ -12,10 +11,7 @@
   --primary-light: #00914d;
 
   --secondary: #0047ab;
-  --secondary-light: #2b6fcc;
-
   --accent: #d4af37;
-  --accent-light: #e6c966;
 
   --gray-50: #fafafa;
   --gray-100: #f5f5f5;
@@ -29,14 +25,12 @@
   --error: #dc2626;
 
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
-  --shadow-xl: 0 16px 48px rgba(0,0,0,0.15);
+  --shadow-md: 0 6px 20px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
 
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
-  --radius-full: 9999px;
 }
 
 /* ================= GLOBAL RESET ================= */
@@ -47,42 +41,60 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html, body {
   margin: 0;
   padding: 0;
-  overflow-x: hidden; /* 🔥 KILLS MOBILE SCROLL BUG */
+  overflow-x: hidden;
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--gray-50);
   color: var(--gray-900);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ================= RESPONSIVE TYPOGRAPHY ================= */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ================= TYPOGRAPHY ================= */
 
 h1 {
-  font-size: clamp(24px, 4vw, 38px);
+  font-size: clamp(26px, 4vw, 40px);
   font-weight: 900;
+  margin: 0 0 12px 0;
 }
 
 h2 {
-  font-size: clamp(20px, 3vw, 28px);
-  font-weight: 900;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 800;
+  margin: 0 0 10px 0;
 }
 
 h3 {
   font-size: clamp(18px, 2.5vw, 22px);
   font-weight: 800;
+  margin: 0 0 8px 0;
 }
 
 p {
   font-size: clamp(14px, 2vw, 16px);
+  margin: 0;
 }
 
-/* ================= GLOBAL CONTAINER ================= */
+/* ================= CONTAINER ================= */
 
 .container {
   width: 100%;
@@ -91,30 +103,25 @@ p {
   padding: 0 clamp(16px, 3vw, 32px);
 }
 
-/* ================= RESPONSIVE GRID SYSTEM ================= */
+/* ================= GRID SYSTEM ================= */
 
-.grid-2 {
+.product-grid {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: clamp(32px, 6vw, 80px);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: clamp(20px, 4vw, 32px);
 }
 
-@media (max-width: 1024px) {
-  .grid-2 {
-    gap: 40px;
+@media (max-width: 768px) {
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
   }
 }
 
-@media (max-width: 900px) {
-  .grid-2 {
+@media (max-width: 480px) {
+  .product-grid {
     grid-template-columns: 1fr;
   }
-}
-
-.grid-3 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: clamp(20px, 4vw, 32px);
 }
 
 /* ================= BUTTON SYSTEM ================= */
@@ -123,14 +130,14 @@ p {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: clamp(10px, 2vw, 14px) clamp(18px, 4vw, 28px);
+  min-height: 44px;
+  padding: 12px 22px;
   border-radius: var(--radius-lg);
   font-weight: 700;
-  cursor: pointer;
+  font-size: 15px;
   border: none;
+  cursor: pointer;
   transition: 0.25s ease;
-  font-size: clamp(14px, 2vw, 16px);
 }
 
 .btnPrimary {
@@ -154,12 +161,10 @@ p {
   color: var(--primary);
 }
 
-/* ================= PRODUCT GRID ================= */
-
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: clamp(20px, 4vw, 32px);
+@media (max-width: 768px) {
+  .btn {
+    width: 100%;
+  }
 }
 
 /* ================= PRODUCT CARD ================= */
@@ -169,226 +174,64 @@ p {
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-md);
-  transition: 0.3s ease;
-  cursor: pointer;
   display: flex;
   flex-direction: column;
+  transition: 0.3s ease;
 }
 
 .product-card:hover {
   transform: translateY(-6px);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+@media (max-width: 768px) {
+  .product-card:hover {
+    transform: none;
+  }
 }
 
 .product-image {
   width: 100%;
-  aspect-ratio: 1 / 1; /* 🔥 perfect square responsive */
+  aspect-ratio: 1 / 1;
   background-size: cover;
   background-position: center;
 }
 
 .product-info {
-  padding: clamp(16px, 3vw, 24px);
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .product-title {
-  font-size: clamp(15px, 2vw, 18px);
   font-weight: 800;
+  font-size: 16px;
   line-height: 1.3;
 }
 
 .product-price {
-  font-size: clamp(20px, 3vw, 26px);
+  font-size: 22px;
   font-weight: 900;
   color: var(--primary);
 }
 
-/* ================= PAYMENT SECTION ================= */
-
-.payment-instructions {
-  background: white;
-  padding: clamp(24px, 4vw, 40px);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  margin-bottom: 32px;
-}
-
-.instruction-steps {
-  display: grid;
-  gap: clamp(16px, 3vw, 24px);
-}
-
-.step {
-  display: flex;
-  gap: 16px;
-  padding: clamp(16px, 3vw, 24px);
-  background: linear-gradient(135deg, #ffffff, #f8fafb);
-  border-radius: var(--radius-lg);
-  border-left: 4px solid var(--primary);
-  flex-wrap: wrap;
-}
-
-.step-number {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
-  color: white;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-}
-
-/* ================= FILE UPLOAD ================= */
-
-.upload-area {
-  padding: clamp(24px, 6vw, 48px);
-  border: 3px dashed var(--gray-300);
-  border-radius: var(--radius-lg);
-  text-align: center;
-  cursor: pointer;
-  transition: 0.3s ease;
-}
-
-.upload-area:hover {
-  border-color: var(--primary);
-}
-
-/* ================= WHATSAPP BUTTON ================= */
-
-.whatsapp-share-btn {
-  width: 100%;
-  padding: clamp(14px, 3vw, 18px);
-  background: linear-gradient(135deg, #25D366, #128C7E);
-  color: white;
-  border-radius: var(--radius-lg);
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  transition: 0.3s ease;
-}
-
-.whatsapp-share-btn:hover {
-  transform: translateY(-2px);
-}
-
-/* ================= MOBILE OPTIMIZATION ================= */
-
-@media (max-width: 768px) {
-
-  .product-card:hover {
-    transform: none; /* remove hover shift on mobile */
-  }
-
-  .btn {
-    width: 100%;
-  }
-
-  .step {
-    flex-direction: column;
-  }
-
-}
-/* ======================================================
-   🚀 MOBILE DOMINATION SYSTEM
-   ====================================================== */
-
-/* ====== SAFE AREA SUPPORT (iPhone notch etc) ====== */
-body {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* ====== GLOBAL TAP TARGET IMPROVEMENT ====== */
-button,
-a,
-.btn {
-  min-height: 44px; /* Apple touch guideline */
-}
-
-/* ====== MOBILE HEADER COMPRESSION ====== */
-@media (max-width: 768px) {
-
-  header {
-    padding: 12px 16px !important;
-  }
-
-  .container {
-    padding: 0 16px !important;
-  }
-
-}
-
-/* ====== MOBILE PRODUCT GRID ====== */
-@media (max-width: 768px) {
-
-  .product-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-
-}
-
-@media (max-width: 480px) {
-
-  .product-grid {
-    grid-template-columns: 1fr;
-  }
-
-}
-
-/* ====== MOBILE STICKY BOTTOM BAR (PRODUCT PAGE) ====== */
-
-.mobile-buy-bar {
-  display: none;
-}
-
-@media (max-width: 768px) {
-
-  .mobile-buy-bar {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    padding: 12px 16px;
-    box-shadow: 0 -8px 24px rgba(0,0,0,0.08);
-    z-index: 1000;
-    gap: 12px;
-    align-items: center;
-  }
-
-  .mobile-buy-bar .price {
-    font-weight: 900;
-    font-size: 18px;
-    color: var(--primary);
-  }
-
-  .mobile-buy-bar button {
-    flex: 1;
-  }
-
-}
-
-/* ====== FLOATING CART BUTTON ====== */
+/* ================= FLOATING CART ================= */
 
 .floating-cart {
   position: fixed;
   bottom: 90px;
   right: 20px;
-  background: var(--primary);
-  color: white;
   width: 60px;
   height: 60px;
   border-radius: 50%;
+  background: var(--primary);
+  color: white;
   display: grid;
   place-items: center;
+  font-size: 22px;
   box-shadow: var(--shadow-lg);
   z-index: 1100;
-  font-size: 22px;
   cursor: pointer;
   transition: 0.25s ease;
 }
@@ -397,60 +240,13 @@ a,
   transform: scale(1.05);
 }
 
-/* Hide on desktop if you want */
 @media (min-width: 1024px) {
   .floating-cart {
     display: none;
   }
 }
 
-/* ====== MOBILE SIDEBAR AS DRAWER ====== */
-
-@media (max-width: 900px) {
-
-  .appShell {
-    flex-direction: column;
-  }
-
-  aside {
-    position: fixed;
-    left: -260px;
-    top: 0;
-    height: 100vh;
-    width: 260px;
-    background: white;
-    box-shadow: var(--shadow-lg);
-    transition: 0.3s ease;
-    z-index: 1200;
-  }
-
-  aside.open {
-    left: 0;
-  }
-
-}
-
-/* ====== MOBILE IMAGE OPTIMIZATION ====== */
-@media (max-width: 768px) {
-
-  .product-image {
-    aspect-ratio: 1 / 1;
-  }
-
-}
-
-/* ====== REMOVE HOVER ANIMATIONS ON MOBILE ====== */
-@media (max-width: 768px) {
-
-  .product-card:hover {
-    transform: none;
-    box-shadow: var(--shadow-md);
-  }
-
-}
-/* ======================================================
-   CART DRAWER SYSTEM
-   ====================================================== */
+/* ================= CART DRAWER ================= */
 
 .cart-backdrop {
   position: fixed;
@@ -487,13 +283,12 @@ a,
   transform: translateX(0);
 }
 
-/* Mobile bottom sheet */
 @media (max-width: 768px) {
   .cart-drawer {
     width: 100%;
     height: 85vh;
-    bottom: 0;
     top: auto;
+    bottom: 0;
     transform: translateY(100%);
     border-radius: 24px 24px 0 0;
   }
@@ -503,74 +298,30 @@ a,
   }
 }
 
-.cart-drawer-header {
-  padding: 20px;
-  border-bottom: 1px solid var(--gray-200);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* ================= UTILITIES ================= */
+
+.section-spacing {
+  padding: clamp(40px, 6vw, 70px) 0;
 }
 
-.cart-drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: grid;
-  gap: 20px;
+.text-center {
+  text-align: center;
 }
 
-.cart-item {
-  padding: 16px;
-  border-radius: 16px;
-  background: var(--gray-50);
-  transition: 0.2s ease;
+.card {
+  background: white;
+  padding: 40px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
 }
 
-.cart-item:hover {
-  background: var(--gray-100);
+.hero-grid {
+  grid-template-columns: 1fr 1.2fr;
 }
 
-.cart-item-row {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
-  font-size: 14px;
-}
-
-.cart-remove {
-  background: none;
-  border: none;
-  color: var(--error);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.cart-drawer-footer {
-  padding: 20px;
-  border-top: 1px solid var(--gray-200);
-  display: grid;
-  gap: 12px;
-}
-
-.cart-subtotal {
-  display: flex;
-  justify-content: space-between;
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.cart-count {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: var(--error);
-  color: white;
-  font-size: 12px;
-  font-weight: 700;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
+@media (max-width: 900px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
