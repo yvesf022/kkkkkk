@@ -76,7 +76,7 @@ export default function CartDrawer({ open, onClose }: Props) {
           )}
 
           {cart.items.map((item) => (
-            <div key={item.id} className="cart-item">
+            <div key={item.product_id} className="cart-item">
               <div className="cart-item-top">
                 {item.image && (
                   <img
@@ -97,7 +97,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                   <button
                     onClick={() =>
                       cart.updateQuantity(
-                        item.id,
+                        item.product_id,
                         item.quantity - 1
                       )
                     }
@@ -110,7 +110,7 @@ export default function CartDrawer({ open, onClose }: Props) {
                   <button
                     onClick={() =>
                       cart.updateQuantity(
-                        item.id,
+                        item.product_id,
                         item.quantity + 1
                       )
                     }
@@ -129,7 +129,7 @@ export default function CartDrawer({ open, onClose }: Props) {
               <button
                 className="cart-remove"
                 onClick={() =>
-                  cart.removeItem(item.id)
+                  cart.removeItem(item.product_id)
                 }
               >
                 Remove
