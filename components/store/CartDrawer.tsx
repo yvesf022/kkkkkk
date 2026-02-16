@@ -78,9 +78,9 @@ export default function CartDrawer({ open, onClose }: Props) {
           {cart.items.map((item) => (
             <div key={item.product_id} className="cart-item">
               <div className="cart-item-top">
-                {item.image && (
+                {item.main_image && (
                   <img
-                    src={item.image}
+                    src={item.main_image}
                     alt={item.title}
                     className="cart-thumb"
                   />
