@@ -1,6 +1,7 @@
 /**
- * KARABO COMPLETE DESIGN SYSTEM
- * Launch Ready – Lesotho Themed
+ * KARABO COMPLETE DESIGN SYSTEM v2
+ * Amazon-Level Responsive Foundation
+ * Global. Fluid. Production-Ready.
  */
 
 /* ================= ROOT VARIABLES ================= */
@@ -32,22 +33,24 @@
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
   --shadow-xl: 0 16px 48px rgba(0,0,0,0.15);
 
-  --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-  --gradient-secondary: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-light) 100%);
-  --gradient-surface: linear-gradient(135deg, #ffffff 0%, #f8fafb 100%);
-
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-full: 9999px;
 }
 
-/* ================= RESET ================= */
+/* ================= GLOBAL RESET ================= */
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html, body {
   margin: 0;
   padding: 0;
+  overflow-x: hidden; /* 🔥 KILLS MOBILE SCROLL BUG */
 }
 
 body {
@@ -55,6 +58,63 @@ body {
   background: var(--gray-50);
   color: var(--gray-900);
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ================= RESPONSIVE TYPOGRAPHY ================= */
+
+h1 {
+  font-size: clamp(24px, 4vw, 38px);
+  font-weight: 900;
+}
+
+h2 {
+  font-size: clamp(20px, 3vw, 28px);
+  font-weight: 900;
+}
+
+h3 {
+  font-size: clamp(18px, 2.5vw, 22px);
+  font-weight: 800;
+}
+
+p {
+  font-size: clamp(14px, 2vw, 16px);
+}
+
+/* ================= GLOBAL CONTAINER ================= */
+
+.container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 32px);
+}
+
+/* ================= RESPONSIVE GRID SYSTEM ================= */
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: clamp(32px, 6vw, 80px);
+}
+
+@media (max-width: 1024px) {
+  .grid-2 {
+    gap: 40px;
+  }
+}
+
+@media (max-width: 900px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: clamp(20px, 4vw, 32px);
 }
 
 /* ================= BUTTON SYSTEM ================= */
@@ -64,16 +124,17 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
+  padding: clamp(10px, 2vw, 14px) clamp(18px, 4vw, 28px);
   border-radius: var(--radius-lg);
   font-weight: 700;
   cursor: pointer;
   border: none;
   transition: 0.25s ease;
+  font-size: clamp(14px, 2vw, 16px);
 }
 
 .btnPrimary {
-  background: var(--gradient-primary);
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: white;
   box-shadow: var(--shadow-md);
 }
@@ -97,9 +158,11 @@ body {
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 28px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: clamp(20px, 4vw, 32px);
 }
+
+/* ================= PRODUCT CARD ================= */
 
 .product-card {
   background: white;
@@ -108,79 +171,46 @@ body {
   box-shadow: var(--shadow-md);
   transition: 0.3s ease;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .product-card:hover {
-  transform: translateY(-8px);
+  transform: translateY(-6px);
   box-shadow: var(--shadow-xl);
 }
 
 .product-image {
-  height: 280px;
+  width: 100%;
+  aspect-ratio: 1 / 1; /* 🔥 perfect square responsive */
   background-size: cover;
   background-position: center;
 }
 
 .product-info {
-  padding: 20px;
+  padding: clamp(16px, 3vw, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .product-title {
-  font-size: 18px;
+  font-size: clamp(15px, 2vw, 18px);
   font-weight: 800;
-  margin-bottom: 8px;
+  line-height: 1.3;
 }
 
 .product-price {
-  font-size: 26px;
+  font-size: clamp(20px, 3vw, 26px);
   font-weight: 900;
   color: var(--primary);
-  margin: 12px 0;
 }
 
-/* ================= STEP INDICATOR ================= */
-
-.step-indicator {
-  display: flex;
-  justify-content: center;
-  gap: 48px;
-  margin: 32px 0;
-}
-
-.step-indicator > div {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  opacity: 0.3;
-  transition: 0.3s ease;
-}
-
-.step-indicator > div.active {
-  opacity: 1;
-}
-
-.step-circle {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 3px solid var(--gray-200);
-  display: grid;
-  place-items: center;
-  font-size: 22px;
-}
-
-.step-indicator > div.active .step-circle {
-  background: var(--gradient-primary);
-  border-color: var(--primary);
-  color: white;
-}
-
-/* ================= PAYMENT INSTRUCTIONS ================= */
+/* ================= PAYMENT SECTION ================= */
 
 .payment-instructions {
   background: white;
-  padding: 32px;
+  padding: clamp(24px, 4vw, 40px);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   margin-bottom: 32px;
@@ -188,23 +218,23 @@ body {
 
 .instruction-steps {
   display: grid;
-  gap: 24px;
-  margin-top: 24px;
+  gap: clamp(16px, 3vw, 24px);
 }
 
 .step {
   display: flex;
-  gap: 20px;
-  padding: 20px;
-  background: var(--gradient-surface);
+  gap: 16px;
+  padding: clamp(16px, 3vw, 24px);
+  background: linear-gradient(135deg, #ffffff, #f8fafb);
   border-radius: var(--radius-lg);
   border-left: 4px solid var(--primary);
+  flex-wrap: wrap;
 }
 
 .step-number {
   width: 40px;
   height: 40px;
-  background: var(--gradient-primary);
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: white;
   border-radius: 50%;
   display: grid;
@@ -215,7 +245,7 @@ body {
 /* ================= FILE UPLOAD ================= */
 
 .upload-area {
-  padding: 48px;
+  padding: clamp(24px, 6vw, 48px);
   border: 3px dashed var(--gray-300);
   border-radius: var(--radius-lg);
   text-align: center;
@@ -227,9 +257,11 @@ body {
   border-color: var(--primary);
 }
 
+/* ================= WHATSAPP BUTTON ================= */
+
 .whatsapp-share-btn {
   width: 100%;
-  padding: 16px;
+  padding: clamp(14px, 3vw, 18px);
   background: linear-gradient(135deg, #25D366, #128C7E);
   color: white;
   border-radius: var(--radius-lg);
@@ -243,10 +275,302 @@ body {
   transform: translateY(-2px);
 }
 
-/* ================= CONTAINER ================= */
+/* ================= MOBILE OPTIMIZATION ================= */
 
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 24px;
+@media (max-width: 768px) {
+
+  .product-card:hover {
+    transform: none; /* remove hover shift on mobile */
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .step {
+    flex-direction: column;
+  }
+
 }
+/* ======================================================
+   🚀 MOBILE DOMINATION SYSTEM
+   ====================================================== */
+
+/* ====== SAFE AREA SUPPORT (iPhone notch etc) ====== */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ====== GLOBAL TAP TARGET IMPROVEMENT ====== */
+button,
+a,
+.btn {
+  min-height: 44px; /* Apple touch guideline */
+}
+
+/* ====== MOBILE HEADER COMPRESSION ====== */
+@media (max-width: 768px) {
+
+  header {
+    padding: 12px 16px !important;
+  }
+
+  .container {
+    padding: 0 16px !important;
+  }
+
+}
+
+/* ====== MOBILE PRODUCT GRID ====== */
+@media (max-width: 768px) {
+
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+}
+
+@media (max-width: 480px) {
+
+  .product-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/* ====== MOBILE STICKY BOTTOM BAR (PRODUCT PAGE) ====== */
+
+.mobile-buy-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  .mobile-buy-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 12px 16px;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.08);
+    z-index: 1000;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .mobile-buy-bar .price {
+    font-weight: 900;
+    font-size: 18px;
+    color: var(--primary);
+  }
+
+  .mobile-buy-bar button {
+    flex: 1;
+  }
+
+}
+
+/* ====== FLOATING CART BUTTON ====== */
+
+.floating-cart {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  background: var(--primary);
+  color: white;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-lg);
+  z-index: 1100;
+  font-size: 22px;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.floating-cart:hover {
+  transform: scale(1.05);
+}
+
+/* Hide on desktop if you want */
+@media (min-width: 1024px) {
+  .floating-cart {
+    display: none;
+  }
+}
+
+/* ====== MOBILE SIDEBAR AS DRAWER ====== */
+
+@media (max-width: 900px) {
+
+  .appShell {
+    flex-direction: column;
+  }
+
+  aside {
+    position: fixed;
+    left: -260px;
+    top: 0;
+    height: 100vh;
+    width: 260px;
+    background: white;
+    box-shadow: var(--shadow-lg);
+    transition: 0.3s ease;
+    z-index: 1200;
+  }
+
+  aside.open {
+    left: 0;
+  }
+
+}
+
+/* ====== MOBILE IMAGE OPTIMIZATION ====== */
+@media (max-width: 768px) {
+
+  .product-image {
+    aspect-ratio: 1 / 1;
+  }
+
+}
+
+/* ====== REMOVE HOVER ANIMATIONS ON MOBILE ====== */
+@media (max-width: 768px) {
+
+  .product-card:hover {
+    transform: none;
+    box-shadow: var(--shadow-md);
+  }
+
+}
+/* ======================================================
+   CART DRAWER SYSTEM
+   ====================================================== */
+
+.cart-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.3s ease;
+  z-index: 1200;
+}
+
+.cart-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cart-drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 420px;
+  height: 100vh;
+  background: white;
+  box-shadow: -8px 0 40px rgba(0,0,0,0.15);
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(.22,.9,.34,1);
+  display: flex;
+  flex-direction: column;
+  z-index: 1300;
+}
+
+.cart-drawer.open {
+  transform: translateX(0);
+}
+
+/* Mobile bottom sheet */
+@media (max-width: 768px) {
+  .cart-drawer {
+    width: 100%;
+    height: 85vh;
+    bottom: 0;
+    top: auto;
+    transform: translateY(100%);
+    border-radius: 24px 24px 0 0;
+  }
+
+  .cart-drawer.open {
+    transform: translateY(0);
+  }
+}
+
+.cart-drawer-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cart-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: grid;
+  gap: 20px;
+}
+
+.cart-item {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--gray-50);
+  transition: 0.2s ease;
+}
+
+.cart-item:hover {
+  background: var(--gray-100);
+}
+
+.cart-item-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.cart-remove {
+  background: none;
+  border: none;
+  color: var(--error);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cart-drawer-footer {
+  padding: 20px;
+  border-top: 1px solid var(--gray-200);
+  display: grid;
+  gap: 12px;
+}
+
+.cart-subtotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.cart-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--error);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+

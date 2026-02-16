@@ -314,6 +314,23 @@ export default function ProductPage() {
           </div>
         )}
       </div>
+     <div className="mobile-buy-bar">
+  <div className="price">
+    {formatCurrency(product.price)}
+  </div>
+
+  <button
+    className="btn btnPrimary"
+    onClick={() => {
+      // trigger your AddToCart logic
+      const btn = document.querySelector(".add-to-cart-trigger") as HTMLElement;
+      btn?.click();
+    }}
+  >
+    Add to Cart
+  </button>
+</div>
+
     </div>
   );
 }
