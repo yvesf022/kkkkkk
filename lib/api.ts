@@ -326,7 +326,7 @@ export const ordersApi = {
   getAdminById: (id: string): Promise<Order> =>
     request(`/api/orders/admin/${id}`),
 
-  updateShipping: (id: string, payload: { status: string }) =>
+  updateShipping: (id: string, payload: { status: string; tracking_number?: string }) =>
     request(`/api/orders/admin/${id}/shipping`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -946,5 +946,6 @@ export const adminApi = {
       body: JSON.stringify({ status }),
     }),
 };
+
 
 
