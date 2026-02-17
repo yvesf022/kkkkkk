@@ -123,7 +123,7 @@ export default function AdminOrderDetailPage() {
     try {
       if (refundAmount && parseFloat(refundAmount) < order.total_amount) {
         // Partial refund
-        await ordersApi.processPartialRefund(order.id, {
+        await adminOrdersAdvancedApi.processPartialRefund(order.id, {
           amount: parseFloat(refundAmount),
           reason: refundReason,
           notify_customer: true,
