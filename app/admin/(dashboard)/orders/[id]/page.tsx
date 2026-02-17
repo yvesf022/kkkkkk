@@ -126,14 +126,12 @@ export default function AdminOrderDetailPage() {
         await adminOrdersAdvancedApi.processPartialRefund(order.id, {
           amount: parseFloat(refundAmount),
           reason: refundReason,
-          notify_customer: true,
         });
         toast.success("Partial refund processed");
       } else {
         // Full refund
         await ordersApi.processRefund(order.id, {
           reason: refundReason,
-          notify_customer: true,
         });
         toast.success("Full refund processed");
       }
