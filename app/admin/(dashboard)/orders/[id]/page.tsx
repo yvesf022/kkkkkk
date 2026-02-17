@@ -99,7 +99,6 @@ export default function AdminOrderDetailPage() {
     try {
       await ordersApi.updateShipping(order.id, {
         status: shippingStatus,
-        tracking_number: tracking,
       });
 
       toast.success("Shipping updated");
@@ -727,6 +726,7 @@ const cancelBtn: React.CSSProperties = {
   fontWeight: 800,
   cursor: "pointer",
 };
+
 
 
 
