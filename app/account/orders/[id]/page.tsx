@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import Link from "next/link";
 
 import { useAuth } from "@/lib/auth";
-import { getMyOrders, paymentsApi } from "@/lib/api";
+import { ordersApi, paymentsApi } from "@/lib/api";
 import type { Order } from "@/lib/types";
 
 const fmtM = (v: number) =>
@@ -43,11 +42,15 @@ export default function OrderDetailsPage() {
 
   async function loadOrder() {
     try {
-      const orders: any[] = await getMyOrders();
-      const found = orders.find((o) => o.id === id);
-      if (!found) throw new Error();
-
+      // ✅ FIXED: use getById directly instead of fetching all orders and scanning
+      const found = await ordersApi.getById(id);
       setOrder(found);
+
+      // Pre-populate paymentId if a payment already exists
+      const existingPayment = found.payments?.[0];
+      if (existingPayment) {
+        setPaymentId(existingPayment.id);
+      }
     } catch {
       toast.error("Unable to access this order");
       router.replace("/account/orders");
@@ -103,9 +106,7 @@ export default function OrderDetailsPage() {
      UPLOAD PROOF
   ====================== */
 
-  async function handleUpload(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !paymentId) return;
 
@@ -127,9 +128,7 @@ export default function OrderDetailsPage() {
     try {
       await paymentsApi.uploadProof(paymentId, file);
       toast.success("Payment proof uploaded successfully");
-
       if (fileRef.current) fileRef.current.value = "";
-
       await loadOrder();
     } catch {
       toast.error("Upload failed");
@@ -147,13 +146,17 @@ export default function OrderDetailsPage() {
   if (loading || !order)
     return <div className="pageContentWrap">Loading order…</div>;
 
-  const isPending = order.status === "pending";
-  const isOnHold = order.status === "on_hold";
-  const isPaid = order.status === "paid";
-  const isRejected = order.status === "rejected";
+  // ✅ FIXED: order.status only has OrderStatus values (pending/paid/cancelled/shipped/completed)
+  const isOrderPending = order.status === "pending";
+  const isOrderPaid    = order.status === "paid";
 
-  const canCreatePayment = isPending && !paymentId;
-  const canUploadProof = isPending && paymentId;
+  // ✅ FIXED: on_hold and rejected live on payment_status, not order.status
+  const paymentStatus  = order.payment_status;
+  const isOnHold       = paymentStatus === "on_hold";
+  const isRejected     = paymentStatus === "rejected";
+
+  const canCreatePayment = isOrderPending && !paymentId;
+  const canUploadProof   = isOrderPending && !!paymentId && !isOnHold;
 
   return (
     <div className="pageContentWrap" style={{ maxWidth: 1000 }}>
@@ -171,8 +174,8 @@ export default function OrderDetailsPage() {
         </div>
       </div>
 
-      {/* PAYMENT SECTION */}
-      {isPending && (
+      {/* PAYMENT SECTION — only show when order is still pending */}
+      {isOrderPending && (
         <div className="card" style={{ display: "grid", gap: 20 }}>
 
           <h2 style={{ fontSize: 20, fontWeight: 900 }}>
@@ -250,13 +253,14 @@ export default function OrderDetailsPage() {
         </div>
       )}
 
+      {/* PAYMENT STATUS BANNERS */}
       {isOnHold && (
         <div className="card" style={{ background: "#fef3c7" }}>
           ⏳ Payment submitted. Awaiting verification.
         </div>
       )}
 
-      {isPaid && (
+      {isOrderPaid && (
         <div className="card" style={{ background: "#dcfce7" }}>
           ✅ Payment confirmed. Preparing shipment.
         </div>
