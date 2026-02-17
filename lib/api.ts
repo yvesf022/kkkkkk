@@ -1,5 +1,5 @@
 /**
- * KARABO API CLIENT – COMPLETE ENTERPRISE VERSION
+ * KARABO API CLIENT — COMPLETE ENTERPRISE VERSION
  */
 
 import type { Admin } from "@/lib/adminAuth";
@@ -35,14 +35,18 @@ async function request<T>(
 ===================================================== */
 
 export const authApi = {
-  register: (payload: any) =>
+  register: (payload: {
+    email: string;
+    password: string;
+    full_name?: string;
+  }) =>
     request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
-  login: (payload: any) =>
+  login: (payload: { email: string; password: string }) =>
     request("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -53,6 +57,22 @@ export const authApi = {
 
   logout: () =>
     request("/api/auth/logout", { method: "POST" }),
+
+  // ✅ NEW
+  requestPasswordReset: (email: string) =>
+    request("/api/auth/password/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }),
+
+  // ✅ NEW
+  confirmPasswordReset: (payload: { token: string; new_password: string }) =>
+    request("/api/auth/password/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
 };
 
 /* =====================================================
@@ -60,7 +80,7 @@ export const authApi = {
 ===================================================== */
 
 export const adminAuthApi = {
-  login: (payload: any) =>
+  login: (payload: { email: string; password: string }) =>
     request("/api/admin/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -124,20 +144,44 @@ export const productsApi = {
 ===================================================== */
 
 export const ordersApi = {
-  create: (payload: any) =>
+  create: (payload: {
+    total_amount: number;
+    shipping_address?: Record<string, any>;
+    notes?: string;
+  }) =>
     request("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
+  // ✅ renamed from myOrders → getMy (and kept myOrders as alias below)
+  getMy: (): Promise<Order[]> =>
+    request("/api/orders/my"),
+
+  /** @deprecated use getMy() */
   myOrders: (): Promise<Order[]> =>
     request("/api/orders/my"),
 
+  // ✅ NEW — fetch a single order by ID (account order detail page)
+  getById: (id: string): Promise<Order> =>
+    request(`/api/orders/${id}`),
+
+  // ✅ renamed from adminOrders → getAdmin (and kept adminOrders as alias)
+  getAdmin: (statusFilter?: string): Promise<Order[]> => {
+    const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
+    return request(`/api/orders/admin${qs}`);
+  },
+
+  /** @deprecated use getAdmin() */
   adminOrders: (): Promise<Order[]> =>
     request("/api/orders/admin"),
 
-  updateShipping: (id: string, payload: any) =>
+  // ✅ NEW — admin fetch a single order by ID (dashboard drill-down)
+  getAdminById: (id: string): Promise<Order> =>
+    request(`/api/orders/admin/${id}`),
+
+  updateShipping: (id: string, payload: { status: string }) =>
     request(`/api/orders/admin/${id}/shipping`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -145,8 +189,9 @@ export const ordersApi = {
     }),
 };
 
+// ✅ kept for backwards compat (was a standalone export in your original)
 export function getMyOrders(): Promise<Order[]> {
-  return ordersApi.myOrders();
+  return ordersApi.getMy();
 }
 
 /* =====================================================
@@ -166,8 +211,34 @@ export const paymentsApi = {
     });
   },
 
-  adminList: () =>
-    request("/api/payments/admin"),
+  // ✅ NEW — user: list own payments
+  getMy: () =>
+    request("/api/payments/my"),
+
+  // ✅ NEW — user: get one payment detail
+  getById: (paymentId: string) =>
+    request(`/api/payments/${paymentId}`),
+
+  adminList: (statusFilter?: "pending" | "on_hold" | "paid" | "rejected") => {
+    const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
+    return request(`/api/payments/admin${qs}`);
+  },
+
+  // ✅ NEW — admin: get one payment detail
+  adminGetById: (paymentId: string) =>
+    request(`/api/payments/admin/${paymentId}`),
+
+  // ✅ NEW — CRITICAL: admin approve/reject payment proof
+  review: (
+    paymentId: string,
+    status: "paid" | "rejected",
+    adminNotes?: string,
+  ) =>
+    request(`/api/payments/admin/${paymentId}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, admin_notes: adminNotes }),
+    }),
 
   getBankDetails: () =>
     request("/api/payments/bank-details"),
@@ -187,6 +258,11 @@ export const bulkUploadApi = {
     });
   },
 
+  // ✅ renamed from listUploads → list (kept listUploads as alias)
+  list: () =>
+    request("/api/products/admin/bulk-uploads"),
+
+  /** @deprecated use list() */
   listUploads: () =>
     request("/api/products/admin/bulk-uploads"),
 };
@@ -195,21 +271,36 @@ export const bulkUploadApi = {
    USER PROFILE
 ===================================================== */
 
+export const usersApi = {
+  // ✅ NEW — get current user profile
+  getMe: () =>
+    request("/api/users/me"),
+
+  // ✅ NEW — PATCH /api/users/me
+  updateMe: (payload: { full_name?: string; phone?: string }) =>
+    request("/api/users/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/users/me/avatar", {
+      method: "POST",
+      body: form,
+    });
+  },
+};
+
+// ✅ kept for backwards compat (were standalone exports in your original)
 export function uploadAvatar(file: File) {
-  const form = new FormData();
-  form.append("file", file);
-  return request("/api/users/me/avatar", {
-    method: "POST",
-    body: form,
-  });
+  return usersApi.uploadAvatar(file);
 }
 
-export function updateMe(payload: any) {
-  return request("/api/users/me", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+export function updateMe(payload: { full_name?: string; phone?: string }) {
+  return usersApi.updateMe(payload);
 }
 
 /* =====================================================
