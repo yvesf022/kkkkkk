@@ -25,7 +25,7 @@ export default function CategoryStorePage() {
 
         const data = (await productsApi.list({
           category: formattedCategory,
-        })) as ProductListItem[];
+        })).results;
 
         setProducts(data);
       } catch (err) {
