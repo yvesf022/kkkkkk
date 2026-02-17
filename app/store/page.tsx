@@ -12,7 +12,7 @@ export default function StorePage() {
   async function loadProducts() {
     try {
       const data = await productsApi.list();
-      setProducts(data);
+      setProducts(data.results);
     } catch {
       console.error("Failed to load products");
     } finally {
@@ -73,3 +73,4 @@ export default function StorePage() {
     </div>
   );
 }
+
