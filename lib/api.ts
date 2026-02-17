@@ -31,15 +31,50 @@ async function request<T>(
 }
 
 /* =====================================================
+   SHARED TYPES
+===================================================== */
+
+export type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
+export type OrderStatus   = "pending" | "paid" | "cancelled" | "shipped" | "completed";
+export type ShippingStatus = "pending" | "processing" | "shipped" | "delivered" | "returned";
+
+// ✅ FIX: explicit return type so setAnalytics(anal) compiles
+export type ProductAnalytics = {
+  sales: number;
+  revenue_estimate: number;
+  rating: number;
+  rating_number: number;
+  stock: number;
+  inventory_history: Array<{
+    type: string;
+    before: number;
+    change: number;
+    after: number;
+    note?: string;
+    created_at: string;
+  }>;
+};
+
+export type ProductVariant = {
+  id: string;
+  title: string;
+  sku?: string;
+  attributes: Record<string, string>;
+  price: number;
+  compare_price?: number;
+  stock: number;
+  in_stock: boolean;
+  image_url?: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+/* =====================================================
    USER AUTH
 ===================================================== */
 
 export const authApi = {
-  register: (payload: {
-    email: string;
-    password: string;
-    full_name?: string;
-  }) =>
+  register: (payload: { email: string; password: string; full_name?: string }) =>
     request("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -58,7 +93,6 @@ export const authApi = {
   logout: () =>
     request("/api/auth/logout", { method: "POST" }),
 
-  // ✅ NEW
   requestPasswordReset: (email: string) =>
     request("/api/auth/password/request", {
       method: "POST",
@@ -66,7 +100,6 @@ export const authApi = {
       body: JSON.stringify({ email }),
     }),
 
-  // ✅ NEW
   confirmPasswordReset: (payload: { token: string; new_password: string }) =>
     request("/api/auth/password/confirm", {
       method: "POST",
@@ -130,12 +163,95 @@ export const productsApi = {
     });
   },
 
-  listVariants(id: string) {
-    return request(`/api/products/${id}/variants`);
+  // ✅ FIX: explicit return type — this is what caused the build error
+  getAnalytics(id: string): Promise<ProductAnalytics> {
+    return request<ProductAnalytics>(`/api/products/admin/${id}/analytics`);
   },
 
-  getAnalytics(id: string) {
-    return request(`/api/products/admin/${id}/analytics`);
+  listVariants(id: string): Promise<ProductVariant[]> {
+    return request<ProductVariant[]>(`/api/products/${id}/variants`);
+  },
+
+  // ✅ NEW — lifecycle: publish / archive / draft / discontinue
+  lifecycle(id: string, action: "publish" | "archive" | "draft" | "discontinue") {
+    return request(`/api/products/admin/${id}/lifecycle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+  },
+
+  // ✅ NEW — soft delete
+  softDelete(id: string) {
+    return request(`/api/products/admin/${id}`, { method: "DELETE" });
+  },
+
+  // ✅ NEW — duplicate as draft
+  duplicate(id: string): Promise<{ id: string }> {
+    return request<{ id: string }>(`/api/products/admin/${id}/duplicate`, {
+      method: "POST",
+    });
+  },
+
+  // ✅ NEW — upload product image
+  uploadImage(productId: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return request(`/api/products/admin/${productId}/images`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  // ✅ NEW — delete a product image
+  deleteImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}`, {
+      method: "DELETE",
+    });
+  },
+
+  // ✅ NEW — set image as primary
+  setImagePrimary(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}/primary`, {
+      method: "PATCH",
+    });
+  },
+
+  // ✅ NEW — create product variant
+  createVariant(productId: string, payload: {
+    title: string;
+    sku?: string;
+    price: number;
+    stock: number;
+    attributes: Record<string, string>;
+    image_url?: string;
+  }) {
+    return request<ProductVariant>(`/api/products/${productId}/variants`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // ✅ NEW — delete a variant
+  deleteVariant(variantId: string) {
+    return request(`/api/products/admin/variants/${variantId}`, {
+      method: "DELETE",
+    });
+  },
+
+  // ✅ NEW — update inventory (stock adjustment)
+  updateInventory(productId: string, payload: {
+    stock: number;
+    note?: string;
+    type?: string;
+    reference?: string;
+  }) {
+    return request(`/api/products/admin/${productId}/inventory`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
   },
 };
 
@@ -155,7 +271,6 @@ export const ordersApi = {
       body: JSON.stringify(payload),
     }),
 
-  // ✅ renamed from myOrders → getMy (and kept myOrders as alias below)
   getMy: (): Promise<Order[]> =>
     request("/api/orders/my"),
 
@@ -163,11 +278,9 @@ export const ordersApi = {
   myOrders: (): Promise<Order[]> =>
     request("/api/orders/my"),
 
-  // ✅ NEW — fetch a single order by ID (account order detail page)
   getById: (id: string): Promise<Order> =>
     request(`/api/orders/${id}`),
 
-  // ✅ renamed from adminOrders → getAdmin (and kept adminOrders as alias)
   getAdmin: (statusFilter?: string): Promise<Order[]> => {
     const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
     return request(`/api/orders/admin${qs}`);
@@ -177,7 +290,6 @@ export const ordersApi = {
   adminOrders: (): Promise<Order[]> =>
     request("/api/orders/admin"),
 
-  // ✅ NEW — admin fetch a single order by ID (dashboard drill-down)
   getAdminById: (id: string): Promise<Order> =>
     request(`/api/orders/admin/${id}`),
 
@@ -189,7 +301,7 @@ export const ordersApi = {
     }),
 };
 
-// ✅ kept for backwards compat (was a standalone export in your original)
+// kept for backwards compat
 export function getMyOrders(): Promise<Order[]> {
   return ordersApi.getMy();
 }
@@ -211,24 +323,21 @@ export const paymentsApi = {
     });
   },
 
-  // ✅ NEW — user: list own payments
   getMy: () =>
     request("/api/payments/my"),
 
-  // ✅ NEW — user: get one payment detail
   getById: (paymentId: string) =>
     request(`/api/payments/${paymentId}`),
 
-  adminList: (statusFilter?: "pending" | "on_hold" | "paid" | "rejected") => {
+  adminList: (statusFilter?: PaymentStatus) => {
     const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
     return request(`/api/payments/admin${qs}`);
   },
 
-  // ✅ NEW — admin: get one payment detail
   adminGetById: (paymentId: string) =>
     request(`/api/payments/admin/${paymentId}`),
 
-  // ✅ NEW — CRITICAL: admin approve/reject payment proof
+  // ✅ CRITICAL — admin approve/reject payment proof
   review: (
     paymentId: string,
     status: "paid" | "rejected",
@@ -258,7 +367,6 @@ export const bulkUploadApi = {
     });
   },
 
-  // ✅ renamed from listUploads → list (kept listUploads as alias)
   list: () =>
     request("/api/products/admin/bulk-uploads"),
 
@@ -272,11 +380,9 @@ export const bulkUploadApi = {
 ===================================================== */
 
 export const usersApi = {
-  // ✅ NEW — get current user profile
   getMe: () =>
     request("/api/users/me"),
 
-  // ✅ NEW — PATCH /api/users/me
   updateMe: (payload: { full_name?: string; phone?: string }) =>
     request("/api/users/me", {
       method: "PATCH",
@@ -294,7 +400,7 @@ export const usersApi = {
   },
 };
 
-// ✅ kept for backwards compat (were standalone exports in your original)
+// kept for backwards compat
 export function uploadAvatar(file: File) {
   return usersApi.uploadAvatar(file);
 }
