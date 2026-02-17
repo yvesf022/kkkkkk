@@ -156,7 +156,7 @@ export default function OrderDetailsPage() {
     if (!confirm("Cancel this order?")) return;
 
     try {
-      await ordersApi.cancel(order.id, { reason: cancelReason });
+      await ordersApi.cancel(order.id, cancelReason );
       toast.success("Order cancelled");
       setShowCancel(false);
       setCancelReason("");
