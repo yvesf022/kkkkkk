@@ -193,9 +193,7 @@ export default function OrderDetailsPage() {
 
     try {
       const amount = refundAmount ? parseFloat(refundAmount) : undefined;
-      await ordersApi.requestRefund(order.id, { reason: refundReason,
-        amount,
-      , amount: order.total_amount });
+      await ordersApi.requestRefund(order.id, { reason: refundReason, amount: order.total_amount });
       toast.success("Refund request submitted");
       setShowRefund(false);
       setRefundReason("");
@@ -546,4 +544,5 @@ export default function OrderDetailsPage() {
     </div>
   );
 }
+
 
