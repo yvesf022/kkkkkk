@@ -3,7 +3,7 @@
  */
 
 import type { Admin } from "@/lib/adminAuth";
-import type { Order, ProductListItem, Product } from "@/lib/types";
+import type { Order, ProductListItem, Product, ProductStatus } from "@/lib/types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
@@ -240,6 +240,22 @@ export const productsApi = {
     });
   },
 
+  // ✅ NEW — reorder product images
+  reorderImages(productId: string, imageIds: string[]) {
+    return request(`/api/products/admin/${productId}/images/reorder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_ids: imageIds }),
+    });
+  },
+
+  // ✅ NEW — set main/primary image (alias for setImagePrimary with different arg)
+  setMainImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}/primary`, {
+      method: "PATCH",
+    });
+  },
+
   // ✅ NEW — update inventory (stock adjustment)
   updateInventory(productId: string, payload: {
     stock: number;
@@ -470,4 +486,12 @@ export function updateMe(payload: { full_name?: string; phone?: string }) {
 export const adminApi = {
   getDashboard: () =>
     request("/api/admin/dashboard"),
+
+  // ✅ NEW — update product status (active / inactive / archived / etc.)
+  updateProductStatus: (productId: string, status: ProductStatus) =>
+    request(`/api/products/admin/${productId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    }),
 };
