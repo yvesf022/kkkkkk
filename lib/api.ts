@@ -1,10 +1,10 @@
 /**
- * KARABO API CLIENT – ENTERPRISE COMPLETE VERSION
- * Fully aligned with backend API specification
+ * KARABO API CLIENT – COMPLETE ENTERPRISE VERSION
+ * All 100+ endpoints for your e-commerce platform
  */
 
 import type { Admin } from "@/lib/adminAuth";
-import type { Order, ProductListItem, Product, ProductStatus, Payment } from "@/lib/types";
+import type { Order, ProductListItem, Product, ProductStatus } from "@/lib/types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
@@ -36,7 +36,7 @@ async function request<T>(
 ===================================================== */
 
 export type PaymentStatus = "pending" | "on_hold" | "paid" | "rejected";
-export type OrderStatus = "pending" | "paid" | "cancelled" | "shipped" | "completed";
+export type OrderStatus   = "pending" | "paid" | "cancelled" | "shipped" | "completed";
 export type ShippingStatus = "pending" | "processing" | "shipped" | "delivered" | "returned";
 
 export type ProductAnalytics = {
@@ -90,7 +90,8 @@ export const authApi = {
 
   me: () => request("/api/auth/me"),
 
-  logout: () => request("/api/auth/logout", { method: "POST" }),
+  logout: () =>
+    request("/api/auth/logout", { method: "POST" }),
 
   requestPasswordReset: (email: string) =>
     request("/api/auth/password/request", {
@@ -119,9 +120,11 @@ export const adminAuthApi = {
       body: JSON.stringify(payload),
     }),
 
-  me: (): Promise<Admin> => request("/api/admin/auth/me"),
+  me: (): Promise<Admin> =>
+    request("/api/admin/auth/me"),
 
-  logout: () => request("/api/admin/auth/logout", { method: "POST" }),
+  logout: () =>
+    request("/api/admin/auth/logout", { method: "POST" }),
 };
 
 /* =====================================================
@@ -168,6 +171,45 @@ export const productsApi = {
     return request<ProductVariant[]>(`/api/products/${id}/variants`);
   },
 
+  lifecycle(id: string, action: "publish" | "archive" | "draft" | "discontinue") {
+    return request(`/api/products/admin/${id}/lifecycle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+  },
+
+  softDelete(id: string) {
+    return request(`/api/products/admin/${id}`, { method: "DELETE" });
+  },
+
+  duplicate(id: string): Promise<{ id: string }> {
+    return request<{ id: string }>(`/api/products/admin/${id}/duplicate`, {
+      method: "POST",
+    });
+  },
+
+  uploadImage(productId: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return request(`/api/products/admin/${productId}/images`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  deleteImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}`, {
+      method: "DELETE",
+    });
+  },
+
+  setImagePrimary(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}/primary`, {
+      method: "PATCH",
+    });
+  },
+
   createVariant(productId: string, payload: {
     title: string;
     sku?: string;
@@ -183,149 +225,36 @@ export const productsApi = {
     });
   },
 
-  updateVariant(variantId: string, payload: any) {
-    return request(`/api/products/variants/${variantId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  },
-
   deleteVariant(variantId: string) {
-    return request(`/api/products/variants/${variantId}`, {
+    return request(`/api/products/admin/variants/${variantId}`, {
       method: "DELETE",
     });
   },
 
-  duplicateVariant(variantId: string) {
-    return request(`/api/products/variants/${variantId}/duplicate`, {
-      method: "POST",
-    });
-  },
-
-  bulkUpdateVariants(payload: any) {
-    return request(`/api/products/variants/bulk`, {
+  reorderImages(productId: string, imageIds: string[]) {
+    return request(`/api/products/admin/${productId}/images/reorder`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ image_ids: imageIds }),
     });
   },
 
-  softDelete(id: string) {
-    return request(`/api/products/${id}`, { method: "DELETE" });
-  },
-
-  hardDelete(id: string) {
-    return request(`/api/products/${id}/hard`, { method: "DELETE" });
-  },
-
-  duplicate(id: string): Promise<{ id: string }> {
-    return request<{ id: string }>(`/api/products/${id}/duplicate`, {
-      method: "POST",
-    });
-  },
-
-  archive(id: string) {
-    return request(`/api/products/${id}/archive`, { method: "POST" });
-  },
-
-  restore(id: string) {
-    return request(`/api/products/${id}/restore`, { method: "POST" });
-  },
-
-  publish(id: string) {
-    return request(`/api/products/${id}/publish`, { method: "POST" });
-  },
-
-  draft(id: string) {
-    return request(`/api/products/${id}/draft`, { method: "POST" });
-  },
-
-  bulkMutate(payload: any) {
-    return request(`/api/products/admin/bulk`, {
+  setMainImage(imageId: string) {
+    return request(`/api/products/admin/images/${imageId}/primary`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
     });
   },
 
-  bulkDelete(productIds: string[]) {
-    return request(`/api/products/admin/bulk-delete`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_ids: productIds }),
-    });
-  },
-
-  emptyStore() {
-    return request(`/api/products/admin/empty-store`, {
-      method: "DELETE",
-    });
-  },
-
-  bulkArchive(productIds: string[]) {
-    return request(`/api/products/admin/bulk-archive`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_ids: productIds }),
-    });
-  },
-
-  bulkActivate(productIds: string[]) {
-    return request(`/api/products/admin/bulk-activate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_ids: productIds }),
-    });
-  },
-
-  bulkDeactivate(productIds: string[]) {
-    return request(`/api/products/admin/bulk-deactivate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_ids: productIds }),
-    });
-  },
-
-  bulkDiscount(payload: { product_ids: string[]; discount_percent: number }) {
-    return request(`/api/products/admin/bulk-discount`, {
+  updateInventory(productId: string, payload: {
+    stock: number;
+    note?: string;
+    type?: string;
+    reference?: string;
+  }) {
+    return request(`/api/products/admin/${productId}/inventory`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    });
-  },
-
-  bulkCategory(payload: { product_ids: string[]; category: string }) {
-    return request(`/api/products/admin/bulk-category`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  },
-
-  bulkStore(payload: { product_ids: string[]; store: string }) {
-    return request(`/api/products/admin/bulk-store`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  },
-
-  importValidate(file: File) {
-    const form = new FormData();
-    form.append("file", file);
-    return request(`/api/products/admin/import-validate`, {
-      method: "POST",
-      body: form,
-    });
-  },
-
-  importPreview(file: File) {
-    const form = new FormData();
-    form.append("file", file);
-    return request(`/api/products/admin/import-preview`, {
-      method: "POST",
-      body: form,
     });
   },
 
@@ -347,46 +276,12 @@ export const productsApi = {
     URL.revokeObjectURL(url);
   },
 
-  bulkAddImages(productId: string, files: File[]) {
-    const form = new FormData();
-    files.forEach(file => form.append("files", file));
-    return request(`/api/products/${productId}/images/bulk`, {
-      method: "POST",
-      body: form,
-    });
-  },
-
-  setImagePosition(imageId: string, position: number) {
-    return request(`/api/products/images/${imageId}/position`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ position }),
-    });
-  },
-
-  setPrimaryImage(imageId: string) {
-    return request(`/api/products/images/${imageId}/set-primary`, {
-      method: "PATCH",
-    });
-  },
-
-  updateInventory(productId: string, payload: {
-    adjustment: number;
-    note?: string;
-  }) {
-    return request(`/api/products/${productId}/inventory`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  },
-
   updateVariantInventory(variantId: string, payload: {
-    adjustment: number;
+    stock: number;
     note?: string;
   }) {
-    return request(`/api/products/variants/${variantId}/inventory`, {
-      method: "PATCH",
+    return request(`/api/products/admin/variants/${variantId}/inventory`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -409,107 +304,74 @@ export const ordersApi = {
       body: JSON.stringify(payload),
     }),
 
-  getMy: (): Promise<Order[]> => request("/api/orders/my"),
+  getMy: (): Promise<Order[]> =>
+    request("/api/orders/my"),
 
-  getById: (id: string): Promise<Order> => request(`/api/orders/${id}`),
+  /** @deprecated use getMy() */
+  myOrders: (): Promise<Order[]> =>
+    request("/api/orders/my"),
+
+  getById: (id: string): Promise<Order> =>
+    request(`/api/orders/${id}`),
 
   getAdmin: (statusFilter?: string): Promise<Order[]> => {
     const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
     return request(`/api/orders/admin${qs}`);
   },
 
+  /** @deprecated use getAdmin() */
+  adminOrders: (): Promise<Order[]> =>
+    request("/api/orders/admin"),
+
   getAdminById: (id: string): Promise<Order> =>
     request(`/api/orders/admin/${id}`),
 
-  updateShipping: (id: string, payload: { status: string; tracking_number?: string }) =>
-    request(`/api/admin/orders/${id}/shipping`, {
+  updateShipping: (id: string, payload: { status: string }) =>
+    request(`/api/orders/admin/${id}/shipping`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
-  cancel: (id: string, payload: { reason?: string }) =>
-    request(`/api/orders/${id}/cancel`, {
+  // NEW ENTERPRISE FEATURES
+  cancel: (orderId: string, reason: string) =>
+    request(`/api/orders/${orderId}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    }),
+
+  requestReturn: (orderId: string, reason: string) =>
+    request(`/api/orders/${orderId}/return`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    }),
+
+  requestRefund: (orderId: string, payload: { reason: string; amount: number }) =>
+    request(`/api/orders/${orderId}/refund-request`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
-  requestReturn: (id: string, payload: { reason: string; items?: any[] }) =>
-    request(`/api/orders/${id}/return`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
+  getTracking: (orderId: string) =>
+    request(`/api/orders/${orderId}/tracking`),
 
-  requestRefund: (id: string, payload: { reason: string; amount?: number }) =>
-    request(`/api/orders/${id}/refund-request`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-
-  getTracking: (id: string) => request(`/api/orders/${id}/tracking`),
-
-  getInvoice: (id: string) => request(`/api/orders/${id}/invoice`),
-
-  // Admin advanced
-  adminCancel: (id: string) =>
-    request(`/api/admin/orders/${id}/cancel`, { method: "POST" }),
-
-  hardDelete: (id: string) =>
-    request(`/api/admin/orders/${id}`, { method: "DELETE" }),
-
-  forceStatusOverride: (id: string, payload: { status: OrderStatus; reason?: string }) =>
-    request(`/api/admin/orders/${id}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-
-  processRefund: (id: string, payload: { reason?: string; notify_customer?: boolean }) =>
-    request(`/api/admin/orders/${id}/refund`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-
-  processPartialRefund: (id: string, payload: {
-    amount: number;
-    reason?: string;
-    notify_customer?: boolean;
-  }) =>
-    request(`/api/admin/orders/${id}/partial-refund`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-
-  getNotes: (id: string) => request(`/api/admin/orders/${id}/notes`),
-
-  createNote: (id: string, payload: { content: string; is_internal?: boolean }) =>
-    request(`/api/admin/orders/${id}/notes`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-
-  deleteNote: (orderId: string, noteId: string) =>
-    request(`/api/admin/orders/${orderId}/notes/${noteId}`, {
-      method: "DELETE",
-    }),
-
-  restore: (id: string) =>
-    request(`/api/admin/orders/${id}/restore`, { method: "POST" }),
+  getInvoice: (orderId: string) =>
+    request(`/api/orders/${orderId}/invoice`),
 };
+
+// kept for backwards compat
+export function getMyOrders(): Promise<Order[]> {
+  return ordersApi.getMy();
+}
 
 /* =====================================================
    PAYMENTS
 ===================================================== */
 
 export const paymentsApi = {
-  getBankDetails: () => request("/api/payments/bank-details"),
-
   create: (orderId: string) =>
     request(`/api/payments/${orderId}`, { method: "POST" }),
 
@@ -522,40 +384,18 @@ export const paymentsApi = {
     });
   },
 
-  resubmitProof: (paymentId: string, file: File) => {
-    const form = new FormData();
-    form.append("proof", file);
-    return request(`/api/payments/${paymentId}/resubmit-proof`, {
-      method: "POST",
-      body: form,
-    });
-  },
+  getMy: () =>
+    request("/api/payments/my"),
 
-  getMy: (): Promise<Payment[]> => request("/api/payments/my"),
-
-  getById: (paymentId: string): Promise<Payment> =>
+  getById: (paymentId: string) =>
     request(`/api/payments/${paymentId}`),
 
-  cancel: (paymentId: string, payload?: { reason?: string }) =>
-    request(`/api/payments/${paymentId}/cancel`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload || {}),
-    }),
-
-  retry: (orderId: string) =>
-    request(`/api/payments/${orderId}/retry`, { method: "POST" }),
-
-  getStatusHistory: (paymentId: string) =>
-    request(`/api/payments/${paymentId}/status-history`),
-
-  // Admin
   adminList: (statusFilter?: PaymentStatus) => {
     const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
     return request(`/api/payments/admin${qs}`);
   },
 
-  adminGetById: (paymentId: string): Promise<Payment> =>
+  adminGetById: (paymentId: string) =>
     request(`/api/payments/admin/${paymentId}`),
 
   review: (
@@ -569,84 +409,53 @@ export const paymentsApi = {
       body: JSON.stringify({ status, admin_notes: adminNotes }),
     }),
 
-  hardDelete: (paymentId: string) =>
-    request(`/api/payments/admin/${paymentId}`, { method: "DELETE" }),
+  getBankDetails: () =>
+    request("/api/payments/bank-details"),
 
-  forceStatusOverride: (paymentId: string, payload: {
-    status: PaymentStatus;
-    reason?: string;
-  }) =>
-    request(`/api/payments/admin/${paymentId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-
-  getHistory: (paymentId: string) =>
-    request(`/api/payments/admin/${paymentId}/history`),
-};
-
-/* =====================================================
-   BULK UPLOAD
-===================================================== */
-
-export const bulkUploadApi = {
-  upload: (file: File) => {
+  // NEW ENTERPRISE FEATURES
+  resubmitProof: (paymentId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request("/api/products/admin/bulk-upload", {
+    return request(`/api/payments/${paymentId}/resubmit-proof`, {
       method: "POST",
       body: form,
     });
   },
 
-  list: () => request("/api/products/admin/bulk-uploads"),
-};
-
-/* =====================================================
-   USER PROFILE
-===================================================== */
-
-export const usersApi = {
-  getMe: () => request("/api/users/me"),
-
-  updateMe: (payload: { full_name?: string; phone?: string }) =>
-    request("/api/users/me", {
-      method: "PATCH",
+  cancel: (paymentId: string, reason: string) =>
+    request(`/api/payments/${paymentId}/cancel`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ reason }),
     }),
 
-  uploadAvatar: (file: File) => {
-    const form = new FormData();
-    form.append("file", file);
-    return request("/api/users/me/avatar", {
+  retry: (orderId: string) =>
+    request(`/api/payments/${orderId}/retry`, {
       method: "POST",
-      body: form,
-    });
-  },
+    }),
 
-  getRecentlyViewed: () => request("/api/users/me/recently-viewed"),
-
-  clearRecentlyViewed: () =>
-    request("/api/users/me/recently-viewed", { method: "DELETE" }),
+  getStatusHistory: (paymentId: string) =>
+    request(`/api/payments/${paymentId}/status-history`),
 };
 
 /* =====================================================
-   ADDRESSES
+   ADDRESSES (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const addressesApi = {
-  list: () => request("/api/users/me/addresses"),
+  list: () =>
+    request("/api/users/me/addresses"),
 
   create: (payload: {
-    label?: string;
+    label: string;
     full_name: string;
     phone: string;
-    address: string;
+    address_line1: string;
+    address_line2?: string;
     city: string;
-    district?: string;
-    postal_code?: string;
+    state?: string;
+    postal_code: string;
+    country: string;
   }) =>
     request("/api/users/me/addresses", {
       method: "POST",
@@ -654,7 +463,17 @@ export const addressesApi = {
       body: JSON.stringify(payload),
     }),
 
-  update: (addressId: string, payload: any) =>
+  update: (addressId: string, payload: Partial<{
+    label: string;
+    full_name: string;
+    phone: string;
+    address_line1: string;
+    address_line2: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  }>) =>
     request(`/api/users/me/addresses/${addressId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -662,7 +481,9 @@ export const addressesApi = {
     }),
 
   delete: (addressId: string) =>
-    request(`/api/users/me/addresses/${addressId}`, { method: "DELETE" }),
+    request(`/api/users/me/addresses/${addressId}`, {
+      method: "DELETE",
+    }),
 
   setDefault: (addressId: string) =>
     request(`/api/users/me/addresses/${addressId}/set-default`, {
@@ -671,11 +492,12 @@ export const addressesApi = {
 };
 
 /* =====================================================
-   CART
+   CART (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const cartApi = {
-  get: () => request("/api/cart"),
+  get: () =>
+    request("/api/cart"),
 
   addItem: (payload: {
     product_id: string;
@@ -696,37 +518,53 @@ export const cartApi = {
     }),
 
   removeItem: (itemId: string) =>
-    request(`/api/cart/items/${itemId}`, { method: "DELETE" }),
+    request(`/api/cart/items/${itemId}`, {
+      method: "DELETE",
+    }),
 
-  clear: () => request("/api/cart/clear", { method: "DELETE" }),
+  clear: () =>
+    request("/api/cart/clear", {
+      method: "DELETE",
+    }),
 
-  merge: (payload: { items: any[] }) =>
+  merge: (guestCartItems: Array<{
+    product_id: string;
+    variant_id?: string;
+    quantity: number;
+  }>) =>
     request("/api/cart/merge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ guest_cart_items: guestCartItems }),
     }),
 };
 
 /* =====================================================
-   WISHLIST
+   WISHLIST (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const wishlistApi = {
-  get: () => request("/api/wishlist"),
+  get: () =>
+    request("/api/wishlist"),
 
   add: (productId: string) =>
-    request(`/api/wishlist/${productId}`, { method: "POST" }),
+    request(`/api/wishlist/${productId}`, {
+      method: "POST",
+    }),
 
   remove: (productId: string) =>
-    request(`/api/wishlist/${productId}`, { method: "DELETE" }),
+    request(`/api/wishlist/${productId}`, {
+      method: "DELETE",
+    }),
 
   moveToCart: (productId: string) =>
-    request(`/api/wishlist/${productId}/move-to-cart`, { method: "POST" }),
+    request(`/api/wishlist/${productId}/move-to-cart`, {
+      method: "POST",
+    }),
 };
 
 /* =====================================================
-   REVIEWS
+   REVIEWS (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const reviewsApi = {
@@ -735,17 +573,17 @@ export const reviewsApi = {
     title?: string;
     comment?: string;
   }) =>
-    request(`/api/reviews/products/${productId}/reviews`, {
+    request(`/api/products/${productId}/reviews`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
-  update: (reviewId: string, payload: {
-    rating?: number;
-    title?: string;
-    comment?: string;
-  }) =>
+  update: (reviewId: string, payload: Partial<{
+    rating: number;
+    title: string;
+    comment: string;
+  }>) =>
     request(`/api/reviews/${reviewId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -753,78 +591,95 @@ export const reviewsApi = {
     }),
 
   delete: (reviewId: string) =>
-    request(`/api/reviews/${reviewId}`, { method: "DELETE" }),
+    request(`/api/reviews/${reviewId}`, {
+      method: "DELETE",
+    }),
 
-  getMy: () => request("/api/reviews/users/me/reviews"),
+  getMy: () =>
+    request("/api/users/me/reviews"),
 
-  vote: (reviewId: string, payload: { vote: "up" | "down" }) =>
+  vote: (reviewId: string, isHelpful: boolean) =>
     request(`/api/reviews/${reviewId}/vote`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ is_helpful: isHelpful }),
     }),
 };
 
 /* =====================================================
-   PRODUCT Q&A
+   PRODUCT Q&A (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const productQAApi = {
-  createQuestion: (productId: string, payload: { question: string }) =>
+  askQuestion: (productId: string, question: string) =>
     request(`/api/products/${productId}/questions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ question }),
     }),
 
   getQuestions: (productId: string) =>
     request(`/api/products/${productId}/questions`),
 
-  answerQuestion: (questionId: string, payload: { answer: string }) =>
-    request(`/api/products/questions/${questionId}/answer`, {
+  answerQuestion: (questionId: string, answer: string) =>
+    request(`/api/questions/${questionId}/answer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ answer }),
     }),
 };
 
 /* =====================================================
-   SEARCH
+   SEARCH (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const searchApi = {
-  search: (query: string, params?: Record<string, any>) => {
-    const allParams = { q: query, ...params };
-    const qs = new URLSearchParams(allParams).toString();
+  search: (params: {
+    q: string;
+    category?: string;
+    brand?: string;
+    min_price?: number;
+    max_price?: number;
+    in_stock?: boolean;
+    page?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined)
+      ) as Record<string, string>
+    ).toString();
     return request(`/api/search?${qs}`);
   },
 
-  suggestions: (query: string) => {
-    const qs = new URLSearchParams({ q: query }).toString();
-    return request(`/api/search/suggestions?${qs}`);
-  },
+  suggestions: (q: string, limit = 10) =>
+    request(`/api/search/suggestions?q=${encodeURIComponent(q)}&limit=${limit}`),
 };
 
 /* =====================================================
-   CATEGORIES & BRANDS
+   CATEGORIES & BRANDS (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const categoriesApi = {
-  list: () => request("/api/categories"),
-  
-  get: (categoryId: string) => request(`/api/categories/${categoryId}`),
+  list: () =>
+    request("/api/categories"),
+
+  get: (categoryId: string) =>
+    request(`/api/categories/${categoryId}`),
 };
 
 export const brandsApi = {
-  list: () => request("/api/brands"),
+  list: () =>
+    request("/api/brands"),
 };
 
 /* =====================================================
-   NOTIFICATIONS
+   NOTIFICATIONS (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const notificationsApi = {
-  list: () => request("/api/notifications"),
+  list: () =>
+    request("/api/notifications"),
 
   markRead: (notificationId: string) =>
     request(`/api/notifications/${notificationId}/read`, {
@@ -832,41 +687,52 @@ export const notificationsApi = {
     }),
 
   markAllRead: () =>
-    request("/api/notifications/read-all", { method: "PATCH" }),
+    request("/api/notifications/read-all", {
+      method: "PATCH",
+    }),
 
   delete: (notificationId: string) =>
-    request(`/api/notifications/${notificationId}`, { method: "DELETE" }),
+    request(`/api/notifications/${notificationId}`, {
+      method: "DELETE",
+    }),
 };
 
 /* =====================================================
-   COUPONS
+   COUPONS (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const couponsApi = {
-  apply: (code: string) =>
+  apply: (code: string, orderTotal: number) =>
     request("/api/coupons/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, order_total: orderTotal }),
     }),
 
-  remove: () => request("/api/coupons/remove", { method: "DELETE" }),
+  remove: () =>
+    request("/api/coupons/remove", {
+      method: "DELETE",
+    }),
 
-  getAvailable: () => request("/api/coupons/available"),
+  getAvailable: () =>
+    request("/api/coupons/available"),
 
-  getMy: () => request("/api/coupons/my"),
+  getMy: () =>
+    request("/api/coupons/my"),
 };
 
 /* =====================================================
-   WALLET
+   WALLET & LOYALTY (NEW ENTERPRISE FEATURE)
 ===================================================== */
 
 export const walletApi = {
-  get: () => request("/api/wallet"),
+  get: () =>
+    request("/api/wallet"),
 
-  getTransactions: () => request("/api/wallet/transactions"),
+  getTransactions: (limit = 50) =>
+    request(`/api/wallet/transactions?limit=${limit}`),
 
-  redeem: (points: number) =>
+  redeemPoints: (points: number) =>
     request("/api/wallet/redeem", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -875,192 +741,188 @@ export const walletApi = {
 };
 
 /* =====================================================
-   ADMIN CORE
+   ADMIN - ORDERS ADVANCED (NEW ENTERPRISE FEATURES)
 ===================================================== */
 
-export const adminApi = {
-  getDashboard: () => request("/api/admin/dashboard"),
-
-  // Analytics
-  getAnalyticsOverview: () => request("/api/admin/analytics/overview"),
-
-  getAnalyticsRevenue: (params?: Record<string, any>) => {
-    const qs = params ? new URLSearchParams(params).toString() : "";
-    return request(`/api/admin/analytics/revenue${qs ? `?${qs}` : ""}`);
-  },
-
-  getTopProducts: () => request("/api/admin/analytics/top-products"),
-
-  getDeadStock: () => request("/api/admin/analytics/dead-stock"),
-
-  getStockTurnover: () => request("/api/admin/analytics/stock-turnover"),
-
-  // Orders Analytics
-  getOrdersAnalytics: () => request("/api/admin/orders/analytics"),
-
-  getOrdersRevenue: (params?: Record<string, any>) => {
-    const qs = params ? new URLSearchParams(params).toString() : "";
-    return request(`/api/admin/orders/revenue${qs ? `?${qs}` : ""}`);
-  },
-
-  getOrdersConversion: () => request("/api/admin/orders/conversion"),
-
-  // Inventory
-  getLowStock: () => request("/api/admin/inventory/low-stock"),
-
-  getOutOfStock: () => request("/api/admin/inventory/out-of-stock"),
-
-  getInventoryReport: () => request("/api/admin/inventory/report"),
-
-  adjustInventory: (payload: {
-    product_id: string;
-    adjustment: number;
-    reason?: string;
-  }) =>
-    request("/api/admin/inventory/adjust", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+export const adminOrdersAdvancedApi = {
+  hardDelete: (orderId: string) =>
+    request(`/api/admin/orders/${orderId}`, {
+      method: "DELETE",
     }),
 
-  recordIncoming: (payload: {
-    product_id: string;
-    quantity: number;
-    supplier?: string;
-    reference?: string;
-  }) =>
-    request("/api/admin/inventory/incoming", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-
-  // Stores
-  listStores: () => request("/api/admin/stores"),
-
-  createStore: (payload: { name: string; description?: string }) =>
-    request("/api/admin/stores", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-
-  updateStore: (storeId: string, payload: any) =>
-    request(`/api/admin/stores/${storeId}`, {
+  forceStatus: (orderId: string, payload: { status: string; reason: string }) =>
+    request(`/api/admin/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
-  deleteStore: (storeId: string) =>
-    request(`/api/admin/stores/${storeId}`, { method: "DELETE" }),
-
-  // Audit Logs
-  getLogs: (params?: Record<string, any>) => {
-    const qs = params ? new URLSearchParams(params).toString() : "";
-    return request(`/api/admin/logs${qs ? `?${qs}` : ""}`);
-  },
-
-  getEntityLogs: (entityId: string) =>
-    request(`/api/admin/logs/${entityId}`),
-
-  // Verification
-  verifyPassword: (password: string) =>
-    request("/api/admin/verify-password", {
+  processRefund: (orderId: string, payload: { amount: number; reason: string }) =>
+    request(`/api/admin/orders/${orderId}/refund`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(payload),
     }),
 
-  updateProductStatus: (productId: string, status: ProductStatus) =>
-    request(`/api/admin/products/${productId}/status`, {
+  processPartialRefund: (orderId: string, payload: { amount: number; reason: string }) =>
+    request(`/api/admin/orders/${orderId}/partial-refund`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(payload),
+    }),
+
+  getNotes: (orderId: string) =>
+    request(`/api/admin/orders/${orderId}/notes`),
+
+  addNote: (orderId: string, payload: { note: string; is_internal: boolean }) =>
+    request(`/api/admin/orders/${orderId}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+
+  deleteNote: (orderId: string, noteId: string) =>
+    request(`/api/admin/orders/${orderId}/notes/${noteId}`, {
+      method: "DELETE",
+    }),
+
+  restore: (orderId: string) =>
+    request(`/api/admin/orders/${orderId}/restore`, {
+      method: "POST",
     }),
 };
 
 /* =====================================================
-   ADMIN USERS
+   ADMIN - PAYMENTS ADVANCED (NEW ENTERPRISE FEATURES)
 ===================================================== */
 
-export const adminUsersApi = {
-  list: (params?: Record<string, any>) => {
-    const qs = params ? new URLSearchParams(params).toString() : "";
-    return request(`/api/admin/users${qs ? `?${qs}` : ""}`);
-  },
-
-  disable: (userId: string) =>
-    request(`/api/admin/users/${userId}/disable`, { method: "POST" }),
-
-  enable: (userId: string) =>
-    request(`/api/admin/users/${userId}/enable`, { method: "POST" }),
-
-  changeRole: (userId: string, role: "user" | "admin") =>
-    request(`/api/admin/users/${userId}/role`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
+export const adminPaymentsAdvancedApi = {
+  hardDelete: (paymentId: string) =>
+    request(`/api/payments/admin/${paymentId}`, {
+      method: "DELETE",
     }),
 
-  hardDelete: (userId: string) =>
-    request(`/api/admin/users/${userId}`, { method: "DELETE" }),
+  forceStatus: (paymentId: string, payload: { status: string; reason: string }) =>
+    request(`/api/payments/admin/${paymentId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
 
-  forcePasswordReset: (userId: string) =>
+  getHistory: (paymentId: string) =>
+    request(`/api/payments/admin/${paymentId}/history`),
+};
+
+/* =====================================================
+   ADMIN - USERS ADVANCED (NEW ENTERPRISE FEATURES)
+===================================================== */
+
+export const adminUsersAdvancedApi = {
+  hardDelete: (userId: string) =>
+    request(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+    }),
+
+  forcePasswordReset: (userId: string, reason: string) =>
     request(`/api/admin/users/${userId}/force-password-reset`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
     }),
 
-  getActivity: (userId: string) =>
-    request(`/api/admin/users/${userId}/activity`),
+  getActivity: (userId: string, limit = 50) =>
+    request(`/api/admin/users/${userId}/activity?limit=${limit}`),
 
-  getAllSessions: () => request("/api/admin/sessions"),
+  listSessions: (activeOnly = true) =>
+    request(`/api/admin/sessions?active_only=${activeOnly}`),
 
   deleteSession: (sessionId: string) =>
-    request(`/api/admin/sessions/${sessionId}`, { method: "DELETE" }),
+    request(`/api/admin/sessions/${sessionId}`, {
+      method: "DELETE",
+    }),
 };
 
 /* =====================================================
-   BANK SETTINGS (Admin)
+   BULK UPLOAD
 ===================================================== */
 
-export const bankSettingsApi = {
-  get: () => request("/api/payments/admin/bank-settings"),
-
-  create: (payload: {
-    bank_name: string;
-    account_name: string;
-    account_number: string;
-    branch?: string;
-    swift_code?: string;
-    mobile_money_provider?: string;
-    mobile_money_number?: string;
-    mobile_money_name?: string;
-    instructions?: string;
-    is_primary?: boolean;
-  }) =>
-    request("/api/payments/admin/bank-settings", {
+export const bulkUploadApi = {
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/products/admin/bulk-upload", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
+      body: form,
+    });
+  },
 
-  update: (settingsId: string, payload: any) =>
-    request(`/api/payments/admin/bank-settings/${settingsId}`, {
+  validate: (file: File): Promise<{
+    total_rows: number;
+    valid: boolean;
+    errors: { row: number; field: string; error: string }[];
+    warnings: { row: number; field: string; warning: string }[];
+  }> => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/products/admin/bulk-upload/validate", {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  preview: (file: File): Promise<{
+    total_rows: number;
+    preview: {
+      title: string;
+      price: string;
+      category: string;
+      stock: string;
+      parent_asin: string;
+      store: string;
+    }[];
+  }> => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/products/admin/bulk-upload/preview", {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  list: () =>
+    request("/api/products/admin/bulk-uploads"),
+
+  /** @deprecated use list() */
+  listUploads: () =>
+    request("/api/products/admin/bulk-uploads"),
+};
+
+/* =====================================================
+   USER PROFILE
+===================================================== */
+
+export const usersApi = {
+  getMe: () =>
+    request("/api/users/me"),
+
+  updateMe: (payload: { full_name?: string; phone?: string }) =>
+    request("/api/users/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/users/me/avatar", {
+      method: "POST",
+      body: form,
+    });
+  },
 };
 
-/* =====================================================
-   BACKWARD COMPATIBILITY EXPORTS
-===================================================== */
-
-export function getMyOrders(): Promise<Order[]> {
-  return ordersApi.getMy();
-}
-
+// kept for backwards compat
 export function uploadAvatar(file: File) {
   return usersApi.uploadAvatar(file);
 }
@@ -1068,3 +930,19 @@ export function uploadAvatar(file: File) {
 export function updateMe(payload: { full_name?: string; phone?: string }) {
   return usersApi.updateMe(payload);
 }
+
+/* =====================================================
+   ADMIN CORE
+===================================================== */
+
+export const adminApi = {
+  getDashboard: () =>
+    request("/api/admin/dashboard"),
+
+  updateProductStatus: (productId: string, status: ProductStatus) =>
+    request(`/api/products/admin/${productId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    }),
+};
