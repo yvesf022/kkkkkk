@@ -174,7 +174,7 @@ export default function OrderDetailsPage() {
     if (!order) return;
 
     try {
-      await ordersApi.requestReturn(order.id, { reason: returnReason });
+      await ordersApi.requestReturn(order.id, returnReason );
       toast.success("Return request submitted");
       setShowReturn(false);
       setReturnReason("");
@@ -544,5 +544,6 @@ export default function OrderDetailsPage() {
     </div>
   );
 }
+
 
 
