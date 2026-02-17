@@ -159,7 +159,7 @@ export default function AdminProductDetailPage() {
 
   /* ─── LIFECYCLE ─── */
 
-  async function lifecycle(action: string) {
+  async function lifecycle(action: "publish" | "archive" | "draft" | "discontinue") {
     try {
       await productsApi.lifecycle(id, action);
       toast.success(`Product ${action}d`);
