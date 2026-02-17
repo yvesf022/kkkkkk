@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { ordersApi } from "@/lib/api";
+import { adminOrdersAdvancedApi } from "@/lib/api";
 import type { Order, OrderNote, OrderStatus } from "@/lib/types";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
@@ -75,7 +75,7 @@ export default function AdminOrderDetailPage() {
 
   async function loadNotes() {
     try {
-      const data = await ordersApi.getNotes(id);
+      const data = await adminOrdersAdvancedApi.getNotes(id);
       setNotes(data as OrderNote[]);
     } catch (error) {
       console.error("Failed to load notes:", error);
