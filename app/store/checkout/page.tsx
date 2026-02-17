@@ -94,7 +94,7 @@ export default function CheckoutPage() {
     }
 
     try {
-      const result = await couponsApi.apply(couponCode);
+      const result = await couponsApi.apply(couponCode, subtotal);
       const coupon = result as any;
       
       setAppliedCoupon(coupon);
@@ -150,7 +150,7 @@ export default function CheckoutPage() {
     }
 
     try {
-      const result = await addressesApi.create(newAddress);
+      const result = await addressesApi.create({ label: 'Home', full_name: newAddress.full_name, phone: newAddress.phone, address_line1: newAddress.address, city: newAddress.city, state: newAddress.district, postal_code: newAddress.postal_code, country: 'Lesotho' });
       const addr = result as Address;
       
       setAddresses([...addresses, addr]);
@@ -194,7 +194,7 @@ export default function CheckoutPage() {
     try {
       // Redeem wallet points if used
       if (useWallet && walletPoints > 0) {
-        await walletApi.redeem(walletPoints);
+        await walletApi.redeemPoints(walletPoints);
       }
 
       const order = await cart.createOrder(selectedAddress);

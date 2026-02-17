@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { paymentsApi } from "@/lib/api";
+import { paymentsApi, adminPaymentsAdvancedApi } from "@/lib/api";
 import type { Payment, PaymentStatus } from "@/lib/types";
 
 /* ======================
@@ -85,7 +85,7 @@ export default function AdminPaymentsPage() {
     setUpdatingId(paymentId);
 
     try {
-      await paymentsApi.forceStatusOverride(paymentId, {
+      await adminPaymentsAdvancedApi.forceStatus(paymentId, {
         status: overrideStatus,
         reason: overrideReason,
       });
@@ -111,7 +111,7 @@ export default function AdminPaymentsPage() {
     setUpdatingId(paymentId);
 
     try {
-      await paymentsApi.hardDelete(paymentId);
+      await adminPaymentsAdvancedApi.hardDelete(paymentId);
       toast.success("Payment deleted permanently");
       await load();
     } catch (err: any) {
@@ -127,7 +127,7 @@ export default function AdminPaymentsPage() {
 
   async function loadHistory(paymentId: string) {
     try {
-      const data = await paymentsApi.getHistory(paymentId);
+      const data = await adminPaymentsAdvancedApi.getHistory(paymentId);
       setHistory(data as any[]);
       setShowHistory(paymentId);
     } catch (err: any) {

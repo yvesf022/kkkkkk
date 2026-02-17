@@ -279,7 +279,7 @@ export const useCart = create<CartState>()(
 
         try {
           // Send local items to server for merging
-          await cartApi.merge({ items: state.items });
+          await cartApi.merge(state.items);
           
           // Fetch merged cart
           await get().syncWithServer();

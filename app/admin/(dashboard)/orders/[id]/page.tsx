@@ -222,7 +222,7 @@ export default function AdminOrderDetailPage() {
     setUpdating(true);
 
     try {
-      await ordersApi.hardDelete(id);
+      await adminOrdersAdvancedApi.hardDelete(id);
       toast.success("Order deleted permanently");
       router.replace("/admin/orders");
     } catch (error: any) {
@@ -242,7 +242,7 @@ export default function AdminOrderDetailPage() {
     setUpdating(true);
 
     try {
-      await ordersApi.adminCancel(id);
+      await adminOrdersAdvancedApi.forceStatus(id, { status: overrideStatus, reason: overrideReason });
       toast.success("Order cancelled");
       await load();
     } catch (error: any) {
