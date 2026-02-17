@@ -129,8 +129,7 @@ export default function AdminOrderDetailPage() {
         toast.success("Partial refund processed");
       } else {
         // Full refund
-        await adminOrdersAdvancedApi.processRefund(order.id, { reason: refundReason,
-        , amount: order.total_amount });
+        await adminOrdersAdvancedApi.processRefund(order.id, { reason: refundReason, amount: order.total_amount });
         toast.success("Full refund processed");
       }
 
@@ -725,6 +724,7 @@ const cancelBtn: React.CSSProperties = {
   fontWeight: 800,
   cursor: "pointer",
 };
+
 
 
 
