@@ -178,7 +178,7 @@ export default function AdminOrderDetailPage() {
     if (!confirm("Delete this note?")) return;
 
     try {
-      await ordersApi.deleteNote(id, noteId);
+      await adminOrdersAdvancedApi.deleteNote(id, noteId);
       toast.success("Note deleted");
       await loadNotes();
     } catch (error: any) {
@@ -724,6 +724,7 @@ const cancelBtn: React.CSSProperties = {
   fontWeight: 800,
   cursor: "pointer",
 };
+
 
 
 
