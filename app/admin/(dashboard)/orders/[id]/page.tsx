@@ -130,7 +130,7 @@ export default function AdminOrderDetailPage() {
         toast.success("Partial refund processed");
       } else {
         // Full refund
-        await ordersApi.refund(order.id, {
+        await adminOrdersAdvancedApi.processRefund(order.id, {
           reason: refundReason,
         });
         toast.success("Full refund processed");
@@ -727,4 +727,6 @@ const cancelBtn: React.CSSProperties = {
   fontWeight: 800,
   cursor: "pointer",
 };
+
+
 
