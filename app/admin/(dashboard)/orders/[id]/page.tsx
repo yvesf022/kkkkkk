@@ -154,8 +154,8 @@ export default function AdminOrderDetailPage() {
     setUpdating(true);
 
     try {
-      await ordersApi.createNote(id, {
-        content: newNote,
+      await adminOrdersAdvancedApi.addNote(id, {
+        note: newNote,
         is_internal: isInternal,
       });
 
@@ -724,6 +724,7 @@ const cancelBtn: React.CSSProperties = {
   fontWeight: 800,
   cursor: "pointer",
 };
+
 
 
 
