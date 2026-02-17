@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { adminOrdersAdvancedApi } from "@/lib/api";
+import { ordersApi, adminOrdersAdvancedApi } from "@/lib/api";
 import type { Order, OrderNote, OrderStatus } from "@/lib/types";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
@@ -729,3 +729,4 @@ const cancelBtn: React.CSSProperties = {
   fontWeight: 800,
   cursor: "pointer",
 };
+
