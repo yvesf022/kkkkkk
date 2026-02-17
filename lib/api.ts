@@ -253,6 +253,25 @@ export const productsApi = {
       body: JSON.stringify(payload),
     });
   },
+
+  // ✅ NEW — export catalog as CSV download
+  async exportCsv(params: { status?: string; store?: string } = {}) {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v))
+    ).toString();
+    const res = await fetch(
+      `${API_BASE_URL}/api/products/admin/export${qs ? `?${qs}` : ""}`,
+      { credentials: "include" }
+    );
+    if (!res.ok) throw new Error("Export failed");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `products-export-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };
 
 /* =====================================================
@@ -362,6 +381,41 @@ export const bulkUploadApi = {
     const form = new FormData();
     form.append("file", file);
     return request("/api/products/admin/bulk-upload", {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  // ✅ NEW — validate CSV before importing
+  validate: (file: File): Promise<{
+    total_rows: number;
+    valid: boolean;
+    errors: { row: number; field: string; error: string }[];
+    warnings: { row: number; field: string; warning: string }[];
+  }> => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/products/admin/bulk-upload/validate", {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  // ✅ NEW — preview first N rows before importing
+  preview: (file: File): Promise<{
+    total_rows: number;
+    preview: {
+      title: string;
+      price: string;
+      category: string;
+      stock: string;
+      parent_asin: string;
+      store: string;
+    }[];
+  }> => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/products/admin/bulk-upload/preview", {
       method: "POST",
       body: form,
     });
