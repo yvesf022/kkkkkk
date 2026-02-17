@@ -196,7 +196,7 @@ export default function AdminOrderDetailPage() {
     setUpdating(true);
 
     try {
-      await ordersApi.forceStatusOverride(id, {
+      await adminOrdersAdvancedApi.forceStatus(id, {
         status: overrideStatus,
         reason: overrideReason,
       });
@@ -724,6 +724,7 @@ const cancelBtn: React.CSSProperties = {
   fontWeight: 800,
   cursor: "pointer",
 };
+
 
 
 
