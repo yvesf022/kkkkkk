@@ -334,11 +334,11 @@ export const ordersApi = {
     }),
 
   // NEW ENTERPRISE FEATURES
-  cancel: (orderId: string, reason: string) =>
+  cancel: (orderId: string, payload: { reason: string }) =>
     request(`/api/orders/${orderId}/cancel`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify(payload),
     }),
 
   requestReturn: (orderId: string, reason: string) =>
