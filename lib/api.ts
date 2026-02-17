@@ -1,5 +1,5 @@
 /**
- * API CLIENT – FULL ENTERPRISE VERSION (FIXED)
+ * KARABO API CLIENT – COMPLETE ENTERPRISE VERSION
  */
 
 import type { Admin } from "@/lib/adminAuth";
@@ -15,9 +15,6 @@ async function request<T>(
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     credentials: "include",
-    headers: {
-      ...(options.headers || {}),
-    },
   });
 
   if (!res.ok) {
@@ -26,57 +23,78 @@ async function request<T>(
       const data = await res.json();
       message = data.detail || data.message || message;
     } catch {}
-
-    const error = new Error(message) as Error & { status?: number };
-    error.status = res.status;
-    throw error;
+    throw new Error(message);
   }
 
-  if (res.status === 204) {
-    return null as T;
-  }
-
-  return res.json() as Promise<T>;
+  if (res.status === 204) return null as T;
+  return res.json();
 }
+
+/* =====================================================
+   USER AUTH
+===================================================== */
+
+export const authApi = {
+  register: (payload: any) =>
+    request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+
+  login: (payload: any) =>
+    request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+
+  me: () => request("/api/auth/me"),
+
+  logout: () =>
+    request("/api/auth/logout", { method: "POST" }),
+};
+
+/* =====================================================
+   ADMIN AUTH
+===================================================== */
+
+export const adminAuthApi = {
+  login: (payload: any) =>
+    request("/api/admin/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+
+  me: (): Promise<Admin> =>
+    request("/api/admin/auth/me"),
+
+  logout: () =>
+    request("/api/admin/auth/logout", { method: "POST" }),
+};
 
 /* =====================================================
    PRODUCTS
 ===================================================== */
 
 export const productsApi = {
-
-  /* ───────────────── PUBLIC ───────────────── */
-
-  list(params: Record<string, any> = {}): Promise<{ total: number; results: ProductListItem[] }> {
-    const query = new URLSearchParams();
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) query.append(k, String(v));
-    });
-    const qs = query.toString();
-    return request(`/api/products${qs ? `?${qs}` : ""}`);
+  list(params: Record<string, any> = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return request<{ total: number; results: ProductListItem[] }>(
+      `/api/products${qs ? `?${qs}` : ""}`
+    );
   },
 
-  get(productId: string): Promise<Product> {
-    return request<Product>(`/api/products/${productId}`);
+  get(id: string): Promise<Product> {
+    return request(`/api/products/${id}`);
   },
 
-  /* ───────────────── ADMIN CORE ───────────────── */
-
-  adminList(params: Record<string, any> = {}) {
-    const query = new URLSearchParams();
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) query.append(k, String(v));
-    });
-    const qs = query.toString();
-    return request(`/api/products/admin/list${qs ? `?${qs}` : ""}`);
+  getAdmin(id: string): Promise<Product> {
+    return request(`/api/products/admin/${id}`);
   },
 
-  // 🔥 FIXED: This was missing (caused your build error)
-  getAdmin(productId: string): Promise<Product> {
-    return request<Product>(`/api/products/admin/${productId}`);
-  },
-
-  create(payload: Record<string, any>) {
+  create(payload: any) {
     return request("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -84,128 +102,121 @@ export const productsApi = {
     });
   },
 
-  update(productId: string, payload: Record<string, any>) {
-    return request(`/api/products/admin/${productId}`, {
+  update(id: string, payload: any) {
+    return request(`/api/products/admin/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
   },
 
-  /* ───────────────── LIFECYCLE ───────────────── */
-
-  lifecycle(id: string, action: "publish" | "draft" | "archive" | "restore") {
-    return request(`/api/products/${id}/${action}`, { method: "POST" });
+  listVariants(id: string) {
+    return request(`/api/products/${id}/variants`);
   },
 
-  softDelete(id: string) {
-    return request(`/api/products/${id}`, { method: "DELETE" });
+  getAnalytics(id: string) {
+    return request(`/api/products/admin/${id}/analytics`);
   },
+};
 
-  hardDelete(id: string) {
-    return request(`/api/products/${id}/hard`, { method: "DELETE" });
-  },
+/* =====================================================
+   ORDERS
+===================================================== */
 
-  duplicate(id: string) {
-    return request(`/api/products/${id}/duplicate`, { method: "POST" });
-  },
-
-  /* ───────────────── VARIANTS ───────────────── */
-
-  listVariants(productId: string) {
-    return request(`/api/products/${productId}/variants`);
-  },
-
-  createVariant(productId: string, data: any) {
-    return request(`/api/products/${productId}/variants`, {
+export const ordersApi = {
+  create: (payload: any) =>
+    request("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-  },
+      body: JSON.stringify(payload),
+    }),
 
-  updateVariant(variantId: string, data: any) {
-    return request(`/api/products/variants/${variantId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-  },
+  myOrders: (): Promise<Order[]> =>
+    request("/api/orders/my"),
 
-  deleteVariant(variantId: string) {
-    return request(`/api/products/variants/${variantId}`, {
-      method: "DELETE",
-    });
-  },
+  adminOrders: (): Promise<Order[]> =>
+    request("/api/orders/admin"),
 
-  duplicateVariant(variantId: string) {
-    return request(`/api/products/variants/${variantId}/duplicate`, {
+  updateShipping: (id: string, payload: any) =>
+    request(`/api/orders/admin/${id}/shipping`, {
       method: "POST",
-    });
-  },
-
-  /* ───────────────── INVENTORY ───────────────── */
-
-  updateInventory(productId: string, data: any) {
-    return request(`/api/products/${productId}/inventory`, {
-      method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-  },
+      body: JSON.stringify(payload),
+    }),
+};
 
-  updateVariantInventory(variantId: string, data: any) {
-    return request(`/api/products/variants/${variantId}/inventory`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-  },
+export function getMyOrders(): Promise<Order[]> {
+  return ordersApi.myOrders();
+}
 
-  /* ───────────────── IMAGES ───────────────── */
+/* =====================================================
+   PAYMENTS
+===================================================== */
 
-  uploadImage(productId: string, file: File) {
+export const paymentsApi = {
+  create: (orderId: string) =>
+    request(`/api/payments/${orderId}`, { method: "POST" }),
+
+  uploadProof: (paymentId: string, file: File) => {
     const form = new FormData();
-    form.append("file", file);
-    return request(`/api/products/admin/${productId}/images`, {
+    form.append("proof", file);
+    return request(`/api/payments/${paymentId}/proof`, {
       method: "POST",
       body: form,
     });
   },
 
-  deleteImage(imageId: string) {
-    return request(`/api/products/admin/images/${imageId}`, {
-      method: "DELETE",
+  adminList: () =>
+    request("/api/payments/admin"),
+
+  getBankDetails: () =>
+    request("/api/payments/bank-details"),
+};
+
+/* =====================================================
+   BULK UPLOAD
+===================================================== */
+
+export const bulkUploadApi = {
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/products/admin/bulk-upload", {
+      method: "POST",
+      body: form,
     });
   },
 
-  setImagePrimary(imageId: string) {
-    return request(`/api/products/images/${imageId}/set-primary`, {
-      method: "PATCH",
-    });
-  },
+  listUploads: () =>
+    request("/api/products/admin/bulk-uploads"),
+};
 
-  /* ───────────────── ANALYTICS ───────────────── */
+/* =====================================================
+   USER PROFILE
+===================================================== */
 
-  getAnalytics(productId: string) {
-    return request(`/api/products/admin/${productId}/analytics`);
-  },
+export function uploadAvatar(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return request("/api/users/me/avatar", {
+    method: "POST",
+    body: form,
+  });
+}
 
-  /* ───────────────── BULK ───────────────── */
+export function updateMe(payload: any) {
+  return request("/api/users/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
 
-  bulkMutate(payload: any) {
-    return request("/api/products/admin/bulk", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  },
+/* =====================================================
+   ADMIN CORE
+===================================================== */
 
-  emptyStore() {
-    return request("/api/products/admin/empty-store", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ confirm: true }),
-    });
-  },
+export const adminApi = {
+  getDashboard: () =>
+    request("/api/admin/dashboard"),
 };
