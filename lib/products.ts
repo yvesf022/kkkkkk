@@ -36,7 +36,7 @@ export type ProductListParams = {
 export async function listProducts(
   params: ProductListParams = {},
 ): Promise<ProductListItem[]> {
-  return (await productsApi.list(params)) as ProductListItem[];
+  return (await productsApi.list(params)).results;
 }
 
 /* =====================================================
@@ -143,3 +143,4 @@ export async function setMainProductImage(
 ): Promise<void> {
   await productsApi.setMainImage(imageId);
 }
+
