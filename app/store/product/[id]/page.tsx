@@ -50,7 +50,7 @@ export default function ProductPage() {
           per_page: 8,
         });
 
-        const filtered = (data as ProductListItem[])
+        const filtered = data.results
           .filter((p) => p.id !== product.id)
           .slice(0, 4);
 
@@ -334,3 +334,4 @@ export default function ProductPage() {
     </div>
   );
 }
+
