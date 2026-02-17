@@ -341,11 +341,11 @@ export const ordersApi = {
       body: JSON.stringify(payload),
     }),
 
-  requestReturn: (orderId: string, reason: string) =>
+  requestReturn: (orderId: string, payload: { reason: string }) =>
     request(`/api/orders/${orderId}/return`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify(payload),
     }),
 
   requestRefund: (orderId: string, payload: { reason: string; amount: number }) =>
@@ -946,3 +946,5 @@ export const adminApi = {
       body: JSON.stringify({ status }),
     }),
 };
+
+
