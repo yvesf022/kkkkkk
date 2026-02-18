@@ -158,13 +158,20 @@ export type ProductListItem = {
   title: string;
   short_description?: string | null;
   price: number;
+  compare_price?: number | null;
+  sku?: string | null;
   brand?: string | null;
   rating?: number | null;
+  rating_number?: number | null;
   sales: number;
   category?: string | null;
+  main_category?: string | null;
   stock: number;
+  in_stock?: boolean;
+  status?: ProductStatus;
+  image_url?: string | null;
   main_image?: string | null;
-  images: string[];
+  images?: string[];
   created_at: string;
 };
 
