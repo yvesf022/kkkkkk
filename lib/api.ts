@@ -1,5 +1,5 @@
-﻿/**
- * KARABO API CLIENT â€“ COMPLETE ENTERPRISE VERSION
+/**
+ * KARABO API CLIENT – COMPLETE ENTERPRISE VERSION
  * All 100+ endpoints for your e-commerce platform
  */
 
@@ -144,7 +144,7 @@ export const productsApi = {
   },
 
   getAdmin(id: string): Promise<Product> {
-    return request(`/api/products/admin/${id}`);
+    return request(`/api/products/${id}`);
   },
 
   create(payload: any) {
@@ -156,7 +156,7 @@ export const productsApi = {
   },
 
   update(id: string, payload: any) {
-    return request(`/api/products/admin/${id}`, {
+    return request(`/api/products/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -164,7 +164,7 @@ export const productsApi = {
   },
 
   getAnalytics(id: string): Promise<ProductAnalytics> {
-    return request<ProductAnalytics>(`/api/products/admin/${id}/analytics`);
+    return request<ProductAnalytics>(`/api/products/${id}/analytics`);
   },
 
   listVariants(id: string): Promise<ProductVariant[]> {
@@ -172,7 +172,7 @@ export const productsApi = {
   },
 
   lifecycle(id: string, action: "publish" | "archive" | "draft" | "discontinue") {
-    return request(`/api/products/admin/${id}/lifecycle`, {
+    return request(`/api/products/${id}/lifecycle`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
@@ -180,11 +180,11 @@ export const productsApi = {
   },
 
   softDelete(id: string) {
-    return request(`/api/products/admin/${id}`, { method: "DELETE" });
+    return request(`/api/products/${id}`, { method: "DELETE" });
   },
 
   duplicate(id: string): Promise<{ id: string }> {
-    return request<{ id: string }>(`/api/products/admin/${id}/duplicate`, {
+    return request<{ id: string }>(`/api/products/${id}/duplicate`, {
       method: "POST",
     });
   },
@@ -966,3 +966,4 @@ export const adminApi = {
       body: JSON.stringify({ status }),
     }),
 };
+
