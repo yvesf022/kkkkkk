@@ -20,7 +20,7 @@ function formatPrice(price: string | number) {
   return `M ${Number(price).toFixed(2)}`;
 }
 
-const INTERVAL = 10000; // 10 seconds
+const INTERVAL = 7000; // 7 seconds
 
 export default function HomePage() {
   const router = useRouter();
