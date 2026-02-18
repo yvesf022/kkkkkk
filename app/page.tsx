@@ -26,33 +26,30 @@ export default function HomePage() {
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [hero4, setHero4] = useState<ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pool, setPool] = useState<ProductListItem[]>([]);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   async function load() {
     setLoading(true);
     try {
-      // First fetch page 1 to know total, then pick a random page
       const first = await productsApi.list({ page: 1, per_page: 40 });
       const total: number = first?.total ?? 0;
-      const all: ProductListItem[] = first?.results ?? [];
+      let all: ProductListItem[] = first?.results ?? [];
 
-      let pool = shuffle(all);
-
-      // If there are more products, fetch a random additional page for extra variety
       if (total > 40) {
         const maxPage = Math.floor(total / 40);
         const randomPage = Math.floor(Math.random() * maxPage) + 2;
         try {
           const extra = await productsApi.list({ page: randomPage, per_page: 40 });
-          const extraItems: ProductListItem[] = extra?.results ?? [];
-          // Merge and reshuffle so products from both pages are mixed
-          pool = shuffle([...pool, ...extraItems]);
-        } catch (_) {
-          // Extra page failed — use what we have
-        }
+          all = [...all, ...(extra?.results ?? [])];
+        } catch (_) {}
       }
 
-      setHero4(pool.slice(0, 4));
-      setProducts(pool.slice(4, 12));
+      const shuffled = shuffle(all);
+      setPool(shuffled);
+      setHeroIndex(0);
+      setHero4(shuffled.slice(0, 4));
+      setProducts(shuffled.slice(4, 12));
     } finally {
       setLoading(false);
     }
@@ -61,13 +58,34 @@ export default function HomePage() {
   useEffect(() => {
     load();
 
-    // Re-shuffle on tab refocus so returning visitors see new products
     function onVisible() {
       if (document.visibilityState === "visible") load();
     }
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
+
+  // Rotate hero products every 5 seconds using the pool
+  useEffect(() => {
+    if (pool.length < 8) return;
+
+    const interval = setInterval(() => {
+      setHeroIndex((prev) => {
+        // Step forward by 4 each tick, wrap around, skip the featured 8
+        const next = (prev + 4) % Math.max(pool.length - 8, 4);
+        const start = 8 + next; // never overlap the featured section
+        const heroSlice = pool.slice(start, start + 4);
+        // If we don't have 4 left, wrap from the beginning of the pool
+        const filled = heroSlice.length === 4
+          ? heroSlice
+          : [...heroSlice, ...pool.slice(0, 4 - heroSlice.length)];
+        setHero4(filled);
+        return next;
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [pool]);
 
   return (
     <div>
