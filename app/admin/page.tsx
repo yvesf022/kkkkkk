@@ -182,7 +182,7 @@ export default function AdminDashboardPage() {
               <tbody>
                 {pendingPayments.map((p: any) => (
                   <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={td} style={{ fontSize: 12 }}>#{p.id?.slice(0, 8)}</td>
+                    <td style={{ ...td, fontSize: 12 }}>#{p.id?.slice(0, 8)}</td>
                     <td style={td}>R {fmt(p.amount)}</td>
                     <td style={td}>
                       <Link href={`/admin/payments/${p.id}`} style={{ color: "#dc2626", fontSize: 12, fontWeight: 600 }}>
@@ -216,7 +216,7 @@ export default function AdminDashboardPage() {
               <tbody>
                 {lowStock.map((p: any) => (
                   <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={td} style={{ fontSize: 12, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <td style={{ ...td, fontSize: 12, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {p.title}
                     </td>
                     <td style={td}>
