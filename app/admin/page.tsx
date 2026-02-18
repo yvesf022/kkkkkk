@@ -15,17 +15,23 @@ type DashboardStats = {
   revenue_this_month: number;
 };
 
+function fmt(n: number | undefined | null): string {
+  return (n ?? 0).toLocaleString();
+}
+
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
         const data = await adminApi.getDashboard();
-        setStats(data as any as any);
+        setStats(data as DashboardStats);
       } catch (err) {
-        console.error("Failed to load dashboard");
+        console.error("Failed to load dashboard", err);
+        setError("Failed to load dashboard data.");
       } finally {
         setLoading(false);
       }
@@ -34,11 +40,17 @@ export default function AdminDashboardPage() {
   }, []);
 
   if (loading) {
-    return <div>Loading dashboard...</div>;
+    return (
+      <div style={{ padding: 32, color: "#64748b" }}>Loading dashboard...</div>
+    );
   }
 
-  if (!stats) {
-    return <div>Unable to load dashboard.</div>;
+  if (error || !stats) {
+    return (
+      <div style={{ padding: 32, color: "#ef4444" }}>
+        {error ?? "Unable to load dashboard."}
+      </div>
+    );
   }
 
   return (
@@ -63,32 +75,32 @@ export default function AdminDashboardPage() {
       >
         <StatCard
           title="Total Revenue"
-          value={`R ${stats.total_revenue.toLocaleString()}`}
+          value={`R ${fmt(stats.total_revenue)}`}
           link="/admin/analytics"
         />
         <StatCard
           title="Revenue This Month"
-          value={`R ${stats.revenue_this_month.toLocaleString()}`}
+          value={`R ${fmt(stats.revenue_this_month)}`}
           link="/admin/analytics/revenue"
         />
         <StatCard
           title="Total Orders"
-          value={stats.total_orders.toLocaleString()}
+          value={fmt(stats.total_orders)}
           link="/admin/orders"
         />
         <StatCard
           title="Pending Payments"
-          value={stats.pending_payments.toLocaleString()}
+          value={fmt(stats.pending_payments)}
           link="/admin/payments"
         />
         <StatCard
           title="Active Products"
-          value={stats.active_products.toLocaleString()}
+          value={fmt(stats.active_products)}
           link="/admin/products"
         />
         <StatCard
           title="Low Stock"
-          value={stats.low_stock_products.toLocaleString()}
+          value={fmt(stats.low_stock_products)}
           link="/admin/inventory"
         />
       </div>
@@ -127,5 +139,3 @@ function StatCard({
     </Link>
   );
 }
-
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminAuth } from "@/lib/adminAuth";
 import AdminSidebar from "@/components/admin/AdminSidebar";
@@ -12,11 +12,17 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const { admin, loading, hydrate } = useAdminAuth();
+  const hydratedRef = useRef(false);
 
-  // hydrate session
+  // hydrate session ONCE only — never put hydrate in the dep array
+  // unless it is guaranteed stable via useCallback in the store
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      hydrate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // protect route
   useEffect(() => {
