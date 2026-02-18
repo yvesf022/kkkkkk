@@ -1,5 +1,5 @@
 /**
- * KARABO API CLIENT – COMPLETE ENTERPRISE VERSION
+ * KARABO API CLIENT ï¿½ COMPLETE ENTERPRISE VERSION
  * All 100+ endpoints for your e-commerce platform
  */
 
