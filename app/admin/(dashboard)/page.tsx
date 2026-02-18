@@ -1,222 +1,193 @@
-"use client";
+﻿"use client";
 
-import Link from "next/link";
-import AdminAnalytics from "@/components/admin/AdminAnalytics";
-
-/**
- * ADMIN DASHBOARD PAGE — AUTHORITATIVE (UPGRADED UI)
- *
- * RULES:
- * - Presentational only
- * - No auth logic
- * - No API calls
- */
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { adminApi } from "@/lib/api";
+import { formatCurrency } from "@/lib/currency";
 
 export default function AdminDashboardPage() {
+  const [core, setCore] = useState<any>(null);
+  const [revenue, setRevenue] = useState<any[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [deadStock, setDeadStock] = useState<any[]>([]);
+  const [lowStock, setLowStock] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      adminApi.getDashboard(),
+      adminApi.getRevenueAnalytics(),
+      adminApi.getTopProducts(),
+      adminApi.getDeadStock(),
+      adminApi.getLowStock(),
+    ])
+      .then(([coreData, revenueData, topData, deadData, lowData]) => {
+        setCore(coreData);
+        setRevenue(revenueData as any[]);
+        setTopProducts(topData as any[]);
+        setDeadStock(deadData as any[]);
+        setLowStock(lowData as any[]);
+      })
+      .catch(() => {
+        toast.error("Failed to load enterprise analytics");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p>Loading Elite Analyticsâ€¦</p>;
+  if (!core) return <p>Analytics unavailable.</p>;
+
   return (
     <div style={{ display: "grid", gap: 40 }}>
-      {/* HEADER */}
-      <header>
-        <h1
-          style={{
-            fontSize: 36,
-            fontWeight: 900,
-            letterSpacing: -0.5,
-          }}
-        >
-          Admin Dashboard
-        </h1>
 
-        <p
-          style={{
-            marginTop: 8,
-            opacity: 0.65,
-            maxWidth: 720,
-            lineHeight: 1.6,
-          }}
-        >
-          Operational overview of orders, payments, inventory,
-          and payment infrastructure.
-        </p>
-      </header>
+      {/* ================= EXECUTIVE SUMMARY ================= */}
+      <Section title="Executive Summary">
+        <StatsGrid>
+          <Stat label="Total Revenue" value={formatCurrency(core.total_revenue)} />
+          <Stat label="Revenue This Month" value={formatCurrency(core.revenue_this_month)} />
+          <Stat label="Total Orders" value={core.total_orders} />
+          <Stat label="Paid Orders" value={core.paid_orders} />
+          <Stat label="Active Products" value={core.active_products} />
+          <Stat label="Low Stock Products" value={core.low_stock_products} highlight />
+        </StatsGrid>
+      </Section>
 
-      {/* ANALYTICS */}
-      <section
-        style={{
-          padding: 24,
-          borderRadius: 24,
-          background: "#ffffff",
-          boxShadow: "0 20px 60px rgba(15,23,42,0.08)",
-          border: "1px solid rgba(15,23,42,0.06)",
-        }}
-      >
-        <AdminAnalytics />
-      </section>
+      {/* ================= REVENUE ================= */}
+      <Section title="Revenue Trend">
+        <DataList
+          items={revenue}
+          render={(item: any) => (
+            <Row
+              title={item.date}
+              value={formatCurrency(item.revenue)}
+              sub={`Orders: ${item.orders}`}
+            />
+          )}
+        />
+      </Section>
 
-      {/* PRIORITY ACTIONS */}
-      <section>
-        <SectionTitle title="Priority Actions" />
+      {/* ================= TOP PRODUCTS ================= */}
+      <Section title="Top Performing Products">
+        <DataList
+          items={topProducts}
+          render={(p: any) => (
+            <Row
+              title={p.title}
+              value={formatCurrency(p.revenue)}
+              sub={`Sales: ${p.sales}`}
+            />
+          )}
+        />
+      </Section>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 24,
-          }}
-        >
-          <ActionCard
-            title="Orders"
-            description="Review new orders, update statuses, and manage fulfillment workflows."
-            href="/admin/orders"
-            tone="dark"
-          />
+      {/* ================= DEAD STOCK ================= */}
+      <Section title="Dead Stock">
+        <DataList
+          items={deadStock}
+          render={(p: any) => (
+            <Row
+              title={p.title}
+              value={`Stock: ${p.stock}`}
+              danger
+            />
+          )}
+        />
+      </Section>
 
-          <ActionCard
-            title="Payments"
-            description="Approve or reject uploaded payment proofs and manage verification."
-            href="/admin/payments"
-            tone="warning"
-          />
-        </div>
-      </section>
-
-      {/* MANAGEMENT */}
-      <section>
-        <SectionTitle title="Management" />
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 24,
-          }}
-        >
-          <ActionCard
-            title="Products"
-            description="Manage catalog, pricing, stock levels, and bulk uploads."
-            href="/admin/products"
-            tone="light"
-          />
-
-          <ActionCard
-            title="Bank Settings"
-            description="Configure bank accounts, mobile money details, and QR codes for customer payments."
-            href="/admin/settings/bank"
-            tone="light"
-          />
-
-          <ActionCard
-            title="Reports"
-            description="View sales summaries and operational insights."
-            href="/admin/reports"
-            tone="light"
-          />
-        </div>
-      </section>
+      {/* ================= LOW STOCK ================= */}
+      <Section title="Low Stock Alert">
+        <DataList
+          items={lowStock}
+          render={(p: any) => (
+            <Row
+              title={p.title}
+              value={`Stock: ${p.stock}`}
+              warning
+            />
+          )}
+        />
+      </Section>
     </div>
   );
 }
 
-/* =========================
-   SECTION TITLE
-========================= */
+/* ================= COMPONENTS ================= */
 
-function SectionTitle({ title }: { title: string }) {
+function Section({ title, children }: any) {
   return (
-    <h2
-      style={{
-        fontSize: 22,
-        fontWeight: 900,
-        marginBottom: 18,
-      }}
-    >
-      {title}
-    </h2>
-  );
-}
-
-/* =========================
-   ACTION CARD
-========================= */
-
-function ActionCard({
-  title,
-  description,
-  href,
-  tone,
-}: {
-  title: string;
-  description: string;
-  href: string;
-  tone: "dark" | "warning" | "light";
-}) {
-  const base = {
-    display: "block",
-    padding: 26,
-    borderRadius: 24,
-    textDecoration: "none",
-    boxShadow: "0 18px 50px rgba(15,23,42,0.12)",
-    transition: "all .2s ease",
-  } as React.CSSProperties;
-
-  const styles =
-    tone === "dark"
-      ? {
-          background: "#0f172a",
-          color: "#ffffff",
-          border: "none",
-        }
-      : tone === "warning"
-      ? {
-          background: "linear-gradient(135deg,#fff7ed,#ffedd5)",
-          color: "#9a3412",
-          border: "1px solid #fed7aa",
-        }
-      : {
-          background: "#ffffff",
-          color: "#0f172a",
-          border: "1px solid #e5e7eb",
-        };
-
-  return (
-    <Link
-      href={href}
-      style={{
-        ...base,
-        ...styles,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-6px)";
-        e.currentTarget.style.boxShadow =
-          "0 28px 70px rgba(15,23,42,0.18)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow =
-          "0 18px 50px rgba(15,23,42,0.12)";
-      }}
-    >
-      <div
-        style={{
-          fontSize: 20,
-          fontWeight: 900,
-        }}
-      >
+    <section>
+      <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 20 }}>
         {title}
-      </div>
-
-      <div
-        style={{
-          marginTop: 10,
-          fontSize: 14,
-          opacity: 0.85,
-          lineHeight: 1.6,
-        }}
-      >
-        {description}
-      </div>
-    </Link>
+      </h2>
+      {children}
+    </section>
   );
 }
+
+function StatsGrid({ children }: any) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+        gap: 20,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight }: any) {
+  return (
+    <div
+      style={{
+        background: highlight ? "#0f172a" : "#ffffff",
+        color: highlight ? "#ffffff" : "#0f172a",
+        padding: 24,
+        borderRadius: 20,
+        border: highlight ? "none" : "1px solid #e5e7eb",
+      }}
+    >
+      <div style={{ opacity: 0.6, fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 900 }}>{value}</div>
+    </div>
+  );
+}
+
+function DataList({ items, render }: any) {
+  if (!items?.length) return <p>No data available.</p>;
+  return (
+    <div style={{ display: "grid", gap: 14 }}>
+      {items.map((item: any, i: number) => (
+        <div key={i}>{render(item)}</div>
+      ))}
+    </div>
+  );
+}
+
+function Row({ title, value, sub, danger, warning }: any) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        padding: 16,
+        borderRadius: 14,
+        border: "1px solid #e5e7eb",
+        background: danger
+          ? "#fef2f2"
+          : warning
+          ? "#fff7ed"
+          : "#ffffff",
+      }}
+    >
+      <div>
+        <div style={{ fontWeight: 800 }}>{title}</div>
+        {sub && <div style={{ opacity: 0.6 }}>{sub}</div>}
+      </div>
+      <div style={{ fontWeight: 800 }}>{value}</div>
+    </div>
+  );
+}
+

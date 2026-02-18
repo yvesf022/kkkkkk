@@ -1,5 +1,5 @@
-/**
- * KARABO API CLIENT – COMPLETE ENTERPRISE VERSION
+﻿/**
+ * KARABO API CLIENT â€“ COMPLETE ENTERPRISE VERSION
  * All 100+ endpoints for your e-commerce platform
  */
 
@@ -938,6 +938,26 @@ export function updateMe(payload: { full_name?: string; phone?: string }) {
 export const adminApi = {
   getDashboard: () =>
     request("/api/admin/dashboard"),
+  getRevenueAnalytics: () =>
+    request("/api/admin/analytics/revenue"),
+
+  getOverviewAnalytics: () =>
+    request("/api/admin/analytics/overview"),
+
+  getTopProducts: () =>
+    request("/api/admin/analytics/top-products"),
+
+  getDeadStock: () =>
+    request("/api/admin/analytics/dead-stock"),
+
+  getStockTurnover: () =>
+    request("/api/admin/analytics/stock-turnover"),
+
+  getLowStock: () =>
+    request("/api/admin/inventory/low-stock"),
+
+  getOutOfStock: () =>
+    request("/api/admin/inventory/out-of-stock"),
 
   updateProductStatus: (productId: string, status: ProductStatus) =>
     request(`/api/products/admin/${productId}`, {
