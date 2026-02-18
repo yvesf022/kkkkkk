@@ -1,5 +1,5 @@
 /**
- * KARABO API CLIENT â€“ COMPLETE ENTERPRISE VERSION
+ * KARABO API CLIENT – COMPLETE ENTERPRISE VERSION
  * All 100+ endpoints for your e-commerce platform
  */
 
@@ -54,6 +54,7 @@ export type ProductAnalytics = {
     created_at: string;
   }>;
 };
+
 
 export type ProductVariant = {
   id: string;
@@ -132,8 +133,10 @@ export const adminAuthApi = {
 ===================================================== */
 
 export const productsApi = {
-  list(params: Record<string, any> = {}) {
-    const qs = new URLSearchParams(params).toString();
+  list(params: Record<string, any> = {}): Promise<{ total: number; results: ProductListItem[] }> {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined))
+    ).toString();
     return request<{ total: number; results: ProductListItem[] }>(
       `/api/products${qs ? `?${qs}` : ""}`
     );
@@ -260,7 +263,7 @@ export const productsApi = {
 
   async exportCsv(params: { status?: string; store?: string } = {}) {
     const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([, v]) => v))
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined))
     ).toString();
     const res = await fetch(
       `${API_BASE_URL}/api/products/admin/export${qs ? `?${qs}` : ""}`,
@@ -333,7 +336,6 @@ export const ordersApi = {
       body: JSON.stringify(payload),
     }),
 
-  // NEW ENTERPRISE FEATURES
   cancel: (orderId: string, reason: string) =>
     request(`/api/orders/${orderId}/cancel`, {
       method: "POST",
@@ -412,7 +414,6 @@ export const paymentsApi = {
   getBankDetails: () =>
     request("/api/payments/bank-details"),
 
-  // NEW ENTERPRISE FEATURES
   resubmitProof: (paymentId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -439,7 +440,7 @@ export const paymentsApi = {
 };
 
 /* =====================================================
-   ADDRESSES (NEW ENTERPRISE FEATURE)
+   ADDRESSES
 ===================================================== */
 
 export const addressesApi = {
@@ -492,7 +493,7 @@ export const addressesApi = {
 };
 
 /* =====================================================
-   CART (NEW ENTERPRISE FEATURE)
+   CART
 ===================================================== */
 
 export const cartApi = {
@@ -540,7 +541,7 @@ export const cartApi = {
 };
 
 /* =====================================================
-   WISHLIST (NEW ENTERPRISE FEATURE)
+   WISHLIST
 ===================================================== */
 
 export const wishlistApi = {
@@ -564,7 +565,7 @@ export const wishlistApi = {
 };
 
 /* =====================================================
-   REVIEWS (NEW ENTERPRISE FEATURE)
+   REVIEWS
 ===================================================== */
 
 export const reviewsApi = {
@@ -573,7 +574,7 @@ export const reviewsApi = {
     title?: string;
     comment?: string;
   }) =>
-    request(`/api/products/${productId}/reviews`, {
+    request(`/api/reviews/products/${productId}/reviews`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -596,7 +597,7 @@ export const reviewsApi = {
     }),
 
   getMy: () =>
-    request("/api/users/me/reviews"),
+    request("/api/reviews/users/me/reviews"),
 
   vote: (reviewId: string, isHelpful: boolean) =>
     request(`/api/reviews/${reviewId}/vote`, {
@@ -607,7 +608,7 @@ export const reviewsApi = {
 };
 
 /* =====================================================
-   PRODUCT Q&A (NEW ENTERPRISE FEATURE)
+   PRODUCT Q&A
 ===================================================== */
 
 export const productQAApi = {
@@ -622,7 +623,7 @@ export const productQAApi = {
     request(`/api/products/${productId}/questions`),
 
   answerQuestion: (questionId: string, answer: string) =>
-    request(`/api/questions/${questionId}/answer`, {
+    request(`/api/products/questions/${questionId}/answer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ answer }),
@@ -630,7 +631,7 @@ export const productQAApi = {
 };
 
 /* =====================================================
-   SEARCH (NEW ENTERPRISE FEATURE)
+   SEARCH
 ===================================================== */
 
 export const searchApi = {
@@ -646,8 +647,10 @@ export const searchApi = {
   }) => {
     const qs = new URLSearchParams(
       Object.fromEntries(
-        Object.entries(params).filter(([, v]) => v !== undefined)
-      ) as Record<string, string>
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, String(v)])
+      )
     ).toString();
     return request(`/api/search?${qs}`);
   },
@@ -657,7 +660,7 @@ export const searchApi = {
 };
 
 /* =====================================================
-   CATEGORIES & BRANDS (NEW ENTERPRISE FEATURE)
+   CATEGORIES & BRANDS
 ===================================================== */
 
 export const categoriesApi = {
@@ -674,7 +677,7 @@ export const brandsApi = {
 };
 
 /* =====================================================
-   NOTIFICATIONS (NEW ENTERPRISE FEATURE)
+   NOTIFICATIONS
 ===================================================== */
 
 export const notificationsApi = {
@@ -698,7 +701,7 @@ export const notificationsApi = {
 };
 
 /* =====================================================
-   COUPONS (NEW ENTERPRISE FEATURE)
+   COUPONS
 ===================================================== */
 
 export const couponsApi = {
@@ -722,7 +725,7 @@ export const couponsApi = {
 };
 
 /* =====================================================
-   WALLET & LOYALTY (NEW ENTERPRISE FEATURE)
+   WALLET & LOYALTY
 ===================================================== */
 
 export const walletApi = {
@@ -741,7 +744,7 @@ export const walletApi = {
 };
 
 /* =====================================================
-   ADMIN - ORDERS ADVANCED (NEW ENTERPRISE FEATURES)
+   ADMIN - ORDERS ADVANCED
 ===================================================== */
 
 export const adminOrdersAdvancedApi = {
@@ -793,7 +796,7 @@ export const adminOrdersAdvancedApi = {
 };
 
 /* =====================================================
-   ADMIN - PAYMENTS ADVANCED (NEW ENTERPRISE FEATURES)
+   ADMIN - PAYMENTS ADVANCED
 ===================================================== */
 
 export const adminPaymentsAdvancedApi = {
@@ -814,7 +817,7 @@ export const adminPaymentsAdvancedApi = {
 };
 
 /* =====================================================
-   ADMIN - USERS ADVANCED (NEW ENTERPRISE FEATURES)
+   ADMIN - USERS ADVANCED
 ===================================================== */
 
 export const adminUsersAdvancedApi = {
@@ -920,6 +923,12 @@ export const usersApi = {
       body: form,
     });
   },
+
+  getRecentlyViewed: () =>
+    request("/api/users/me/recently-viewed"),
+
+  clearRecentlyViewed: () =>
+    request("/api/users/me/recently-viewed", { method: "DELETE" }),
 };
 
 // kept for backwards compat
@@ -932,38 +941,225 @@ export function updateMe(payload: { full_name?: string; phone?: string }) {
 }
 
 /* =====================================================
+   ADMIN PRODUCTS
+===================================================== */
+
+export const adminProductsApi = {
+  list(params: Record<string, any> = {}): Promise<{ total: number; results: ProductListItem[] }> {
+    const qs = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, String(v)])
+      )
+    ).toString();
+    const url = "/api/products/admin/list" + (qs ? "?" + qs : "");
+    return request<{ total: number; results: ProductListItem[] }>(url);
+  },
+
+  bulkDelete(ids: string[]) {
+    return request("/api/products/admin/bulk-delete", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+  },
+
+  bulkArchive(ids: string[]) {
+    return request("/api/products/admin/bulk-archive", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+  },
+
+  bulkActivate(ids: string[]) {
+    return request("/api/products/admin/bulk-activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+  },
+
+  bulkDeactivate(ids: string[]) {
+    return request("/api/products/admin/bulk-deactivate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+  },
+};
+
+/* =====================================================
    ADMIN CORE
 ===================================================== */
 
 export const adminApi = {
-  getDashboard: () =>
-    request("/api/admin/dashboard"),
-  getRevenueAnalytics: () =>
-    request("/api/admin/analytics/revenue"),
+  getDashboard() {
+    return request("/api/admin/dashboard");
+  },
 
-  getOverviewAnalytics: () =>
-    request("/api/admin/analytics/overview"),
+  getOverviewAnalytics() {
+    return request("/api/admin/analytics/overview");
+  },
 
-  getTopProducts: () =>
-    request("/api/admin/analytics/top-products"),
+  getRevenueAnalytics() {
+    return request("/api/admin/analytics/revenue");
+  },
 
-  getDeadStock: () =>
-    request("/api/admin/analytics/dead-stock"),
+  getTopProducts() {
+    return request("/api/admin/analytics/top-products");
+  },
 
-  getStockTurnover: () =>
-    request("/api/admin/analytics/stock-turnover"),
+  getDeadStock() {
+    return request("/api/admin/analytics/dead-stock");
+  },
 
-  getLowStock: () =>
-    request("/api/admin/inventory/low-stock"),
+  getStockTurnover() {
+    return request("/api/admin/analytics/stock-turnover");
+  },
 
-  getOutOfStock: () =>
-    request("/api/admin/inventory/out-of-stock"),
+  getOrdersAnalytics() {
+    return request("/api/admin/orders/analytics");
+  },
 
-  updateProductStatus: (productId: string, status: ProductStatus) =>
-    request(`/api/products/admin/${productId}`, {
+  getOrdersRevenue() {
+    return request("/api/admin/orders/revenue");
+  },
+
+  getOrdersConversion() {
+    return request("/api/admin/orders/conversion");
+  },
+
+  getLowStock() {
+    return request("/api/admin/inventory/low-stock");
+  },
+
+  getOutOfStock() {
+    return request("/api/admin/inventory/out-of-stock");
+  },
+
+  getInventoryReport() {
+    return request("/api/admin/inventory/report");
+  },
+
+  adjustInventory(payload: { product_id: string; quantity: number; note?: string }) {
+    return request("/api/admin/inventory/adjust", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  incomingInventory(payload: { product_id: string; quantity: number; note?: string }) {
+    return request("/api/admin/inventory/incoming", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  listStores() {
+    return request("/api/admin/stores");
+  },
+
+  createStore(payload: { name: string; [key: string]: any }) {
+    return request("/api/admin/stores", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateStore(storeId: string, payload: Record<string, any>) {
+    return request(`/api/admin/stores/${storeId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    }),
-};
+      body: JSON.stringify(payload),
+    });
+  },
 
+  deleteStore(storeId: string) {
+    return request(`/api/admin/stores/${storeId}`, { method: "DELETE" });
+  },
+
+  getAuditLogs() {
+    return request("/api/admin/logs");
+  },
+
+  getEntityLogs(entityId: string) {
+    return request(`/api/admin/logs/${entityId}`);
+  },
+
+  verifyPassword(password: string) {
+    return request("/api/admin/verify-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+  },
+
+  updateProductStatus(productId: string, status: ProductStatus) {
+    return request(`/api/admin/products/${productId}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  cancelOrder(orderId: string, reason: string) {
+    return request(`/api/admin/orders/${orderId}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  updateShippingStatus(orderId: string, payload: { status: string }) {
+    return request(`/api/admin/orders/${orderId}/shipping`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  listUsers() {
+    return request("/api/admin/users");
+  },
+
+  disableUser(userId: string) {
+    return request(`/api/admin/users/${userId}/disable`, { method: "POST" });
+  },
+
+  enableUser(userId: string) {
+    return request(`/api/admin/users/${userId}/enable`, { method: "POST" });
+  },
+
+  changeUserRole(userId: string, role: string) {
+    return request(`/api/admin/users/${userId}/role`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  getBankSettings() {
+    return request("/api/payments/admin/bank-settings");
+  },
+
+  createBankSettings(payload: Record<string, any>) {
+    return request("/api/payments/admin/bank-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateBankSettings(settingsId: string, payload: Record<string, any>) {
+    return request(`/api/payments/admin/bank-settings/${settingsId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+};
