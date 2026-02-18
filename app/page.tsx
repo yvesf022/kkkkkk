@@ -63,6 +63,48 @@ export default function HomePage() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (poolRef.current.length < 8) return;
+
+    let elapsed = 0;
+
+    progressRef.current = setInterval(() => {
+      elapsed += 100;
+      setProgress(Math.min((elapsed / INTERVAL) * 100, 100));
+    }, 100);
+
+    intervalRef.current = setInterval(() => {
+      const pool = poolRef.current;
+      if (pool.length < 8) return;
+
+      heroIndexRef.current =
+        (heroIndexRef.current + 4) %
+        Math.max(pool.length - 12, 4);
+
+      const start = 12 + heroIndexRef.current;
+      let slice = pool.slice(start, start + 4);
+      if (slice.length < 4)
+        slice = [...slice, ...pool.slice(0, 4 - slice.length)];
+
+      setNextHero(slice);
+      setFading(true);
+
+      setTimeout(() => {
+        setCurrentHero(slice);
+        setNextHero([]);
+        setFading(false);
+      }, 900);
+
+      elapsed = 0;
+      setProgress(0);
+    }, INTERVAL);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (progressRef.current) clearInterval(progressRef.current);
+    };
+  }, [products]);
+
   return (
     <div>
       {/* HERO */}
@@ -83,7 +125,7 @@ export default function HomePage() {
             position: "relative",
             zIndex: 1,
             width: "100%",
-            maxWidth: 1280, // constrained width
+            maxWidth: 1280,
             margin: "0 auto",
             padding: "0 24px",
           }}
@@ -100,10 +142,10 @@ export default function HomePage() {
             <div>
               <h1
                 style={{
-                  fontSize: "clamp(36px, 6vw, 58px)", // slightly reduced
+                  fontSize: "clamp(36px, 6vw, 58px)", // reduced
                   fontWeight: 900,
                   lineHeight: 1.1,
-                  marginBottom: 18,
+                  marginBottom: 20,
                   color: "#fff",
                 }}
               >
@@ -125,19 +167,18 @@ export default function HomePage() {
                 style={{
                   fontSize: "16px",
                   lineHeight: 1.7,
-                  marginBottom: 28,
+                  marginBottom: 30,
                   color: "rgba(255,255,255,0.85)",
                   maxWidth: 480,
                 }}
               >
-                Curated fashion and beauty collections crafted for elegance and
-                confidence.
+                Curated fashion and beauty collections crafted for elegance and confidence.
               </p>
 
               <button
                 onClick={() => router.push("/store")}
                 style={{
-                  padding: "14px 28px", // reduced
+                  padding: "14px 30px", // reduced
                   fontSize: 14,
                   fontWeight: 700,
                   color: "#0033a0",
@@ -151,26 +192,94 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* HERO PRODUCTS */}
             {!loading && currentHero.length > 0 && (
-              <div
-                style={{
-                  maxWidth: 520, // prevents over-expansion
-                  width: "100%",
-                }}
-              >
+              <div style={{ maxWidth: 520 }}>
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                    gap: 12,
+                    gridTemplateColumns:
+                      "repeat(2, minmax(0, 1fr))",
+                    gap: 12, // reduced
                   }}
                 >
-                  {currentHero.map((product) => (
-                    <HeroCard
-                      key={product.id}
-                      product={product}
-                      router={router}
+                  {currentHero.map((product, idx) => (
+                    <div
+                      key={idx}
+                      style={{ position: "relative" }}
+                    >
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          opacity: fading ? 0 : 1,
+                          transition:
+                            "opacity 0.9s cubic-bezier(0.4,0,0.2,1)",
+                          zIndex: 1,
+                        }}
+                      >
+                        <HeroCard
+                          product={product}
+                          router={router}
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          opacity: fading ? 1 : 0,
+                          transition:
+                            "opacity 0.9s cubic-bezier(0.4,0,0.2,1)",
+                          zIndex: 2,
+                        }}
+                      >
+                        {nextHero[idx] ? (
+                          <HeroCard
+                            product={nextHero[idx]}
+                            router={router}
+                          />
+                        ) : (
+                          <HeroCard
+                            product={product}
+                            router={router}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: 6,
+                    marginTop: 16,
+                  }}
+                >
+                  {Array.from({
+                    length: Math.min(
+                      5,
+                      Math.floor(
+                        (poolRef.current.length - 12) / 4
+                      ) + 1
+                    ),
+                  }).map((_, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width:
+                          i ===
+                          (heroIndexRef.current / 4) % 5
+                            ? 20
+                            : 6,
+                        height: 6,
+                        borderRadius: 3,
+                        background:
+                          i ===
+                          (heroIndexRef.current / 4) % 5
+                            ? "#d4af37"
+                            : "rgba(255,255,255,0.3)",
+                        transition: "all 0.4s ease",
+                      }}
                     />
                   ))}
                 </div>
@@ -180,7 +289,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FEATURED SECTION */}
+      {/* FEATURED */}
       <section
         style={{
           padding: "72px 0", // reduced from 100px
@@ -213,7 +322,10 @@ export default function HomePage() {
           ) : (
             <div className="product-grid">
               {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                />
               ))}
             </div>
           )}
@@ -232,20 +344,24 @@ function HeroCard({
 }) {
   return (
     <div
-      onClick={() => router.push(`/store/product/${product.id}`)}
+      onClick={() =>
+        router.push(`/store/product/${product.id}`)
+      }
       style={{
         background: "#fff",
         borderRadius: 18,
         overflow: "hidden",
         cursor: "pointer",
-        boxShadow: "0 8px 28px rgba(0,0,0,0.18)", // reduced
-        transition: "transform 0.3s ease",
+        boxShadow: "0 8px 28px rgba(0,0,0,0.18)",
+        transition: "transform 0.35s ease",
       }}
       onMouseEnter={(e) =>
-        (e.currentTarget.style.transform = "translateY(-6px) scale(1.02)") // reduced scale
+        (e.currentTarget.style.transform =
+          "translateY(-6px) scale(1.02)")
       }
       onMouseLeave={(e) =>
-        (e.currentTarget.style.transform = "translateY(0) scale(1)")
+        (e.currentTarget.style.transform =
+          "translateY(0) scale(1)")
       }
     >
       <div
@@ -253,12 +369,12 @@ function HeroCard({
           aspectRatio: "1",
           backgroundImage: product.main_image
             ? `url(${product.main_image})`
-            : "linear-gradient(135deg, #1a1a2e, #16213e)",
+            : "linear-gradient(135deg,#1a1a2e,#16213e)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       />
-      <div style={{ padding: "12px" }}>
+      <div style={{ padding: 12 }}>
         <div
           style={{
             fontSize: 13,
