@@ -19,7 +19,7 @@ export default function HomePage() {
           page: 1,
           per_page: 8,
         });
-        if (Array.isArray(data)) setProducts(data);
+        setProducts(data?.results ?? []);
       } finally {
         setLoading(false);
       }
