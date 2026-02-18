@@ -1,543 +1,192 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import toast from "react-hot-toast";
-
-import { useAuth } from "@/lib/auth";
 import { ordersApi, paymentsApi } from "@/lib/api";
-import type { Order } from "@/lib/types";
 
-const fmtM = (v: number) =>
-  `M ${Math.round(v).toLocaleString("en-ZA")}`;
-
-export default function OrderDetailsPage() {
-  const { id } = useParams<{ id: string }>();
+export default function OrderDetailPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
-
-  const user = useAuth((s) => s.user);
-  const authLoading = useAuth((s) => s.loading);
-
-  const fileRef = useRef<HTMLInputElement | null>(null);
-
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<any>(null);
+  const [tracking, setTracking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [creatingPayment, setCreatingPayment] = useState(false);
-  const [paymentId, setPaymentId] = useState<string | null>(null);
-  const [bankDetails, setBankDetails] = useState<any>(null);
-
-  // Advanced features
-  const [showCancel, setShowCancel] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
-  const [showReturn, setShowReturn] = useState(false);
-  const [returnReason, setReturnReason] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [showRefund, setShowRefund] = useState(false);
   const [refundReason, setRefundReason] = useState("");
   const [refundAmount, setRefundAmount] = useState("");
-  const [tracking, setTracking] = useState<any>(null);
 
-  /* ======================
-     AUTH
-  ====================== */
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) router.replace("/login");
-  }, [authLoading, user, router]);
-
-  /* ======================
-     LOAD ORDER
-  ====================== */
-
-  async function loadOrder() {
+  async function load() {
     try {
-      const found = await ordersApi.getById(id);
-      setOrder(found);
-
-      // Pre-populate paymentId if a payment already exists
-      const existingPayment = found.payments?.[0];
-      if (existingPayment) {
-        setPaymentId(existingPayment.id);
-      }
-    } catch {
-      toast.error("Unable to access this order");
-      router.replace("/account/orders");
-    } finally {
-      setLoading(false);
-    }
+      const [o, t] = await Promise.allSettled([
+        ordersApi.getById(id),
+        ordersApi.getTracking(id),
+      ]);
+      if (o.status === "fulfilled") setOrder(o.value);
+      if (t.status === "fulfilled") setTracking(t.value);
+    } finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    if (authLoading || !user) return;
-    loadOrder();
-  }, [id, authLoading, user]);
+  useEffect(() => { if (id) load(); }, [id]);
 
-  /* ======================
-     LOAD BANK DETAILS
-  ====================== */
-
-  useEffect(() => {
-    async function loadBankDetails() {
-      try {
-        const data = await paymentsApi.getBankDetails();
-        setBankDetails(data);
-      } catch {
-        console.error("Failed to load bank details");
-      }
-    }
-
-    if (order?.status === "pending") {
-      loadBankDetails();
-    }
-  }, [order]);
-
-  /* ======================
-     CREATE PAYMENT
-  ====================== */
-
-  async function handleCreatePayment() {
-    if (!order) return;
-    setCreatingPayment(true);
-
-    try {
-      const result: any = await paymentsApi.create(order.id);
-      setPaymentId(result.payment_id);
-      toast.success("Payment created. Please transfer and upload proof.");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create payment");
-    } finally {
-      setCreatingPayment(false);
-    }
+  function flash(text: string, ok = true) {
+    setMsg({ text, ok });
+    setTimeout(() => setMsg(null), 4000);
   }
 
-  /* ======================
-     UPLOAD PROOF
-  ====================== */
-
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !paymentId) return;
-
-    if (
-      !file.type.startsWith("image/") &&
-      file.type !== "application/pdf"
-    ) {
-      toast.error("Only images or PDF allowed");
-      return;
-    }
-
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("File must be under 15MB");
-      return;
-    }
-
-    setUploading(true);
-
-    try {
-      await paymentsApi.uploadProof(paymentId, file);
-      toast.success("Payment proof uploaded successfully");
-      if (fileRef.current) fileRef.current.value = "";
-      await loadOrder();
-    } catch {
-      toast.error("Upload failed");
-    } finally {
-      setUploading(false);
-    }
+  async function act(fn: () => Promise<any>, successMsg: string) {
+    setActionLoading(true);
+    try { await fn(); flash(successMsg); load(); }
+    catch (e: any) { flash(e?.message ?? "Action failed", false); }
+    finally { setActionLoading(false); }
   }
 
-  /* ======================
-     CANCEL ORDER
-  ====================== */
-
-  async function handleCancelOrder() {
-    if (!order) return;
-
+  async function handleCancel() {
     if (!confirm("Cancel this order?")) return;
-
-    try {
-      await ordersApi.cancel(order.id, cancelReason );
-      toast.success("Order cancelled");
-      setShowCancel(false);
-      setCancelReason("");
-      await loadOrder();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to cancel order");
-    }
+    act(() => ordersApi.cancel(id, "Customer requested cancellation"), "Order cancelled.");
   }
 
-  /* ======================
-     REQUEST RETURN
-  ====================== */
-
-  async function handleRequestReturn() {
-    if (!order) return;
-
-    try {
-      await ordersApi.requestReturn(order.id, returnReason );
-      toast.success("Return request submitted");
-      setShowReturn(false);
-      setReturnReason("");
-      await loadOrder();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to request return");
-    }
+  async function handleReturn() {
+    if (!confirm("Request a return for this order?")) return;
+    act(() => ordersApi.requestReturn(id, "Customer requested return"), "Return requested.");
   }
 
-  /* ======================
-     REQUEST REFUND
-  ====================== */
-
-  async function handleRequestRefund() {
-    if (!order) return;
-
-    try {
-      const amount = refundAmount ? parseFloat(refundAmount) : undefined;
-      await ordersApi.requestRefund(order.id, { reason: refundReason, amount: order.total_amount });
-      toast.success("Refund request submitted");
-      setShowRefund(false);
-      setRefundReason("");
-      setRefundAmount("");
-      await loadOrder();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to request refund");
-    }
+  async function handleRefund() {
+    if (!refundReason || !refundAmount) return;
+    act(() => ordersApi.requestRefund(id, { reason: refundReason, amount: Number(refundAmount) }), "Refund requested.");
+    setShowRefund(false); setRefundReason(""); setRefundAmount("");
   }
 
-  /* ======================
-     LOAD TRACKING
-  ====================== */
-
-  async function loadTracking() {
+  async function handleInvoice() {
     try {
-      const data = await ordersApi.getTracking(id);
-      setTracking(data);
-    } catch (err: any) {
-      toast.error(err.message || "Tracking not available");
-    }
+      const data = await ordersApi.getInvoice(id) as any;
+      if (data?.url) window.open(data.url, "_blank");
+      else flash("Invoice not available yet.", false);
+    } catch { flash("Invoice not available yet.", false); }
   }
 
-  /* ======================
-     DOWNLOAD INVOICE
-  ====================== */
-
-  async function downloadInvoice() {
-    try {
-      const data = await ordersApi.getInvoice(id);
-      // Assuming the API returns a URL or blob
-      window.open((data as any).invoice_url, "_blank");
-    } catch (err: any) {
-      toast.error(err.message || "Invoice not available");
-    }
+  async function handleProofUpload() {
+    if (!proofFile || !order?.payment_id) return;
+    act(() => paymentsApi.uploadProof(order.payment_id, proofFile), "Proof uploaded!");
+    setProofFile(null);
   }
 
-  /* ======================
-     STATES
-  ====================== */
+  if (loading) return <div style={{ padding: 32, color: "#64748b" }}>Loading order...</div>;
+  if (!order) return <div style={{ padding: 32, color: "#ef4444" }}>Order not found.</div>;
 
-  if (authLoading) return <div className="pageContentWrap">Loading…</div>;
-  if (!user) return null;
-  if (loading || !order)
-    return <div className="pageContentWrap">Loading order…</div>;
-
-  const isOrderPending = order.status === "pending";
-  const isOrderPaid = order.status === "paid";
-  const isOrderShipped = order.status === "shipped";
-  const isOrderCompleted = order.status === "completed";
-  const isCancelled = order.status === "cancelled";
-
-  const paymentStatus = order.payment_status;
-  const isOnHold = paymentStatus === "on_hold";
-  const isRejected = paymentStatus === "rejected";
-
-  const canCreatePayment = isOrderPending && !paymentId;
-  const canUploadProof = isOrderPending && !!paymentId && !isOnHold;
-  const canCancel = isOrderPending && !isCancelled;
-  const canRequestReturn = (isOrderShipped || isOrderCompleted) && !order.return_status;
-  const canRequestRefund = isOrderPaid && !order.refund_status;
+  const canCancel = ["pending", "paid"].includes(order.status);
+  const canReturn = order.status === "completed";
+  const canRefund = ["paid", "completed"].includes(order.status);
 
   return (
-    <div className="pageContentWrap" style={{ maxWidth: 1000 }}>
+    <div style={{ maxWidth: 760 }}>
       {/* HEADER */}
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ fontSize: 32, fontWeight: 900 }}>
-          Order #{order.id.slice(0, 8)}
-        </h1>
-
-        {/* ACTION BUTTONS */}
-        <div style={{ display: "flex", gap: 12 }}>
-          {isOrderShipped && (
-            <button onClick={loadTracking} className="btn btnSecondary">
-              📦 Track
-            </button>
-          )}
-
-          {isOrderPaid && (
-            <button onClick={downloadInvoice} className="btn btnSecondary">
-              📄 Invoice
-            </button>
-          )}
-
-          {canCancel && (
-            <button
-              onClick={() => setShowCancel(true)}
-              className="btn"
-              style={{ background: "#ef4444", color: "white" }}
-            >
-              ❌ Cancel
-            </button>
-          )}
-
-          {canRequestReturn && (
-            <button onClick={() => setShowReturn(true)} className="btn btnSecondary">
-              🔄 Return
-            </button>
-          )}
-
-          {canRequestRefund && (
-            <button onClick={() => setShowRefund(true)} className="btn btnSecondary">
-              💰 Refund
-            </button>
-          )}
+      <div style={{ marginBottom: 24 }}>
+        <button onClick={() => router.back()} style={ghostBtn}>← Back to orders</button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 8 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 900 }}>Order #{id.slice(0, 8)}</h1>
+          <StatusBadge status={order.status} />
         </div>
-      </header>
-
-      {/* CANCEL ORDER SECTION */}
-      {showCancel && (
-        <div className="card" style={{ background: "#fef3c7" }}>
-          <h3 style={{ fontWeight: 900, marginBottom: 12 }}>Cancel Order</h3>
-          <textarea
-            placeholder="Reason for cancellation..."
-            value={cancelReason}
-            onChange={(e) => setCancelReason(e.target.value)}
-            style={{ width: "100%", padding: 10, borderRadius: 8, minHeight: 80 }}
-          />
-          <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-            <button onClick={handleCancelOrder} className="btn" style={{ background: "#ef4444", color: "white" }}>
-              Confirm Cancel
-            </button>
-            <button onClick={() => setShowCancel(false)} className="btn btnGhost">
-              Nevermind
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* RETURN REQUEST SECTION */}
-      {showReturn && (
-        <div className="card" style={{ background: "#dbeafe" }}>
-          <h3 style={{ fontWeight: 900, marginBottom: 12 }}>Request Return</h3>
-          <textarea
-            placeholder="Reason for return..."
-            value={returnReason}
-            onChange={(e) => setReturnReason(e.target.value)}
-            style={{ width: "100%", padding: 10, borderRadius: 8, minHeight: 80 }}
-          />
-          <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-            <button onClick={handleRequestReturn} className="btn btnPrimary">
-              Submit Return Request
-            </button>
-            <button onClick={() => setShowReturn(false)} className="btn btnGhost">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* REFUND REQUEST SECTION */}
-      {showRefund && (
-        <div className="card" style={{ background: "#dcfce7" }}>
-          <h3 style={{ fontWeight: 900, marginBottom: 12 }}>Request Refund</h3>
-          <input
-            type="number"
-            placeholder={`Full amount: ${fmtM(order.total_amount)}`}
-            value={refundAmount}
-            onChange={(e) => setRefundAmount(e.target.value)}
-            style={{ width: "100%", padding: 10, borderRadius: 8, marginBottom: 12 }}
-          />
-          <textarea
-            placeholder="Reason for refund..."
-            value={refundReason}
-            onChange={(e) => setRefundReason(e.target.value)}
-            style={{ width: "100%", padding: 10, borderRadius: 8, minHeight: 80 }}
-          />
-          <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-            <button onClick={handleRequestRefund} className="btn btnPrimary">
-              Submit Refund Request
-            </button>
-            <button onClick={() => setShowRefund(false)} className="btn btnGhost">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* TRACKING INFO */}
-      {tracking && (
-        <div className="card" style={{ background: "#e0e7ff" }}>
-          <h3 style={{ fontWeight: 900, marginBottom: 12 }}>📦 Tracking Information</h3>
-          <p><strong>Carrier:</strong> {tracking.carrier || "N/A"}</p>
-          <p><strong>Tracking Number:</strong> {tracking.tracking_number || order.tracking_number}</p>
-          <p><strong>Status:</strong> {tracking.status || order.shipping_status}</p>
-          {tracking.estimated_delivery && (
-            <p><strong>Estimated Delivery:</strong> {new Date(tracking.estimated_delivery).toLocaleDateString()}</p>
-          )}
-        </div>
-      )}
-
-      {/* ORDER SUMMARY */}
-      <div className="card">
-        <div style={{ opacity: 0.6 }}>Order Total</div>
-        <div style={{ fontSize: 36, fontWeight: 900 }}>
-          {fmtM(order.total_amount)}
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <strong>Status:</strong> {order.status}
-        </div>
-
-        {order.refund_status && order.refund_status !== "none" && (
-          <div style={{ marginTop: 8 }}>
-            <strong>Refund Status:</strong> {order.refund_status}
-            {order.refund_amount && ` - ${fmtM(order.refund_amount)}`}
-          </div>
-        )}
-
-        {order.return_status && order.return_status !== "none" && (
-          <div style={{ marginTop: 8 }}>
-            <strong>Return Status:</strong> {order.return_status}
-          </div>
-        )}
       </div>
 
-      {/* PAYMENT SECTION – only show when order is still pending */}
-      {isOrderPending && (
-        <div className="card" style={{ display: "grid", gap: 20 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900 }}>
-            Complete Your Payment
-          </h2>
+      {msg && <div style={{ ...banner, background: msg.ok ? "#f0fdf4" : "#fef2f2", borderColor: msg.ok ? "#bbf7d0" : "#fecaca", color: msg.ok ? "#166534" : "#991b1b", marginBottom: 16 }}>{msg.text}</div>}
 
-          {bankDetails && (
-            <div
-              style={{
-                padding: 20,
-                borderRadius: 16,
-                background: "linear-gradient(135deg,#f0fdf4,#dcfce7)",
-                border: "1px solid #86efac",
-                display: "grid",
-                gap: 8,
-              }}
-            >
-              <div><strong>Bank:</strong> {bankDetails.bank_name}</div>
-              <div><strong>Account Name:</strong> {bankDetails.account_name}</div>
-              <div><strong>Account Number:</strong> {bankDetails.account_number}</div>
+      {/* ORDER SUMMARY */}
+      <div style={card}>
+        <h3 style={sectionTitle}>Order Summary</h3>
+        <Row label="Total" value={`R ${Number(order.total_amount ?? 0).toLocaleString()}`} />
+        <Row label="Status" value={order.status} />
+        <Row label="Placed" value={order.created_at ? new Date(order.created_at).toLocaleDateString() : "-"} />
+        {order.notes && <Row label="Notes" value={order.notes} />}
+      </div>
 
-              {bankDetails.qr_code_url && (
-                <img
-                  src={bankDetails.qr_code_url}
-                  alt="QR Code"
-                  style={{ maxWidth: 200, marginTop: 12 }}
-                />
-              )}
-
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: 14,
-                  borderRadius: 10,
-                  background: "#fffbeb",
-                }}
-              >
-                📝 Use reference:
-                <strong> {order.id.slice(0, 8)}</strong>
-              </div>
-
-              <div style={{ fontSize: 14, opacity: 0.8 }}>
-                📸 After transfer, upload:
-                <ul>
-                  <li>Screenshot of bank transfer</li>
-                  <li>Photo of payment receipt</li>
-                  <li>Mobile banking confirmation</li>
-                </ul>
-              </div>
-            </div>
-          )}
-
-          {canCreatePayment && (
-            <button
-              className="btn btnPrimary"
-              onClick={handleCreatePayment}
-              disabled={creatingPayment}
-            >
-              {creatingPayment ? "Creating..." : "Confirm Transfer"}
-            </button>
-          )}
-
-          {canUploadProof && (
-            <div style={{ display: "grid", gap: 12 }}>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={handleUpload}
-                disabled={uploading}
-              />
-              {uploading && <div>Uploading…</div>}
-            </div>
-          )}
+      {/* ITEMS */}
+      {order.items?.length > 0 && (
+        <div style={card}>
+          <h3 style={sectionTitle}>Items</h3>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <thead><tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+              <th style={th}>Product</th><th style={th}>Qty</th><th style={th}>Price</th>
+            </tr></thead>
+            <tbody>
+              {order.items.map((item: any, i: number) => (
+                <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={td}>{item.product_title ?? item.product_id}</td>
+                  <td style={td}>{item.quantity}</td>
+                  <td style={td}>R {Number(item.price ?? 0).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* PAYMENT STATUS BANNERS */}
-      {isOnHold && (
-        <div className="card" style={{ background: "#fef3c7" }}>
-          ⏳ Payment submitted. Awaiting verification.
-        </div>
-      )}
-
-      {isOrderPaid && (
-        <div className="card" style={{ background: "#dcfce7" }}>
-          ✅ Payment confirmed. Preparing shipment.
-        </div>
-      )}
-
-      {isRejected && (
-        <div className="card" style={{ background: "#fee2e2" }}>
-          ❌ Payment rejected. Please contact support.
-        </div>
-      )}
-
-      {isCancelled && (
-        <div className="card" style={{ background: "#f3f4f6" }}>
-          ❌ This order has been cancelled.
-        </div>
-      )}
-
-      {/* ORDER ITEMS */}
-      {order.items && order.items.length > 0 && (
-        <div className="card">
-          <h3 style={{ fontWeight: 900, marginBottom: 16 }}>Order Items</h3>
-          <div style={{ display: "grid", gap: 12 }}>
-            {order.items.map((item, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: 12,
-                  borderRadius: 8,
-                  background: "#f9fafb",
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 700 }}>{item.title}</div>
-                  <div style={{ fontSize: 13, opacity: 0.6 }}>
-                    Qty: {item.quantity} × {fmtM(item.price)}
+      {/* TRACKING */}
+      {tracking && (
+        <div style={card}>
+          <h3 style={sectionTitle}>Tracking</h3>
+          <Row label="Shipping Status" value={tracking.status ?? "-"} />
+          {tracking.carrier && <Row label="Carrier" value={tracking.carrier} />}
+          {tracking.tracking_number && <Row label="Tracking #" value={tracking.tracking_number} />}
+          {tracking.estimated_delivery && <Row label="Est. Delivery" value={new Date(tracking.estimated_delivery).toLocaleDateString()} />}
+          {tracking.events?.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#475569", marginBottom: 10 }}>Timeline</div>
+              {tracking.events.map((ev: any, i: number) => (
+                <div key={i} style={{ display: "flex", gap: 12, marginBottom: 10, fontSize: 13 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: i === 0 ? "#009543" : "#cbd5e1", marginTop: 4, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{ev.status}</div>
+                    <div style={{ color: "#64748b" }}>{ev.location} · {ev.timestamp ? new Date(ev.timestamp).toLocaleString() : ""}</div>
                   </div>
                 </div>
-                <div style={{ fontWeight: 900 }}>{fmtM(item.subtotal)}</div>
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* UPLOAD PROOF */}
+      {order.payment_id && order.status === "pending" && (
+        <div style={card}>
+          <h3 style={sectionTitle}>Upload Payment Proof</h3>
+          <p style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>Upload your payment screenshot or receipt to confirm your payment.</p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <input type="file" accept="image/*,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} style={{ fontSize: 13 }} />
+            <button onClick={handleProofUpload} disabled={!proofFile || actionLoading} style={greenBtn}>Upload Proof</button>
+          </div>
+        </div>
+      )}
+
+      {/* ACTIONS */}
+      <div style={card}>
+        <h3 style={sectionTitle}>Actions</h3>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={handleInvoice} style={btn}>Download Invoice</button>
+          {canCancel && <button onClick={handleCancel} disabled={actionLoading} style={{ ...btn, color: "#dc2626", borderColor: "#fca5a5" }}>Cancel Order</button>}
+          {canReturn && <button onClick={handleReturn} disabled={actionLoading} style={btn}>Request Return</button>}
+          {canRefund && <button onClick={() => setShowRefund(true)} style={btn}>Request Refund</button>}
+        </div>
+      </div>
+
+      {/* REFUND FORM */}
+      {showRefund && (
+        <div style={card}>
+          <h3 style={sectionTitle}>Request Refund</h3>
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Reason</label>
+              <input style={input} placeholder="Why are you requesting a refund?" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} />
+            </div>
+            <div>
+              <label style={labelStyle}>Amount (R)</label>
+              <input style={input} type="number" placeholder="Amount to refund" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={handleRefund} disabled={actionLoading || !refundReason || !refundAmount} style={greenBtn}>Submit Request</button>
+              <button onClick={() => setShowRefund(false)} style={btn}>Cancel</button>
+            </div>
           </div>
         </div>
       )}
@@ -545,5 +194,32 @@ export default function OrderDetailsPage() {
   );
 }
 
+function Row({ label, value }: { label: string; value: any }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f1f5f9", fontSize: 14 }}>
+      <span style={{ color: "#64748b" }}>{label}</span>
+      <span style={{ fontWeight: 600 }}>{String(value)}</span>
+    </div>
+  );
+}
 
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, [string, string]> = {
+    pending: ["#fef9c3", "#854d0e"], paid: ["#dcfce7", "#166534"],
+    shipped: ["#dbeafe", "#1e40af"], completed: ["#f0fdf4", "#166534"],
+    cancelled: ["#fee2e2", "#991b1b"],
+  };
+  const [bg, color] = map[status] ?? ["#f1f5f9", "#475569"];
+  return <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, background: bg, color }}>{status}</span>;
+}
 
+const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, marginBottom: 16 };
+const sectionTitle: React.CSSProperties = { fontSize: 15, fontWeight: 700, marginBottom: 14, color: "#0f172a" };
+const btn: React.CSSProperties = { padding: "8px 16px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: 13 };
+const greenBtn: React.CSSProperties = { ...btn, background: "#dcfce7", borderColor: "#86efac", fontWeight: 600, color: "#166534" };
+const ghostBtn: React.CSSProperties = { background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 13, padding: 0 };
+const th: React.CSSProperties = { padding: "8px 10px", fontWeight: 600, color: "#475569", fontSize: 13, textAlign: "left" };
+const td: React.CSSProperties = { padding: "8px 10px", fontSize: 13 };
+const banner: React.CSSProperties = { padding: "10px 16px", borderRadius: 8, border: "1px solid", fontSize: 14 };
+const input: React.CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, boxSizing: "border-box" };
+const labelStyle: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 6 };

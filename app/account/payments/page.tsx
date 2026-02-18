@@ -1,201 +1,183 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { paymentsApi } from "@/lib/api";
 
 export default function PaymentsPage() {
   const router = useRouter();
+  const [payments, setPayments] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [bankDetails, setBankDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  async function load() {
+    try {
+      const [p, b] = await Promise.allSettled([paymentsApi.getMy(), paymentsApi.getBankDetails()]);
+      if (p.status === "fulfilled") setPayments((p.value as any) ?? []);
+      if (b.status === "fulfilled") setBankDetails(b.value);
+    } finally { setLoading(false); }
+  }
+
+  async function selectPayment(p: any) {
+    setSelected(p);
+    try {
+      const h = await paymentsApi.getStatusHistory(p.id);
+      setHistory((h as any) ?? []);
+    } catch { setHistory([]); }
+  }
+
+  function flash(text: string, ok = true) { setMsg({ text, ok }); setTimeout(() => setMsg(null), 4000); }
+
+  async function act(fn: () => Promise<any>, successMsg: string) {
+    setActionLoading(true);
+    try { await fn(); flash(successMsg); load(); setSelected(null); }
+    catch (e: any) { flash(e?.message ?? "Action failed", false); }
+    finally { setActionLoading(false); }
+  }
+
+  async function handleUploadProof() {
+    if (!proofFile || !selected) return;
+    act(() => paymentsApi.uploadProof(selected.id, proofFile), "Proof uploaded!");
+    setProofFile(null);
+  }
+
+  async function handleResubmit() {
+    if (!proofFile || !selected) return;
+    act(() => paymentsApi.resubmitProof(selected.id, proofFile), "Proof resubmitted!");
+    setProofFile(null);
+  }
+
+  async function handleCancel() {
+    if (!selected || !confirm("Cancel this payment?")) return;
+    act(() => paymentsApi.cancel(selected.id, "Customer cancelled"), "Payment cancelled.");
+  }
+
+  async function handleRetry() {
+    if (!selected) return;
+    act(() => paymentsApi.retry(selected.order_id), "Payment retried — check your orders.");
+  }
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) return <div style={{ color: "#64748b", padding: 20 }}>Loading payments...</div>;
 
   return (
-    <div
-      style={{
-        maxWidth: 900,
-        display: "grid",
-        gap: 28,
-      }}
-    >
-      {/* CONTEXT */}
-      <div>
-        <div style={{ fontSize: 13, opacity: 0.6 }}>
-          Account › Payments
+    <div style={{ maxWidth: 800 }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 900 }}>My Payments</h1>
+        <p style={{ color: "#64748b", fontSize: 14 }}>View and manage all your payments.</p>
+      </div>
+
+      {msg && <div style={{ ...banner, background: msg.ok ? "#f0fdf4" : "#fef2f2", borderColor: msg.ok ? "#bbf7d0" : "#fecaca", color: msg.ok ? "#166534" : "#991b1b", marginBottom: 16 }}>{msg.text}</div>}
+
+      {/* BANK DETAILS */}
+      {bankDetails && (
+        <div style={{ ...card, background: "#f0fdf4", borderColor: "#bbf7d0", marginBottom: 20 }}>
+          <h3 style={{ ...sectionTitle, color: "#166534" }}>Bank Details for Payment</h3>
+          {Object.entries(bankDetails).filter(([k]) => !["id", "created_at"].includes(k)).map(([k, v]) => (
+            <div key={k} style={{ display: "flex", gap: 12, fontSize: 14, marginBottom: 6 }}>
+              <span style={{ color: "#64748b", textTransform: "capitalize", minWidth: 120 }}>{k.replace(/_/g, " ")}:</span>
+              <strong>{String(v)}</strong>
+            </div>
+          ))}
         </div>
-        <h1
-          style={{
-            fontSize: 26,
-            fontWeight: 900,
-            marginTop: 6,
-          }}
-        >
-          How payments work
-        </h1>
-        <p
-          style={{
-            fontSize: 14,
-            opacity: 0.6,
-            marginTop: 6,
-          }}
-        >
-          Payments are handled securely and verified manually for
-          your protection.
-        </p>
-      </div>
+      )}
 
-      {/* TRUST / SECURITY */}
-      <div
-        style={{
-          padding: 18,
-          borderRadius: 16,
-          background: "#f8fafc",
-          fontSize: 13,
-          lineHeight: 1.6,
-        }}
-      >
-        🔒 <strong>Security first.</strong>  
-        For your safety, payment details are never stored on your
-        account and are not processed directly on this website.
-      </div>
+      {/* PAYMENTS LIST */}
+      {payments.length === 0 ? (
+        <div style={{ ...card, textAlign: "center", color: "#64748b", padding: 40 }}>No payments yet.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 12, marginBottom: 24 }}>
+          {payments.map((p: any) => (
+            <div key={p.id} onClick={() => selectPayment(p)}
+              style={{ ...card, cursor: "pointer", borderColor: selected?.id === p.id ? "#3b82f6" : "#e2e8f0", background: selected?.id === p.id ? "#eff6ff" : "#fff" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: "#64748b", marginBottom: 2 }}>#{p.id?.slice(0, 8)}</div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>R {Number(p.amount ?? 0).toLocaleString()}</div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{p.created_at ? new Date(p.created_at).toLocaleDateString() : "-"}</div>
+                </div>
+                <StatusBadge status={p.status} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* STEP FLOW */}
-      <section
-        style={{
-          display: "grid",
-          gap: 18,
-        }}
-      >
-        {[
-          {
-            step: "1",
-            title: "Place your order",
-            desc: "Your order is created and marked as “Awaiting payment.”",
-          },
-          {
-            step: "2",
-            title: "Pay externally",
-            desc: "Complete the payment using the instructions provided after checkout.",
-          },
-          {
-            step: "3",
-            title: "Upload payment proof",
-            desc: "From your order details page, upload your payment confirmation.",
-          },
-          {
-            step: "4",
-            title: "Verification",
-            desc: "Our team reviews the payment for verification.",
-          },
-          {
-            step: "5",
-            title: "Shipping",
-            desc: "Once confirmed, your order proceeds to shipping.",
-          },
-        ].map((s) => (
-          <div
-            key={s.step}
-            style={{
-              padding: 20,
-              borderRadius: 20,
-              background:
-                "linear-gradient(135deg,#ffffff,#f8fbff)",
-              boxShadow:
-                "0 18px 50px rgba(15,23,42,0.12)",
-              display: "grid",
-              gap: 6,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 900,
-                opacity: 0.6,
-              }}
-            >
-              Step {s.step}
+      {/* SELECTED PAYMENT DETAIL */}
+      {selected && (
+        <div style={card}>
+          <h3 style={sectionTitle}>Payment #{selected.id?.slice(0, 8)}</h3>
+
+          {/* Status History Timeline */}
+          {history.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#475569", marginBottom: 10 }}>Status History</div>
+              {history.map((h: any, i: number) => (
+                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8, fontSize: 13 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: i === 0 ? "#3b82f6" : "#cbd5e1", marginTop: 4, flexShrink: 0 }} />
+                  <div>
+                    <span style={{ fontWeight: 600 }}>{h.status}</span>
+                    {h.note && <span style={{ color: "#64748b" }}> — {h.note}</span>}
+                    <div style={{ color: "#94a3b8", fontSize: 11 }}>{h.created_at ? new Date(h.created_at).toLocaleString() : ""}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 900,
-              }}
-            >
-              {s.title}
-            </div>
-            <div
-              style={{
-                fontSize: 14,
-                opacity: 0.65,
-              }}
-            >
-              {s.desc}
+          )}
+
+          {/* Actions */}
+          <div style={{ display: "grid", gap: 14 }}>
+            {/* Upload / Resubmit proof */}
+            {["pending", "on_hold"].includes(selected.status) && (
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#0f172a" }}>
+                  {selected.status === "on_hold" ? "Resubmit Payment Proof" : "Upload Payment Proof"}
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <input type="file" accept="image/*,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} style={{ fontSize: 13 }} />
+                  {selected.status === "on_hold"
+                    ? <button onClick={handleResubmit} disabled={!proofFile || actionLoading} style={greenBtn}>Resubmit Proof</button>
+                    : <button onClick={handleUploadProof} disabled={!proofFile || actionLoading} style={greenBtn}>Upload Proof</button>
+                  }
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {selected.status === "pending" && (
+                <button onClick={handleCancel} disabled={actionLoading} style={{ ...btn, color: "#dc2626", borderColor: "#fca5a5" }}>Cancel Payment</button>
+              )}
+              {selected.status === "rejected" && (
+                <button onClick={handleRetry} disabled={actionLoading} style={greenBtn}>Retry Payment</button>
+              )}
+              <button onClick={() => router.push(`/account/orders/${selected.order_id}`)} style={btn}>View Order</button>
+              <button onClick={() => setSelected(null)} style={btn}>Close</button>
             </div>
           </div>
-        ))}
-      </section>
-
-      {/* STATUS EXPLANATION */}
-      <div
-        style={{
-          padding: 18,
-          borderRadius: 16,
-          background: "#f8fafc",
-          fontSize: 13,
-          lineHeight: 1.6,
-        }}
-      >
-        <strong>Order status you may see:</strong>
-        <ul style={{ marginTop: 8, paddingLeft: 18 }}>
-          <li>
-            <strong>Awaiting payment</strong> – Payment has not yet
-            been verified.
-          </li>
-          <li>
-            <strong>Payment confirmed</strong> – Your payment was
-            approved.
-          </li>
-          <li>
-            <strong>Payment rejected</strong> – Uploaded proof could
-            not be verified.
-          </li>
-        </ul>
-        You will only be asked to take action if verification
-        fails.
-      </div>
-
-      {/* REASSURANCE */}
-      <div
-        style={{
-          fontSize: 14,
-          opacity: 0.7,
-          lineHeight: 1.6,
-        }}
-      >
-        ⏳ <strong>During verification:</strong>  
-        There is nothing else you need to do unless contacted by
-        our team. Verification time may vary depending on payment
-        method and volume.
-      </div>
-
-      {/* ACTIONS */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <button
-          className="btn btnPrimary"
-          onClick={() => router.push("/account/orders")}
-        >
-          View my orders
-        </button>
-
-        <button
-          className="btn btnTech"
-          onClick={() => router.push("/store")}
-        >
-          Continue shopping
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, [string, string]> = {
+    pending: ["#fef9c3", "#854d0e"], paid: ["#dcfce7", "#166534"],
+    on_hold: ["#fef3c7", "#92400e"], rejected: ["#fee2e2", "#991b1b"],
+  };
+  const [bg, color] = map[status] ?? ["#f1f5f9", "#475569"];
+  return <span style={{ padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 700, background: bg, color }}>{status}</span>;
+}
+
+const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 };
+const sectionTitle: React.CSSProperties = { fontSize: 15, fontWeight: 700, marginBottom: 14, color: "#0f172a" };
+const btn: React.CSSProperties = { padding: "8px 16px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: 13 };
+const greenBtn: React.CSSProperties = { ...btn, background: "#dcfce7", borderColor: "#86efac", fontWeight: 600, color: "#166534" };
+const banner: React.CSSProperties = { padding: "10px 16px", borderRadius: 8, border: "1px solid", fontSize: 14 };
