@@ -241,9 +241,30 @@ export default function Header() {
 
           {user && user.role === "user" && (
             <>
-              <CapsuleLink onClick={goToAccount}>
-                Account
-              </CapsuleLink>
+              <button
+                onClick={goToAccount}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: 999,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: "#fff",
+                  background: "rgba(0,0,0,0.65)",
+                  border: "1px solid rgba(255,255,255,.15)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  transition: "0.2s ease",
+                  textAlign: "left",
+                  lineHeight: 1.3,
+                }}
+              >
+                <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.85 }}>
+                  Hello, {user.name?.split(" ")[0] ?? user.email?.split("@")[0] ?? "there"}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 800 }}>
+                  Account ▾
+                </div>
+              </button>
               <CapsuleLink onClick={handleLogout}>
                 Logout
               </CapsuleLink>
