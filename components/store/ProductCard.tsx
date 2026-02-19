@@ -16,7 +16,7 @@ export default function ProductCard({
 }: {
   product: ProductListItem;
 }) {
-  const cart = useCart();
+  const addItem = useCart((s) => s.addItem);
   const imageRef = useRef<HTMLDivElement>(null);
 
   const [adding, setAdding] = useState(false);
@@ -77,7 +77,8 @@ export default function ProductCard({
 
     try {
       animateFlyToCart();
-      cart.addItem(product, 1);
+      // Pass product.id (string) — addItem accepts string | Product
+      await addItem(product.id, 1);
       notify.success("Added to cart");
     } catch {
       notify.error("Failed to add to cart");

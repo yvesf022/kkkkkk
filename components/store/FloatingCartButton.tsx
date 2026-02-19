@@ -5,7 +5,7 @@ import { useCart } from "@/lib/cart";
 import CartDrawer from "./CartDrawer";
 
 export default function FloatingCartButton() {
-  const cart = useCart();
+  const itemCount = useCart((s) => s.itemCount);
   const [open, setOpen] = useState(false);
 
   return (
@@ -15,9 +15,9 @@ export default function FloatingCartButton() {
         onClick={() => setOpen(true)}
       >
         🛒
-        {cart.items.length > 0 && (
+        {itemCount > 0 && (
           <span className="cart-count">
-            {cart.items.length}
+            {itemCount}
           </span>
         )}
       </div>

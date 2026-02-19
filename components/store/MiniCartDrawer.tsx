@@ -12,10 +12,13 @@ export default function MiniCartDrawer({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const items = useCart((s) => s.items);
-  const subtotal = useCart((s) => s.subtotal());
+  // Access items via cart.items and subtotal as a plain number
+  const cart = useCart((s) => s.cart);
+  const subtotal = useCart((s) => s.subtotal);
 
   if (!open) return null;
+
+  const items = cart?.items ?? [];
 
   return (
     <div
@@ -35,10 +38,13 @@ export default function MiniCartDrawer({
 
       <div style={{ marginTop: 20 }}>
         {items.map((item) => (
-          <div key={item.product_id} style={{ marginBottom: 10 }}>
-            {item.title} × {item.quantity}
+          <div key={item.id} style={{ marginBottom: 10 }}>
+            {item.product?.title ?? "Product"} × {item.quantity}
           </div>
         ))}
+        {items.length === 0 && (
+          <div style={{ color: "#94a3b8", fontSize: 14 }}>Your cart is empty</div>
+        )}
       </div>
 
       <div style={{ marginTop: 30, fontWeight: 900 }}>

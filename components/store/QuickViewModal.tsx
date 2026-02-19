@@ -5,7 +5,7 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { useCart } from "@/app/context/CartContext";
+import { useCart } from "@/lib/cart";
 
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -13,7 +13,7 @@ const API = process.env.NEXT_PUBLIC_API_URL!;
 const fmtM = (v: number) =>
   `M ${Math.round(v).toLocaleString("en-ZA")}`;
 
-type Product = {
+type QuickViewProduct = {
   id: string;
   title: string;
   price: number;
@@ -30,18 +30,19 @@ export default function QuickViewModal({
   onClose,
 }: {
   open: boolean;
-  product: Product | null;
+  product: QuickViewProduct | null;
   onClose: () => void;
 }) {
-  const { addItem } = useCart();
+  // ✅ Use Zustand store — addItem(id, qty) signature
+  const addItem = useCart((s) => s.addItem);
 
   const isOutOfStock =
     !product || product.in_stock === false || product.stock <= 0;
 
   const imageUrl =
-    product && product.main_image.startsWith("http")
+    product && product.main_image?.startsWith("http")
       ? product.main_image
-      : product
+      : product?.main_image
       ? `${API}${product.main_image}`
       : "";
 
@@ -106,13 +107,19 @@ export default function QuickViewModal({
             </div>
 
             <div style={{ padding: 18, display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: 18 }}>
-              <Image
-                src={imageUrl}
-                alt={product.title}
-                width={1200}
-                height={900}
-                style={{ width: "100%", height: 360, objectFit: "cover", borderRadius: 18 }}
-              />
+              {imageUrl ? (
+                <Image
+                  src={imageUrl}
+                  alt={product.title}
+                  width={1200}
+                  height={900}
+                  style={{ width: "100%", height: 360, objectFit: "cover", borderRadius: 18 }}
+                />
+              ) : (
+                <div style={{ width: "100%", height: 360, borderRadius: 18, background: "#f1f5f9", display: "grid", placeItems: "center", fontSize: 56 }}>
+                  📦
+                </div>
+              )}
 
               <div>
                 <h2>{product.title}</h2>
@@ -122,16 +129,20 @@ export default function QuickViewModal({
                 <button
                   className="btn btnTech"
                   disabled={isOutOfStock}
-                  onClick={() => {
+                  onClick={async () => {
                     if (isOutOfStock) {
                       toast.error("Out of stock");
                       return;
                     }
 
-                    addItem(product, 1);
-
-                    toast.success("Added to cart");
-                    onClose();
+                    try {
+                      // ✅ Pass product.id string — matches addItem(productOrId, qty)
+                      await addItem(product.id, 1);
+                      toast.success("Added to cart");
+                      onClose();
+                    } catch (e: any) {
+                      toast.error(e?.message ?? "Failed to add to cart");
+                    }
                   }}
                 >
                   {isOutOfStock ? "Out of Stock" : "Add to Cart"}
@@ -144,4 +155,3 @@ export default function QuickViewModal({
     </AnimatePresence>
   );
 }
-

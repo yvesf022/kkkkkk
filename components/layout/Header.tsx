@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUI } from "@/components/layout/uiStore";
-import { useCart } from "@/app/context/CartContext";
+import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
 
@@ -91,11 +91,12 @@ export default function Header() {
   if (pathname.startsWith("/admin")) return null;
 
   const { toggleSidebar } = useUI();
-  const { items } = useCart();
+
+  // ✅ Use itemCount selector from Zustand store — no .items needed
+  const cartCount = useCart((s) => s.itemCount);
+
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
-
-  const cartCount = items.reduce((a, b) => a + b.quantity, 0);
 
   const shouldShowMenu =
     !pathname.startsWith("/login") &&
@@ -159,7 +160,7 @@ export default function Header() {
           flexWrap: "wrap",
         }}
       >
- {/* ================= LUXURY BRAND LOGO ================= */}
+        {/* ================= LUXURY BRAND LOGO ================= */}
 
         <Link
           href="/"
@@ -185,7 +186,6 @@ export default function Header() {
             e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.12)";
           }}
         >
-          {/* Karabo's Store - Unified Logo */}
           <div
             style={{
               fontSize: "clamp(24px, 4.5vw, 36px)",
@@ -203,7 +203,6 @@ export default function Header() {
             Karabo's Store
           </div>
 
-          {/* Elegant underline accent */}
           <div
             style={{
               marginTop: 8,
