@@ -14,6 +14,24 @@ import { formatCurrency } from "@/lib/currency";
 /* ── types ──────────────────────────────────────────── */
 type Step = "address" | "review";
 
+/* ── Resolve best available image from a cart item ── */
+function resolveItemImage(item: any): string | null {
+  // 1. direct image_url on the item itself (some APIs set this)
+  if (item.image_url) return item.image_url;
+  // 2. variant image
+  if (item.variant?.image_url) return item.variant.image_url;
+  // 3. product main_image
+  if (item.product?.main_image) return item.product.main_image;
+  // 4. first entry in product.images (handles both string[] and ProductImage[])
+  const imgs = item.product?.images;
+  if (Array.isArray(imgs) && imgs.length > 0) {
+    const first = imgs[0];
+    if (typeof first === "string") return first;
+    return first?.image_url ?? first?.url ?? null;
+  }
+  return null;
+}
+
 const EMPTY_ADDR = {
   label: "",
   full_name: "",
@@ -360,8 +378,8 @@ export default function CheckoutPage() {
                     {items.map((item) => (
                       <div key={item.id} style={{ display: "flex", gap: 12, alignItems: "center" }}>
                         <div style={{ width: 56, height: 56, borderRadius: 10, background: "#f1f5f9", overflow: "hidden", flexShrink: 0 }}>
-                          {item.product?.main_image ? (
-                            <img src={item.product.main_image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          {resolveItemImage(item) ? (
+                            <img src={resolveItemImage(item)!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           ) : (
                             <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>📦</div>
                           )}

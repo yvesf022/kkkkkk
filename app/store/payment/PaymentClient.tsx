@@ -278,8 +278,23 @@ export default function PaymentClient() {
               )}
 
               <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.7 }}>
-                  Upload a clear photo or PDF of your payment receipt. Make sure the <strong>amount</strong> and <strong>reference number</strong> are visible.
+
+                {/* What is payment proof — clear explainer */}
+                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "12px 14px" }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1e40af", marginBottom: 8 }}>
+                    📋 What is Payment Proof?
+                  </div>
+                  <div style={{ fontSize: 13, color: "#1e3a8a", lineHeight: 1.7 }}>
+                    Upload <strong>any one</strong> of the following:
+                  </div>
+                  <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 13, color: "#1e3a8a", lineHeight: 1.9 }}>
+                    <li><strong>Bank transfer screenshot</strong> — from your internet/mobile banking app showing the transfer was sent</li>
+                    <li><strong>Bank slip / deposit slip</strong> — the paper or digital receipt you received at the bank</li>
+                    <li><strong>SMS confirmation</strong> — the text message your bank sent confirming the payment</li>
+                  </ul>
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#3b82f6" }}>
+                    ✅ Make sure the <strong>amount</strong> and <strong>reference number (#{orderId?.slice(0, 8).toUpperCase()})</strong> are clearly visible.
+                  </div>
                 </div>
 
                 <div>
@@ -294,7 +309,7 @@ export default function PaymentClient() {
                     htmlFor="proof-upload"
                     style={{ display: "block", padding: "14px", borderRadius: 12, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 600, color: "#475569" }}
                   >
-                    {file ? `📎 ${file.name}` : "📁 Choose File"}
+                    {file ? `📎 ${file.name}` : "📁 Choose File  (photo, screenshot or PDF)"}
                   </label>
                 </div>
 
