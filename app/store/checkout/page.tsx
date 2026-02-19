@@ -86,11 +86,10 @@ export default function CheckoutPage() {
         label: newAddr.label || "Home",
         full_name: newAddr.full_name,
         phone: newAddr.phone,
-        address_line1: newAddr.address,
+        address: newAddr.address,
         city: newAddr.city,
-        state: newAddr.district,
-        postal_code: newAddr.postal_code,
-        country: "LS", // Lesotho default — adjust as needed
+        district: newAddr.district || undefined,
+        postal_code: newAddr.postal_code || undefined,
       }) as Address;
       setAddresses((prev) => [...prev, created]);
       setSelectedAddrId(created.id);

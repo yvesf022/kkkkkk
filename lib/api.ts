@@ -1,5 +1,5 @@
 /**
- * KARABO API CLIENT � COMPLETE ENTERPRISE VERSION
+ * KARABO API CLIENT — COMPLETE ENTERPRISE VERSION
  * All 100+ endpoints for your e-commerce platform
  */
 
@@ -135,7 +135,11 @@ export const adminAuthApi = {
 export const productsApi = {
   list(params: Record<string, any> = {}): Promise<{ total: number; results: ProductListItem[] }> {
     const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined))
+      Object.fromEntries(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined && v !== null && v !== "")
+          .map(([k, v]) => [k, String(v)])
+      )
     ).toString();
     return request<{ total: number; results: ProductListItem[] }>(
       `/api/products${qs ? `?${qs}` : ""}`
@@ -208,7 +212,7 @@ export const productsApi = {
   },
 
   setImagePrimary(imageId: string) {
-    return request(`/api/products/admin/images/${imageId}/primary`, {
+    return request(`/api/products/images/${imageId}/set-primary`, {
       method: "PATCH",
     });
   },
@@ -229,7 +233,7 @@ export const productsApi = {
   },
 
   deleteVariant(variantId: string) {
-    return request(`/api/products/admin/variants/${variantId}`, {
+    return request(`/api/products/variants/${variantId}`, {
       method: "DELETE",
     });
   },
@@ -243,7 +247,7 @@ export const productsApi = {
   },
 
   setMainImage(imageId: string) {
-    return request(`/api/products/admin/images/${imageId}/primary`, {
+    return request(`/api/products/images/${imageId}/set-primary`, {
       method: "PATCH",
     });
   },
@@ -254,8 +258,8 @@ export const productsApi = {
     type?: string;
     reference?: string;
   }) {
-    return request(`/api/products/admin/${productId}/inventory`, {
-      method: "POST",
+    return request(`/api/products/${productId}/inventory`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -283,8 +287,8 @@ export const productsApi = {
     stock: number;
     note?: string;
   }) {
-    return request(`/api/products/admin/variants/${variantId}/inventory`, {
-      method: "POST",
+    return request(`/api/products/variants/${variantId}/inventory`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -441,6 +445,9 @@ export const paymentsApi = {
 
 /* =====================================================
    ADDRESSES
+   FIX: payload now matches backend AddressCreate schema:
+   { label, full_name, phone, address, city, district, postal_code }
+   NOT address_line1/address_line2/state/country — those don't exist in backend
 ===================================================== */
 
 export const addressesApi = {
@@ -448,15 +455,13 @@ export const addressesApi = {
     request("/api/users/me/addresses"),
 
   create: (payload: {
-    label: string;
+    label?: string;
     full_name: string;
     phone: string;
-    address_line1: string;
-    address_line2?: string;
+    address: string;
     city: string;
-    state?: string;
-    postal_code: string;
-    country: string;
+    district?: string;
+    postal_code?: string;
   }) =>
     request("/api/users/me/addresses", {
       method: "POST",
@@ -468,12 +473,10 @@ export const addressesApi = {
     label: string;
     full_name: string;
     phone: string;
-    address_line1: string;
-    address_line2: string;
+    address: string;
     city: string;
-    state: string;
+    district: string;
     postal_code: string;
-    country: string;
   }>) =>
     request(`/api/users/me/addresses/${addressId}`, {
       method: "PATCH",
@@ -867,7 +870,7 @@ export const bulkUploadApi = {
   }> => {
     const form = new FormData();
     form.append("file", file);
-    return request("/api/products/admin/bulk-upload/validate", {
+    return request("/api/products/admin/import-validate", {
       method: "POST",
       body: form,
     });
@@ -886,7 +889,7 @@ export const bulkUploadApi = {
   }> => {
     const form = new FormData();
     form.append("file", file);
-    return request("/api/products/admin/bulk-upload/preview", {
+    return request("/api/products/admin/import-preview", {
       method: "POST",
       body: form,
     });
