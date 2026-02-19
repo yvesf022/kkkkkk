@@ -7,6 +7,7 @@ import { useUI } from "@/components/layout/uiStore";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
+import { CartHeaderButton } from "@/app/store/cart/page";
 
 /* ---------------------------------
    Helpers
@@ -230,10 +231,7 @@ export default function Header() {
         >
           <CapsuleLink href="/store">Shop</CapsuleLink>
 
-          <div style={{ position: "relative" }}>
-            <CapsuleLink onClick={goToCart}>Cart</CapsuleLink>
-            <CountBadge n={cartCount} />
-          </div>
+          <CartHeaderButton onClick={goToCart} />
 
           {!user && (
             <CapsuleLink onClick={goToLogin}>
