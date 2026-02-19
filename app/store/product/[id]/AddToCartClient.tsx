@@ -14,20 +14,35 @@ interface Props {
 
 /** Resolve all displayable image URLs from the product, best-first. */
 function resolveImages(product: Product): string[] {
+  const seen = new Set<string>();
   const urls: string[] = [];
 
+  function add(url: string | null | undefined) {
+    if (url && !seen.has(url)) { seen.add(url); urls.push(url); }
+  }
+
+  // 1. Structured images array (ProductImage[]) — sorted primary first
   if (product.images && product.images.length > 0) {
     const sorted = [...product.images].sort((a, b) => {
       if (a.is_primary && !b.is_primary) return -1;
       if (!a.is_primary && b.is_primary) return 1;
       return a.position - b.position;
     });
-    sorted.forEach((img) => { if (img.image_url) urls.push(img.image_url); });
+    sorted.forEach((img) => add(img.image_url));
   }
 
-  // Fall back to main_image if not already present
-  if (product.main_image && !urls.includes(product.main_image)) {
+  // 2. main_image — unshift so it's first if not already present from images[]
+  if (product.main_image && !seen.has(product.main_image)) {
     urls.unshift(product.main_image);
+    seen.add(product.main_image);
+  }
+
+  // 3. String array fallback (some API responses return images as string[])
+  const rawImages = (product as any).images;
+  if (Array.isArray(rawImages)) {
+    rawImages.forEach((img: any) => {
+      if (typeof img === "string") add(img);
+    });
   }
 
   return urls;
@@ -193,70 +208,20 @@ export default function AddToCartClient({ product }: Props) {
       className="product-detail-grid"
     >
       {/* ═══════════════ IMAGE GALLERY ═══════════════ */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {/* Main image */}
-        <div
-          style={{
-            width: "100%",
-            aspectRatio: "1 / 1",
-            borderRadius: 20,
-            overflow: "hidden",
-            border: "1px solid #e5e7eb",
-            background: "#f8fafc",
-            position: "relative",
-          }}
-        >
-          {displayImages.length > 0 ? (
-            <SafeImage
-              src={displayImages[activeIdx] ?? displayImages[0]}
-              alt={product.title}
-            />
-          ) : (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 72,
-                background: "#f1f5f9",
-              }}
-            >
-              📦
-            </div>
-          )}
+      <div style={{ display: "flex", gap: 12 }}>
 
-          {/* Discount badge */}
-          {discountPct && (
-            <div
-              style={{
-                position: "absolute",
-                top: 14,
-                left: 14,
-                background: "#dc2626",
-                color: "#fff",
-                borderRadius: 8,
-                padding: "4px 10px",
-                fontWeight: 800,
-                fontSize: 13,
-              }}
-            >
-              -{discountPct}%
-            </div>
-          )}
-        </div>
-
-        {/* Thumbnails — only show if there are multiple images */}
+        {/* Vertical thumbnail strip — only if multiple images */}
         {displayImages.length > 1 && (
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              overflowX: "auto",
-              paddingBottom: 4,
-            }}
-          >
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            width: 68,
+            flexShrink: 0,
+            maxHeight: 500,
+            overflowY: "auto",
+            paddingRight: 2,
+          }}>
             {displayImages.map((url, i) => (
               <button
                 key={i}
@@ -264,25 +229,147 @@ export default function AddToCartClient({ product }: Props) {
                 onClick={() => setActiveIdx(i)}
                 style={{
                   flexShrink: 0,
-                  width: 72,
-                  height: 72,
-                  borderRadius: 10,
+                  width: 64,
+                  height: 64,
+                  borderRadius: 8,
                   overflow: "hidden",
-                  border:
-                    activeIdx === i
-                      ? "2px solid #0f172a"
-                      : "2px solid transparent",
-                  background: "#f1f5f9",
+                  border: activeIdx === i
+                    ? "2.5px solid #0033a0"
+                    : "2px solid #e5e7eb",
+                  background: "#f8f7f4",
                   cursor: "pointer",
                   padding: 0,
-                  transition: "border-color 0.15s",
+                  transition: "border-color 0.15s, box-shadow 0.15s",
+                  boxShadow: activeIdx === i ? "0 0 0 3px rgba(0,51,160,0.12)" : "none",
+                  outline: "none",
                 }}
+                onMouseEnter={e => { if (activeIdx !== i) e.currentTarget.style.borderColor = "#94a3b8"; }}
+                onMouseLeave={e => { if (activeIdx !== i) e.currentTarget.style.borderColor = "#e5e7eb"; }}
               >
-                <SafeImage src={url} alt={`${product.title} ${i + 1}`} />
+                <SafeImage src={url} alt={`${product.title} view ${i + 1}`} />
               </button>
             ))}
           </div>
         )}
+
+        {/* Main image */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: "1 / 1",
+              borderRadius: 16,
+              overflow: "hidden",
+              border: "1px solid #e8e4de",
+              background: "#f8f7f4",
+              position: "relative",
+              cursor: "zoom-in",
+            }}
+          >
+            {displayImages.length > 0 ? (
+              <SafeImage
+                src={displayImages[activeIdx] ?? displayImages[0]}
+                alt={product.title}
+              />
+            ) : (
+              <div style={{
+                width: "100%", height: "100%",
+                display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 72, background: "#f8f7f4",
+              }}>
+                📦
+              </div>
+            )}
+
+            {/* Discount badge */}
+            {discountPct && (
+              <div style={{
+                position: "absolute", top: 14, left: 14,
+                background: "#dc2626", color: "#fff",
+                borderRadius: 8, padding: "4px 10px",
+                fontWeight: 800, fontSize: 13,
+              }}>
+                -{discountPct}%
+              </div>
+            )}
+
+            {/* Image counter pill */}
+            {displayImages.length > 1 && (
+              <div style={{
+                position: "absolute", bottom: 12, right: 12,
+                background: "rgba(0,0,0,0.55)", color: "#fff",
+                borderRadius: 99, padding: "4px 10px",
+                fontSize: 12, fontWeight: 700,
+                backdropFilter: "blur(4px)",
+              }}>
+                {activeIdx + 1} / {displayImages.length}
+              </div>
+            )}
+
+            {/* Prev / Next arrows */}
+            {displayImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveIdx(i => (i - 1 + displayImages.length) % displayImages.length)}
+                  style={{
+                    position: "absolute", left: 10, top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 36, height: 36, borderRadius: "50%",
+                    background: "rgba(255,255,255,0.92)",
+                    border: "1px solid #e8e4de",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                    cursor: "pointer", display: "grid", placeItems: "center",
+                    fontSize: 16, fontWeight: 900, color: "#0f172a",
+                    transition: "all 0.15s", outline: "none",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#0033a0"; e.currentTarget.style.color = "#fff"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.92)"; e.currentTarget.style.color = "#0f172a"; }}
+                >‹</button>
+                <button
+                  type="button"
+                  onClick={() => setActiveIdx(i => (i + 1) % displayImages.length)}
+                  style={{
+                    position: "absolute", right: 10, top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 36, height: 36, borderRadius: "50%",
+                    background: "rgba(255,255,255,0.92)",
+                    border: "1px solid #e8e4de",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                    cursor: "pointer", display: "grid", placeItems: "center",
+                    fontSize: 16, fontWeight: 900, color: "#0f172a",
+                    transition: "all 0.15s", outline: "none",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#0033a0"; e.currentTarget.style.color = "#fff"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.92)"; e.currentTarget.style.color = "#0f172a"; }}
+                >›</button>
+              </>
+            )}
+          </div>
+
+          {/* Dot indicators for mobile (when thumb strip is hidden) */}
+          {displayImages.length > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 10 }} className="pd-dots">
+              {displayImages.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setActiveIdx(i)}
+                  style={{
+                    width: activeIdx === i ? 20 : 8,
+                    height: 8,
+                    borderRadius: 99,
+                    background: activeIdx === i ? "#0033a0" : "#d1d5db",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    transition: "all 0.2s",
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ═══════════════ PRODUCT INFO & ACTIONS ═══════════════ */}
@@ -538,12 +625,14 @@ export default function AddToCartClient({ product }: Props) {
         )}
       </div>
 
-      {/* Responsive: collapse to single column on mobile */}
+      {/* Responsive styles */}
       <style>{`
         @media (max-width: 768px) {
-          .product-detail-grid {
-            grid-template-columns: 1fr !important;
-          }
+          .product-detail-grid { grid-template-columns: 1fr !important; }
+          .pd-dots { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+          .pd-dots { display: none !important; }
         }
       `}</style>
     </div>
