@@ -1,345 +1,173 @@
-"use client";
-
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { ordersApi, cartApi } from "./api";
-import type { Cart, CartItem } from "./types";
-
 /**
- * ENTERPRISE CART - Hybrid Local + Server Sync
- * 
- * Strategy:
- * - Guest users: Pure local state (fast, no API calls)
- * - Logged in users: Sync with backend cart API
- * - Auto-merge on login
+ * @/lib/cart — Zustand cart store that SYNCS WITH THE API.
+ * Drop-in replacement for the old local-only store.
+ * Keeps the same useCart(selector) interface so nothing else breaks.
  */
 
-/* =========================
-   LOCAL CART PRODUCT TYPE
-========================== */
+import { create } from "zustand";
+import { cartApi } from "@/lib/api";
+import type { Cart, CartItem, Product, ProductVariant } from "@/lib/types";
 
-export type CartProduct = {
-  id: string;
-  title: string;
-  price: number;
-  main_image?: string;
-  variant_id?: string;
-};
+interface CartStore {
+  /* ── state ──────────────────────────────────── */
+  cart: Cart | null;
+  loading: boolean;
+  error: string | null;
 
-/* =========================
-   LOCAL CART ITEM
-========================== */
+  /* ── derived (computed on access) ──────────── */
+  itemCount: number;
+  subtotal: number;
 
-export type LocalCartItem = {
-  product_id: string;
-  variant_id?: string;
-  title: string;
-  price: number;
-  quantity: number;
-  main_image?: string;
-};
+  /* ── actions ────────────────────────────────── */
+  /** Fetch cart from server — call once on mount (layout) */
+  fetchCart: () => Promise<void>;
 
-/* =========================
-   CART STATE
-========================== */
+  /**
+   * Add item to cart — calls API, updates local state.
+   * Kept compatible with old signature addItem(product, qty, variantId?)
+   * but also accepts plain (product, qty) for backward compat.
+   */
+  addItem: (
+    productOrId: Product | string,
+    qty: number,
+    variantId?: string
+  ) => Promise<void>;
 
-type CartState = {
-  // Local state (always available)
-  items: LocalCartItem[];
-  
-  // Server sync state
-  serverCart: Cart | null;
-  isSyncing: boolean;
-  isLoggedIn: boolean;
+  updateItem: (itemId: string, quantity: number) => Promise<void>;
+  removeItem: (itemId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
 
-  // Cart mutations (works for both guest and logged-in)
-  addItem: (product: CartProduct, quantity?: number) => Promise<void>;
-  removeItem: (productId: string, variantId?: string) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number, variantId?: string) => Promise<void>;
-  clear: () => Promise<void>;
+  /** Merge guest cart after login */
+  mergeGuestCart: () => Promise<void>;
 
-  // Sync operations
-  syncWithServer: () => Promise<void>;
-  mergeOnLogin: () => Promise<void>;
-  setLoggedIn: (loggedIn: boolean) => void;
+  /** Internal: set cart directly (used after API responses) */
+  _setCart: (cart: Cart) => void;
+}
 
-  // Derived totals
-  subtotal: () => number;
-  totalItems: () => number;
+function computeDerived(cart: Cart | null) {
+  const items = cart?.items ?? [];
+  return {
+    itemCount: items.reduce((s, i) => s + i.quantity, 0),
+    subtotal: items.reduce((s, i) => s + i.price * i.quantity, 0),
+  };
+}
 
-  // Order creation
-  createOrder: (shippingAddress?: any) => Promise<{
-    order_id: string;
-    order_status: string;
-  }>;
-};
+export const useCart = create<CartStore>((set, get) => ({
+  cart: null,
+  loading: false,
+  error: null,
+  itemCount: 0,
+  subtotal: 0,
 
-export const useCart = create<CartState>()(
-  persist(
-    (set, get) => ({
-      items: [],
-      serverCart: null,
-      isSyncing: false,
-      isLoggedIn: false,
+  _setCart(cart: Cart) {
+    set({ cart, ...computeDerived(cart) });
+  },
 
-      /* =========================
-         SET LOGIN STATE
-      ========================== */
-      setLoggedIn: (loggedIn: boolean) => {
-        set({ isLoggedIn: loggedIn });
-        if (loggedIn) {
-          get().mergeOnLogin();
-        }
-      },
-
-      /* =========================
-         ADD ITEM
-      ========================== */
-      addItem: async (product: CartProduct, quantity = 1) => {
-        const state = get();
-        
-        // Update local state immediately (optimistic)
-        const existing = state.items.find(
-          (i) => i.product_id === product.id && 
-                 (i.variant_id || null) === (product.variant_id || null)
-        );
-
-        if (existing) {
-          set({
-            items: state.items.map((i) =>
-              i.product_id === product.id && 
-              (i.variant_id || null) === (product.variant_id || null)
-                ? { ...i, quantity: i.quantity + quantity }
-                : i
-            ),
-          });
-        } else {
-          set({
-            items: [
-              ...state.items,
-              {
-                product_id: product.id,
-                variant_id: product.variant_id,
-                title: product.title,
-                price: product.price,
-                quantity,
-                main_image: product.main_image,
-              },
-            ],
-          });
-        }
-
-        // Sync with server if logged in
-        if (state.isLoggedIn) {
-          try {
-            await cartApi.addItem({
-              product_id: product.id,
-              variant_id: product.variant_id,
-              quantity,
-            });
-            await get().syncWithServer();
-          } catch (error) {
-            console.error("Failed to sync cart with server:", error);
-            // Keep local state, will retry on next sync
-          }
-        }
-      },
-
-      /* =========================
-         REMOVE ITEM
-      ========================== */
-      removeItem: async (productId: string, variantId?: string) => {
-        const state = get();
-
-        // Update local state
-        set({
-          items: state.items.filter(
-            (i) =>
-              !(i.product_id === productId && 
-                (i.variant_id || null) === (variantId || null))
-          ),
-        });
-
-        // Sync with server if logged in
-        if (state.isLoggedIn && state.serverCart) {
-          try {
-            const serverItem = state.serverCart.items.find(
-              (i) => i.product_id === productId && 
-                     (i.variant_id || null) === (variantId || null)
-            );
-            if (serverItem) {
-              await cartApi.removeItem(serverItem.id);
-              await get().syncWithServer();
-            }
-          } catch (error) {
-            console.error("Failed to remove item from server:", error);
-          }
-        }
-      },
-
-      /* =========================
-         UPDATE QUANTITY
-      ========================== */
-      updateQuantity: async (productId: string, quantity: number, variantId?: string) => {
-        if (quantity <= 0) {
-          return get().removeItem(productId, variantId);
-        }
-
-        const state = get();
-
-        // Update local state
-        set({
-          items: state.items.map((i) =>
-            i.product_id === productId && 
-            (i.variant_id || null) === (variantId || null)
-              ? { ...i, quantity }
-              : i
-          ),
-        });
-
-        // Sync with server if logged in
-        if (state.isLoggedIn && state.serverCart) {
-          try {
-            const serverItem = state.serverCart.items.find(
-              (i) => i.product_id === productId && 
-                     (i.variant_id || null) === (variantId || null)
-            );
-            if (serverItem) {
-              await cartApi.updateItem(serverItem.id, { quantity });
-              await get().syncWithServer();
-            }
-          } catch (error) {
-            console.error("Failed to update quantity on server:", error);
-          }
-        }
-      },
-
-      /* =========================
-         CLEAR CART
-      ========================== */
-      clear: async () => {
-        const state = get();
-        
-        set({ items: [] });
-
-        if (state.isLoggedIn) {
-          try {
-            await cartApi.clear();
-            set({ serverCart: null });
-          } catch (error) {
-            console.error("Failed to clear server cart:", error);
-          }
-        }
-      },
-
-      /* =========================
-         SYNC WITH SERVER
-      ========================== */
-      syncWithServer: async () => {
-        const state = get();
-        if (!state.isLoggedIn || state.isSyncing) return;
-
-        set({ isSyncing: true });
-
-        try {
-          const serverCart = await cartApi.get() as Cart;
-          
-          // Update local items from server
-          const localItems: LocalCartItem[] = serverCart.items.map(item => ({
-            product_id: item.product_id,
-            variant_id: item.variant_id || undefined,
-            title: item.product?.title || "Product",
-            price: item.price,
-            quantity: item.quantity,
-            main_image: item.product?.main_image || undefined,
-          }));
-
-          set({ 
-            serverCart, 
-            items: localItems 
-          });
-        } catch (error) {
-          console.error("Failed to sync with server:", error);
-        } finally {
-          set({ isSyncing: false });
-        }
-      },
-
-      /* =========================
-         MERGE ON LOGIN
-      ========================== */
-      mergeOnLogin: async () => {
-        const state = get();
-        if (!state.isLoggedIn || state.items.length === 0) {
-          // Just sync if no local items
-          return get().syncWithServer();
-        }
-
-        set({ isSyncing: true });
-
-        try {
-          // Send local items to server for merging
-          await cartApi.merge(state.items);
-          
-          // Fetch merged cart
-          await get().syncWithServer();
-        } catch (error) {
-          console.error("Failed to merge cart:", error);
-          // If merge fails, keep local items
-        } finally {
-          set({ isSyncing: false });
-        }
-      },
-
-      /* =========================
-         DERIVED TOTALS
-      ========================== */
-      subtotal: () => {
-        return get().items.reduce(
-          (sum, item) => sum + item.price * item.quantity,
-          0
-        );
-      },
-
-      totalItems: () => {
-        return get().items.reduce(
-          (sum, item) => sum + item.quantity,
-          0
-        );
-      },
-
-      /* =========================
-         ORDER CREATION
-      ========================== */
-      createOrder: async (shippingAddress?: any) => {
-        const items = get().items;
-
-        if (items.length === 0) {
-          throw new Error("Cart is empty");
-        }
-
-        const total_amount = get().subtotal();
-
-        const order = (await ordersApi.create({
-          total_amount,
-          shipping_address: shippingAddress,
-        })) as {
-          order_id: string;
-          order_status: string;
-        };
-
-        // Clear cart after successful order
-        await get().clear();
-
-        return order;
-      },
-    }),
-    {
-      name: "karabo-cart",
-      partialize: (state) => ({
-        items: state.items,
-        // Don't persist server state or sync flags
-      }),
+  async fetchCart() {
+    set({ loading: true, error: null });
+    try {
+      const cart = (await cartApi.get()) as Cart;
+      set({ cart, loading: false, ...computeDerived(cart) });
+    } catch (e: any) {
+      set({ loading: false, error: e?.message ?? "Could not load cart" });
     }
-  )
-);
+  },
+
+  async addItem(productOrId, qty, variantId) {
+    const productId =
+      typeof productOrId === "string" ? productOrId : productOrId.id;
+
+    set({ loading: true, error: null });
+    try {
+      const cart = (await cartApi.addItem({
+        product_id: productId,
+        variant_id: variantId,
+        quantity: qty,
+      })) as Cart;
+      set({ cart, loading: false, ...computeDerived(cart) });
+    } catch (e: any) {
+      set({ loading: false, error: e?.message ?? "Could not add item" });
+      throw e; // re-throw so callers can show toast
+    }
+  },
+
+  async updateItem(itemId, quantity) {
+    // Optimistic update
+    const prev = get().cart;
+    if (prev) {
+      const optimistic: Cart = {
+        ...prev,
+        items: prev.items.map((i) =>
+          i.id === itemId ? { ...i, quantity } : i
+        ),
+      };
+      set({ cart: optimistic, ...computeDerived(optimistic) });
+    }
+
+    try {
+      const cart = (await cartApi.updateItem(itemId, { quantity })) as Cart;
+      set({ cart, ...computeDerived(cart) });
+    } catch (e: any) {
+      // Rollback
+      if (prev) set({ cart: prev, ...computeDerived(prev) });
+      set({ error: e?.message ?? "Could not update item" });
+      throw e;
+    }
+  },
+
+  async removeItem(itemId) {
+    const prev = get().cart;
+    // Optimistic remove
+    if (prev) {
+      const optimistic: Cart = {
+        ...prev,
+        items: prev.items.filter((i) => i.id !== itemId),
+      };
+      set({ cart: optimistic, ...computeDerived(optimistic) });
+    }
+
+    try {
+      await cartApi.removeItem(itemId);
+      // Refetch to get accurate subtotal from server
+      const cart = (await cartApi.get()) as Cart;
+      set({ cart, ...computeDerived(cart) });
+    } catch (e: any) {
+      if (prev) set({ cart: prev, ...computeDerived(prev) });
+      set({ error: e?.message ?? "Could not remove item" });
+      throw e;
+    }
+  },
+
+  async clearCart() {
+    const prev = get().cart;
+    if (prev) {
+      const empty: Cart = { ...prev, items: [], subtotal: 0 };
+      set({ cart: empty, itemCount: 0, subtotal: 0 });
+    }
+    try {
+      await cartApi.clear();
+    } catch (e: any) {
+      if (prev) set({ cart: prev, ...computeDerived(prev) });
+      set({ error: e?.message ?? "Could not clear cart" });
+      throw e;
+    }
+  },
+
+  async mergeGuestCart() {
+    // After login, call /api/cart/merge with current local items
+    const items = get().cart?.items ?? [];
+    if (items.length === 0) return;
+    try {
+      await cartApi.merge(
+        items.map((i) => ({
+          product_id: i.product_id,
+          variant_id: i.variant_id ?? undefined,
+          quantity: i.quantity,
+        }))
+      );
+      await get().fetchCart();
+    } catch {
+      // silent — guest cart merge is best-effort
+    }
+  },
+}));

@@ -2,89 +2,100 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
-import { cartApi, ordersApi, addressesApi, couponsApi, walletApi } from "@/lib/api";
-import type { Cart, Address, Wallet, Coupon } from "@/lib/types";
+import { cartApi, ordersApi, addressesApi } from "@/lib/api";
+import { useCart } from "@/lib/cart";
+import type { Cart, Address } from "@/lib/types";
 import { formatCurrency } from "@/lib/currency";
 
-type Step = "address" | "review" | "confirm";
+/* ── types ──────────────────────────────────────────── */
+type Step = "address" | "review";
 
+const EMPTY_ADDR = {
+  label: "",
+  full_name: "",
+  phone: "",
+  address: "",
+  city: "",
+  district: "",
+  postal_code: "",
+};
+
+/* ══════════════════════════════════════════════════════
+   CHECKOUT PAGE
+══════════════════════════════════════════════════════ */
 export default function CheckoutPage() {
   const router = useRouter();
+  const clearCart = useCart((s) => s.clearCart);
 
-  // Data
+  /* cart */
   const [cart, setCart] = useState<Cart | null>(null);
+  const [cartLoading, setCartLoading] = useState(true);
+
+  /* addresses */
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
+  const [addrLoading, setAddrLoading] = useState(true);
+  const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null);
 
-  // UI state
-  const [step, setStep] = useState<Step>("address");
-  const [loading, setLoading] = useState(true);
-  const [placing, setPlacing] = useState(false);
-
-  // Selection
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
-  const [applyingCoupon, setApplyingCoupon] = useState(false);
-  const [redeemPoints, setRedeemPoints] = useState(0);
-  const [orderNotes, setOrderNotes] = useState("");
-
-  // Address form
-  const [showNewAddress, setShowNewAddress] = useState(false);
-  const [addrForm, setAddrForm] = useState({
-    label: "Home", full_name: "", phone: "", address_line1: "", address_line2: "",
-    city: "", state: "", postal_code: "", country: "Lesotho",
-  });
+  /* new address form */
+  const [showNewAddr, setShowNewAddr] = useState(false);
+  const [newAddr, setNewAddr] = useState(EMPTY_ADDR);
   const [savingAddr, setSavingAddr] = useState(false);
 
-  /* ---- Load everything ---- */
+  /* order */
+  const [notes, setNotes] = useState("");
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [step, setStep] = useState<Step>("address");
+
+  /* ── Load cart + addresses in parallel ─────────────── */
   useEffect(() => {
-    setLoading(true);
     Promise.allSettled([
       cartApi.get(),
       addressesApi.list(),
-      walletApi.get(),
-      couponsApi.getAvailable(),
-    ]).then(([c, a, w, coupons]) => {
+    ]).then(([c, a]) => {
       if (c.status === "fulfilled") setCart(c.value as Cart);
+      setCartLoading(false);
+
       if (a.status === "fulfilled") {
-        const addrs = (a.value as Address[]) ?? [];
-        setAddresses(addrs);
-        const def = addrs.find((x) => x.is_default);
-        if (def) setSelectedAddressId(def.id);
+        const list = (a.value as Address[]) ?? [];
+        setAddresses(list);
+        // Pre-select default address
+        const def = list.find((x) => x.is_default) ?? list[0];
+        if (def) setSelectedAddrId(def.id);
       }
-      if (w.status === "fulfilled") setWallet(w.value as Wallet);
-      if (coupons.status === "fulfilled") setAvailableCoupons((coupons.value as any) ?? []);
-    }).finally(() => setLoading(false));
+      setAddrLoading(false);
+    });
   }, []);
 
-  /* ---- Computed ---- */
-  const subtotal = cart?.subtotal ?? 0;
-  const couponDiscount = appliedCoupon
-    ? appliedCoupon.discount_type === "percentage"
-      ? Math.min(subtotal * appliedCoupon.discount_value / 100, appliedCoupon.max_discount ?? Infinity)
-      : appliedCoupon.discount_value
-    : 0;
-  const pointsValue = redeemPoints; // 1 point = R1 for simplicity
-  const total = Math.max(0, subtotal - couponDiscount - pointsValue);
-  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+  /* ── Derived ────────────────────────────────────────── */
+  const items = cart?.items ?? [];
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const selectedAddr = addresses.find((a) => a.id === selectedAddrId) ?? null;
 
-  /* ---- Handlers ---- */
+  /* ── Save new address ───────────────────────────────── */
   async function handleSaveAddress() {
-    if (!addrForm.full_name || !addrForm.phone || !addrForm.address_line1 || !addrForm.city) {
-      toast.error("Please fill all required fields");
+    if (!newAddr.full_name || !newAddr.phone || !newAddr.address || !newAddr.city) {
+      toast.error("Please fill in all required fields");
       return;
     }
     setSavingAddr(true);
     try {
-      const newAddr = await addressesApi.create(addrForm) as Address;
-      setAddresses((prev) => [...prev, newAddr]);
-      setSelectedAddressId(newAddr.id);
-      setShowNewAddress(false);
+      const created = await addressesApi.create({
+        label: newAddr.label || "Home",
+        full_name: newAddr.full_name,
+        phone: newAddr.phone,
+        address_line1: newAddr.address,
+        city: newAddr.city,
+        state: newAddr.district,
+        postal_code: newAddr.postal_code,
+        country: "LS", // Lesotho default — adjust as needed
+      }) as Address;
+      setAddresses((prev) => [...prev, created]);
+      setSelectedAddrId(created.id);
+      setShowNewAddr(false);
+      setNewAddr(EMPTY_ADDR);
       toast.success("Address saved!");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save address");
@@ -93,367 +104,347 @@ export default function CheckoutPage() {
     }
   }
 
-  async function handleApplyCoupon() {
-    if (!couponCode.trim()) return;
-    setApplyingCoupon(true);
-    try {
-      const result = await couponsApi.apply(couponCode, subtotal) as any;
-      setAppliedCoupon(result);
-      toast.success(`Coupon applied! Saved ${formatCurrency(result.discount_value)}`);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Invalid coupon code");
-    } finally {
-      setApplyingCoupon(false);
-    }
-  }
-
-  async function handleRemoveCoupon() {
-    try {
-      await couponsApi.remove();
-      setAppliedCoupon(null);
-      setCouponCode("");
-      toast.success("Coupon removed");
-    } catch {}
-  }
-
+  /* ── Place order ────────────────────────────────────── */
   async function handlePlaceOrder() {
-    if (!selectedAddress) {
-      toast.error("Please select a delivery address");
+    if (!selectedAddr) {
+      toast.error("Please select a shipping address");
+      setStep("address");
       return;
     }
-    if (!cart?.items?.length) {
+    if (items.length === 0) {
       toast.error("Your cart is empty");
       return;
     }
 
-    setPlacing(true);
+    setPlacingOrder(true);
     try {
+      // Build shipping address payload from the Address type
+      const shippingAddress = {
+        full_name: selectedAddr.full_name,
+        phone: selectedAddr.phone,
+        address: selectedAddr.address,
+        city: selectedAddr.city,
+        district: selectedAddr.district ?? "",
+        postal_code: selectedAddr.postal_code ?? "",
+        label: selectedAddr.label ?? "",
+      };
+
       const order = await ordersApi.create({
-        total_amount: total,
-        shipping_address: {
-          full_name: selectedAddress.full_name,
-          phone: selectedAddress.phone,
-          address: selectedAddress.address,
-          city: selectedAddress.city,
-          district: selectedAddress.district,
-          postal_code: selectedAddress.postal_code,
-        },
-        notes: orderNotes || undefined,
+        total_amount: subtotal,
+        shipping_address: shippingAddress,
+        notes: notes.trim() || undefined,
       }) as any;
 
-      toast.success("Order placed!");
-      router.push(`/store/payment?order_id=${order.id}`);
+      // Clear cart in Zustand + server
+      await clearCart();
+
+      const orderId = order?.id ?? order?.order_id;
+      if (!orderId) throw new Error("Order created but no ID returned");
+
+      toast.success("Order placed! Complete your payment.");
+      router.push(`/store/payment?order_id=${orderId}`);
     } catch (e: any) {
-      toast.error(e?.message ?? "Failed to place order");
+      toast.error(e?.message ?? "Failed to place order. Please try again.");
     } finally {
-      setPlacing(false);
+      setPlacingOrder(false);
     }
   }
 
-  /* ---- Loading ---- */
-  if (loading) return (
-    <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
-      Loading checkout...
-    </div>
-  );
+  /* ── Guards ─────────────────────────────────────────── */
+  if (cartLoading) {
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+        Loading checkout…
+      </div>
+    );
+  }
 
-  if (!cart?.items?.length) return (
-    <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32 }}>
-      <div style={{ fontSize: 48 }}>🛒</div>
-      <div style={{ fontSize: 20, fontWeight: 700 }}>Your cart is empty</div>
-      <Link href="/store" style={primaryBtnLink}>Continue Shopping</Link>
-    </div>
-  );
+  if (items.length === 0) {
+    return (
+      <div style={{ minHeight: "70vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, textAlign: "center", padding: 32 }}>
+        <div style={{ fontSize: 56 }}>🛒</div>
+        <h2 style={{ fontWeight: 900, fontSize: 22, margin: 0 }}>Nothing to checkout</h2>
+        <Link href="/store" style={{ padding: "12px 28px", borderRadius: 12, background: "#0f172a", color: "#fff", textDecoration: "none", fontWeight: 800 }}>
+          Back to Store
+        </Link>
+      </div>
+    );
+  }
 
-  /* ============================================================
+  /* ══════════════════════════════════════════════════════
      RENDER
-  ============================================================ */
+  ══════════════════════════════════════════════════════ */
   return (
-    <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "32px 0 80px" }}>
-      <div className="container">
+    <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "40px 0 80px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px" }}>
 
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
-          <Link href="/store/cart" style={{ fontSize: 13, color: "#64748b", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
-            ← Back to Cart
-          </Link>
-          <h1 style={{ fontSize: 28, fontWeight: 900, marginTop: 8, color: "#0f172a" }}>Checkout</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 900, color: "#0f172a", margin: "0 0 4px" }}>Checkout</h1>
+          <div style={{ fontSize: 13, color: "#64748b" }}>
+            {items.length} item{items.length > 1 ? "s" : ""} · {formatCurrency(subtotal)}
+          </div>
         </div>
 
-        {/* Step indicator */}
-        <div style={{ display: "flex", gap: 0, marginBottom: 32, background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-          {(["address", "review", "confirm"] as Step[]).map((s, i) => (
-            <div
+        {/* Step tabs */}
+        <div style={{ display: "flex", gap: 0, marginBottom: 32, background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", overflow: "hidden", width: "fit-content" }}>
+          {(["address", "review"] as Step[]).map((s, i) => (
+            <button
               key={s}
+              onClick={() => { if (s === "review" && !selectedAddr) { toast.error("Select an address first"); return; } setStep(s); }}
               style={{
-                flex: 1, padding: "14px 16px", textAlign: "center", fontSize: 13, fontWeight: 700,
-                background: step === s ? "#0f172a" : "#fff",
+                padding: "11px 28px",
+                border: "none",
+                background: step === s ? "#0f172a" : "transparent",
                 color: step === s ? "#fff" : "#64748b",
-                borderRight: i < 2 ? "1px solid #e5e7eb" : "none",
-                cursor: "default",
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+                borderRight: i === 0 ? "1px solid #e5e7eb" : "none",
               }}
             >
-              {i + 1}. {s.charAt(0).toUpperCase() + s.slice(1)}
-            </div>
+              {i + 1}. {s === "address" ? "Shipping Address" : "Review & Place Order"}
+            </button>
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 32, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 24, alignItems: "start" }}>
 
-          {/* LEFT: Steps */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* ═══ LEFT COLUMN ═══ */}
+          <div>
+            {/* ── STEP 1: ADDRESS ── */}
+            {step === "address" && (
+              <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #e5e7eb", padding: 28 }}>
+                <h2 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 20px", color: "#0f172a" }}>
+                  Select Shipping Address
+                </h2>
 
-            {/* STEP 1: ADDRESS */}
-            <div style={sectionCard}>
-              <div style={sectionHeader}>
-                <div style={stepNumber}>1</div>
-                <div style={{ fontWeight: 800, fontSize: 16 }}>Delivery Address</div>
-              </div>
-
-              {/* Existing addresses */}
-              {addresses.length > 0 && (
-                <div style={{ display: "grid", gap: 10, marginBottom: 16 }}>
-                  {addresses.map((addr) => (
-                    <label
-                      key={addr.id}
-                      style={{
-                        display: "flex", gap: 12, alignItems: "flex-start", padding: 16, borderRadius: 12,
-                        border: `2px solid ${selectedAddressId === addr.id ? "#0f172a" : "#e5e7eb"}`,
-                        background: selectedAddressId === addr.id ? "#f8fafc" : "#fff",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name="address"
-                        checked={selectedAddressId === addr.id}
-                        onChange={() => setSelectedAddressId(addr.id)}
-                        style={{ marginTop: 2 }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 2 }}>
-                          <span style={{ fontWeight: 700, fontSize: 14 }}>{addr.full_name}</span>
-                          {addr.label && <span style={{ fontSize: 11, background: "#f1f5f9", padding: "2px 8px", borderRadius: 99, color: "#475569", fontWeight: 600 }}>{addr.label}</span>}
-                          {addr.is_default && <span style={{ fontSize: 11, background: "#dcfce7", padding: "2px 8px", borderRadius: 99, color: "#166534", fontWeight: 600 }}>Default</span>}
-                        </div>
-                        <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
-                          {addr.address}, {addr.city}{addr.district ? `, ${addr.district}` : ""}{addr.postal_code ? ` ${addr.postal_code}` : ""}
-                        </div>
-                        <div style={{ fontSize: 13, color: "#64748b" }}>{addr.phone}</div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {/* Add new address toggle */}
-              {!showNewAddress ? (
-                <button onClick={() => setShowNewAddress(true)} style={outlineBtnStyle}>
-                  + Add New Address
-                </button>
-              ) : (
-                <div style={{ background: "#f8fafc", borderRadius: 14, border: "1px solid #e5e7eb", padding: 20, marginTop: 8 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>New Address</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div style={{ gridColumn: "span 2" }}>
-                      <label style={labelSt}>Label (e.g. Home, Work)</label>
-                      <input style={inputSt} value={addrForm.label} onChange={(e) => setAddrForm(f => ({ ...f, label: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label style={labelSt}>Full Name *</label>
-                      <input style={inputSt} value={addrForm.full_name} onChange={(e) => setAddrForm(f => ({ ...f, full_name: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label style={labelSt}>Phone *</label>
-                      <input style={inputSt} value={addrForm.phone} onChange={(e) => setAddrForm(f => ({ ...f, phone: e.target.value }))} />
-                    </div>
-                    <div style={{ gridColumn: "span 2" }}>
-                      <label style={labelSt}>Address Line 1 *</label>
-                      <input style={inputSt} value={addrForm.address_line1} onChange={(e) => setAddrForm(f => ({ ...f, address_line1: e.target.value }))} />
-                    </div>
-                    <div style={{ gridColumn: "span 2" }}>
-                      <label style={labelSt}>Address Line 2</label>
-                      <input style={inputSt} value={addrForm.address_line2} onChange={(e) => setAddrForm(f => ({ ...f, address_line2: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label style={labelSt}>City *</label>
-                      <input style={inputSt} value={addrForm.city} onChange={(e) => setAddrForm(f => ({ ...f, city: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label style={labelSt}>Postal Code</label>
-                      <input style={inputSt} value={addrForm.postal_code} onChange={(e) => setAddrForm(f => ({ ...f, postal_code: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                    <button onClick={handleSaveAddress} disabled={savingAddr} style={primaryBtnStyle}>
-                      {savingAddr ? "Saving..." : "Save Address"}
-                    </button>
-                    <button onClick={() => setShowNewAddress(false)} style={outlineBtnStyle}>Cancel</button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* STEP 2: DISCOUNTS */}
-            <div style={sectionCard}>
-              <div style={sectionHeader}>
-                <div style={stepNumber}>2</div>
-                <div style={{ fontWeight: 800, fontSize: 16 }}>Discounts & Savings</div>
-              </div>
-
-              {/* Coupon */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={labelSt}>Coupon Code</label>
-                {appliedCoupon ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#166534" }}>
-                      🎉 {appliedCoupon.code} — {formatCurrency(couponDiscount)} off
-                    </span>
-                    <button onClick={handleRemoveCoupon} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Remove</button>
-                  </div>
+                {addrLoading ? (
+                  <div style={{ color: "#94a3b8", fontSize: 14 }}>Loading addresses…</div>
                 ) : (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input
-                      style={{ ...inputSt, flex: 1 }}
-                      placeholder="Enter coupon code"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                      onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
-                    />
-                    <button onClick={handleApplyCoupon} disabled={applyingCoupon || !couponCode} style={{ ...primaryBtnStyle, opacity: !couponCode ? 0.6 : 1 }}>
-                      {applyingCoupon ? "..." : "Apply"}
-                    </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {addresses.map((addr) => (
+                      <label
+                        key={addr.id}
+                        style={{
+                          display: "flex",
+                          gap: 14,
+                          padding: 16,
+                          borderRadius: 14,
+                          border: `2px solid ${selectedAddrId === addr.id ? "#0f172a" : "#e5e7eb"}`,
+                          cursor: "pointer",
+                          background: selectedAddrId === addr.id ? "#f8fafc" : "#fff",
+                          transition: "border-color 0.15s",
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="address"
+                          value={addr.id}
+                          checked={selectedAddrId === addr.id}
+                          onChange={() => setSelectedAddrId(addr.id)}
+                          style={{ marginTop: 2, accentColor: "#0f172a" }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 2 }}>
+                            {addr.full_name}
+                            {addr.is_default && (
+                              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: 99 }}>
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
+                            {addr.address}, {addr.city}
+                            {addr.district ? `, ${addr.district}` : ""}
+                            {addr.postal_code ? ` ${addr.postal_code}` : ""}
+                          </div>
+                          <div style={{ fontSize: 13, color: "#64748b" }}>{addr.phone}</div>
+                        </div>
+                      </label>
+                    ))}
+
+                    {/* Add new address */}
+                    {!showNewAddr ? (
+                      <button
+                        onClick={() => setShowNewAddr(true)}
+                        style={{ padding: "13px", borderRadius: 12, border: "2px dashed #d1d5db", background: "transparent", color: "#64748b", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+                      >
+                        + Add New Address
+                      </button>
+                    ) : (
+                      <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 20 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>New Address</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                          <Field label="Label (e.g. Home)" value={newAddr.label} onChange={(v) => setNewAddr((p) => ({ ...p, label: v }))} />
+                          <Field label="Full Name *" value={newAddr.full_name} onChange={(v) => setNewAddr((p) => ({ ...p, full_name: v }))} />
+                          <Field label="Phone *" value={newAddr.phone} onChange={(v) => setNewAddr((p) => ({ ...p, phone: v }))} />
+                          <Field label="City *" value={newAddr.city} onChange={(v) => setNewAddr((p) => ({ ...p, city: v }))} />
+                          <Field label="District" value={newAddr.district} onChange={(v) => setNewAddr((p) => ({ ...p, district: v }))} />
+                          <Field label="Postal Code" value={newAddr.postal_code} onChange={(v) => setNewAddr((p) => ({ ...p, postal_code: v }))} />
+                        </div>
+                        <div style={{ marginTop: 12 }}>
+                          <Field label="Street Address *" value={newAddr.address} onChange={(v) => setNewAddr((p) => ({ ...p, address: v }))} />
+                        </div>
+                        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                          <button onClick={handleSaveAddress} disabled={savingAddr} style={primaryBtn}>
+                            {savingAddr ? "Saving…" : "Save Address"}
+                          </button>
+                          <button onClick={() => { setShowNewAddr(false); setNewAddr(EMPTY_ADDR); }} style={outlineBtn}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Available coupons */}
-                {availableCoupons.length > 0 && !appliedCoupon && (
-                  <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Available coupons:</div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {availableCoupons.map((c) => (
-                        <button
-                          key={c.id}
-                          onClick={() => { setCouponCode(c.code); }}
-                          style={{ padding: "4px 10px", borderRadius: 8, border: "1px dashed #0f172a", background: "#f8fafc", fontSize: 12, fontWeight: 700, cursor: "pointer", color: "#0f172a" }}
-                        >
-                          {c.code}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div style={{ marginTop: 24 }}>
+                  <button
+                    onClick={() => {
+                      if (!selectedAddrId) { toast.error("Please select or add a shipping address"); return; }
+                      setStep("review");
+                    }}
+                    style={{ ...primaryBtn, padding: "14px 32px", fontSize: 15 }}
+                  >
+                    Continue to Review →
+                  </button>
+                </div>
               </div>
+            )}
 
-              {/* Wallet / points */}
-              {wallet && wallet.balance > 0 && (
-                <div>
-                  <label style={labelSt}>Redeem Loyalty Points</label>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input
-                      type="range"
-                      min={0}
-                      max={Math.min(wallet.balance, total)}
-                      value={redeemPoints}
-                      onChange={(e) => setRedeemPoints(Number(e.target.value))}
-                      style={{ flex: 1 }}
-                    />
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", minWidth: 80, textAlign: "right" }}>
-                      {redeemPoints > 0 ? `−${formatCurrency(redeemPoints)}` : "None"}
-                    </span>
+            {/* ── STEP 2: REVIEW ── */}
+            {step === "review" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {/* Selected address summary */}
+                {selectedAddr && (
+                  <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #e5e7eb", padding: 24 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Shipping To</h2>
+                      <button onClick={() => setStep("address")} style={{ fontSize: 13, color: "#2563eb", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                        Change
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 14, color: "#0f172a", fontWeight: 600, marginBottom: 2 }}>{selectedAddr.full_name}</div>
+                    <div style={{ fontSize: 13, color: "#64748b" }}>
+                      {selectedAddr.address}, {selectedAddr.city}
+                      {selectedAddr.district ? `, ${selectedAddr.district}` : ""}
+                    </div>
+                    <div style={{ fontSize: 13, color: "#64748b" }}>{selectedAddr.phone}</div>
                   </div>
-                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
-                    Balance: {formatCurrency(wallet.balance)} · Drag to use points as cash
+                )}
+
+                {/* Order items */}
+                <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #e5e7eb", padding: 24 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 800, margin: "0 0 16px" }}>Order Items</h2>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {items.map((item) => (
+                      <div key={item.id} style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                        <div style={{ width: 56, height: 56, borderRadius: 10, background: "#f1f5f9", overflow: "hidden", flexShrink: 0 }}>
+                          {item.product?.main_image ? (
+                            <img src={item.product.main_image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : (
+                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>📦</div>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {item.product?.title ?? "Product"}
+                          </div>
+                          {item.variant && (
+                            <div style={{ fontSize: 12, color: "#64748b" }}>{item.variant.title}</div>
+                          )}
+                          <div style={{ fontSize: 12, color: "#94a3b8" }}>Qty: {item.quantity}</div>
+                        </div>
+                        <div style={{ fontWeight: 800, fontSize: 15 }}>
+                          {formatCurrency(item.price * item.quantity)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* STEP 3: NOTES */}
-            <div style={sectionCard}>
-              <div style={sectionHeader}>
-                <div style={stepNumber}>3</div>
-                <div style={{ fontWeight: 800, fontSize: 16 }}>Order Notes <span style={{ fontSize: 12, fontWeight: 400, color: "#94a3b8" }}>(optional)</span></div>
+                {/* Notes */}
+                <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #e5e7eb", padding: 24 }}>
+                  <label style={{ display: "block", fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                    Order Notes (optional)
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Any special instructions for your order…"
+                    rows={3}
+                    style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 14, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }}
+                  />
+                </div>
+
+                {/* Place order */}
+                <button
+                  onClick={handlePlaceOrder}
+                  disabled={placingOrder}
+                  style={{
+                    padding: "17px",
+                    borderRadius: 14,
+                    border: "none",
+                    background: "#0f172a",
+                    color: "#fff",
+                    fontWeight: 900,
+                    fontSize: 17,
+                    cursor: "pointer",
+                    opacity: placingOrder ? 0.75 : 1,
+                    transition: "opacity 0.2s",
+                  }}
+                >
+                  {placingOrder ? "Placing Order…" : `Place Order · ${formatCurrency(subtotal)}`}
+                </button>
               </div>
-              <textarea
-                style={{ ...inputSt, height: 80, resize: "vertical" }}
-                placeholder="Special instructions, delivery notes, etc."
-                value={orderNotes}
-                onChange={(e) => setOrderNotes(e.target.value)}
-              />
-            </div>
+            )}
           </div>
 
-          {/* RIGHT: Order Summary */}
-          <div style={{ position: "sticky", top: 100, display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ ...sectionCard, padding: 24 }}>
+          {/* ═══ RIGHT: ORDER SUMMARY ═══ */}
+          <div style={{ position: "sticky", top: 100 }}>
+            <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #e5e7eb", padding: 24 }}>
               <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 20 }}>Order Summary</div>
 
-              {/* Items */}
-              <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
-                {cart.items.map((item) => (
-                  <div key={item.id} style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 8, background: "#f1f5f9", overflow: "hidden", flexShrink: 0 }}>
-                      {item.product?.main_image && (
-                        <img src={item.product.main_image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      )}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {item.product?.title ?? "Product"}
-                      </div>
-                      <div style={{ fontSize: 12, color: "#64748b" }}>
-                        {item.variant?.title ? `${item.variant.title} · ` : ""}Qty: {item.quantity}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                      {formatCurrency(item.price * item.quantity)}
-                    </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                {items.map((item) => (
+                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <span style={{ color: "#64748b", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 8 }}>
+                      {item.product?.title ?? "Item"} × {item.quantity}
+                    </span>
+                    <span style={{ fontWeight: 600, flexShrink: 0 }}>{formatCurrency(item.price * item.quantity)}</span>
                   </div>
                 ))}
               </div>
 
-              {/* Totals */}
-              <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 16, display: "grid", gap: 8 }}>
-                <SummaryRow label="Subtotal" value={formatCurrency(subtotal)} />
-                {couponDiscount > 0 && <SummaryRow label={`Coupon (${appliedCoupon.code})`} value={`−${formatCurrency(couponDiscount)}`} color="#166534" />}
-                {redeemPoints > 0 && <SummaryRow label="Points Redeemed" value={`−${formatCurrency(redeemPoints)}`} color="#166534" />}
-                <SummaryRow label="Shipping" value="Free" color="#166534" />
-                <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 800, fontSize: 16 }}>Total</span>
-                  <span style={{ fontWeight: 900, fontSize: 22, color: "#0f172a" }}>{formatCurrency(total)}</span>
+              <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "#64748b" }}>Subtotal</span>
+                  <span style={{ fontWeight: 700 }}>{formatCurrency(subtotal)}</span>
                 </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "#64748b" }}>Shipping</span>
+                  <span style={{ fontWeight: 700, color: "#166534" }}>Free</span>
+                </div>
+              </div>
+
+              <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 12, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 800 }}>Total</span>
+                <span style={{ fontWeight: 900, fontSize: 22 }}>{formatCurrency(subtotal)}</span>
               </div>
             </div>
 
-            {/* Delivery address preview */}
-            {selectedAddress && (
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 14, padding: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#166534", marginBottom: 8, textTransform: "uppercase" }}>Delivering to</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{selectedAddress.full_name}</div>
-                <div style={{ fontSize: 13, color: "#475569" }}>{selectedAddress.address}, {selectedAddress.city}</div>
-                <div style={{ fontSize: 13, color: "#475569" }}>{selectedAddress.phone}</div>
-              </div>
-            )}
-
-            {/* Place order */}
-            <button
-              onClick={handlePlaceOrder}
-              disabled={placing || !selectedAddressId}
-              style={{
-                padding: "16px", borderRadius: 14, border: "none",
-                background: selectedAddressId ? "#0f172a" : "#94a3b8",
-                color: "#fff", fontWeight: 900, fontSize: 16,
-                cursor: selectedAddressId ? "pointer" : "not-allowed",
-                opacity: placing ? 0.7 : 1,
-              }}
-            >
-              {placing ? "Placing Order..." : `Place Order · ${formatCurrency(total)}`}
-            </button>
-
-            <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", margin: 0 }}>
-              By placing this order you agree to our terms of service.
-            </p>
+            <div style={{ marginTop: 12, background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { icon: "🔒", text: "Secure checkout" },
+                { icon: "🚚", text: "Free delivery" },
+                { icon: "↩️", text: "Easy 30-day returns" },
+              ].map((b) => (
+                <div key={b.text} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13, color: "#475569" }}>
+                  <span>{b.icon}</span><span>{b.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -461,21 +452,19 @@ export default function CheckoutPage() {
   );
 }
 
-function SummaryRow({ label, value, color }: { label: string; value: string; color?: string }) {
+/* ── Small sub-components ─────────────────────────── */
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-      <span style={{ color: "#64748b" }}>{label}</span>
-      <span style={{ fontWeight: 600, color: color ?? "#0f172a" }}>{value}</span>
+    <div>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#6b7280", marginBottom: 5 }}>{label}</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid #e2e0db", fontSize: 13, boxSizing: "border-box" }}
+      />
     </div>
   );
 }
 
-/* ---- Styles ---- */
-const sectionCard: React.CSSProperties = { background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", padding: 24 };
-const sectionHeader: React.CSSProperties = { display: "flex", gap: 12, alignItems: "center", marginBottom: 20 };
-const stepNumber: React.CSSProperties = { width: 28, height: 28, borderRadius: "50%", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, flexShrink: 0 };
-const inputSt: React.CSSProperties = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 14, boxSizing: "border-box", outline: "none", background: "#fff" };
-const labelSt: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 };
-const primaryBtnStyle: React.CSSProperties = { padding: "10px 20px", borderRadius: 10, border: "none", background: "#0f172a", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" };
-const primaryBtnLink: React.CSSProperties = { padding: "12px 24px", borderRadius: 12, background: "#0f172a", color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: 14 };
-const outlineBtnStyle: React.CSSProperties = { padding: "10px 20px", borderRadius: 10, border: "1px solid #e5e7eb", background: "transparent", fontWeight: 600, fontSize: 14, cursor: "pointer", color: "#475569" };
+const primaryBtn: React.CSSProperties = { padding: "12px 22px", borderRadius: 12, border: "none", background: "#0f172a", color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" };
+const outlineBtn: React.CSSProperties = { padding: "10px 18px", borderRadius: 10, border: "1px solid #e5e7eb", background: "transparent", fontWeight: 600, fontSize: 13, cursor: "pointer", color: "#475569" };
