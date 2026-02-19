@@ -12,40 +12,29 @@ interface Props {
 
 /* ── helpers ──────────────────────────────────────────────────── */
 
-/** Resolve all displayable image URLs from the product, best-first. */
+/** Resolve all displayable image URLs — handles both string[] and ProductImage[] */
 function resolveImages(product: Product): string[] {
   const seen = new Set<string>();
   const urls: string[] = [];
-
   function add(url: string | null | undefined) {
-    if (url && typeof url === "string" && !seen.has(url)) {
-      seen.add(url);
-      urls.push(url);
-    }
+    if (url && typeof url === "string" && !seen.has(url)) { seen.add(url); urls.push(url); }
   }
-
-  // 1. main_image always goes first
+  // 1. main_image first
   add(product.main_image);
-
-  // 2. product.images — handles BOTH formats the API might return:
-  //    a) ProductImage[] objects  → read .image_url, sort by is_primary + position
-  //    b) string[]               → use directly
+  // 2. images array — detect format
   if (Array.isArray(product.images) && product.images.length > 0) {
-    const first = product.images[0];
+    const first = (product.images as any[])[0];
     if (typeof first === "string") {
-      // API returned plain string URLs
       (product.images as unknown as string[]).forEach(add);
     } else {
-      // API returned ProductImage objects — sort primary first
       const sorted = [...(product.images as any[])].sort((a, b) => {
         if (a.is_primary && !b.is_primary) return -1;
         if (!a.is_primary && b.is_primary) return 1;
         return (a.position ?? 0) - (b.position ?? 0);
       });
-      sorted.forEach((img) => add(img.image_url ?? img.url ?? img));
+      sorted.forEach(img => add(img.image_url ?? img.url ?? img));
     }
   }
-
   return urls;
 }
 
@@ -209,115 +198,86 @@ export default function AddToCartClient({ product }: Props) {
       className="product-detail-grid"
     >
       {/* ═══════════════ IMAGE GALLERY ═══════════════ */}
-      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+      <div>
+        <style>{`
+          .pd-gallery { display:flex; gap:12px; align-items:flex-start; }
+          .pd-thumbs { display:flex; flex-direction:column; gap:6px; width:72px; flex-shrink:0; max-height:480px; overflow-y:auto; scrollbar-width:thin; }
+          .pd-thumb { width:68px; height:68px; border-radius:8px; overflow:hidden; border:2px solid #e8e4de; background:#f8f7f4; cursor:pointer; padding:0; flex-shrink:0; outline:none; transition:border-color 0.15s, box-shadow 0.15s; display:block; }
+          .pd-thumb.active { border-color:#0033a0; box-shadow:0 0 0 3px rgba(0,51,160,0.12); }
+          .pd-thumb:not(.active):hover { border-color:#94a3b8; }
+          .pd-thumb img,.pd-thumb-inner { width:100%; height:100%; object-fit:cover; display:block; }
+          .pd-main-wrap { flex:1; min-width:0; border-radius:16px; overflow:hidden; border:1px solid #e8e4de; background:#f8f7f4; aspect-ratio:1/1; position:relative; }
+          .pd-main-wrap img { width:100%; height:100%; object-fit:cover; display:block; transition:transform 0.4s ease; }
+          .pd-main-wrap:hover img { transform:scale(1.03); }
+          .pd-nav { position:absolute; top:50%; transform:translateY(-50%); width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,0.95); border:1px solid #e8e4de; cursor:pointer; display:grid; place-items:center; font-size:20px; font-weight:900; color:#0f172a; outline:none; transition:all 0.15s; box-shadow:0 2px 10px rgba(0,0,0,0.12); z-index:2; }
+          .pd-nav:hover { background:#0033a0; color:#fff; border-color:#0033a0; }
+          .pd-nav.prev { left:10px; }
+          .pd-nav.next { right:10px; }
+          .pd-counter { position:absolute; bottom:12px; right:12px; background:rgba(0,0,0,0.55); color:#fff; border-radius:99px; padding:3px 11px; font-size:12px; font-weight:700; backdrop-filter:blur(4px); }
+          .pd-dots { display:none; justify-content:center; gap:6px; margin-top:10px; }
+          @media(max-width:640px) {
+            .pd-thumbs { display:none; }
+            .pd-dots { display:flex; }
+          }
+        `}</style>
 
-        {/* Left vertical thumbnail strip */}
-        {displayImages.length > 1 && (
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 7,
-            width: 66,
-            flexShrink: 0,
-            maxHeight: 480,
-            overflowY: "auto",
-          }}>
-            {displayImages.map((url, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setActiveIdx(i)}
-                style={{
-                  width: 62,
-                  height: 62,
-                  borderRadius: 8,
-                  overflow: "hidden",
-                  border: activeIdx === i ? "2.5px solid #0033a0" : "2px solid #e5e7eb",
-                  background: "#f8f7f4",
-                  cursor: "pointer",
-                  padding: 0,
-                  flexShrink: 0,
-                  outline: "none",
-                  transition: "border-color 0.15s, box-shadow 0.15s",
-                  boxShadow: activeIdx === i ? "0 0 0 3px rgba(0,51,160,0.15)" : "none",
-                  opacity: activeIdx === i ? 1 : 0.75,
-                }}
-                onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.borderColor = "#94a3b8"; }}
-                onMouseLeave={e => { e.currentTarget.style.opacity = activeIdx === i ? "1" : "0.75"; e.currentTarget.style.borderColor = activeIdx === i ? "#0033a0" : "#e5e7eb"; }}
-              >
-                <SafeImage src={url} alt={`View ${i + 1}`} />
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="pd-gallery">
+          {/* Vertical thumbs */}
+          {displayImages.length > 1 && (
+            <div className="pd-thumbs">
+              {displayImages.map((url, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`pd-thumb${activeIdx === i ? " active" : ""}`}
+                  onClick={() => setActiveIdx(i)}
+                  title={`View image ${i + 1}`}
+                >
+                  <SafeImage src={url} alt={`${product.title} ${i + 1}`} />
+                </button>
+              ))}
+            </div>
+          )}
 
-        {/* Main image + nav arrows */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            width: "100%",
-            aspectRatio: "1 / 1",
-            borderRadius: 16,
-            overflow: "hidden",
-            border: "1px solid #e8e4de",
-            background: "#f8f7f4",
-            position: "relative",
-          }}>
-            {displayImages.length > 0 ? (
-              <SafeImage src={displayImages[activeIdx] ?? displayImages[0]} alt={product.title} />
-            ) : (
-              <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, background:"#f8f7f4" }}>📦</div>
-            )}
+          {/* Main image */}
+          <div className="pd-main-wrap">
+            {displayImages.length > 0
+              ? <SafeImage src={displayImages[activeIdx] ?? displayImages[0]} alt={product.title} />
+              : <div style={{ width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:72 }}>📦</div>
+            }
 
             {/* Discount badge */}
             {discountPct && (
-              <div style={{ position:"absolute", top:14, left:14, background:"#dc2626", color:"#fff", borderRadius:8, padding:"4px 10px", fontWeight:800, fontSize:13 }}>
+              <div style={{ position:"absolute",top:14,left:14,background:"#dc2626",color:"#fff",borderRadius:8,padding:"4px 10px",fontWeight:800,fontSize:13,zIndex:2 }}>
                 -{discountPct}%
               </div>
             )}
 
-            {/* Image counter */}
-            {displayImages.length > 1 && (
-              <div style={{ position:"absolute", bottom:12, right:12, background:"rgba(0,0,0,0.52)", color:"#fff", borderRadius:99, padding:"3px 10px", fontSize:12, fontWeight:700 }}>
-                {activeIdx + 1} / {displayImages.length}
-              </div>
-            )}
+            {/* Arrows */}
+            {displayImages.length > 1 && (<>
+              <button type="button" className="pd-nav prev"
+                onClick={() => setActiveIdx(i => (i - 1 + displayImages.length) % displayImages.length)}>‹</button>
+              <button type="button" className="pd-nav next"
+                onClick={() => setActiveIdx(i => (i + 1) % displayImages.length)}>›</button>
+            </>)}
 
-            {/* Prev arrow */}
+            {/* Counter */}
             {displayImages.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setActiveIdx(i => (i - 1 + displayImages.length) % displayImages.length)}
-                style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.9)", border:"1px solid #e8e4de", cursor:"pointer", display:"grid", placeItems:"center", fontSize:20, fontWeight:900, color:"#0f172a", outline:"none", transition:"all 0.15s", boxShadow:"0 2px 8px rgba(0,0,0,0.1)" }}
-                onMouseEnter={e => { e.currentTarget.style.background="#0033a0"; e.currentTarget.style.color="#fff"; }}
-                onMouseLeave={e => { e.currentTarget.style.background="rgba(255,255,255,0.9)"; e.currentTarget.style.color="#0f172a"; }}
-              >‹</button>
-            )}
-
-            {/* Next arrow */}
-            {displayImages.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setActiveIdx(i => (i + 1) % displayImages.length)}
-                style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.9)", border:"1px solid #e8e4de", cursor:"pointer", display:"grid", placeItems:"center", fontSize:20, fontWeight:900, color:"#0f172a", outline:"none", transition:"all 0.15s", boxShadow:"0 2px 8px rgba(0,0,0,0.1)" }}
-                onMouseEnter={e => { e.currentTarget.style.background="#0033a0"; e.currentTarget.style.color="#fff"; }}
-                onMouseLeave={e => { e.currentTarget.style.background="rgba(255,255,255,0.9)"; e.currentTarget.style.color="#0f172a"; }}
-              >›</button>
+              <div className="pd-counter">{activeIdx + 1} / {displayImages.length}</div>
             )}
           </div>
-
-          {/* Dot indicators — visible on mobile when thumb strip hidden */}
-          {displayImages.length > 1 && (
-            <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:10 }}>
-              {displayImages.map((_, i) => (
-                <button key={i} type="button" onClick={() => setActiveIdx(i)}
-                  style={{ width: activeIdx === i ? 20 : 8, height:8, borderRadius:99, background: activeIdx === i ? "#0033a0" : "#d1d5db", border:"none", cursor:"pointer", padding:0, transition:"all 0.2s" }}
-                />
-              ))}
-            </div>
-          )}
         </div>
-      </div>
 
+        {/* Mobile dots */}
+        {displayImages.length > 1 && (
+          <div className="pd-dots">
+            {displayImages.map((_, i) => (
+              <button key={i} type="button" onClick={() => setActiveIdx(i)}
+                style={{ width: activeIdx === i ? 22 : 8, height:8, borderRadius:99, background: activeIdx === i ? "#0033a0" : "#d1d5db", border:"none", cursor:"pointer", padding:0, transition:"all 0.2s" }} />
+            ))}
+          </div>
+        )}
+      </div>
       {/* ═══════════════ PRODUCT INFO & ACTIONS ═══════════════ */}
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {/* Brand */}
@@ -571,11 +531,7 @@ export default function AddToCartClient({ product }: Props) {
         )}
       </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .product-detail-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
+      <style>{`.product-detail-grid{} @media(max-width:768px){.product-detail-grid{grid-template-columns:1fr !important;}}`}</style>
     </div>
   );
 }
