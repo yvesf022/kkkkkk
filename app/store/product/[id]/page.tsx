@@ -80,10 +80,14 @@ async function fetchProduct(id: string): Promise<FetchResult> {
   const first = await attempt();
 
   // Don't retry genuine 404/401/403 — those won't change
-  if (!first.ok && first.status !== 404 && first.status !== 401 && first.status !== 403) {
-    // Wait 2s then retry — gives Render's free tier time to wake up
-    await new Promise((r) => setTimeout(r, 2000));
-    return attempt();
+  // Narrow to the error branch explicitly so TS can see .status
+  if (first.ok === false) {
+    const { status } = first;
+    if (status !== 404 && status !== 401 && status !== 403) {
+      // Wait 2s then retry — gives Render's free tier time to wake up
+      await new Promise((r) => setTimeout(r, 2000));
+      return attempt();
+    }
   }
 
   return first;
@@ -97,12 +101,13 @@ export default async function ProductPage({ params }: Props) {
   const result = await fetchProduct(params.id);
 
   // Only call notFound() on a genuine 404 — not on server errors
-  if (!result.ok && result.status === 404) {
+  if (result.ok === false && result.status === 404) {
     notFound();
   }
 
   // Server error — show a clear "server waking up" message with retry
-  if (!result.ok) {
+  if (result.ok === false) {
+    const { message } = result;
     return (
       <div
         style={{
@@ -139,7 +144,7 @@ export default async function ProductPage({ params }: Props) {
         >
           The server may be starting up — this typically takes 30–60 seconds
           on the first request. Please try again.
-          {result.message && (
+          {message && (
             <span
               style={{
                 display: "block",
@@ -149,7 +154,7 @@ export default async function ProductPage({ params }: Props) {
                 fontFamily: "monospace",
               }}
             >
-              {result.message}
+              {message}
             </span>
           )}
         </p>
