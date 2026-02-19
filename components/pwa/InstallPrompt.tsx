@@ -2,21 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-/**
- * InstallPrompt — cross-platform PWA install banner
- *
- * Platforms handled:
- * - Android Chrome/Edge/Samsung: native beforeinstallprompt
- * - iOS Safari (14.3+):          manual "Add to Home Screen" instructions
- * - Desktop Chrome/Edge:         native beforeinstallprompt
- * - Firefox/other:               silently hidden (no install API)
- *
- * Respects:
- * - User dismissal (stored in localStorage, respects 7-day cooldown)
- * - Already-installed detection (display-mode: standalone)
- * - Deferred prompt lifecycle
- */
-
 type Platform = "android" | "ios" | "desktop" | "unsupported";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -76,12 +61,10 @@ export default function InstallPrompt() {
     setPlatform(p);
 
     if (p === "ios") {
-      /* Show iOS instructions after a small delay */
       const t = setTimeout(() => setShowBanner(true), 3500);
       return () => clearTimeout(t);
     }
 
-    /* Chrome/Edge/Android — listen for browser prompt */
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -89,18 +72,11 @@ export default function InstallPrompt() {
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-
-    /* Desktop: also show for known PWA-capable browsers */
-    const isDesktopCapable =
-      p === "desktop" &&
-      ("standalone" in window.navigator || CSS.supports("display", "standalone"));
-
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const handleInstall = useCallback(async () => {
     if (!deferredPrompt) {
-      /* iOS — show instructions */
       setShowIOSGuide(true);
       return;
     }
@@ -125,16 +101,13 @@ export default function InstallPrompt() {
 
   if (!showBanner) return null;
 
-  /* ── iOS "Add to Home Screen" overlay ── */
   if (showIOSGuide) {
     return (
       <div style={s.overlay}>
         <div style={s.sheet}>
           <AppIcon />
-          <h2 style={s.sheetTitle}>Install Karabo's Store</h2>
-          <p style={s.sheetBody}>
-            Follow these steps to add the app to your home screen:
-          </p>
+          <h2 style={s.sheetTitle}>Install Karabo's Store App</h2>
+          <p style={s.sheetBody}>Follow these steps to add the app to your home screen:</p>
           <div style={s.steps}>
             <IOSStep n={1} icon="⬆️" text={<>Tap the <strong>Share</strong> button in Safari's toolbar</>} />
             <IOSStep n={2} icon="📲" text={<>Scroll down and tap <strong>"Add to Home Screen"</strong></>} />
@@ -146,12 +119,12 @@ export default function InstallPrompt() {
     );
   }
 
-  /* ── Standard install banner (Android / Desktop) ── */
   return (
     <div style={s.banner} role="banner" aria-label="Install app banner">
       <AppIcon size={44} />
       <div style={s.bannerText}>
-        <p style={s.bannerTitle}>Add to {platform === "desktop" ? "Desktop" : "Home Screen"}</p>
+        {/* ✅ FIXED: was "Add to Desktop/Home Screen" */}
+        <p style={s.bannerTitle}>Install Karabo's Store App</p>
         <p style={s.bannerSub}>
           {platform === "desktop"
             ? "Install for faster access & offline shopping"
@@ -159,22 +132,14 @@ export default function InstallPrompt() {
         </p>
       </div>
       <div style={s.bannerActions}>
-        <button
-          onClick={handleInstall}
-          disabled={installing}
-          style={s.installBtn}
-        >
+        <button onClick={handleInstall} disabled={installing} style={s.installBtn}>
           {installing ? "Installing…" : "Install"}
         </button>
-        <button onClick={dismiss} style={s.dismissBtn} aria-label="Dismiss">
-          ✕
-        </button>
+        <button onClick={dismiss} style={s.dismissBtn} aria-label="Dismiss">✕</button>
       </div>
     </div>
   );
 }
-
-/* ── Sub-components ── */
 
 function AppIcon({ size = 40 }: { size?: number }) {
   return (
@@ -184,9 +149,7 @@ function AppIcon({ size = 40 }: { size?: number }) {
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: size * 0.5, fontWeight: 900, color: "#fff", flexShrink: 0,
       boxShadow: "0 2px 10px rgba(0,51,160,.3)",
-    }}>
-      K
-    </div>
+    }}>K</div>
   );
 }
 
@@ -198,9 +161,7 @@ function IOSStep({ n, icon, text }: { n: number; icon: string; text: React.React
         background: "#EFF6FF", color: "#1D4ED8",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 12, fontWeight: 800, flexShrink: 0,
-      }}>
-        {n}
-      </div>
+      }}>{n}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ fontSize: 20 }}>{icon}</span>
         <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.5 }}>{text}</p>
@@ -209,23 +170,15 @@ function IOSStep({ n, icon, text }: { n: number; icon: string; text: React.React
   );
 }
 
-/* ── Styles ── */
 const FF = "'Sora', -apple-system, BlinkMacSystemFont, sans-serif";
 
 const s: Record<string, React.CSSProperties> = {
-  /* Bottom banner */
   banner: {
-    position: "fixed",
-    bottom: 16, left: 16, right: 16,
-    zIndex: 9999,
-    display: "flex", alignItems: "center", gap: 12,
-    padding: "14px 16px",
-    background: "#fff",
-    border: "1px solid #E2E8F0",
-    borderRadius: 16,
+    position: "fixed", bottom: 16, left: 16, right: 16, zIndex: 9999,
+    display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
+    background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16,
     boxShadow: "0 8px 32px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.06)",
-    fontFamily: FF,
-    animation: "slideUp .4s cubic-bezier(0.34,1.56,0.64,1)",
+    fontFamily: FF, animation: "slideUp .4s cubic-bezier(0.34,1.56,0.64,1)",
     maxWidth: 480, margin: "0 auto",
   },
   bannerText: { flex: 1, minWidth: 0 },
@@ -233,31 +186,22 @@ const s: Record<string, React.CSSProperties> = {
   bannerSub:   { fontSize: 12, color: "#64748B", margin: 0 },
   bannerActions: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
   installBtn: {
-    padding: "9px 18px", borderRadius: 9,
-    background: "#1E3A8A", color: "#fff",
+    padding: "9px 18px", borderRadius: 9, background: "#1E3A8A", color: "#fff",
     border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer",
     fontFamily: FF, whiteSpace: "nowrap",
   },
   dismissBtn: {
-    width: 30, height: 30, borderRadius: "50%",
-    background: "#F1F5F9", border: "none",
+    width: 30, height: 30, borderRadius: "50%", background: "#F1F5F9", border: "none",
     color: "#94A3B8", fontSize: 13, cursor: "pointer",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    flexShrink: 0,
+    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
-
-  /* iOS overlay */
   overlay: {
-    position: "fixed", inset: 0, zIndex: 9999,
-    background: "rgba(0,0,0,.5)",
+    position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,.5)",
     display: "flex", alignItems: "flex-end", justifyContent: "center",
-    padding: "0 16px 16px",
-    animation: "fadeIn .25s ease",
-    fontFamily: FF,
+    padding: "0 16px 16px", animation: "fadeIn .25s ease", fontFamily: FF,
   },
   sheet: {
-    background: "#fff", borderRadius: 20,
-    padding: "28px 24px 20px",
+    background: "#fff", borderRadius: 20, padding: "28px 24px 20px",
     width: "100%", maxWidth: 420,
     display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
     boxShadow: "0 -4px 24px rgba(0,0,0,.12)",
@@ -267,9 +211,7 @@ const s: Record<string, React.CSSProperties> = {
   sheetBody:  { fontSize: 14, color: "#64748B", textAlign: "center", margin: 0 },
   steps: { width: "100%", borderTop: "1px solid #F1F5F9" },
   closeBtn: {
-    width: "100%", padding: "13px", borderRadius: 12,
-    background: "#1E3A8A", color: "#fff",
-    border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer",
-    fontFamily: FF, marginTop: 4,
+    width: "100%", padding: "13px", borderRadius: 12, background: "#1E3A8A", color: "#fff",
+    border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FF, marginTop: 4,
   },
 };
