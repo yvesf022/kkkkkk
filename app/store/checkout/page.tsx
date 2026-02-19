@@ -18,10 +18,12 @@ const EMPTY_ADDR = {
   label: "",
   full_name: "",
   phone: "",
-  address: "",
+  address_line1: "",
+  address_line2: "",
   city: "",
   district: "",
   postal_code: "",
+  country: "",
 };
 
 /* ══════════════════════════════════════════════════════
@@ -86,7 +88,7 @@ export default function CheckoutPage() {
 
   /* ── Save new address ───────────────────────────────── */
   async function handleSaveAddress() {
-    if (!newAddr.full_name || !newAddr.phone || !newAddr.address || !newAddr.city) {
+    if (!newAddr.full_name || !newAddr.phone || !newAddr.address_line1 || !newAddr.city) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -96,10 +98,12 @@ export default function CheckoutPage() {
         label: newAddr.label || "Home",
         full_name: newAddr.full_name,
         phone: newAddr.phone,
-        address: newAddr.address,
+        address_line1: newAddr.address_line1,
+        address_line2: newAddr.address_line2 || undefined,
         city: newAddr.city,
         district: newAddr.district || undefined,
         postal_code: newAddr.postal_code || undefined,
+        country: newAddr.country || "Lesotho",
       }) as Address;
       setAddresses((prev) => [...prev, created]);
       setSelectedAddrId(created.id);
@@ -131,7 +135,8 @@ export default function CheckoutPage() {
       const shippingAddress = {
         full_name: selectedAddr.full_name,
         phone: selectedAddr.phone,
-        address: selectedAddr.address,
+        address_line1: selectedAddr.address_line1,
+        address_line2: selectedAddr.address_line2 ?? "",
         city: selectedAddr.city,
         district: selectedAddr.district ?? "",
         postal_code: selectedAddr.postal_code ?? "",
@@ -267,7 +272,7 @@ export default function CheckoutPage() {
                             )}
                           </div>
                           <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
-                            {addr.address}, {addr.city}
+                            {addr.address_line1}{addr.address_line2 ? `, ${addr.address_line2}` : ""}, {addr.city}
                             {addr.district ? `, ${addr.district}` : ""}
                             {addr.postal_code ? ` ${addr.postal_code}` : ""}
                           </div>
@@ -296,7 +301,9 @@ export default function CheckoutPage() {
                           <Field label="Postal Code" value={newAddr.postal_code} onChange={(v) => setNewAddr((p) => ({ ...p, postal_code: v }))} />
                         </div>
                         <div style={{ marginTop: 12 }}>
-                          <Field label="Street Address *" value={newAddr.address} onChange={(v) => setNewAddr((p) => ({ ...p, address: v }))} />
+                          <Field label="Street Address *" value={newAddr.address_line1} onChange={(v) => setNewAddr((p) => ({ ...p, address_line1: v }))} />
+                        <Field label="Address Line 2" value={newAddr.address_line2} onChange={(v) => setNewAddr((p) => ({ ...p, address_line2: v }))} />
+                        <Field label="Country *" value={newAddr.country} onChange={(v) => setNewAddr((p) => ({ ...p, country: v }))} />
                         </div>
                         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                           <button onClick={handleSaveAddress} disabled={savingAddr} style={primaryBtn}>
@@ -339,7 +346,7 @@ export default function CheckoutPage() {
                     </div>
                     <div style={{ fontSize: 14, color: "#0f172a", fontWeight: 600, marginBottom: 2 }}>{selectedAddr.full_name}</div>
                     <div style={{ fontSize: 13, color: "#64748b" }}>
-                      {selectedAddr.address}, {selectedAddr.city}
+                      {selectedAddr.address_line1}{selectedAddr.address_line2 ? `, ${selectedAddr.address_line2}` : ""}, {selectedAddr.city}
                       {selectedAddr.district ? `, ${selectedAddr.district}` : ""}
                     </div>
                     <div style={{ fontSize: 13, color: "#64748b" }}>{selectedAddr.phone}</div>

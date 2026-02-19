@@ -22,19 +22,7 @@ async function request<T>(
     let message = "Request failed";
     try {
       const data = await res.json();
-      // FastAPI 422 Unprocessable Entity returns detail as an array of validation errors
-      // e.g. [{ loc: ["body", "phone"], msg: "field required", type: "..." }]
-      // Joining them directly would produce "[object Object],[object Object]"
-      if (Array.isArray(data.detail)) {
-        message = data.detail
-          .map((e: any) => {
-            const field = e.loc?.slice(-1)[0] ?? "field";
-            return `${field}: ${e.msg}`;
-          })
-          .join(", ");
-      } else {
-        message = data.detail || data.message || message;
-      }
+      message = data.detail || data.message || message;
     } catch {}
     throw new Error(message);
   }
@@ -470,10 +458,12 @@ export const addressesApi = {
     label?: string;
     full_name: string;
     phone: string;
-    address: string;
+    address_line1: string;
+    address_line2?: string;
     city: string;
     district?: string;
     postal_code?: string;
+    country: string;
   }) =>
     request("/api/users/me/addresses", {
       method: "POST",
@@ -485,10 +475,12 @@ export const addressesApi = {
     label: string;
     full_name: string;
     phone: string;
-    address: string;
+    address_line1: string;
+    address_line2: string;
     city: string;
     district: string;
     postal_code: string;
+    country: string;
   }>) =>
     request(`/api/users/me/addresses/${addressId}`, {
       method: "PATCH",

@@ -14,20 +14,24 @@ type AddressFormData = {
   label: string;
   full_name: string;
   phone: string;
-  address: string;
+  address_line1: string;
+  address_line2: string;
   city: string;
   district: string;
   postal_code: string;
+  country: string;
 };
 
 const EMPTY_FORM: AddressFormData = {
   label: "",
   full_name: "",
   phone: "",
-  address: "",
+  address_line1: "",
+  address_line2: "",
   city: "",
   district: "",
   postal_code: "",
+  country: "",
 };
 
 /* ================================================================
@@ -85,13 +89,15 @@ export default function AddressesPage() {
   function openEdit(addr: Address) {
     setEditingAddr(addr);
     setForm({
-      label:       addr.label       ?? "",
-      full_name:   addr.full_name,
-      phone:       addr.phone,
-      address:     addr.address,
-      city:        addr.city,
-      district:    addr.district    ?? "",
-      postal_code: addr.postal_code ?? "",
+      label:        addr.label        ?? "",
+      full_name:    addr.full_name,
+      phone:        addr.phone,
+      address_line1: addr.address_line1,
+      address_line2: addr.address_line2 ?? "",
+      city:         addr.city,
+      district:     addr.district     ?? "",
+      postal_code:  addr.postal_code  ?? "",
+      country:      addr.country      ?? "",
     });
     setShowModal(true);
   }
@@ -102,7 +108,7 @@ export default function AddressesPage() {
 
   /* ---- Save (create or update) ---- */
   async function handleSave() {
-    if (!form.full_name.trim() || !form.phone.trim() || !form.address.trim() || !form.city.trim()) {
+    if (!form.full_name.trim() || !form.phone.trim() || !form.address_line1.trim() || !form.city.trim()) {
       toast.error("Full name, phone, address and city are required.");
       return;
     }
@@ -112,13 +118,15 @@ export default function AddressesPage() {
       // Backend AddressCreate schema (from OpenAPI):
       // label, full_name, phone, address, city, district, postal_code
       const payload = {
-        label:       form.label || "Home",
-        full_name:   form.full_name.trim(),
-        phone:       form.phone.trim(),
-        address:     form.address.trim(),
-        city:        form.city.trim(),
-        district:    form.district.trim() || undefined,
-        postal_code: form.postal_code.trim() || undefined,
+        label:         form.label || "Home",
+        full_name:     form.full_name.trim(),
+        phone:         form.phone.trim(),
+        address_line1: form.address_line1.trim(),
+        address_line2: form.address_line2.trim() || undefined,
+        city:          form.city.trim(),
+        district:      form.district.trim() || undefined,
+        postal_code:   form.postal_code.trim() || undefined,
+        country:       form.country.trim() || "Lesotho",
       };
 
       if (editingAddr) {
@@ -288,7 +296,19 @@ export default function AddressesPage() {
               {/* Address */}
               <div>
                 <label style={formLabel}>Street Address <Req /></label>
-                <input value={form.address} onChange={(e) => setField("address", e.target.value)} placeholder="123 Main Street" style={formInput} />
+                <input value={form.address_line1} onChange={(e) => setField("address_line1", e.target.value)} placeholder="123 Main Street" style={formInput} />
+              </div>
+
+              {/* Address Line 2 */}
+              <div>
+                <label style={formLabel}>Address Line 2</label>
+                <input value={form.address_line2} onChange={(e) => setField("address_line2", e.target.value)} placeholder="Apt, suite, unit, etc." style={formInput} />
+              </div>
+
+              {/* Country */}
+              <div>
+                <label style={formLabel}>Country <Req /></label>
+                <input value={form.country} onChange={(e) => setField("country", e.target.value)} placeholder="Lesotho" style={formInput} />
               </div>
 
               {/* City + District */}
@@ -360,7 +380,7 @@ function AddressCard({
         <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
           <div style={{ fontWeight: 600 }}>{address.full_name}</div>
           <div>{address.phone}</div>
-          <div>{address.address}</div>
+          <div>{address.address_line1}{address.address_line2 ? `, ${address.address_line2}` : ""}</div>
           <div>{[address.city, address.district, address.postal_code].filter(Boolean).join(", ")}</div>
         </div>
       </div>

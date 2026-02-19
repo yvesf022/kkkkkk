@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
-import { cartApi, wishlistApi } from "@/lib/api";
+import { cartApi, wishlistApi, productsApi } from "@/lib/api";
 import type { Cart, CartItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/currency";
 
@@ -19,6 +19,26 @@ export default function CartPage() {
   async function loadCart() {
     try {
       const data = await cartApi.get() as Cart;
+      // Enrich any items that are missing nested product data
+      const items = data?.items ?? [];
+      const needsEnrichment = items.filter((i) => !i.product && i.product_id);
+      if (needsEnrichment.length > 0) {
+        const enriched = await Promise.allSettled(
+          needsEnrichment.map((i) => productsApi.get(i.product_id))
+        );
+        const productMap: Record<string, any> = {};
+        needsEnrichment.forEach((item, idx) => {
+          const result = enriched[idx];
+          if (result.status === "fulfilled") {
+            productMap[item.product_id] = result.value;
+          }
+        });
+        data.items = items.map((i) =>
+          !i.product && productMap[i.product_id]
+            ? { ...i, product: productMap[i.product_id] }
+            : i
+        );
+      }
       setCart(data);
     } catch {
       setCart(null);
