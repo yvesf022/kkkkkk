@@ -2,116 +2,149 @@
 
 import { useEffect, useState } from "react";
 import { couponsApi } from "@/lib/api";
+import type { Coupon } from "@/lib/types";
+import { formatCurrency } from "@/lib/currency";
 
 export default function CouponsPage() {
-  const [available, setAvailable] = useState<any[]>([]);
-  const [mine, setMine] = useState<any[]>([]);
+  const [available, setAvailable] = useState<Coupon[]>([]);
+  const [myCoupons, setMyCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
-  const [code, setCode] = useState("");
-  const [orderTotal, setOrderTotal] = useState("");
-  const [applyResult, setApplyResult] = useState<any>(null);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [tab, setTab] = useState<"available" | "mine">("available");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  async function load() {
-    try {
-      const [a, m] = await Promise.allSettled([couponsApi.getAvailable(), couponsApi.getMy()]);
-      if (a.status === "fulfilled") setAvailable((a.value as any) ?? []);
-      if (m.status === "fulfilled") setMine((m.value as any) ?? []);
-    } finally { setLoading(false); }
+  useEffect(() => {
+    Promise.allSettled([couponsApi.getAvailable(), couponsApi.getMy()])
+      .then(([a, m]) => {
+        if (a.status === "fulfilled") setAvailable((a.value as any) ?? []);
+        if (m.status === "fulfilled") setMyCoupons((m.value as any) ?? []);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  function copyCode(code: string, id: string) {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
   }
 
-  useEffect(() => { load(); }, []);
-  function flash(text: string, ok = true) { setMsg({ text, ok }); setTimeout(() => setMsg(null), 4000); }
-
-  async function apply() {
-    if (!code || !orderTotal) return;
-    try {
-      const result = await couponsApi.apply(code, Number(orderTotal));
-      setApplyResult(result);
-      flash("Coupon applied!");
-    } catch (e: any) { flash(e?.message ?? "Invalid coupon", false); setApplyResult(null); }
+  function isExpired(coupon: Coupon) {
+    if (!coupon.valid_until) return false;
+    return new Date(coupon.valid_until) < new Date();
   }
 
-  function copyCode(c: string) {
-    navigator.clipboard.writeText(c).then(() => flash(`Copied: ${c}`));
+  function isNotStarted(coupon: Coupon) {
+    if (!coupon.valid_from) return false;
+    return new Date(coupon.valid_from) > new Date();
   }
+
+  const displayList = tab === "available" ? available : myCoupons;
 
   if (loading) return <div style={{ color: "#64748b" }}>Loading coupons...</div>;
 
   return (
-    <div style={{ maxWidth: 700 }}>
-      <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 6 }}>My Coupons</h1>
-      <p style={{ color: "#64748b", fontSize: 14, marginBottom: 24 }}>Your discount codes and available offers.</p>
-
-      {msg && <div style={{ ...banner, background: msg.ok ? "#f0fdf4" : "#fef2f2", borderColor: msg.ok ? "#bbf7d0" : "#fecaca", color: msg.ok ? "#166534" : "#991b1b", marginBottom: 16 }}>{msg.text}</div>}
-
-      {/* TEST A COUPON */}
-      <div style={{ ...card, marginBottom: 20 }}>
-        <h3 style={sectionTitle}>Check a Coupon</h3>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <input placeholder="Coupon code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
-            style={{ ...input, width: 160, textTransform: "uppercase", fontWeight: 700, letterSpacing: 1 }} />
-          <input placeholder="Order total (R)" type="number" value={orderTotal} onChange={(e) => setOrderTotal(e.target.value)}
-            style={{ ...input, width: 140 }} />
-          <button onClick={apply} disabled={!code || !orderTotal} style={greenBtn}>Apply</button>
-        </div>
-        {applyResult && (
-          <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 14, color: "#166534" }}>
-            Discount: <strong>R {Number(applyResult.discount ?? 0).toLocaleString()}</strong> — 
-            You pay: <strong>R {Number(applyResult.final_amount ?? 0).toLocaleString()}</strong>
-          </div>
-        )}
+    <div style={{ maxWidth: 720 }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 900, margin: 0 }}>Coupons & Offers</h1>
+        <p style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>Exclusive discounts and savings for your next purchase.</p>
       </div>
 
-      {/* MY COUPONS */}
-      {mine.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <h3 style={sectionTitle}>Your Coupons</h3>
-          <div style={{ display: "grid", gap: 10 }}>
-            {mine.map((c: any, i: number) => <CouponCard key={i} coupon={c} onCopy={copyCode} />)}
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 24, background: "#f1f5f9", borderRadius: 12, padding: 4 }}>
+        {(["available", "mine"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{ flex: 1, padding: "9px 16px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer", background: tab === t ? "#fff" : "transparent", color: tab === t ? "#0f172a" : "#64748b", boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none", transition: "all 0.15s" }}
+          >
+            {t === "available" ? `Available (${available.length})` : `My Coupons (${myCoupons.length})`}
+          </button>
+        ))}
+      </div>
+
+      {displayList.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎟️</div>
+          <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>
+            {tab === "available" ? "No coupons available right now" : "No coupons yet"}
+          </div>
+          <div style={{ color: "#94a3b8", fontSize: 14 }}>
+            {tab === "available" ? "Check back later for new deals." : "Make a purchase to earn coupons!"}
           </div>
         </div>
-      )}
+      ) : (
+        <div style={{ display: "grid", gap: 14 }}>
+          {displayList.map((c) => {
+            const expired = isExpired(c);
+            const notStarted = isNotStarted(c);
+            const unavailable = expired || notStarted || !c.is_active;
 
-      {/* AVAILABLE */}
-      {available.length > 0 && (
-        <div>
-          <h3 style={sectionTitle}>Available Offers</h3>
-          <div style={{ display: "grid", gap: 10 }}>
-            {available.map((c: any, i: number) => <CouponCard key={i} coupon={c} onCopy={copyCode} />)}
-          </div>
-        </div>
-      )}
+            return (
+              <div
+                key={c.id}
+                style={{
+                  background: "#fff", borderRadius: 16, border: `1px solid ${unavailable ? "#e5e7eb" : "#0f172a"}`,
+                  overflow: "hidden", opacity: unavailable ? 0.6 : 1, display: "flex",
+                }}
+              >
+                {/* Left accent */}
+                <div style={{ width: 8, background: unavailable ? "#e5e7eb" : "linear-gradient(180deg, #0033a0, #009543)", flexShrink: 0 }} />
 
-      {mine.length === 0 && available.length === 0 && (
-        <div style={{ ...card, textAlign: "center", padding: 60 }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>🏷️</div>
-          <div style={{ color: "#64748b" }}>No coupons available right now.</div>
+                {/* Content */}
+                <div style={{ flex: 1, padding: 20, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                  {/* Discount badge */}
+                  <div style={{ textAlign: "center", minWidth: 80, flexShrink: 0 }}>
+                    <div style={{ fontSize: 26, fontWeight: 900, color: "#0f172a", lineHeight: 1 }}>
+                      {c.discount_type === "percentage" ? `${c.discount_value}%` : formatCurrency(c.discount_value)}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
+                      {c.discount_type === "percentage" ? "OFF" : "DISCOUNT"}
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div style={{ width: 1, alignSelf: "stretch", background: "#f1f5f9", flexShrink: 0 }} />
+
+                  {/* Details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {c.description && <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>{c.description}</div>}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 12, color: "#64748b" }}>
+                      {c.min_purchase && <span>Min order: {formatCurrency(c.min_purchase)}</span>}
+                      {c.max_discount && <span>Max discount: {formatCurrency(c.max_discount)}</span>}
+                      {c.usage_limit && <span>Limit: {c.usage_count}/{c.usage_limit} used</span>}
+                    </div>
+                    {c.valid_until && (
+                      <div style={{ fontSize: 11, color: expired ? "#dc2626" : "#94a3b8", marginTop: 4, fontWeight: 600 }}>
+                        {expired ? "⚠️ Expired" : `⏰ Valid until ${new Date(c.valid_until).toLocaleDateString()}`}
+                      </div>
+                    )}
+                    {notStarted && c.valid_from && (
+                      <div style={{ fontSize: 11, color: "#92400e", marginTop: 4, fontWeight: 600 }}>
+                        🕐 Starts {new Date(c.valid_from).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Copy code */}
+                  {!unavailable && (
+                    <button
+                      onClick={() => copyCode(c.code, c.id)}
+                      style={{ flexShrink: 0, padding: "10px 16px", borderRadius: 10, border: `2px dashed ${copiedId === c.id ? "#166534" : "#0f172a"}`, background: copiedId === c.id ? "#f0fdf4" : "#f8fafc", color: copiedId === c.id ? "#166534" : "#0f172a", fontWeight: 800, fontSize: 13, cursor: "pointer", letterSpacing: 1, transition: "all 0.15s" }}
+                    >
+                      {copiedId === c.id ? "✓ Copied!" : c.code}
+                    </button>
+                  )}
+                  {unavailable && (
+                    <div style={{ padding: "10px 16px", borderRadius: 10, border: "2px dashed #d1d5db", color: "#94a3b8", fontWeight: 800, fontSize: 13, letterSpacing: 1 }}>
+                      {c.code}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
-
-function CouponCard({ coupon, onCopy }: { coupon: any; onCopy: (c: string) => void }) {
-  const expired = coupon.expires_at && new Date(coupon.expires_at) < new Date();
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderRadius: 12, border: `2px dashed ${expired ? "#e2e8f0" : "#0033a0"}`, background: expired ? "#f8fafc" : "#eff6ff", flexWrap: "wrap", gap: 12, opacity: expired ? 0.6 : 1 }}>
-      <div>
-        <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: 1, color: expired ? "#94a3b8" : "#0033a0" }}>{coupon.code}</div>
-        <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
-          {coupon.discount_type === "percent" ? `${coupon.discount_value}% off` : `R ${coupon.discount_value} off`}
-          {coupon.min_order && ` · Min order R ${coupon.min_order}`}
-        </div>
-        {coupon.expires_at && <div style={{ fontSize: 11, color: expired ? "#dc2626" : "#94a3b8", marginTop: 2 }}>{expired ? "Expired" : `Expires ${new Date(coupon.expires_at).toLocaleDateString()}`}</div>}
-      </div>
-      {!expired && <button onClick={() => onCopy(coupon.code)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #0033a0", background: "#fff", color: "#0033a0", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Copy</button>}
-    </div>
-  );
-}
-
-const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 };
-const sectionTitle: React.CSSProperties = { fontSize: 15, fontWeight: 700, marginBottom: 14, color: "#0f172a" };
-const greenBtn: React.CSSProperties = { padding: "9px 20px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#0033a0,#009543)", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 14 };
-const input: React.CSSProperties = { padding: "9px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 };
-const banner: React.CSSProperties = { padding: "10px 16px", borderRadius: 8, border: "1px solid", fontSize: 14 };
