@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a1628" />
+  <title>Welcome — Karabo's Store</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Sora:wght@300;400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #0a1628;
+      --navy-mid:   #0f2240;
+      --green:      #009543;
+      --blue:       #0033a0;
+      --gold:       #c8a75a;
+      --gold-light: #e2c47a;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--navy);
+    }
+
+    /* ── Background ── */
+    .bg {
+      position: fixed; inset: 0;
+      background: linear-gradient(160deg, #0a1628 0%, #0f2240 50%, #0a1f15 100%);
+      z-index: 0;
+    }
+
+    .orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(80px); opacity: 0;
+      animation: fadeIn 1.4s ease forwards;
+    }
+    .orb-1 {
+      width: 380px; height: 380px;
+      background: radial-gradient(circle, rgba(0,149,67,.18) 0%, transparent 70%);
+      top: -100px; right: -100px; animation-delay: .3s;
+    }
+    .orb-2 {
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(0,51,160,.22) 0%, transparent 70%);
+      bottom: -80px; left: -60px; animation-delay: .5s;
+    }
+    .orb-3 {
+      width: 220px; height: 220px;
+      background: radial-gradient(circle, rgba(200,167,90,.1) 0%, transparent 70%);
+      top: 45%; left: 50%; transform: translate(-50%,-50%);
+      animation-delay: .7s;
+    }
+
+    .grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.015) 1px, transparent 1px);
+      background-size: 44px 44px;
+      opacity: 0; animation: fadeIn 1.5s ease .4s forwards;
+    }
+
+    /* ── Splash container ── */
+    .splash {
+      position: relative; z-index: 1;
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 32px;
+      padding-top:    max(40px, env(safe-area-inset-top));
+      padding-bottom: max(40px, env(safe-area-inset-bottom));
+      text-align: center;
+    }
+
+    /* ── Logo ── */
+    .logo-wrap {
+      opacity: 0; transform: translateY(28px) scale(.85);
+      animation: riseIn .9s cubic-bezier(.22,1,.36,1) .4s forwards;
+      margin-bottom: 28px;
+    }
+
+    .logo-ring {
+      width: 100px; height: 100px; border-radius: 28px;
+      background: linear-gradient(135deg, var(--blue), var(--green));
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,.1),
+        0 20px 60px rgba(0,51,160,.4),
+        0 8px 24px rgba(0,149,67,.3);
+    }
+
+    .logo-ring::after {
+      content: "";
+      position: absolute; inset: -3px; border-radius: 31px;
+      background: linear-gradient(135deg, rgba(0,149,67,.5), rgba(0,51,160,.5));
+      z-index: -1; filter: blur(14px); opacity: .7;
+    }
+
+    .logo-k {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 56px; font-weight: 700;
+      color: #fff; line-height: 1; letter-spacing: -1px;
+    }
+
+    .logo-dot {
+      position: absolute; top: 11px; right: 11px;
+      width: 11px; height: 11px;
+      background: var(--gold); border-radius: 50%;
+      box-shadow: 0 0 14px rgba(200,167,90,.9);
+      animation: pulse 2.2s ease-in-out 2s infinite;
+    }
+
+    /* ── Welcome label ── */
+    .welcome-label {
+      font-family: 'Sora', sans-serif;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 3.5px; text-transform: uppercase;
+      color: var(--gold);
+      opacity: 0; animation: riseIn .7s ease .95s forwards;
+      margin-bottom: 14px;
+    }
+
+    /* ── Heading ── */
+    .heading {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: clamp(30px, 9vw, 46px);
+      font-weight: 700; color: #fff;
+      line-height: 1.2; letter-spacing: -.3px;
+      opacity: 0; transform: translateY(18px);
+      animation: riseIn .9s cubic-bezier(.22,1,.36,1) 1.05s forwards;
+      margin-bottom: 10px;
+    }
+
+    .heading .gold {
+      background: linear-gradient(90deg, var(--gold-light), var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      width: 48px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      opacity: 0; animation: riseIn .6s ease 1.15s forwards;
+      margin: 16px auto 18px;
+    }
+
+    /* ── Tagline ── */
+    .tagline {
+      font-family: 'Sora', sans-serif;
+      font-size: clamp(13px, 3.5vw, 15px);
+      font-weight: 300; color: rgba(255,255,255,.5);
+      line-height: 1.75; max-width: 270px;
+      opacity: 0; animation: riseIn .8s ease 1.2s forwards;
+      margin-bottom: 56px;
+    }
+
+    /* ── Progress bar ── */
+    .progress-wrap {
+      width: 160px;
+      opacity: 0; animation: riseIn .6s ease 1.5s forwards;
+    }
+
+    .progress-track {
+      width: 100%; height: 2px;
+      background: rgba(255,255,255,.08);
+      border-radius: 2px; overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .progress-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+      border-radius: 2px;
+      animation: loadBar 2.4s cubic-bezier(.4,0,.2,1) 1.7s forwards;
+    }
+
+    .progress-text {
+      font-family: 'Sora', sans-serif;
+      font-size: 10px; font-weight: 400;
+      color: rgba(255,255,255,.25);
+      letter-spacing: 1.5px; text-transform: uppercase;
+    }
+
+    /* ── Bottom stamp ── */
+    .stamp {
+      position: absolute;
+      bottom: max(32px, env(safe-area-inset-bottom));
+      left: 0; right: 0;
+      font-family: 'Sora', sans-serif;
+      font-size: 10px; font-weight: 400;
+      letter-spacing: 2.5px; text-transform: uppercase;
+      color: rgba(255,255,255,.15);
+      opacity: 0; animation: riseIn .6s ease 1.7s forwards;
+    }
+
+    /* ── Keyframes ── */
+    @keyframes riseIn {
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+    @keyframes loadBar {
+      0%   { width: 0%; }
+      25%  { width: 30%; }
+      55%  { width: 62%; }
+      80%  { width: 85%; }
+      100% { width: 100%; }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1);   opacity: 1; }
+      50%       { transform: scale(1.5); opacity: .5; }
+    }
+    @keyframes exit {
+      to { opacity: 0; transform: scale(1.05); }
+    }
+
+    .splash.exiting {
+      animation: exit .55s cubic-bezier(.4,0,1,1) forwards;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid"></div>
+  </div>
+
+  <div class="splash" id="splash">
+
+    <!-- Logo mark -->
+    <div class="logo-wrap">
+      <div class="logo-ring">
+        <span class="logo-k">K</span>
+        <div class="logo-dot"></div>
+      </div>
+    </div>
+
+    <!-- Welcome label -->
+    <p class="welcome-label">Welcome to</p>
+
+    <!-- Main heading -->
+    <h1 class="heading">
+      <span class="gold">Karabo's</span> Store
+    </h1>
+
+    <!-- Gold rule -->
+    <div class="divider"></div>
+
+    <!-- Tagline -->
+    <p class="tagline">
+      Premium fashion &amp; beauty,<br/>
+      curated for elegance and<br/>
+      confidence in Lesotho.
+    </p>
+
+    <!-- Loading bar -->
+    <div class="progress-wrap">
+      <div class="progress-track">
+        <div class="progress-fill" id="bar"></div>
+      </div>
+      <p class="progress-text">Loading your experience</p>
+    </div>
+
+    <!-- Bottom brand stamp -->
+    <p class="stamp">Karabo's Store &mdash; Lesotho</p>
+
+  </div>
+
+  <script>
+    // Redirect to home after the bar finishes (~4.2 s total)
+    // Uses a smooth exit animation before navigating
+    const REDIRECT_DELAY = 4200;
+
+    setTimeout(() => {
+      const splash = document.getElementById("splash");
+      splash.classList.add("exiting");
+      setTimeout(() => {
+        window.location.replace("/");
+      }, 550); // match exit animation duration
+    }, REDIRECT_DELAY);
+
+    // If the app was already cached and loads fast, redirect sooner
+    window.addEventListener("load", () => {
+      // Only fast-redirect if the bar has had at least 2s to show
+      const elapsed = performance.now();
+      if (elapsed < 2000) return;
+      const splash = document.getElementById("splash");
+      splash.classList.add("exiting");
+      setTimeout(() => window.location.replace("/"), 550);
+    });
+  </script>
+
+</body>
+</html>

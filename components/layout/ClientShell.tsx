@@ -8,26 +8,6 @@ import { useAuth } from "@/lib/auth";
 import FloatingCartButton from "@/components/store/FloatingCartButton";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 
-/**
- * CLIENT SHELL — PRODUCTION DOMINATION VERSION
- *
- * RESPONSIBILITIES:
- * - Global layout shell
- * - ONE-TIME auth hydration
- * - Global floating cart system
- * - Service Worker registration (PWA)
- * - Install prompt (PWA)
- *
- * RULES:
- * - Hydrate auth ONCE here
- * - NO redirects here
- * - NO conditional rendering here
- * - Floating cart must exist globally
- *
- * NOTE:
- * - Zustand does NOT require CartProvider
- */
-
 export default function ClientShell({
   children,
 }: {
@@ -40,12 +20,7 @@ export default function ClientShell({
     hydrate();
   }, [hydrate]);
 
-  /* 📲 SERVICE WORKER REGISTRATION
-     - Registers sw.js from /public/sw.js
-     - Handles updates gracefully: new SW waits, then activates on next visit
-     - Only runs in production-like environments (not localhost dev by default,
-       but you can remove the hostname check if you want dev SW support)
-  */
+  /* 📲 SERVICE WORKER REGISTRATION */
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
@@ -53,15 +28,13 @@ export default function ClientShell({
       try {
         const registration = await navigator.serviceWorker.register("/sw.js", {
           scope: "/",
-          updateViaCache: "none", // always check for SW updates on navigate
+          updateViaCache: "none",
         });
 
-        /* Check for updates every time the app gains focus */
         window.addEventListener("focus", () => {
           registration.update().catch(() => {});
         });
 
-        /* When a new SW is waiting, tell it to activate */
         registration.addEventListener("updatefound", () => {
           const newWorker = registration.installing;
           if (!newWorker) return;
@@ -71,8 +44,6 @@ export default function ClientShell({
               newWorker.state === "installed" &&
               navigator.serviceWorker.controller
             ) {
-              /* A new version is ready — you can show a toast here if you want:
-                 toast("Update available — refresh to get the latest version") */
               newWorker.postMessage({ type: "SKIP_WAITING" });
             }
           });
@@ -84,7 +55,6 @@ export default function ClientShell({
       }
     };
 
-    /* Register after page load to not block initial render */
     if (document.readyState === "complete") {
       registerSW();
     } else {
@@ -97,7 +67,7 @@ export default function ClientShell({
       {/* HEADER */}
       <Header />
 
-      {/* MAIN LAYOUT */}
+      {/* MAIN LAYOUT — uses CSS class for proper mobile flex stacking */}
       <div className="appShell">
         <Sidebar />
         <main className="pageContentWrap">
@@ -105,10 +75,10 @@ export default function ClientShell({
         </main>
       </div>
 
-      {/* GLOBAL FLOATING CART SYSTEM */}
+      {/* GLOBAL FLOATING CART */}
       <FloatingCartButton />
 
-      {/* PWA INSTALL PROMPT — shows install banner on compatible browsers/devices */}
+      {/* PWA INSTALL PROMPT */}
       <InstallPrompt />
     </UIProvider>
   );
