@@ -6,7 +6,8 @@ import AddToCartClient from "./AddToCartClient";
 import RetryButton from "./RetryButton";
 
 interface Props {
-  params: { id: string };
+  // FIX: params is a Promise in Next.js 15, plain object in Next.js 14
+  params: Promise<{ id: string }> | { id: string };
 }
 
 export const dynamic = "force-dynamic";
@@ -29,16 +30,20 @@ async function fetchProduct(id: string): Promise<FetchResult> {
   const url = `${API}/api/products/${id}`;
 
   // Forward the incoming request's cookies so the backend gets the session
-  const cookieStore = cookies();
-  const cookieHeader = cookieStore.toString();
+  // FIX: cookies().toString() returns "" in Next.js 14 — must use .getAll()
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map((c: { name: string; value: string }) => `${c.name}=${c.value}`)
+    .join("; ");
 
   const opts: RequestInit = {
     headers: {
       ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       "Content-Type": "application/json",
     },
-    // Cache for 60s so repeated visits don't hammer the backend
-    next: { revalidate: 60 },
+    // FIX: revalidate conflicts with force-dynamic — use no-store instead
+    cache: "no-store",
   };
 
   async function attempt(): Promise<FetchResult> {
@@ -98,7 +103,9 @@ async function fetchProduct(id: string): Promise<FetchResult> {
 ───────────────────────────────────────────────────────────────── */
 
 export default async function ProductPage({ params }: Props) {
-  const result = await fetchProduct(params.id);
+  // FIX: In Next.js 15, params is a Promise — resolve it safely for both versions
+  const resolvedParams = await Promise.resolve(params);
+  const result = await fetchProduct(resolvedParams.id);
 
   // Only call notFound() on a genuine 404 — not on server errors
   if (result.ok === false && result.status === 404) {
