@@ -1,10 +1,18 @@
 /**
- * KARABO API CLIENT — COMPLETE ENTERPRISE VERSION
- * All 100+ endpoints for your e-commerce platform
+ * KARABO API CLIENT — FIXED ENTERPRISE VERSION
+ *
+ * FIXES IN THIS VERSION:
+ * 1. paymentsApi.getByOrderId() — was calling GET /api/payments/{orderId} using an
+ *    orderId as if it were a paymentId. Now correctly uses getMy() + filter.
+ * 2. reviewsApi.vote() — was sending { is_helpful: bool }, now sends { vote: "up"|"down" }
+ *    matching the ReviewVotePayload schema exactly.
+ * 3. adminOrdersAdvancedApi.addNote() — was sending { note } now sends { content } to match
+ *    the OrderNotePayload schema.
+ * 4. paymentsApi — added getByOrderId as a proper helper that scans getMy() results.
  */
 
 import type { Admin } from "@/lib/adminAuth";
-import type { Order, ProductListItem, Product, ProductStatus } from "@/lib/types";
+import type { Order, ProductListItem, Product, ProductStatus, Payment } from "@/lib/types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
@@ -54,7 +62,6 @@ export type ProductAnalytics = {
     created_at: string;
   }>;
 };
-
 
 export type ProductVariant = {
   id: string;
@@ -150,7 +157,6 @@ export const productsApi = {
     return request(`/api/products/${id}`);
   },
 
-  /** Admin get-by-id — same public GET route, no separate admin endpoint */
   getAdmin(id: string): Promise<Product> {
     return request(`/api/products/${id}`);
   },
@@ -163,7 +169,6 @@ export const productsApi = {
     });
   },
 
-  /** FIX: Admin update is PATCH /api/products/admin/{product_id} */
   update(id: string, payload: any) {
     return request(`/api/products/admin/${id}`, {
       method: "PATCH",
@@ -172,7 +177,6 @@ export const productsApi = {
     });
   },
 
-  /** FIX: Admin analytics is GET /api/products/admin/{product_id}/analytics */
   getAnalytics(id: string): Promise<ProductAnalytics> {
     return request<ProductAnalytics>(`/api/products/admin/${id}/analytics`);
   },
@@ -181,11 +185,6 @@ export const productsApi = {
     return request<ProductVariant[]>(`/api/products/${id}/variants`);
   },
 
-  /**
-   * FIX: /lifecycle does not exist. Each action is its own route.
-   * Use publish / archive / draft / restore / discontinue methods below.
-   * @deprecated
-   */
   lifecycle(id: string, action: "publish" | "archive" | "draft" | "restore") {
     return request(`/api/products/${id}/${action}`, { method: "POST" });
   },
@@ -220,10 +219,6 @@ export const productsApi = {
     });
   },
 
-  /**
-   * FIX: Bulk-add images — POST /api/products/{product_id}/images/bulk
-   * No single-image upload endpoint exists in the API.
-   */
   bulkAddImages(productId: string, payload: { images: string[] }) {
     return request(`/api/products/${productId}/images/bulk`, {
       method: "POST",
@@ -232,7 +227,6 @@ export const productsApi = {
     });
   },
 
-  /** @deprecated route /api/products/admin/{id}/images does not exist — use bulkAddImages */
   uploadImage(productId: string, file: File) {
     console.warn("uploadImage: no single-image upload endpoint. Use bulkAddImages with image URLs.");
     const form = new FormData();
@@ -243,7 +237,6 @@ export const productsApi = {
     });
   },
 
-  /** FIX: Set image position — PATCH /api/products/images/{image_id}/position */
   setImagePosition(imageId: string, position: number) {
     return request(`/api/products/images/${imageId}/position`, {
       method: "PATCH",
@@ -258,8 +251,7 @@ export const productsApi = {
     });
   },
 
-  /** @deprecated no delete-image endpoint exists in the API spec */
-  deleteImage(imageId: string) {
+  deleteImage(_imageId: string) {
     console.warn("deleteImage: no delete image endpoint found in API spec.");
     return Promise.reject(new Error("Delete image endpoint not available"));
   },
@@ -307,10 +299,6 @@ export const productsApi = {
     });
   },
 
-  /**
-   * FIX: No /reorder route — use setImagePosition per image instead.
-   * Maps imageIds array to position index via individual PATCH calls.
-   */
   reorderImages(_productId: string, imageIds: string[]) {
     return Promise.all(
       imageIds.map((id, index) =>
@@ -445,18 +433,21 @@ export const ordersApi = {
     request(`/api/orders/${orderId}/invoice`),
 };
 
-// kept for backwards compat
 export function getMyOrders(): Promise<Order[]> {
   return ordersApi.getMy();
 }
 
 /* =====================================================
    PAYMENTS
+   
+   FIX: getByOrderId() previously called GET /api/payments/{orderId}
+   treating orderId as a paymentId — that endpoint only accepts real
+   payment UUIDs. We now scan the user's own payment list instead.
 ===================================================== */
 
 export const paymentsApi = {
   create: (orderId: string) =>
-    request(`/api/payments/${orderId}`, { method: "POST" }),
+    request<Payment>(`/api/payments/${orderId}`, { method: "POST" }),
 
   uploadProof: (paymentId: string, file: File) => {
     const form = new FormData();
@@ -467,20 +458,28 @@ export const paymentsApi = {
     });
   },
 
-  getMy: () =>
-    request("/api/payments/my"),
+  getMy: (): Promise<Payment[]> =>
+    request<Payment[]>("/api/payments/my"),
 
-  getById: (paymentId: string) =>
-    request(`/api/payments/${paymentId}`),
+  getById: (paymentId: string): Promise<Payment> =>
+    request<Payment>(`/api/payments/${paymentId}`),
 
   /**
-   * Fetch an existing payment by order ID.
-   * Used as the primary fallback in initPayment when create() fails
-   * because a payment already exists for this order.
-   * Route: GET /api/payments/{payment_id} (same path, different semantic intent)
+   * FIX: Find the payment record for a given orderId by scanning the
+   * user's payment list. The backend GET /api/payments/{id} only accepts
+   * real payment UUIDs — passing an orderId will return 404 or wrong data.
    */
-  getByOrderId: (orderId: string) =>
-    request(`/api/payments/${orderId}`),
+  getByOrderId: async (orderId: string): Promise<Payment | null> => {
+    try {
+      const all = await request<any>("/api/payments/my");
+      const list: Payment[] = Array.isArray(all)
+        ? all
+        : all?.results ?? all?.payments ?? [];
+      return list.find((p) => p.order_id === orderId) ?? null;
+    } catch {
+      return null;
+    }
+  },
 
   adminList: (statusFilter?: PaymentStatus) => {
     const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
@@ -504,7 +503,6 @@ export const paymentsApi = {
   getBankDetails: () =>
     request("/api/payments/bank-details"),
 
-  /** FIX: field name must be "proof" to match Body_resubmit_payment_proof schema */
   resubmitProof: (paymentId: string, file: File) => {
     const form = new FormData();
     form.append("proof", file);
@@ -521,8 +519,8 @@ export const paymentsApi = {
       body: JSON.stringify({ reason }),
     }),
 
-  retry: (orderId: string) =>
-    request(`/api/payments/${orderId}/retry`, {
+  retry: (orderId: string): Promise<Payment> =>
+    request<Payment>(`/api/payments/${orderId}/retry`, {
       method: "POST",
     }),
 
@@ -532,9 +530,6 @@ export const paymentsApi = {
 
 /* =====================================================
    ADDRESSES
-   FIX: payload now matches backend AddressCreate schema:
-   { label, full_name, phone, address, city, district, postal_code }
-   NOT address_line1/address_line2/state/country — those don't exist in backend
 ===================================================== */
 
 export const addressesApi = {
@@ -660,6 +655,9 @@ export const wishlistApi = {
 
 /* =====================================================
    REVIEWS
+   
+   FIX: vote() was sending { is_helpful: boolean } but the backend schema
+   ReviewVotePayload expects { vote: "up" | "down" }. Fixed.
 ===================================================== */
 
 export const reviewsApi = {
@@ -693,11 +691,14 @@ export const reviewsApi = {
   getMy: () =>
     request("/api/reviews/users/me/reviews"),
 
-  vote: (reviewId: string, isHelpful: boolean) =>
+  /**
+   * FIX: was { is_helpful: boolean } — backend expects { vote: "up" | "down" }
+   */
+  vote: (reviewId: string, direction: "up" | "down") =>
     request(`/api/reviews/${reviewId}/vote`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_helpful: isHelpful }),
+      body: JSON.stringify({ vote: direction }),
     }),
 };
 
@@ -839,6 +840,9 @@ export const walletApi = {
 
 /* =====================================================
    ADMIN - ORDERS ADVANCED
+   
+   FIX: addNote() was sending { note } but backend OrderNotePayload
+   expects { content, is_internal? }. Fixed field name.
 ===================================================== */
 
 export const adminOrdersAdvancedApi = {
@@ -871,7 +875,10 @@ export const adminOrdersAdvancedApi = {
   getNotes: (orderId: string) =>
     request(`/api/admin/orders/${orderId}/notes`),
 
-  addNote: (orderId: string, payload: { note: string; is_internal: boolean }) =>
+  /**
+   * FIX: was { note: string } — backend OrderNotePayload expects { content: string, is_internal?: boolean }
+   */
+  addNote: (orderId: string, payload: { content: string; is_internal?: boolean }) =>
     request(`/api/admin/orders/${orderId}/notes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -989,7 +996,6 @@ export const bulkUploadApi = {
   list: () =>
     request("/api/products/admin/bulk-uploads"),
 
-  /** @deprecated use list() */
   listUploads: () =>
     request("/api/products/admin/bulk-uploads"),
 };
@@ -1025,7 +1031,6 @@ export const usersApi = {
     request("/api/users/me/recently-viewed", { method: "DELETE" }),
 };
 
-// kept for backwards compat
 export function uploadAvatar(file: File) {
   return usersApi.uploadAvatar(file);
 }
@@ -1083,7 +1088,6 @@ export const adminProductsApi = {
     });
   },
 
-  /** ADDED: PATCH /api/products/admin/bulk — generic bulk mutate */
   bulkMutate(payload: Record<string, any>) {
     return request("/api/products/admin/bulk", {
       method: "PATCH",
@@ -1092,7 +1096,6 @@ export const adminProductsApi = {
     });
   },
 
-  /** ADDED: POST /api/products/admin/bulk-discount */
   bulkDiscount(ids: string[], discount: number) {
     return request("/api/products/admin/bulk-discount", {
       method: "POST",
@@ -1101,7 +1104,6 @@ export const adminProductsApi = {
     });
   },
 
-  /** ADDED: POST /api/products/admin/bulk-category */
   bulkCategory(ids: string[], category: string) {
     return request("/api/products/admin/bulk-category", {
       method: "POST",
@@ -1110,7 +1112,6 @@ export const adminProductsApi = {
     });
   },
 
-  /** ADDED: POST /api/products/admin/bulk-store */
   bulkStore(ids: string[], store: string) {
     return request("/api/products/admin/bulk-store", {
       method: "POST",
@@ -1119,7 +1120,6 @@ export const adminProductsApi = {
     });
   },
 
-  /** ADDED: DELETE /api/products/admin/empty-store */
   emptyStore(store: string) {
     return request(`/api/products/admin/empty-store?store=${encodeURIComponent(store)}`, {
       method: "DELETE",

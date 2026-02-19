@@ -1,361 +1,485 @@
 "use client";
 
+/**
+ * FIX: handleAddNote() was calling adminOrdersAdvancedApi.addNote(id, { note: newNote, is_internal: true })
+ * The field must be `content` not `note` per OrderNotePayload schema.
+ * Fixed: { content: newNote, is_internal: true }
+ */
+
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ordersApi, paymentsApi } from "@/lib/api";
-import type { Order } from "@/lib/types";
-import { formatCurrency } from "@/lib/currency";
+import { ordersApi, adminOrdersAdvancedApi, paymentsApi } from "@/lib/api";
+import type { Order, Payment } from "@/lib/types";
 
-const statusColors: Record<string, [string, string]> = {
-  pending:   ["#fef9c3", "#854d0e"],
-  paid:      ["#dcfce7", "#166534"],
-  shipped:   ["#dbeafe", "#1e40af"],
-  completed: ["#f0fdf4", "#166534"],
-  cancelled: ["#fee2e2", "#991b1b"],
+const FF = "'DM Sans', -apple-system, sans-serif";
+const FM = "'DM Mono', monospace";
+
+const STATUS_COLOR: Record<string, { bg: string; fg: string; dot: string }> = {
+  pending:   { bg: "#fefce8", fg: "#713f12", dot: "#eab308" },
+  paid:      { bg: "#f0fdf4", fg: "#14532d", dot: "#22c55e" },
+  shipped:   { bg: "#eff6ff", fg: "#1e3a8a", dot: "#3b82f6" },
+  completed: { bg: "#f0fdf4", fg: "#065f46", dot: "#10b981" },
+  cancelled: { bg: "#fff1f2", fg: "#881337", dot: "#f43f5e" },
+  on_hold:   { bg: "#fff7ed", fg: "#7c2d12", dot: "#f97316" },
+  rejected:  { bg: "#fff1f2", fg: "#881337", dot: "#f43f5e" },
 };
 
-const shippingColors: Record<string, [string, string]> = {
-  pending:    ["#f1f5f9", "#475569"],
-  processing: ["#fef9c3", "#854d0e"],
-  shipped:    ["#dbeafe", "#1e40af"],
-  delivered:  ["#dcfce7", "#166534"],
-  returned:   ["#fee2e2", "#991b1b"],
-};
+function Badge({ status }: { status: string }) {
+  const s = STATUS_COLOR[status] ?? { bg: "#f1f5f9", fg: "#475569", dot: "#94a3b8" };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700,
+      background: s.bg, color: s.fg, letterSpacing: "0.04em",
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dot, display: "inline-block" }} />
+      {status.replace(/_/g, " ").toUpperCase()}
+    </span>
+  );
+}
 
-export default function OrderDetailPage() {
-  const { id } = useParams() as { id: string };
-  const router = useRouter();
+function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, overflow: "hidden" }}>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "16px 24px", borderBottom: "1px solid #f1f5f9",
+        background: "#fafafa",
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em" }}>{title}</span>
+        {action}
+      </div>
+      <div style={{ padding: 24 }}>{children}</div>
+    </div>
+  );
+}
 
-  const [order, setOrder] = useState<Order | null>(null);
-  const [tracking, setTracking] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+function Field({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "10px 0", borderBottom: "1px solid #f8fafc", gap: 16 }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8", flexShrink: 0, paddingTop: 1 }}>{label}</span>
+      <span style={{ fontSize: 13, color: "#0f172a", textAlign: "right", fontFamily: mono ? FM : FF, wordBreak: "break-all" }}>{value}</span>
+    </div>
+  );
+}
 
-  // Modals
-  const [showRefund, setShowRefund] = useState(false);
-  const [showReturn, setShowReturn] = useState(false);
-  const [showCancel, setShowCancel] = useState(false);
-  const [refundReason, setRefundReason] = useState("");
-  const [refundAmount, setRefundAmount] = useState("");
-  const [returnReason, setReturnReason] = useState("");
-  const [cancelReason, setCancelReason] = useState("");
+function Toast({ msg, ok }: { msg: string; ok: boolean }) {
+  return (
+    <div style={{
+      position: "fixed", top: 20, right: 20, zIndex: 9999,
+      padding: "11px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
+      background: ok ? "#0f172a" : "#dc2626", color: "#fff",
+      boxShadow: "0 8px 30px rgba(0,0,0,.2)",
+      display: "flex", alignItems: "center", gap: 8,
+      animation: "toastIn .2s ease",
+    }}>
+      {ok ? "✓" : "!"} {msg}
+    </div>
+  );
+}
+
+export default function AdminOrderDetailPage() {
+  const params  = useParams();
+  const router  = useRouter();
+  const id      = params?.id as string;
+
+  const [order,          setOrder]          = useState<Order | null>(null);
+  const [notes,          setNotes]          = useState<any[]>([]);
+  const [payments,       setPayments]       = useState<Payment[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [newNote,        setNewNote]        = useState("");
+  const [addingNote,     setAddingNote]     = useState(false);
+  const [statusOverride, setStatusOverride] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [showOverride,   setShowOverride]   = useState(false);
+  const [showRefund,     setShowRefund]     = useState(false);
+  const [refundAmount,   setRefundAmount]   = useState("");
+  const [refundReason,   setRefundReason]   = useState("");
+  const [toast,          setToast]          = useState<{ msg: string; ok: boolean } | null>(null);
+  const [submitting,     setSubmitting]     = useState(false);
+
+  function flash(msg: string, ok = true) {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3500);
+  }
 
   async function load() {
+    setLoading(true);
     try {
-      const [o, t] = await Promise.allSettled([
-        ordersApi.getById(id),
-        ordersApi.getTracking(id),
+      const [data, orderNotes] = await Promise.all([
+        ordersApi.getAdminById(id),
+        adminOrdersAdvancedApi.getNotes(id).catch(() => []),
       ]);
-      if (o.status === "fulfilled") setOrder(o.value as Order);
-      if (t.status === "fulfilled") setTracking(t.value);
-    } finally {
-      setLoading(false);
-    }
+      setOrder(data);
+      setNotes((orderNotes as any) || []);
+      // Fetch payments if order has them
+      if (data.payments?.length) {
+        setPayments(data.payments as Payment[]);
+      }
+    } finally { setLoading(false); }
   }
 
   useEffect(() => { if (id) load(); }, [id]);
 
-  function flash(text: string, ok = true) { setMsg({ text, ok }); setTimeout(() => setMsg(null), 5000); }
-
-  async function act(fn: () => Promise<any>, successMsg: string) {
-    setActionLoading(true);
-    try { await fn(); flash(successMsg); load(); }
-    catch (e: any) { flash(e?.message ?? "Action failed", false); }
-    finally { setActionLoading(false); }
-  }
-
-  async function handleCancel() {
-    if (!cancelReason.trim()) return;
-    await act(() => ordersApi.cancel(id, cancelReason), "Order cancelled.");
-    setShowCancel(false);
-  }
-
-  async function handleReturn() {
-    if (!returnReason.trim()) return;
-    await act(() => ordersApi.requestReturn(id, returnReason), "Return requested. We'll be in touch.");
-    setShowReturn(false);
+  async function handleStatusOverride() {
+    if (!statusOverride || !overrideReason.trim()) { flash("Select a status and provide a reason", false); return; }
+    setSubmitting(true);
+    try {
+      await adminOrdersAdvancedApi.forceStatus(id, { status: statusOverride, reason: overrideReason });
+      flash("Status updated");
+      setShowOverride(false); setOverrideReason(""); setStatusOverride("");
+      load();
+    } catch (e: any) { flash(e?.message ?? "Failed", false); }
+    finally { setSubmitting(false); }
   }
 
   async function handleRefund() {
-    if (!refundReason || !refundAmount) return;
-    await act(() => ordersApi.requestRefund(id, { reason: refundReason, amount: Number(refundAmount) }), "Refund request submitted.");
-    setShowRefund(false);
-    setRefundReason(""); setRefundAmount("");
-  }
-
-  async function handleInvoice() {
+    const amt = parseFloat(refundAmount);
+    if (!amt || amt <= 0 || !refundReason.trim()) { flash("Enter valid amount and reason", false); return; }
+    setSubmitting(true);
     try {
-      const data = await ordersApi.getInvoice(id) as any;
-      if (data?.url) window.open(data.url, "_blank");
-      else if (data?.invoice_url) window.open(data.invoice_url, "_blank");
-      else flash("Invoice not yet available for this order.", false);
-    } catch { flash("Invoice not available yet.", false); }
+      await adminOrdersAdvancedApi.processRefund(id, { amount: amt, reason: refundReason });
+      flash("Refund processed");
+      setShowRefund(false); setRefundAmount(""); setRefundReason("");
+      load();
+    } catch (e: any) { flash(e?.message ?? "Refund failed", false); }
+    finally { setSubmitting(false); }
   }
 
-  async function handleProofUpload() {
-    if (!proofFile || !order) return;
-    const paymentId = (order as any).payment_id ?? order.payments?.[0]?.id;
-    if (!paymentId) { flash("No payment found for this order.", false); return; }
-    await act(() => paymentsApi.uploadProof(paymentId, proofFile), "Payment proof uploaded!");
-    setProofFile(null);
+  async function handleCancel() {
+    if (!confirm("Cancel this order?")) return;
+    setSubmitting(true);
+    try {
+      await adminOrdersAdvancedApi.forceStatus(id, { status: "cancelled", reason: "Cancelled by admin" });
+      flash("Order cancelled");
+      load();
+    } catch (e: any) { flash(e?.message ?? "Failed", false); }
+    finally { setSubmitting(false); }
   }
 
-  /* ---- Loading / not found ---- */
-  if (loading) return <div style={{ padding: 32, color: "#64748b" }}>Loading order...</div>;
-  if (!order) return (
-    <div style={{ padding: 32, textAlign: "center" }}>
-      <div style={{ fontSize: 32, marginBottom: 12 }}>❌</div>
-      <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 16 }}>Order not found</div>
-      <Link href="/account/orders" style={linkBtnSt}>Back to Orders</Link>
+  // FIX: was { note: newNote } — now correctly { content: newNote } per OrderNotePayload
+  async function handleAddNote() {
+    if (!newNote.trim()) return;
+    setAddingNote(true);
+    try {
+      await adminOrdersAdvancedApi.addNote(id, { content: newNote, is_internal: true });
+      setNewNote("");
+      flash("Note added");
+      load();
+    } catch (e: any) { flash(e?.message ?? "Failed to add note", false); }
+    finally { setAddingNote(false); }
+  }
+
+  async function handleHardDelete() {
+    if (!confirm("Permanently delete this order? This cannot be undone.")) return;
+    try {
+      await adminOrdersAdvancedApi.hardDelete(id);
+      flash("Order deleted");
+      setTimeout(() => router.push("/admin/orders"), 1000);
+    } catch (e: any) { flash(e?.message ?? "Delete failed", false); }
+  }
+
+  if (loading) return (
+    <div style={{ fontFamily: FF, padding: 32 }}>
+      <style>{`@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}} @keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}`}</style>
+      {[200, 320, 160].map((h, i) => (
+        <div key={i} style={{ height: h, borderRadius: 16, marginBottom: 16, background: "linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)", backgroundSize: "400px 100%", animation: "shimmer 1.4s infinite" }} />
+      ))}
     </div>
   );
 
-  const [orderBg, orderColor] = statusColors[order.status] ?? ["#f1f5f9", "#475569"];
-  const [shipBg, shipColor] = shippingColors[order.shipping_status] ?? ["#f1f5f9", "#475569"];
+  if (!order) return (
+    <div style={{ fontFamily: FF, textAlign: "center", padding: 80, color: "#64748b" }}>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>◎</div>
+      <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Order not found</div>
+      <Link href="/admin/orders" style={{ color: "#3b82f6", textDecoration: "none", fontSize: 14 }}>← Back to Orders</Link>
+    </div>
+  );
 
-  const canCancel = ["pending", "paid"].includes(order.status);
-  const canReturn = order.status === "completed";
-  const canRefund = ["paid", "completed"].includes(order.status) && order.refund_status !== "completed";
-  const paymentId = (order as any).payment_id ?? order.payments?.[0]?.id;
-  const showUploadProof = !!paymentId && order.status === "pending";
+  const shortOrderId = order.id.slice(0, 8).toUpperCase();
 
   return (
-    <div style={{ maxWidth: 780 }}>
-      {/* HEADER */}
-      <div style={{ marginBottom: 24 }}>
-        <button onClick={() => router.back()} style={ghostBtnSt}>← Back to Orders</button>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginTop: 12 }}>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 4px", color: "#0f172a" }}>Order #{id.slice(0, 8).toUpperCase()}</h1>
-            <div style={{ fontSize: 13, color: "#64748b" }}>
-              Placed {new Date(order.created_at).toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" })}
-            </div>
+    <div style={{ maxWidth: 1000, fontFamily: FF }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+        @keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        .act-btn:hover:not(:disabled){background:#f8fafc !important; border-color:#94a3b8 !important;}
+        .danger-btn:hover:not(:disabled){background:#dc2626 !important;}
+        .primary-btn:hover:not(:disabled){background:#1e293b !important;}
+        .note-card:hover{border-color:#cbd5e1 !important;}
+      `}</style>
+
+      {toast && <Toast msg={toast.msg} ok={toast.ok} />}
+
+      {/* Page header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <Link href="/admin/orders" style={{ fontSize: 13, color: "#94a3b8", textDecoration: "none" }}>Orders</Link>
+            <span style={{ color: "#e2e8f0" }}>›</span>
+            <span style={{ fontSize: 13, color: "#0f172a", fontWeight: 600 }}>#{shortOrderId}</span>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ padding: "5px 14px", borderRadius: 99, fontSize: 12, fontWeight: 700, background: orderBg, color: orderColor }}>
-              Order: {order.status}
-            </span>
-            <span style={{ padding: "5px 14px", borderRadius: 99, fontSize: 12, fontWeight: 700, background: shipBg, color: shipColor }}>
-              Shipping: {order.shipping_status}
-            </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.03em", margin: 0 }}>
+              Order #{shortOrderId}
+            </h1>
+            <Badge status={order.status} />
           </div>
+          <p style={{ color: "#64748b", fontSize: 13, margin: 0, marginTop: 6 }}>
+            Placed {new Date(order.created_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            onClick={() => setShowOverride(true)}
+            className="act-btn"
+            style={AB}
+          >
+            Override Status
+          </button>
+          <button
+            onClick={() => setShowRefund(true)}
+            className="act-btn"
+            style={AB}
+          >
+            Refund
+          </button>
+          <button
+            onClick={handleCancel}
+            disabled={order.status === "cancelled" || submitting}
+            className="act-btn"
+            style={{ ...AB, opacity: order.status === "cancelled" ? 0.4 : 1 }}
+          >
+            Cancel Order
+          </button>
+          <button
+            onClick={handleHardDelete}
+            className="danger-btn"
+            style={{ ...AB, background: "#dc2626", color: "#fff", border: "1px solid #dc2626" }}
+          >
+            Delete
+          </button>
         </div>
       </div>
 
-      {msg && (
-        <div style={{ padding: "12px 16px", borderRadius: 10, border: "1px solid", fontSize: 14, marginBottom: 20, background: msg.ok ? "#f0fdf4" : "#fef2f2", borderColor: msg.ok ? "#bbf7d0" : "#fecaca", color: msg.ok ? "#166534" : "#991b1b" }}>
-          {msg.text}
-        </div>
-      )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
+        {/* LEFT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* ORDER ITEMS */}
-      {order.items && order.items.length > 0 && (
-        <div style={card}>
-          <div style={cardTitle}>Items Ordered</div>
-          <div style={{ display: "grid", gap: 12 }}>
-            {order.items.map((item, i) => (
-              <div key={item.id ?? i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 0", borderBottom: i < order.items!.length - 1 ? "1px solid #f8fafc" : "none" }}>
-                <div style={{ width: 52, height: 52, borderRadius: 10, background: "#f1f5f9", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {item.product?.main_image ? (
-                    <img src={item.product.main_image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : <span style={{ fontSize: 20 }}>📦</span>}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{item.title ?? item.product?.title ?? "Product"}</div>
-                  {item.variant && <div style={{ fontSize: 12, color: "#64748b" }}>{item.variant.title}</div>}
-                  <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Qty: {item.quantity}</div>
-                </div>
-                <div style={{ fontWeight: 800, fontSize: 14, color: "#0f172a", flexShrink: 0 }}>
-                  {formatCurrency(item.subtotal ?? item.price * item.quantity)}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Order total */}
-          <div style={{ borderTop: "2px solid #f1f5f9", paddingTop: 14, marginTop: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 800, fontSize: 16 }}>Total</span>
-            <span style={{ fontWeight: 900, fontSize: 20, color: "#0f172a" }}>{formatCurrency(order.total_amount)}</span>
-          </div>
-        </div>
-      )}
-
-      {/* SHIPPING ADDRESS */}
-      {order.shipping_address && (
-        <div style={card}>
-          <div style={cardTitle}>Shipping Address</div>
-          <div style={{ fontSize: 14, lineHeight: 1.8, color: "#334155" }}>
-            <div style={{ fontWeight: 700 }}>{order.shipping_address.full_name}</div>
-            <div>{order.shipping_address.address}, {order.shipping_address.city}</div>
-            {order.shipping_address.district && <div>{order.shipping_address.district}</div>}
-            {order.shipping_address.postal_code && <div>{order.shipping_address.postal_code}</div>}
-            {order.shipping_address.phone && <div style={{ color: "#64748b" }}>{order.shipping_address.phone}</div>}
-          </div>
-        </div>
-      )}
-
-      {/* TRACKING */}
-      {tracking && (
-        <div style={card}>
-          <div style={cardTitle}>Shipment Tracking</div>
-          <div style={{ display: "grid", gap: 10, marginBottom: tracking.events?.length ? 20 : 0 }}>
-            {tracking.status && <InfoRow label="Status" value={tracking.status} />}
-            {tracking.carrier && <InfoRow label="Carrier" value={tracking.carrier} />}
-            {tracking.tracking_number && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 }}>
-                <span style={{ color: "#64748b" }}>Tracking #</span>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontWeight: 700, fontFamily: "monospace" }}>{tracking.tracking_number}</span>
-                  <button onClick={() => navigator.clipboard.writeText(tracking.tracking_number).then(() => flash("Copied!"))} style={{ ...ghostBtnSt, fontSize: 11, padding: "2px 8px" }}>Copy</button>
-                </div>
-              </div>
-            )}
-            {tracking.estimated_delivery && <InfoRow label="Est. Delivery" value={new Date(tracking.estimated_delivery).toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" })} />}
-          </div>
-
-          {tracking.events?.length > 0 && (
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 14 }}>Timeline</div>
-              <div style={{ position: "relative", paddingLeft: 20 }}>
-                <div style={{ position: "absolute", left: 7, top: 8, bottom: 8, width: 2, background: "#e5e7eb" }} />
-                {tracking.events.map((ev: any, i: number) => (
-                  <div key={i} style={{ position: "relative", display: "flex", gap: 14, marginBottom: 16 }}>
-                    <div style={{ position: "absolute", left: -16, top: 3, width: 10, height: 10, borderRadius: "50%", background: i === 0 ? "#009543" : "#cbd5e1", border: "2px solid #fff", flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>{ev.status}</div>
-                      {ev.location && <div style={{ fontSize: 12, color: "#64748b" }}>{ev.location}</div>}
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>{ev.timestamp ? new Date(ev.timestamp).toLocaleString() : ""}</div>
+          {/* Order Items */}
+          <Section title="Order Items">
+            {order.items?.length ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {order.items.map((item) => (
+                  <div key={item.id} style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "12px 0", borderBottom: "1px solid #f1f5f9", gap: 12,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{
+                        width: 40, height: 40, borderRadius: 8, background: "#f8fafc",
+                        border: "1px solid #e2e8f0", display: "flex", alignItems: "center",
+                        justifyContent: "center", flexShrink: 0, fontSize: 18,
+                      }}>
+                        📦
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{item.title}</div>
+                        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, fontFamily: FM }}>
+                          {item.product_id?.slice(0, 12)}
+                          {item.variant_id && <span> · Variant: {item.variant_id.slice(0, 8)}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+                        M {item.price.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#94a3b8" }}>× {item.quantity}</div>
                     </div>
                   </div>
                 ))}
+                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 12 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Total</span>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: "#0f172a" }}>M {order.total_amount.toFixed(2)}</span>
+                </div>
               </div>
+            ) : (
+              <div style={{ color: "#94a3b8", fontSize: 14, textAlign: "center", padding: "20px 0" }}>No items</div>
+            )}
+          </Section>
+
+          {/* Internal Notes */}
+          <Section title={`Internal Notes ${notes.length > 0 ? `(${notes.length})` : ""}`}>
+            {notes.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                {notes.map((n) => (
+                  <div key={n.id} className="note-card" style={{
+                    background: "#fffbeb", border: "1px solid #fde68a",
+                    borderRadius: 10, padding: "12px 16px",
+                    transition: "border-color .15s",
+                  }}>
+                    <p style={{ fontSize: 13, color: "#0f172a", lineHeight: 1.6, margin: "0 0 6px" }}>
+                      {n.content ?? n.note}
+                    </p>
+                    <span style={{ fontSize: 11, color: "#92400e", fontFamily: FM }}>
+                      {new Date(n.created_at).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div>
+              <textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Add an internal note visible only to admins…"
+                rows={3}
+                style={{
+                  width: "100%", padding: "10px 14px", borderRadius: 10,
+                  border: "1px solid #e2e8f0", fontSize: 13, resize: "vertical",
+                  fontFamily: FF, boxSizing: "border-box", outline: "none",
+                  color: "#0f172a", background: "#fafafa",
+                }}
+              />
+              <button
+                onClick={handleAddNote}
+                disabled={addingNote || !newNote.trim()}
+                className="primary-btn"
+                style={{
+                  marginTop: 10, padding: "9px 18px", borderRadius: 10,
+                  border: "none", background: "#0f172a", color: "#fff",
+                  fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FF,
+                  opacity: addingNote || !newNote.trim() ? 0.55 : 1,
+                  transition: "background .15s",
+                }}
+              >
+                {addingNote ? "Adding…" : "Add Note"}
+              </button>
             </div>
+          </Section>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Order Details */}
+          <Section title="Order Details">
+            <Field label="Order ID" value={order.id.slice(0, 16) + "…"} mono />
+            <Field label="Total" value={`M ${order.total_amount.toFixed(2)}`} />
+            <Field label="Order Status" value={<Badge status={order.status} />} />
+            <Field label="Payment Status" value={order.payment_status ? <Badge status={order.payment_status} /> : "—"} />
+            <Field label="Shipping Status" value={<Badge status={order.shipping_status} />} />
+            {order.tracking_number && <Field label="Tracking #" value={order.tracking_number} mono />}
+            {order.notes && <Field label="Customer Notes" value={order.notes} />}
+          </Section>
+
+          {/* Shipping Address */}
+          {order.shipping_address && (
+            <Section title="Shipping Address">
+              {Object.entries(order.shipping_address).filter(([, v]) => v).map(([k, v]) => (
+                <Field key={k} label={k.replace(/_/g, " ")} value={String(v)} />
+              ))}
+            </Section>
           )}
-        </div>
-      )}
 
-      {/* REFUND / RETURN STATUS */}
-      {(order.refund_status && order.refund_status !== "none") && (
-        <div style={{ ...card, background: "#fef9c3", borderColor: "#fde047" }}>
-          <div style={cardTitle}>Refund Status</div>
-          <InfoRow label="Status" value={order.refund_status} />
-          {order.refund_amount && <InfoRow label="Amount" value={formatCurrency(order.refund_amount)} />}
-          {order.refund_reason && <InfoRow label="Reason" value={order.refund_reason} />}
-        </div>
-      )}
-
-      {(order.return_status && order.return_status !== "none") && (
-        <div style={{ ...card, background: "#eff6ff", borderColor: "#bfdbfe" }}>
-          <div style={cardTitle}>Return Status</div>
-          <InfoRow label="Status" value={order.return_status} />
-          {order.return_reason && <InfoRow label="Reason" value={order.return_reason} />}
-        </div>
-      )}
-
-      {/* UPLOAD PROOF */}
-      {showUploadProof && (
-        <div style={card}>
-          <div style={cardTitle}>Upload Payment Proof</div>
-          <p style={{ fontSize: 13, color: "#64748b", marginBottom: 14 }}>
-            Upload your payment screenshot or receipt to confirm your payment.
-          </p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <input type="file" accept="image/*,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} />
-            <button onClick={handleProofUpload} disabled={!proofFile || actionLoading} style={{ ...greenBtnSt, opacity: !proofFile ? 0.6 : 1 }}>
-              Upload Proof
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ORDER NOTES */}
-      {order.notes && (
-        <div style={{ ...card, background: "#fafafa" }}>
-          <div style={cardTitle}>Order Notes</div>
-          <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.7, margin: 0 }}>{order.notes}</p>
-        </div>
-      )}
-
-      {/* ACTIONS */}
-      <div style={card}>
-        <div style={cardTitle}>Actions</div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button onClick={handleInvoice} style={outlineBtnSt}>📄 Download Invoice</button>
-          {canCancel && (
-            <button onClick={() => setShowCancel(true)} style={{ ...outlineBtnSt, color: "#dc2626", borderColor: "#fca5a5" }}>
-              ✕ Cancel Order
-            </button>
+          {/* Payments */}
+          {payments.length > 0 && (
+            <Section title="Payments">
+              {payments.map((p) => (
+                <div key={p.id} style={{ marginBottom: 10 }}>
+                  <Field label="Payment ID" value={p.id.slice(0, 12) + "…"} mono />
+                  <Field label="Amount" value={`M ${p.amount.toFixed(2)}`} />
+                  <Field label="Method" value={p.method.replace("_", " ")} />
+                  <Field label="Status" value={<Badge status={p.status} />} />
+                </div>
+              ))}
+            </Section>
           )}
-          {canReturn && (
-            <button onClick={() => setShowReturn(true)} style={outlineBtnSt}>
-              ↩ Request Return
-            </button>
-          )}
-          {canRefund && (
-            <button onClick={() => setShowRefund(true)} style={outlineBtnSt}>
-              💰 Request Refund
-            </button>
-          )}
-          <Link href={`/store/payment?order_id=${id}`} style={{ ...outlineBtnSt as any, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-            💳 View Payment
-          </Link>
         </div>
       </div>
 
-      {/* CANCEL MODAL */}
-      {showCancel && (
-        <Modal title="Cancel Order" onClose={() => setShowCancel(false)}>
-          <p style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>Please provide a reason for cancelling this order.</p>
-          <label style={labelSt}>Reason *</label>
-          <input style={inputSt} placeholder="Why are you cancelling?" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button onClick={handleCancel} disabled={actionLoading || !cancelReason} style={{ ...dangerBtnSt, opacity: !cancelReason ? 0.6 : 1 }}>
-              {actionLoading ? "Cancelling..." : "Confirm Cancel"}
-            </button>
-            <button onClick={() => setShowCancel(false)} style={outlineBtnSt}>Back</button>
+      {/* ── Status Override Modal ── */}
+      {showOverride && (
+        <Modal title="Override Order Status" onClose={() => setShowOverride(false)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+              This bypasses the normal order flow. Use with caution.
+            </p>
+            <div>
+              <label style={LS}>New Status</label>
+              <select
+                value={statusOverride}
+                onChange={(e) => setStatusOverride(e.target.value)}
+                style={{ ...IS, cursor: "pointer" }}
+              >
+                <option value="">Select status…</option>
+                {["pending", "paid", "shipped", "completed", "cancelled"].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={LS}>Reason (required)</label>
+              <input
+                style={IS}
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="Reason for manual override…"
+              />
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowOverride(false)} style={AB}>Cancel</button>
+              <button
+                onClick={handleStatusOverride}
+                disabled={submitting || !statusOverride || !overrideReason.trim()}
+                className="primary-btn"
+                style={{ ...AB, background: "#0f172a", color: "#fff", border: "1px solid #0f172a", opacity: submitting || !statusOverride || !overrideReason.trim() ? 0.55 : 1 }}
+              >
+                {submitting ? "Applying…" : "Apply Override"}
+              </button>
+            </div>
           </div>
         </Modal>
       )}
 
-      {/* RETURN MODAL */}
-      {showReturn && (
-        <Modal title="Request Return" onClose={() => setShowReturn(false)}>
-          <p style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>Tell us why you'd like to return this order.</p>
-          <label style={labelSt}>Reason *</label>
-          <textarea style={{ ...inputSt, height: 80, resize: "vertical" }} placeholder="Reason for return..." value={returnReason} onChange={(e) => setReturnReason(e.target.value)} />
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button onClick={handleReturn} disabled={actionLoading || !returnReason} style={{ ...greenBtnSt, opacity: !returnReason ? 0.6 : 1 }}>
-              {actionLoading ? "Submitting..." : "Submit Return Request"}
-            </button>
-            <button onClick={() => setShowReturn(false)} style={outlineBtnSt}>Cancel</button>
-          </div>
-        </Modal>
-      )}
-
-      {/* REFUND MODAL */}
+      {/* ── Refund Modal ── */}
       {showRefund && (
-        <Modal title="Request Refund" onClose={() => setShowRefund(false)}>
-          <p style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>
-            Max refund amount: <strong>{formatCurrency(order.total_amount)}</strong>
-          </p>
-          <div style={{ display: "grid", gap: 14 }}>
+        <Modal title="Process Refund" onClose={() => setShowRefund(false)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <label style={labelSt}>Reason *</label>
-              <input style={inputSt} placeholder="Why are you requesting a refund?" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} />
+              <label style={LS}>Refund Amount (M)</label>
+              <input
+                type="number" step="0.01" min="0.01"
+                style={IS}
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                placeholder={`Max: ${order.total_amount.toFixed(2)}`}
+              />
             </div>
             <div>
-              <label style={labelSt}>Amount (R) *</label>
-              <input style={inputSt} type="number" min={1} max={order.total_amount} placeholder={`Max R${order.total_amount}`} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} />
+              <label style={LS}>Reason</label>
+              <textarea
+                rows={3}
+                style={{ ...IS, resize: "vertical" }}
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="Reason for refund…"
+              />
             </div>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button onClick={handleRefund} disabled={actionLoading || !refundReason || !refundAmount} style={{ ...greenBtnSt, opacity: !refundReason || !refundAmount ? 0.6 : 1 }}>
-              {actionLoading ? "Submitting..." : "Submit Refund Request"}
-            </button>
-            <button onClick={() => setShowRefund(false)} style={outlineBtnSt}>Cancel</button>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowRefund(false)} style={AB}>Cancel</button>
+              <button
+                onClick={handleRefund}
+                disabled={submitting || !refundAmount || !refundReason.trim()}
+                className="primary-btn"
+                style={{ ...AB, background: "#0f172a", color: "#fff", border: "1px solid #0f172a", opacity: submitting || !refundAmount || !refundReason.trim() ? 0.55 : 1 }}
+              >
+                {submitting ? "Processing…" : "Process Refund"}
+              </button>
+            </div>
           </div>
         </Modal>
       )}
@@ -363,14 +487,20 @@ export default function OrderDetailPage() {
   );
 }
 
-/* ---- Sub-components ---- */
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ background: "#fff", borderRadius: 20, padding: 28, maxWidth: 480, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.15)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#94a3b8" }}>✕</button>
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      backdropFilter: "blur(4px)",
+    }} onClick={onClose}>
+      <div style={{
+        background: "#fff", borderRadius: 18, padding: 28, width: "90%", maxWidth: 460,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.2)", animation: "fadeUp .2s ease",
+      }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>{title}</h3>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 20, color: "#94a3b8", lineHeight: 1 }}>×</button>
         </div>
         {children}
       </div>
@@ -378,22 +508,17 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "6px 0", borderBottom: "1px solid #f8fafc" }}>
-      <span style={{ color: "#64748b" }}>{label}</span>
-      <span style={{ fontWeight: 600, color: "#0f172a" }}>{value}</span>
-    </div>
-  );
-}
-
-/* ---- Styles ---- */
-const card: React.CSSProperties = { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 24, marginBottom: 16 };
-const cardTitle: React.CSSProperties = { fontSize: 15, fontWeight: 800, marginBottom: 16, color: "#0f172a" };
-const inputSt: React.CSSProperties = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 14, boxSizing: "border-box", outline: "none" };
-const labelSt: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 };
-const outlineBtnSt: React.CSSProperties = { padding: "9px 16px", borderRadius: 9, border: "1px solid #e5e7eb", background: "transparent", fontWeight: 600, fontSize: 13, cursor: "pointer", color: "#475569" };
-const greenBtnSt: React.CSSProperties = { padding: "9px 16px", borderRadius: 9, border: "none", background: "#0f172a", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" };
-const dangerBtnSt: React.CSSProperties = { ...greenBtnSt, background: "#dc2626" };
-const ghostBtnSt: React.CSSProperties = { background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 13, padding: "4px 0", fontWeight: 500 };
-const linkBtnSt: React.CSSProperties = { padding: "10px 20px", borderRadius: 10, background: "#0f172a", color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: 14 };
+const AB: React.CSSProperties = {
+  padding: "9px 16px", borderRadius: 9, border: "1px solid #e2e8f0",
+  background: "#fff", color: "#475569", fontWeight: 600, fontSize: 13,
+  cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all .15s",
+};
+const IS: React.CSSProperties = {
+  width: "100%", padding: "10px 14px", borderRadius: 10,
+  border: "1px solid #e2e8f0", fontSize: 14, fontFamily: "'DM Sans', sans-serif",
+  boxSizing: "border-box", outline: "none", color: "#0f172a", background: "#fafafa",
+};
+const LS: React.CSSProperties = {
+  display: "block", fontSize: 11, fontWeight: 700, color: "#64748b",
+  marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em",
+};

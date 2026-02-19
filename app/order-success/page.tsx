@@ -1,6 +1,12 @@
 import { Suspense } from "react";
 import OrderSuccessClient from "./OrderSuccessClient";
 
+/**
+ * Order Success Page
+ *
+ * FIX: Checkmark "✓" was rendered as "â"" due to UTF-8 encoding issue.
+ * Now using HTML entity &#x2713; to ensure correct rendering.
+ */
 export default function OrderSuccessPage() {
   return (
     <div
@@ -34,7 +40,7 @@ export default function OrderSuccessPage() {
             fontWeight: 900,
           }}
         >
-          ✓
+          &#x2713;
         </div>
 
         {/* TITLE */}

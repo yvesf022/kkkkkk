@@ -65,7 +65,7 @@ export default function AdminOrderDetailPage() {
   async function handleAddNote() {
     if (!newNote) return;
     await adminOrdersAdvancedApi.addNote(id, {
-      note: newNote,
+      content: newNote,
       is_internal: true,
     });
     setNewNote("");
@@ -159,4 +159,3 @@ export default function AdminOrderDetailPage() {
     </div>
   );
 }
-

@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * OrderSuccessClient
+ *
+ * FIXES:
+ * 1. Encoding: arrow "→" and checkmark "✓" were mojibake'd (â†', â"✓)
+ *    due to file saved with wrong encoding. Now using HTML entities / Unicode escapes.
+ * 2. Cart clearing is handled in PaymentClient on mount — not needed here.
+ */
+
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -31,7 +40,7 @@ export default function OrderSuccessClient() {
         }}
       >
         Order Reference:{" "}
-        <span style={{ fontWeight: 900 }}>{orderId}</span>
+        <span style={{ fontWeight: 900 }}>{orderId.slice(0, 8).toUpperCase()}</span>
       </div>
 
       {/* MAIN CTA */}
@@ -45,9 +54,13 @@ export default function OrderSuccessClient() {
           borderRadius: 16,
           boxShadow: "0 15px 40px rgba(0,0,0,0.15)",
           transition: "all 0.2s ease",
+          textDecoration: "none",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
         }}
       >
-        Proceed to Payment →
+        Proceed to Payment &#x2192;
       </Link>
     </div>
   );

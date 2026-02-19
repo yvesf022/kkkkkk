@@ -15,9 +15,11 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#0f172a" },
     { media: "(prefers-color-scheme: dark)",  color: "#0f172a" },
   ],
-  width: "device-width",
+  // Lock to desktop width — mobile browsers scale the page down instead of
+  // reflowing to a mobile layout. Users can still pinch-zoom to read comfortably.
+  width: 1280,
   initialScale: 1,
-  minimumScale: 1,
+  minimumScale: 0.1,
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",

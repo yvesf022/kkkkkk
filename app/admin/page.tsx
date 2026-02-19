@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { adminApi, adminAuthApi, ordersApi, paymentsApi } from "@/lib/api";
+import { adminApi, ordersApi, paymentsApi } from "@/lib/api";
+import { C, StatCard, Card, CardHeader, Badge, Btn, Table, TR, TD, fmtMoney, fmtNum, fmtDateTime, shortId, Skeleton, PageTitle } from "@/components/admin/AdminUI";
 
-type DashboardStats = {
+type Stats = {
   total_products: number;
   active_products: number;
   total_orders: number;
@@ -16,329 +16,194 @@ type DashboardStats = {
   revenue_this_month: number;
 };
 
-function fmt(n: number | undefined | null): string {
-  return (n ?? 0).toLocaleString();
-}
-
 export default function AdminDashboardPage() {
-  const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [pendingPayments, setPendingPayments] = useState<any[]>([]);
+  const [stats,    setStats]    = useState<Stats | null>(null);
+  const [orders,   setOrders]   = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [lowStock, setLowStock] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
+  const [refresh,  setRefresh]  = useState(0);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [dashData, ordersData, paymentsData, lowStockData] = await Promise.allSettled([
-          adminApi.getDashboard(),
-          ordersApi.getAdmin(),
-          paymentsApi.adminList("pending"),
-          adminApi.getLowStock(),
-        ]);
+    setLoading(true);
+    Promise.allSettled([
+      adminApi.getDashboard(),
+      ordersApi.getAdmin(),
+      paymentsApi.adminList("pending"),
+      adminApi.getLowStock(),
+    ]).then(([d, o, p, ls]) => {
+      if (d.status  === "fulfilled") setStats(d.value as Stats);
+      else setError("Dashboard data unavailable");
+      if (o.status  === "fulfilled") setOrders((o.value as any[]).slice(0, 8));
+      if (p.status  === "fulfilled") setPayments((p.value as any[]).slice(0, 8));
+      if (ls.status === "fulfilled") setLowStock((ls.value as any[]).slice(0, 8));
+    }).finally(() => setLoading(false));
+  }, [refresh]);
 
-        if (dashData.status === "fulfilled") setStats(dashData.value as DashboardStats);
-        if (ordersData.status === "fulfilled") setRecentOrders((ordersData.value as any[]).slice(0, 5));
-        if (paymentsData.status === "fulfilled") setPendingPayments((paymentsData.value as any[]).slice(0, 5));
-        if (lowStockData.status === "fulfilled") setLowStock((lowStockData.value as any[]).slice(0, 5));
-      } catch (err) {
-        setError("Failed to load dashboard data.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  if (loading) return <DashSkeleton />;
+  if (error && !stats) return (
+    <div style={{ padding: 40, color: C.danger, textAlign: "center" }}>
+      <div style={{ fontSize: 24, marginBottom: 8 }}>⚠</div>
+      <div>{error}</div>
+      <Btn style={{ marginTop: 16 }} onClick={() => setRefresh(r => r + 1)}>Retry</Btn>
+    </div>
+  );
 
-  async function handleLogout() {
-    setLoggingOut(true);
-    try {
-      await adminAuthApi.logout();
-    } finally {
-      router.replace("/admin/login");
-    }
-  }
-
-  if (loading) return <div style={{ padding: 32, color: "#64748b" }}>Loading dashboard...</div>;
-  if (error || !stats) return <div style={{ padding: 32, color: "#ef4444" }}>{error ?? "Unable to load dashboard."}</div>;
+  const s = stats ?? {} as Stats;
 
   return (
-    <div style={{ maxWidth: 1200 }}>
+    <div style={{ maxWidth: 1400 }}>
 
-      {/* HEADER */}
-      <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+      {/* ── Header ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>Dashboard</h1>
-          <p style={{ color: "#64748b", fontSize: 14 }}>Overview of your store performance</p>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: 0, letterSpacing: -0.5 }}>Dashboard</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 14, color: C.muted }}>
+            {new Date().toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
         </div>
-        <button
-          onClick={handleLogout}
-          disabled={loggingOut}
-          style={{
-            padding: "9px 20px",
-            borderRadius: 8,
-            border: "1px solid #fca5a5",
-            background: "#fef2f2",
-            color: "#dc2626",
-            cursor: "pointer",
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
-          {loggingOut ? "Logging out..." : "Logout"}
-        </button>
+        <Btn onClick={() => setRefresh(r => r + 1)} variant="ghost" small>↺ Refresh</Btn>
       </div>
 
-      {/* STAT CARDS */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16, marginBottom: 32 }}>
-        <StatCard title="Total Revenue" value={`R ${fmt(stats.total_revenue)}`} link="/admin/analytics" color="#0f172a" />
-        <StatCard title="This Month" value={`R ${fmt(stats.revenue_this_month)}`} link="/admin/analytics/revenue" color="#0033a0" />
-        <StatCard title="Total Orders" value={fmt(stats.total_orders)} link="/admin/orders" color="#0f172a" />
-        <StatCard title="Pending Payments" value={fmt(stats.pending_payments)} link="/admin/payments" color="#dc2626" alert={stats.pending_payments > 0} />
-        <StatCard title="Active Products" value={fmt(stats.active_products)} link="/admin/products" color="#166534" />
-        <StatCard title="Low Stock" value={fmt(stats.low_stock_products)} link="/admin/inventory" color="#92400e" alert={stats.low_stock_products > 0} />
+      {/* ── KPI Grid ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 14, marginBottom: 24 }}>
+        <StatCard label="Total Revenue"    value={fmtMoney(s.total_revenue)}     icon="◈" color={C.navy} />
+        <StatCard label="This Month"       value={fmtMoney(s.revenue_this_month)} icon="↗" color={C.green} />
+        <StatCard label="Total Orders"     value={fmtNum(s.total_orders)}         icon="◎" />
+        <StatCard label="Paid Orders"      value={fmtNum(s.paid_orders)}          icon="✓" color={C.success} />
+        <StatCard label="Pending Payments" value={fmtNum(s.pending_payments)}     icon="◇" alert={s.pending_payments > 0} />
+        <StatCard label="Active Products"  value={fmtNum(s.active_products)}      icon="◈" color={C.green} />
+        <StatCard label="Low Stock"        value={fmtNum(s.low_stock_products)}   icon="▦" alert={s.low_stock_products > 0} />
+        <StatCard label="Total Products"   value={fmtNum(s.total_products)}       icon="▣" />
       </div>
 
-      {/* QUICK ACTIONS */}
-      <div style={card}>
-        <h3 style={sectionTitle}>Quick Actions</h3>
+      {/* ── Quick Actions ── */}
+      <Card style={{ marginBottom: 20 }}>
+        <CardHeader title="Quick Actions" />
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {[
-            { label: "+ Add Product", href: "/admin/products/new" },
-            { label: "Bulk Upload CSV", href: "/admin/products/bulk-upload" },
-            { label: "Review Payments", href: "/admin/payments" },
-            { label: "View Orders", href: "/admin/orders" },
-            { label: "Inventory", href: "/admin/inventory" },
-            { label: "Analytics", href: "/admin/analytics" },
-            { label: "Users", href: "/admin/users" },
-            { label: "Store Settings", href: "/admin/settings" },
-          ].map((a) => (
-            <Link key={a.href} href={a.href} style={actionBtn}>
+            { label: "+ Add Product",       href: "/admin/products/new",           bg: C.navy,    fg: "#fff" },
+            { label: "Bulk Upload CSV",     href: "/admin/products/bulk-upload",   bg: C.green,   fg: "#fff" },
+            { label: "Review Payments",     href: "/admin/payments",               bg: "#dc2626", fg: "#fff", badge: s.pending_payments },
+            { label: "Manage Orders",       href: "/admin/orders",                 bg: C.surface, fg: C.text },
+            { label: "Inventory",           href: "/admin/inventory",              bg: C.surface, fg: C.text, badge: s.low_stock_products },
+            { label: "Analytics",           href: "/admin/analytics",             bg: C.surface, fg: C.text },
+            { label: "Customers",           href: "/admin/users",                  bg: C.surface, fg: C.text },
+            { label: "Stores",              href: "/admin/stores",                 bg: C.surface, fg: C.text },
+            { label: "Audit Logs",          href: "/admin/logs",                   bg: C.surface, fg: C.text },
+            { label: "Bank Settings",       href: "/admin/settings/bank",          bg: C.surface, fg: C.text },
+          ].map(a => (
+            <Link key={a.href} href={a.href} style={{
+              padding: "9px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+              textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 7,
+              background: a.bg, color: a.fg,
+              border: a.bg === C.surface ? `1px solid ${C.border}` : "none",
+              position: "relative",
+            }}>
               {a.label}
+              {(a as any).badge > 0 && (
+                <span style={{ background: a.bg === C.surface ? C.danger : "rgba(255,255,255,0.3)", color: a.bg === C.surface ? "#fff" : "#fff", borderRadius: 99, fontSize: 10, fontWeight: 800, padding: "1px 6px" }}>
+                  {(a as any).badge}
+                </span>
+              )}
             </Link>
           ))}
         </div>
-      </div>
+      </Card>
 
-      {/* BOTTOM GRID: Recent Orders + Pending Payments + Low Stock */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginTop: 16 }}>
+      {/* ── Three-col live tables ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16 }}>
 
-        {/* RECENT ORDERS */}
-        <div style={card}>
-          <div style={cardHeader}>
-            <h3 style={sectionTitle}>Recent Orders</h3>
-            <Link href="/admin/orders" style={viewAll}>View all</Link>
-          </div>
-          {recentOrders.length === 0 ? (
-            <p style={empty}>No orders yet.</p>
-          ) : (
-            <table style={table}>
-              <thead>
-                <tr>
-                  <th style={th}>ID</th>
-                  <th style={th}>Amount</th>
-                  <th style={th}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((o: any) => (
-                  <tr key={o.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={td}>
-                      <Link href={`/admin/orders/${o.id}`} style={{ color: "#3b82f6", fontSize: 12 }}>
-                        #{o.id?.slice(0, 8)}
-                      </Link>
-                    </td>
-                    <td style={td}>R {fmt(o.total_amount)}</td>
-                    <td style={td}>
-                      <StatusBadge status={o.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Recent Orders */}
+        <Card>
+          <CardHeader title="Recent Orders" action={<Link href="/admin/orders" style={viewAll}>View all →</Link>} />
+          {orders.length === 0 ? <Empty msg="No orders yet." /> : (
+            <Table headers={["Order", "Amount", "Status", "Date"]}>
+              {orders.map(o => (
+                <TR key={o.id}>
+                  <TD><Link href={`/admin/orders/${o.id}`} style={linkStyle}>{shortId(o.id)}</Link></TD>
+                  <TD>{fmtMoney(o.total_amount)}</TD>
+                  <TD><Badge status={o.status} /></TD>
+                  <TD muted>{fmtDateTime(o.created_at)}</TD>
+                </TR>
+              ))}
+            </Table>
           )}
-        </div>
+        </Card>
 
-        {/* PENDING PAYMENTS */}
-        <div style={card}>
-          <div style={cardHeader}>
-            <h3 style={sectionTitle}>Pending Payments</h3>
-            <Link href="/admin/payments" style={viewAll}>View all</Link>
-          </div>
-          {pendingPayments.length === 0 ? (
-            <p style={empty}>No pending payments.</p>
-          ) : (
-            <table style={table}>
-              <thead>
-                <tr>
-                  <th style={th}>ID</th>
-                  <th style={th}>Amount</th>
-                  <th style={th}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingPayments.map((p: any) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ ...td, fontSize: 12 }}>#{p.id?.slice(0, 8)}</td>
-                    <td style={td}>R {fmt(p.amount)}</td>
-                    <td style={td}>
-                      <Link href={`/admin/payments/${p.id}`} style={{ color: "#dc2626", fontSize: 12, fontWeight: 600 }}>
-                        Review
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Pending Payments */}
+        <Card>
+          <CardHeader title="Pending Payments" action={<Link href="/admin/payments" style={viewAll}>View all →</Link>} />
+          {payments.length === 0 ? <Empty msg="No pending payments." /> : (
+            <Table headers={["ID", "Order", "Amount", "Action"]}>
+              {payments.map(p => (
+                <TR key={p.id}>
+                  <TD mono>{shortId(p.id)}</TD>
+                  <TD muted>{shortId(p.order_id)}</TD>
+                  <TD><strong>{fmtMoney(p.amount)}</strong></TD>
+                  <TD>
+                    <Link href={`/admin/payments`} style={{ color: C.danger, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                      Review →
+                    </Link>
+                  </TD>
+                </TR>
+              ))}
+            </Table>
           )}
-        </div>
+        </Card>
 
-        {/* LOW STOCK */}
-        <div style={card}>
-          <div style={cardHeader}>
-            <h3 style={sectionTitle}>Low Stock Alert</h3>
-            <Link href="/admin/inventory" style={viewAll}>View all</Link>
-          </div>
-          {lowStock.length === 0 ? (
-            <p style={empty}>All products are well stocked.</p>
-          ) : (
-            <table style={table}>
-              <thead>
-                <tr>
-                  <th style={th}>Product</th>
-                  <th style={th}>Stock</th>
-                  <th style={th}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {lowStock.map((p: any) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ ...td, fontSize: 12, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {/* Low Stock Alerts */}
+        <Card>
+          <CardHeader title="Low Stock Alerts" action={<Link href="/admin/inventory" style={viewAll}>View all →</Link>} />
+          {lowStock.length === 0
+            ? <div style={{ textAlign: "center", padding: "32px 0", color: C.success, fontSize: 13 }}>✓ All products well stocked</div>
+            : (
+            <Table headers={["Product", "Stock", ""]}>
+              {lowStock.map(p => (
+                <TR key={p.id}>
+                  <TD>
+                    <div style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13 }}>
                       {p.title}
-                    </td>
-                    <td style={td}>
-                      <span style={{ color: "#dc2626", fontWeight: 700 }}>{p.stock}</span>
-                    </td>
-                    <td style={td}>
-                      <Link href={`/admin/products/${p.id}`} style={{ color: "#3b82f6", fontSize: 12 }}>
-                        Restock
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </TD>
+                  <TD>
+                    <span style={{ color: p.stock === 0 ? C.danger : C.warn, fontWeight: 800 }}>
+                      {p.stock} {p.stock === 0 ? "OUT" : "left"}
+                    </span>
+                  </TD>
+                  <TD>
+                    <Link href={`/admin/products/${p.id}`} style={{ color: C.accent, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                      Restock →
+                    </Link>
+                  </TD>
+                </TR>
+              ))}
+            </Table>
           )}
-        </div>
-
+        </Card>
       </div>
     </div>
   );
 }
 
-function StatCard({ title, value, link, color, alert }: {
-  title: string; value: string; link: string; color: string; alert?: boolean;
-}) {
+function DashSkeleton() {
   return (
-    <Link href={link} style={{
-      textDecoration: "none",
-      background: alert ? "#fef2f2" : "#ffffff",
-      border: `1px solid ${alert ? "#fecaca" : "#e2e8f0"}`,
-      borderRadius: 12,
-      padding: 20,
-      display: "block",
-      transition: "all 0.15s ease",
-    }}>
-      <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
-        {title}
+    <div style={{ maxWidth: 1400 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 14, marginBottom: 24 }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} style={{ height: 100, borderRadius: 14, background: "#e2e8f0", animation: "shimmer 1.4s infinite" }} />
+        ))}
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800, color }}>
-        {value}
-      </div>
-    </Link>
+      <Skeleton rows={6} />
+      <style>{`@keyframes shimmer{from{opacity:.6}to{opacity:1}}`}</style>
+    </div>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    pending:   { bg: "#fef9c3", color: "#854d0e" },
-    paid:      { bg: "#dcfce7", color: "#166534" },
-    shipped:   { bg: "#dbeafe", color: "#1e40af" },
-    completed: { bg: "#f0fdf4", color: "#166534" },
-    cancelled: { bg: "#fee2e2", color: "#991b1b" },
-  };
-  const c = colors[status] ?? { bg: "#f1f5f9", color: "#475569" };
-  return (
-    <span style={{ padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color }}>
-      {status}
-    </span>
-  );
+function Empty({ msg }: { msg: string }) {
+  return <div style={{ textAlign: "center", padding: "32px 0", color: C.faint, fontSize: 13 }}>{msg}</div>;
 }
 
-const card: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e2e8f0",
-  borderRadius: 12,
-  padding: 20,
-};
-
-const sectionTitle: React.CSSProperties = {
-  fontSize: 15,
-  fontWeight: 700,
-  color: "#0f172a",
-  margin: 0,
-};
-
-const cardHeader: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: 16,
-};
-
-const viewAll: React.CSSProperties = {
-  fontSize: 13,
-  color: "#3b82f6",
-  textDecoration: "none",
-};
-
-const actionBtn: React.CSSProperties = {
-  padding: "9px 16px",
-  borderRadius: 8,
-  border: "1px solid #e2e8f0",
-  background: "#f8fafc",
-  color: "#0f172a",
-  textDecoration: "none",
-  fontSize: 13,
-  fontWeight: 600,
-  display: "inline-block",
-};
-
-const empty: React.CSSProperties = {
-  color: "#94a3b8",
-  fontSize: 13,
-  textAlign: "center",
-  padding: "20px 0",
-};
-
-const table: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-};
-
-const th: React.CSSProperties = {
-  padding: "6px 8px",
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#64748b",
-  textAlign: "left",
-  borderBottom: "1px solid #e2e8f0",
-};
-
-const td: React.CSSProperties = {
-  padding: "8px 8px",
-  fontSize: 13,
-};
+const viewAll: React.CSSProperties = { fontSize: 12, color: C.accent, textDecoration: "none", fontWeight: 600 };
+const linkStyle: React.CSSProperties = { color: C.accent, textDecoration: "none", fontWeight: 600, fontFamily: "monospace", fontSize: 12 };
