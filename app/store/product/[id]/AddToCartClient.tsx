@@ -222,7 +222,7 @@ export default function AddToCartClient({ product }: Props) {
         `}</style>
 
         <div className="pd-gallery">
-          {/* Vertical thumbs */}
+          {/* Horizontal thumbs */}
           {displayImages.length > 1 && (
             <div className="pd-thumbs">
               {displayImages.map((url, i) => (
