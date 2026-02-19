@@ -440,6 +440,16 @@ export default function PaymentClient() {
           {/* ══ STEP 3 ══ */}
           {uiStep === 3 && (
             <div className="kpanel">
+              {/* Guard: if payment session is missing (e.g. page refresh), re-init silently */}
+              {!payment?.id && initializing && (
+                <div style={{ ...S.panel, textAlign:"center", padding:"32px" }}>
+                  <div style={S.loadCenter}>
+                    <div style={S.spinRing}><Icon.Spinner /></div>
+                    <p style={{ fontSize:14, color:"#64748B" }}>Reconnecting to your payment session…</p>
+                  </div>
+                </div>
+              )}
+              {(payment?.id || (!payment?.id && !initializing)) && (
               <div style={S.panel}>
                 <StepLabel n={3} />
                 <h1 style={S.panelTitle}>{uploaded ? "Resubmit payment proof" : "Upload payment proof"}</h1>
@@ -507,7 +517,7 @@ export default function PaymentClient() {
                   </p>
                 </div>
 
-                {!payment?.id && !initializing && (
+                {!payment?.id && !initializing && uiStep === 3 && !uploading && (
                   <div style={S.sessionWarn}>
                     <Icon.Warning />
                     <span>Payment session not confirmed.</span>
@@ -531,6 +541,7 @@ export default function PaymentClient() {
                   </button>
                 </div>
               </div>
+              )} {/* end payment?.id guard */}
 
               {/* WhatsApp accelerator */}
               <div style={S.waPanel}>
@@ -723,15 +734,15 @@ function Centered({ children }: { children: React.ReactNode }) {
 const FF = "'Sora', -apple-system, sans-serif";
 
 const S: Record<string, React.CSSProperties> = {
-  root: { display:"flex", minHeight:"100vh", background:"#F8FAFC", fontFamily:FF },
+  root: { display:"flex", minHeight:"auto", background:"#F8FAFC", fontFamily:FF },
 
   /* sidebar */
   sidebar: {
     width:230, flexShrink:0,
     background:"#fff", borderRight:"1px solid #E2E8F0",
-    position:"sticky", top:0, height:"100vh", overflowY:"auto",
+    position:"sticky", top:0, height:"100%", maxHeight:"100vh", overflowY:"auto",
     display:"flex", flexDirection:"column",
-    padding:"36px 22px", gap:28,
+    padding:"20px 18px", gap:20,
   },
   orderBadge: { display:"flex", flexDirection:"column", gap:5 },
   orderBadgeLabel: { fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"#94A3B8" },
@@ -748,7 +759,7 @@ const S: Record<string, React.CSSProperties> = {
   },
 
   /* main */
-  main: { flex:1, padding:"44px 40px 80px", maxWidth:660 },
+  main: { flex:1, padding:"20px 32px 48px", maxWidth:660 },
 
   panel: {
     background:"#fff", border:"1px solid #E2E8F0",

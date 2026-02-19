@@ -173,7 +173,7 @@ export default function HomePage() {
       ============================================================ */}
       <section style={{
         position: "relative",
-        minHeight: "100svh",
+        minHeight: "clamp(420px, 55vh, 620px)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -228,7 +228,7 @@ export default function HomePage() {
         <div style={{
           position: "relative", zIndex: 2,
           flex: 1, display: "flex", alignItems: "center",
-          padding: "clamp(80px, 10vw, 120px) clamp(20px, 5vw, 80px) clamp(60px, 8vw, 100px)",
+          padding: "clamp(32px, 5vw, 56px) clamp(20px, 5vw, 80px) clamp(28px, 4vw, 48px)",
           maxWidth: 1440, margin: "0 auto", width: "100%",
           gap: "clamp(32px, 5vw, 80px)",
         }}>
