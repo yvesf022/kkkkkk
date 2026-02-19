@@ -26,26 +26,20 @@ export default function PaymentClient() {
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
 
+  /* 1 = initializing, 2 = transfer+upload, 3 = done */
+  const [uiStep, setUiStep] = useState<1 | 2 | 3>(1);
+
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
-  /* ─── Load bank details (always needed) ─── */
   useEffect(() => {
     paymentsApi.getBankDetails()
       .then((b) => setBankDetails(b as BankSettings))
-      .catch(() => {}); // non-fatal
+      .catch(() => {});
   }, []);
 
-  /* ─── Init payment ───────────────────────────────────────────
-     Strategy:
-     1. Try to create a new payment for the order.
-     2. If the API returns 400/409 (payment already exists),
-        fall back to fetching the existing one from /api/payments/my
-        or from the order detail.
-     3. Show the payment in whatever state it's in.
-  ──────────────────────────────────────────────────────────── */
   const initPayment = useCallback(async () => {
     if (!orderId) return;
     setInitializing(true);
@@ -54,31 +48,42 @@ export default function PaymentClient() {
     let resolvedPayment: Payment | null = null;
 
     try {
-      // Attempt to create payment
       resolvedPayment = await paymentsApi.create(orderId) as Payment;
     } catch (createErr: any) {
-      // Payment already exists — try to find it in My Payments
       try {
         const myPayments = await paymentsApi.getMy() as any;
         const list: Payment[] = Array.isArray(myPayments)
           ? myPayments
           : myPayments?.results ?? myPayments?.payments ?? [];
         resolvedPayment = list.find((p) => p.order_id === orderId) ?? null;
+
+        if (!resolvedPayment) {
+          try {
+            const byOrder = await (paymentsApi as any).getByOrderId?.(orderId) as Payment;
+            if (byOrder?.id) resolvedPayment = byOrder;
+          } catch {}
+        }
       } catch {
-        // Last resort: surface the original create error
-        setInitError(createErr?.message ?? "Could not initialize payment.");
+        setInitError(createErr?.message ?? "Could not initialize payment. Please retry.");
+        setInitializing(false);
+        return;
+      }
+
+      if (!resolvedPayment) {
+        setInitError(createErr?.message ?? "Could not load your payment. Please retry.");
+        setInitializing(false);
+        return;
       }
     }
 
     if (resolvedPayment) {
       setPayment(resolvedPayment);
       if (resolvedPayment.proof?.file_url) setUploaded(true);
-
-      // Load status history
       try {
         const h = await paymentsApi.getStatusHistory(resolvedPayment.id) as any;
         setStatusHistory(Array.isArray(h) ? h : h?.history ?? []);
       } catch {}
+      setUiStep(resolvedPayment.status === "paid" ? 3 : 2);
     }
 
     setInitializing(false);
@@ -86,10 +91,9 @@ export default function PaymentClient() {
 
   useEffect(() => { initPayment(); }, [initPayment]);
 
-  /* ─── Upload proof ─── */
   async function handleUpload() {
     if (!file) { toast.error("Please select a file first"); return; }
-    if (!payment?.id) { toast.error("Payment not initialized yet — please wait and try again"); return; }
+    if (!payment?.id) { toast.error("Payment session not confirmed — tap Retry Init below"); return; }
     setUploading(true);
     try {
       if (uploaded) {
@@ -101,9 +105,9 @@ export default function PaymentClient() {
         setUploaded(true);
       }
       setFile(null);
-      // Refresh payment state
       const updated = await paymentsApi.getById(payment.id) as Payment;
       setPayment(updated);
+      setUiStep(3);
     } catch (e: any) {
       toast.error(e?.message ?? "Upload failed. Please try again.");
     } finally {
@@ -111,7 +115,6 @@ export default function PaymentClient() {
     }
   }
 
-  /* ─── Cancel payment ─── */
   async function handleCancel() {
     if (!payment?.id || !cancelReason.trim()) return;
     setCancelling(true);
@@ -126,7 +129,6 @@ export default function PaymentClient() {
     }
   }
 
-  /* ─── Retry ─── */
   async function handleRetry() {
     if (!orderId) return;
     setRetrying(true);
@@ -135,6 +137,7 @@ export default function PaymentClient() {
       setPayment(p);
       setUploaded(false);
       setStatusHistory([]);
+      setUiStep(2);
       toast.success("New payment initialized!");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to retry payment");
@@ -143,7 +146,6 @@ export default function PaymentClient() {
     }
   }
 
-  /* ─── Guards ─── */
   if (!orderId) {
     return (
       <div style={{ padding: 80, textAlign: "center" }}>
@@ -163,78 +165,99 @@ export default function PaymentClient() {
     paid:     ["#dcfce7", "#166534"],
     rejected: ["#fee2e2", "#991b1b"],
   };
-  const [statusBg, statusText] = statusColor[payment?.status ?? "pending"] ?? ["#f1f5f9", "#475569"];
+  const [statusBg, statusFg] = statusColor[payment?.status ?? "pending"] ?? ["#f1f5f9", "#475569"];
 
   return (
-    <div style={{ background: "linear-gradient(160deg, #f0f4ff, #f8fafc)", minHeight: "100vh", padding: "80px 20px" }}>
-      <div style={{ maxWidth: 780, margin: "0 auto" }}>
+    <div style={{ background: "linear-gradient(160deg,#f0f4ff,#f8fafc)", minHeight: "100vh", padding: "60px 20px 80px" }}>
+      <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <div style={{ width: 72, height: 72, margin: "0 auto 20px", borderRadius: "50%", background: "#0f172a", color: "#fff", display: "grid", placeItems: "center", fontSize: 28 }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <div style={{ width: 64, height: 64, margin: "0 auto 14px", borderRadius: "50%", background: "#0f172a", color: "#fff", display: "grid", placeItems: "center", fontSize: 26 }}>
             💳
           </div>
-          <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 8, color: "#0f172a" }}>Complete Your Payment</h1>
-          <p style={{ color: "#64748b", fontSize: 14 }}>
-            Order: <strong>#{orderId?.slice(0, 8).toUpperCase()}</strong>
+          <h1 style={{ fontSize: 24, fontWeight: 900, margin: "0 0 6px", color: "#0f172a" }}>Complete Your Payment</h1>
+          <p style={{ color: "#64748b", fontSize: 14, margin: 0 }}>
+            Order <strong>#{orderId?.slice(0, 8).toUpperCase()}</strong>
             {payment?.amount != null && <> · <strong>{formatCurrency(payment.amount)}</strong></>}
           </p>
-
           {payment && (
-            <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 99, background: statusBg, color: statusText, fontWeight: 700, fontSize: 13 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusText }} />
+            <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 99, background: statusBg, color: statusFg, fontWeight: 700, fontSize: 12 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusFg, flexShrink: 0 }} />
               Payment {payment.status.replace("_", " ")}
-            </div>
-          )}
-
-          {initializing && (
-            <p style={{ marginTop: 16, fontSize: 13, color: "#94a3b8" }}>Initializing payment…</p>
-          )}
-
-          {initError && !initializing && (
-            <div style={{ marginTop: 16, padding: "12px 20px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, fontSize: 14, color: "#991b1b" }}>
-              {initError}
-              <button onClick={initPayment} style={{ marginLeft: 12, fontWeight: 700, background: "none", border: "none", cursor: "pointer", color: "#dc2626", textDecoration: "underline" }}>
-                Retry
-              </button>
             </div>
           )}
         </div>
 
-        {/* ─── Rejected — retry ─── */}
-        {payment?.status === "rejected" && (
-          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 16, padding: 24, marginBottom: 24, textAlign: "center" }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>❌</div>
-            <div style={{ fontWeight: 700, color: "#991b1b", marginBottom: 12 }}>Payment was rejected</div>
-            {payment?.admin_notes && (
-              <p style={{ fontSize: 13, color: "#7f1d1d", marginBottom: 16 }}>Admin note: {payment.admin_notes}</p>
-            )}
-            <button onClick={handleRetry} disabled={retrying} style={primaryBtn}>
-              {retrying ? "Creating new payment…" : "Retry Payment"}
-            </button>
+        {/* Step indicators */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 32 }}>
+          {[{ n: 1, label: "Initialize" }, { n: 2, label: "Pay & Upload" }, { n: 3, label: "Done" }].map((s, i) => (
+            <div key={s.n} style={{ display: "flex", alignItems: "center" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%", display: "grid", placeItems: "center",
+                  fontWeight: 900, fontSize: 13,
+                  background: uiStep > s.n ? "#166534" : uiStep === s.n ? "#0f172a" : "#e2e8f0",
+                  color: uiStep >= s.n ? "#fff" : "#94a3b8",
+                  transition: "all 0.3s",
+                }}>
+                  {uiStep > s.n ? "✓" : s.n}
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 600, color: uiStep === s.n ? "#0f172a" : "#94a3b8", whiteSpace: "nowrap" }}>
+                  {s.label}
+                </span>
+              </div>
+              {i < 2 && (
+                <div style={{ width: 56, height: 2, background: uiStep > s.n ? "#166534" : "#e2e8f0", margin: "0 4px 18px", transition: "background 0.3s" }} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* ── STEP 1: Initializing ── */}
+        {uiStep === 1 && (
+          <div style={{ ...stepCard, textAlign: "center", padding: 48 }}>
+            {initializing ? (
+              <>
+                <div style={{ fontSize: 40, marginBottom: 14 }}>⏳</div>
+                <div style={{ fontWeight: 700, fontSize: 17, color: "#0f172a", marginBottom: 6 }}>Setting up your payment…</div>
+                <div style={{ fontSize: 13, color: "#64748b", marginBottom: 24 }}>This only takes a moment</div>
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <div style={{ width: 32, height: 32, border: "3px solid #e2e8f0", borderTopColor: "#0f172a", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                </div>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              </>
+            ) : initError ? (
+              <>
+                <div style={{ fontSize: 40, marginBottom: 14 }}>❌</div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: "#991b1b", marginBottom: 8 }}>Could not initialize payment</div>
+                <div style={{ fontSize: 13, color: "#64748b", marginBottom: 24, lineHeight: 1.6 }}>{initError}</div>
+                <button onClick={initPayment} style={primaryBtn}>🔄 Try Again</button>
+                <div style={{ marginTop: 16 }}>
+                  <Link href="/account/orders" style={{ fontSize: 13, color: "#64748b" }}>← Back to Orders</Link>
+                </div>
+              </>
+            ) : null}
           </div>
         )}
 
-        {/* ─── Paid — success ─── */}
-        {payment?.status === "paid" && (
-          <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 20, padding: 40, textAlign: "center", marginBottom: 24 }}>
-            <div style={{ fontSize: 56, marginBottom: 12 }}>✅</div>
-            <h2 style={{ fontSize: 24, fontWeight: 900, color: "#166534", marginBottom: 8 }}>Payment Confirmed!</h2>
-            <p style={{ color: "#166534", fontSize: 15, marginBottom: 24 }}>
-              Your payment of {formatCurrency(payment.amount)} has been verified.
-            </p>
-            <Link href="/account/orders" style={{ ...linkBtn, display: "inline-block" }}>
-              View My Orders
-            </Link>
-          </div>
-        )}
-
-        {/* ─── Pending / On Hold — show steps ─── */}
-        {(payment?.status === "pending" || payment?.status === "on_hold" || !payment) && !initializing && !initError && (
+        {/* ── STEP 2: Transfer + Upload ── */}
+        {uiStep === 2 && (
           <>
-            {/* STEP 1: Bank details */}
+            {payment?.status === "rejected" && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 16, padding: 24, marginBottom: 16, textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>❌</div>
+                <div style={{ fontWeight: 700, color: "#991b1b", marginBottom: 8 }}>Payment was rejected</div>
+                {payment?.admin_notes && <p style={{ fontSize: 13, color: "#7f1d1d", marginBottom: 16 }}>Reason: {payment.admin_notes}</p>}
+                <button onClick={handleRetry} disabled={retrying} style={primaryBtn}>
+                  {retrying ? "Creating new payment…" : "Retry Payment"}
+                </button>
+              </div>
+            )}
+
+            {/* Bank details */}
             <div style={stepCard}>
-              <StepHeader number="1" title="Transfer Payment to Our Account" />
+              <SectionHeader icon="🏦" title="Transfer Payment to Our Account" subtitle="Use your banking app, ATM, or visit a branch" />
               <div style={{ background: "#f8fafc", borderRadius: 12, padding: 16 }}>
                 {bankDetails ? (
                   <>
@@ -257,7 +280,6 @@ export default function PaymentClient() {
                     )}
                   </>
                 ) : (
-                  /* Fallback static details while loading */
                   <>
                     <BankRow label="Bank" value="Standard Lesotho Bank" />
                     <BankRow label="Account Name" value="Karabo Online Store" />
@@ -268,93 +290,97 @@ export default function PaymentClient() {
               </div>
             </div>
 
-            {/* STEP 2: Upload proof */}
+            {/* Upload proof */}
             <div style={stepCard}>
-              <StepHeader number="2" title={uploaded ? "Resubmit Payment Proof" : "Upload Payment Proof"} />
+              <SectionHeader
+                icon="📎"
+                title={uploaded ? "Resubmit Payment Proof" : "Upload Payment Proof"}
+                subtitle="Screenshot, bank slip, or SMS confirmation of your transfer"
+              />
 
               {payment?.status === "on_hold" && (
-                <div style={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: 10, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#713f12" }}>
+                <div style={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#713f12" }}>
                   ⏳ Your proof is under review. You may resubmit if needed.
                 </div>
               )}
 
-              <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 14, padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.7 }}>
-                  Upload a clear photo or PDF of your payment receipt. Make sure the <strong>amount</strong> and <strong>reference number</strong> are visible.
+              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: "#1e40af", marginBottom: 6 }}>📋 What counts as proof?</div>
+                <div style={{ fontSize: 12, color: "#1e3a8a", lineHeight: 1.9 }}>
+                  • <strong>Bank app screenshot</strong> showing the transfer was sent<br />
+                  • <strong>Bank slip / deposit slip</strong> from teller or ATM<br />
+                  • <strong>SMS confirmation</strong> your bank sent after the transfer
                 </div>
-
-                <div>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    style={{ display: "none" }}
-                    id="proof-upload"
-                  />
-                  <label
-                    htmlFor="proof-upload"
-                    style={{ display: "block", padding: "14px", borderRadius: 12, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 600, color: "#475569" }}
-                  >
-                    {file ? `📎 ${file.name}` : "📁 Choose File"}
-                  </label>
+                <div style={{ marginTop: 6, fontSize: 12, color: "#3b82f6" }}>
+                  ✅ Make sure the <strong>amount</strong> and <strong>reference #{orderId?.slice(0, 8).toUpperCase()}</strong> are clearly visible
                 </div>
-
-                <button
-                  onClick={handleUpload}
-                  disabled={!file || uploading || initializing}
-                  style={{ ...primaryBtn, opacity: (!file || uploading || initializing) ? 0.5 : 1, width: "100%" }}
-                >
-                  {uploading ? "Uploading…" : initializing ? "Initializing payment…" : uploaded ? "Resubmit Proof" : "Upload Payment Proof"}
-                </button>
-
-                {!payment?.id && !initializing && (
-                  <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#991b1b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    ⚠️ Payment not yet initialized — please wait or
-                    <button onClick={initPayment} style={{ marginLeft: 8, background: "none", border: "none", color: "#dc2626", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontSize: 13 }}>
-                      retry
-                    </button>
-                  </div>
-                )}
-
-                {uploaded && !file && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#166534", fontSize: 13, fontWeight: 600 }}>
-                    ✅ Proof submitted — awaiting admin verification
-                  </div>
-                )}
               </div>
+
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                style={{ display: "none" }}
+                id="proof-upload"
+              />
+              <label
+                htmlFor="proof-upload"
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                  padding: "16px", borderRadius: 12,
+                  border: file ? "2px solid #0f172a" : "2px dashed #cbd5e1",
+                  background: file ? "#f8fafc" : "#fff",
+                  cursor: "pointer", fontSize: 14, fontWeight: 600,
+                  color: file ? "#0f172a" : "#94a3b8",
+                  marginBottom: 12, transition: "all 0.15s",
+                }}
+              >
+                {file ? `📎 ${file.name}` : "📁 Tap to choose — photo, screenshot or PDF"}
+              </label>
+
+              <button
+                onClick={handleUpload}
+                disabled={!file || uploading}
+                style={{ ...primaryBtn, width: "100%", opacity: !file || uploading ? 0.5 : 1, fontSize: 15, padding: "15px" }}
+              >
+                {uploading ? "Uploading…" : uploaded ? "🔄 Resubmit Proof" : "⬆️ Upload Payment Proof"}
+              </button>
+
+              {!payment?.id && !initializing && (
+                <div style={{ marginTop: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#991b1b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>⚠️ Payment session not confirmed</span>
+                  <button onClick={initPayment} style={{ background: "none", border: "none", color: "#dc2626", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontSize: 13 }}>
+                    Retry Init
+                  </button>
+                </div>
+              )}
+
+              {uploaded && !file && (
+                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, color: "#166534", fontSize: 13, fontWeight: 600 }}>
+                  ✅ Proof submitted — awaiting admin verification
+                </div>
+              )}
             </div>
 
-            {/* STEP 3: WhatsApp */}
+            {/* WhatsApp */}
             <div style={{ ...stepCard, background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-              <StepHeader number="3" title="Notify Us on WhatsApp" />
-              <p style={{ fontSize: 13, color: "#166534", marginBottom: 16, lineHeight: 1.6 }}>
-                After uploading your proof, send us a WhatsApp message so we can verify faster.
-              </p>
-              <a
-                href={whatsappLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "14px 28px", borderRadius: 14, background: "#25D366", color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: 15 }}
-              >
-                <span style={{ fontSize: 20 }}>📱</span> Open WhatsApp
+              <SectionHeader icon="📱" title="Notify Us on WhatsApp" subtitle="Speed up verification by sending us a quick message" />
+              <a href={whatsappLink} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "13px 24px", borderRadius: 12, background: "#25D366", color: "#fff", textDecoration: "none", fontWeight: 800, fontSize: 14 }}>
+                <span style={{ fontSize: 18 }}>📱</span> Open WhatsApp
               </a>
             </div>
 
-            {/* Cancel payment */}
+            {/* Cancel */}
             <div style={{ ...stepCard, borderColor: "#fee2e2" }}>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#7f1d1d" }}>Cancel Payment</div>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, color: "#7f1d1d" }}>Cancel Payment</div>
               {!showCancelForm ? (
                 <button onClick={() => setShowCancelForm(true)} style={{ ...outlineBtn, color: "#dc2626", borderColor: "#fca5a5" }}>
                   Cancel this payment
                 </button>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <input
-                    style={inputSt}
-                    placeholder="Reason for cancellation…"
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                  />
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <input style={inputSt} placeholder="Reason for cancellation…" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
                   <div style={{ display: "flex", gap: 10 }}>
                     <button onClick={handleCancel} disabled={cancelling || !cancelReason.trim()} style={{ ...primaryBtn, background: "#dc2626", opacity: !cancelReason.trim() ? 0.5 : 1 }}>
                       {cancelling ? "Cancelling…" : "Confirm Cancel"}
@@ -367,50 +393,79 @@ export default function PaymentClient() {
           </>
         )}
 
-        {/* Status history */}
-        {statusHistory.length > 0 && (
-          <div style={stepCard}>
-            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16 }}>Payment Timeline</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {statusHistory.map((h: any, i: number) => {
-                const [bg, col] = statusColor[h.status] ?? ["#f1f5f9", "#475569"];
-                return (
-                  <div key={h.id ?? i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: col, marginTop: 4, flexShrink: 0 }} />
-                    <div>
-                      <div style={{ display: "inline-block", padding: "2px 10px", borderRadius: 99, background: bg, color: col, fontSize: 12, fontWeight: 700, marginBottom: 2 }}>
-                        {h.status}
-                      </div>
-                      {h.reason && <div style={{ fontSize: 12, color: "#64748b" }}>{h.reason}</div>}
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                        {h.created_at ? new Date(h.created_at).toLocaleString() : ""}
+        {/* ── STEP 3: Done ── */}
+        {uiStep === 3 && (
+          <div style={{ ...stepCard, textAlign: "center", padding: "48px 32px" }}>
+            {payment?.status === "paid" ? (
+              <>
+                <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
+                <h2 style={{ fontSize: 24, fontWeight: 900, color: "#166534", margin: "0 0 10px" }}>Payment Confirmed!</h2>
+                <p style={{ color: "#166534", fontSize: 15, margin: "0 0 32px" }}>
+                  Your payment of {formatCurrency(payment.amount)} has been verified.
+                </p>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+                <h2 style={{ fontSize: 22, fontWeight: 900, color: "#0f172a", margin: "0 0 10px" }}>Proof Submitted!</h2>
+                <p style={{ color: "#475569", fontSize: 14, lineHeight: 1.7, margin: "0 0 8px" }}>
+                  We've received your proof for order <strong>#{orderId?.slice(0, 8).toUpperCase()}</strong>.
+                </p>
+                <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 32px" }}>
+                  We'll verify and confirm your order shortly.
+                </p>
+              </>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 300, margin: "0 auto" }}>
+              <Link href="/store" style={{ ...primaryBtn, display: "block", textDecoration: "none", textAlign: "center" }}>
+                🛍️ Continue Shopping
+              </Link>
+              <Link href="/account/orders" style={{ ...outlineBtn, display: "block", textDecoration: "none", textAlign: "center" }}>
+                📦 View My Orders
+              </Link>
+            </div>
+
+            {statusHistory.length > 0 && (
+              <div style={{ marginTop: 32, textAlign: "left", background: "#f8fafc", borderRadius: 12, padding: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", marginBottom: 12 }}>Payment Timeline</div>
+                {statusHistory.map((h: any, i: number) => {
+                  const [bg, col] = statusColor[h.status] ?? ["#f1f5f9", "#475569"];
+                  return (
+                    <div key={h.id ?? i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: col, marginTop: 4, flexShrink: 0 }} />
+                      <div>
+                        <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 99, background: bg, color: col, fontSize: 11, fontWeight: 700 }}>{h.status}</span>
+                        {h.reason && <div style={{ fontSize: 11, color: "#64748b" }}>{h.reason}</div>}
+                        <div style={{ fontSize: 10, color: "#94a3b8" }}>{h.created_at ? new Date(h.created_at).toLocaleString() : ""}</div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {payment?.status !== "paid" && (
+              <button onClick={() => setUiStep(2)} style={{ marginTop: 20, background: "none", border: "none", color: "#64748b", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                ← Go back to payment details
+              </button>
+            )}
           </div>
         )}
 
-        <div style={{ textAlign: "center", marginTop: 32 }}>
-          <Link href="/account/orders" style={{ fontSize: 13, color: "#64748b", textDecoration: "none" }}>
-            ← Back to My Orders
-          </Link>
-        </div>
       </div>
     </div>
   );
 }
 
-/* ── Sub-components ── */
-function StepHeader({ number, title }: { number: string; title: string }) {
+function SectionHeader({ icon, title, subtitle }: { icon: string; title: string; subtitle?: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-      <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#0f172a", color: "#fff", display: "grid", placeItems: "center", fontWeight: 900, fontSize: 14, flexShrink: 0 }}>
-        {number}
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 3 }}>
+        <span style={{ fontSize: 20 }}>{icon}</span>
+        <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: "#0f172a" }}>{title}</h2>
       </div>
-      <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: "#0f172a" }}>{title}</h2>
+      {subtitle && <div style={{ fontSize: 13, color: "#64748b", paddingLeft: 30 }}>{subtitle}</div>}
     </div>
   );
 }
@@ -434,8 +489,7 @@ function BankRow({ label, value, copyable }: { label: string; value: string; cop
   );
 }
 
-/* ── Styles ── */
-const stepCard: React.CSSProperties = { background: "#fff", borderRadius: 20, border: "1px solid #e5e7eb", padding: 28, marginBottom: 20 };
+const stepCard: React.CSSProperties = { background: "#fff", borderRadius: 20, border: "1px solid #e5e7eb", padding: 24, marginBottom: 16 };
 const primaryBtn: React.CSSProperties = { padding: "13px 24px", borderRadius: 12, border: "none", background: "#0f172a", color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" };
 const outlineBtn: React.CSSProperties = { padding: "10px 18px", borderRadius: 10, border: "1px solid #e5e7eb", background: "transparent", fontWeight: 600, fontSize: 13, cursor: "pointer", color: "#475569" };
 const inputSt: React.CSSProperties = { width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 14, boxSizing: "border-box" };
