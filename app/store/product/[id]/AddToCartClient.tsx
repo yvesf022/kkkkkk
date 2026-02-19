@@ -18,31 +18,32 @@ function resolveImages(product: Product): string[] {
   const urls: string[] = [];
 
   function add(url: string | null | undefined) {
-    if (url && !seen.has(url)) { seen.add(url); urls.push(url); }
+    if (url && typeof url === "string" && !seen.has(url)) {
+      seen.add(url);
+      urls.push(url);
+    }
   }
 
-  // 1. Structured images array (ProductImage[]) — sorted primary first
-  if (product.images && product.images.length > 0) {
-    const sorted = [...product.images].sort((a, b) => {
-      if (a.is_primary && !b.is_primary) return -1;
-      if (!a.is_primary && b.is_primary) return 1;
-      return a.position - b.position;
-    });
-    sorted.forEach((img) => add(img.image_url));
-  }
+  // 1. main_image always goes first
+  add(product.main_image);
 
-  // 2. main_image — unshift so it's first if not already present from images[]
-  if (product.main_image && !seen.has(product.main_image)) {
-    urls.unshift(product.main_image);
-    seen.add(product.main_image);
-  }
-
-  // 3. String array fallback (some API responses return images as string[])
-  const rawImages = (product as any).images;
-  if (Array.isArray(rawImages)) {
-    rawImages.forEach((img: any) => {
-      if (typeof img === "string") add(img);
-    });
+  // 2. product.images — handles BOTH formats the API might return:
+  //    a) ProductImage[] objects  → read .image_url, sort by is_primary + position
+  //    b) string[]               → use directly
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    const first = product.images[0];
+    if (typeof first === "string") {
+      // API returned plain string URLs
+      (product.images as unknown as string[]).forEach(add);
+    } else {
+      // API returned ProductImage objects — sort primary first
+      const sorted = [...(product.images as any[])].sort((a, b) => {
+        if (a.is_primary && !b.is_primary) return -1;
+        if (!a.is_primary && b.is_primary) return 1;
+        return (a.position ?? 0) - (b.position ?? 0);
+      });
+      sorted.forEach((img) => add(img.image_url ?? img.url ?? img));
+    }
   }
 
   return urls;
@@ -208,19 +209,18 @@ export default function AddToCartClient({ product }: Props) {
       className="product-detail-grid"
     >
       {/* ═══════════════ IMAGE GALLERY ═══════════════ */}
-      <div style={{ display: "flex", gap: 12 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
 
-        {/* Vertical thumbnail strip — only if multiple images */}
+        {/* Left vertical thumbnail strip */}
         {displayImages.length > 1 && (
           <div style={{
             display: "flex",
             flexDirection: "column",
-            gap: 8,
-            width: 68,
+            gap: 7,
+            width: 66,
             flexShrink: 0,
-            maxHeight: 500,
+            maxHeight: 480,
             overflowY: "auto",
-            paddingRight: 2,
           }}>
             {displayImages.map((url, i) => (
               <button
@@ -228,143 +228,89 @@ export default function AddToCartClient({ product }: Props) {
                 type="button"
                 onClick={() => setActiveIdx(i)}
                 style={{
-                  flexShrink: 0,
-                  width: 64,
-                  height: 64,
+                  width: 62,
+                  height: 62,
                   borderRadius: 8,
                   overflow: "hidden",
-                  border: activeIdx === i
-                    ? "2.5px solid #0033a0"
-                    : "2px solid #e5e7eb",
+                  border: activeIdx === i ? "2.5px solid #0033a0" : "2px solid #e5e7eb",
                   background: "#f8f7f4",
                   cursor: "pointer",
                   padding: 0,
-                  transition: "border-color 0.15s, box-shadow 0.15s",
-                  boxShadow: activeIdx === i ? "0 0 0 3px rgba(0,51,160,0.12)" : "none",
+                  flexShrink: 0,
                   outline: "none",
+                  transition: "border-color 0.15s, box-shadow 0.15s",
+                  boxShadow: activeIdx === i ? "0 0 0 3px rgba(0,51,160,0.15)" : "none",
+                  opacity: activeIdx === i ? 1 : 0.75,
                 }}
-                onMouseEnter={e => { if (activeIdx !== i) e.currentTarget.style.borderColor = "#94a3b8"; }}
-                onMouseLeave={e => { if (activeIdx !== i) e.currentTarget.style.borderColor = "#e5e7eb"; }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.borderColor = "#94a3b8"; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = activeIdx === i ? "1" : "0.75"; e.currentTarget.style.borderColor = activeIdx === i ? "#0033a0" : "#e5e7eb"; }}
               >
-                <SafeImage src={url} alt={`${product.title} view ${i + 1}`} />
+                <SafeImage src={url} alt={`View ${i + 1}`} />
               </button>
             ))}
           </div>
         )}
 
-        {/* Main image */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
-          <div
-            style={{
-              width: "100%",
-              aspectRatio: "1 / 1",
-              borderRadius: 16,
-              overflow: "hidden",
-              border: "1px solid #e8e4de",
-              background: "#f8f7f4",
-              position: "relative",
-              cursor: "zoom-in",
-            }}
-          >
+        {/* Main image + nav arrows */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            width: "100%",
+            aspectRatio: "1 / 1",
+            borderRadius: 16,
+            overflow: "hidden",
+            border: "1px solid #e8e4de",
+            background: "#f8f7f4",
+            position: "relative",
+          }}>
             {displayImages.length > 0 ? (
-              <SafeImage
-                src={displayImages[activeIdx] ?? displayImages[0]}
-                alt={product.title}
-              />
+              <SafeImage src={displayImages[activeIdx] ?? displayImages[0]} alt={product.title} />
             ) : (
-              <div style={{
-                width: "100%", height: "100%",
-                display: "flex", alignItems: "center",
-                justifyContent: "center", fontSize: 72, background: "#f8f7f4",
-              }}>
-                📦
-              </div>
+              <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:72, background:"#f8f7f4" }}>📦</div>
             )}
 
             {/* Discount badge */}
             {discountPct && (
-              <div style={{
-                position: "absolute", top: 14, left: 14,
-                background: "#dc2626", color: "#fff",
-                borderRadius: 8, padding: "4px 10px",
-                fontWeight: 800, fontSize: 13,
-              }}>
+              <div style={{ position:"absolute", top:14, left:14, background:"#dc2626", color:"#fff", borderRadius:8, padding:"4px 10px", fontWeight:800, fontSize:13 }}>
                 -{discountPct}%
               </div>
             )}
 
-            {/* Image counter pill */}
+            {/* Image counter */}
             {displayImages.length > 1 && (
-              <div style={{
-                position: "absolute", bottom: 12, right: 12,
-                background: "rgba(0,0,0,0.55)", color: "#fff",
-                borderRadius: 99, padding: "4px 10px",
-                fontSize: 12, fontWeight: 700,
-                backdropFilter: "blur(4px)",
-              }}>
+              <div style={{ position:"absolute", bottom:12, right:12, background:"rgba(0,0,0,0.52)", color:"#fff", borderRadius:99, padding:"3px 10px", fontSize:12, fontWeight:700 }}>
                 {activeIdx + 1} / {displayImages.length}
               </div>
             )}
 
-            {/* Prev / Next arrows */}
+            {/* Prev arrow */}
             {displayImages.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setActiveIdx(i => (i - 1 + displayImages.length) % displayImages.length)}
-                  style={{
-                    position: "absolute", left: 10, top: "50%",
-                    transform: "translateY(-50%)",
-                    width: 36, height: 36, borderRadius: "50%",
-                    background: "rgba(255,255,255,0.92)",
-                    border: "1px solid #e8e4de",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                    cursor: "pointer", display: "grid", placeItems: "center",
-                    fontSize: 16, fontWeight: 900, color: "#0f172a",
-                    transition: "all 0.15s", outline: "none",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#0033a0"; e.currentTarget.style.color = "#fff"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.92)"; e.currentTarget.style.color = "#0f172a"; }}
-                >‹</button>
-                <button
-                  type="button"
-                  onClick={() => setActiveIdx(i => (i + 1) % displayImages.length)}
-                  style={{
-                    position: "absolute", right: 10, top: "50%",
-                    transform: "translateY(-50%)",
-                    width: 36, height: 36, borderRadius: "50%",
-                    background: "rgba(255,255,255,0.92)",
-                    border: "1px solid #e8e4de",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                    cursor: "pointer", display: "grid", placeItems: "center",
-                    fontSize: 16, fontWeight: 900, color: "#0f172a",
-                    transition: "all 0.15s", outline: "none",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#0033a0"; e.currentTarget.style.color = "#fff"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.92)"; e.currentTarget.style.color = "#0f172a"; }}
-                >›</button>
-              </>
+              <button
+                type="button"
+                onClick={() => setActiveIdx(i => (i - 1 + displayImages.length) % displayImages.length)}
+                style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.9)", border:"1px solid #e8e4de", cursor:"pointer", display:"grid", placeItems:"center", fontSize:20, fontWeight:900, color:"#0f172a", outline:"none", transition:"all 0.15s", boxShadow:"0 2px 8px rgba(0,0,0,0.1)" }}
+                onMouseEnter={e => { e.currentTarget.style.background="#0033a0"; e.currentTarget.style.color="#fff"; }}
+                onMouseLeave={e => { e.currentTarget.style.background="rgba(255,255,255,0.9)"; e.currentTarget.style.color="#0f172a"; }}
+              >‹</button>
+            )}
+
+            {/* Next arrow */}
+            {displayImages.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setActiveIdx(i => (i + 1) % displayImages.length)}
+                style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.9)", border:"1px solid #e8e4de", cursor:"pointer", display:"grid", placeItems:"center", fontSize:20, fontWeight:900, color:"#0f172a", outline:"none", transition:"all 0.15s", boxShadow:"0 2px 8px rgba(0,0,0,0.1)" }}
+                onMouseEnter={e => { e.currentTarget.style.background="#0033a0"; e.currentTarget.style.color="#fff"; }}
+                onMouseLeave={e => { e.currentTarget.style.background="rgba(255,255,255,0.9)"; e.currentTarget.style.color="#0f172a"; }}
+              >›</button>
             )}
           </div>
 
-          {/* Dot indicators for mobile (when thumb strip is hidden) */}
+          {/* Dot indicators — visible on mobile when thumb strip hidden */}
           {displayImages.length > 1 && (
-            <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 10 }} className="pd-dots">
+            <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:10 }}>
               {displayImages.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setActiveIdx(i)}
-                  style={{
-                    width: activeIdx === i ? 20 : 8,
-                    height: 8,
-                    borderRadius: 99,
-                    background: activeIdx === i ? "#0033a0" : "#d1d5db",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0,
-                    transition: "all 0.2s",
-                  }}
+                <button key={i} type="button" onClick={() => setActiveIdx(i)}
+                  style={{ width: activeIdx === i ? 20 : 8, height:8, borderRadius:99, background: activeIdx === i ? "#0033a0" : "#d1d5db", border:"none", cursor:"pointer", padding:0, transition:"all 0.2s" }}
                 />
               ))}
             </div>
@@ -625,14 +571,9 @@ export default function AddToCartClient({ product }: Props) {
         )}
       </div>
 
-      {/* Responsive styles */}
       <style>{`
         @media (max-width: 768px) {
           .product-detail-grid { grid-template-columns: 1fr !important; }
-          .pd-dots { display: flex !important; }
-        }
-        @media (min-width: 769px) {
-          .pd-dots { display: none !important; }
         }
       `}</style>
     </div>
