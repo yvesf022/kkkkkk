@@ -200,13 +200,13 @@ export default function AddToCartClient({ product }: Props) {
       {/* ═══════════════ IMAGE GALLERY ═══════════════ */}
       <div>
         <style>{`
-          .pd-gallery { display:flex; gap:12px; align-items:flex-start; }
-          .pd-thumbs { display:flex; flex-direction:column; gap:6px; width:72px; flex-shrink:0; max-height:480px; overflow-y:auto; scrollbar-width:thin; }
-          .pd-thumb { width:68px; height:68px; border-radius:8px; overflow:hidden; border:2px solid #e8e4de; background:#f8f7f4; cursor:pointer; padding:0; flex-shrink:0; outline:none; transition:border-color 0.15s, box-shadow 0.15s; display:block; }
+          .pd-gallery { display:flex; flex-direction:column; gap:10px; }
+          .pd-thumbs { display:flex; flex-direction:row; gap:8px; overflow-x:auto; scrollbar-width:thin; padding-bottom:4px; }
+          .pd-thumb { width:72px; height:72px; border-radius:8px; overflow:hidden; border:2px solid #e8e4de; background:#f8f7f4; cursor:pointer; padding:0; flex-shrink:0; outline:none; transition:border-color 0.15s, box-shadow 0.15s; display:block; }
           .pd-thumb.active { border-color:#0033a0; box-shadow:0 0 0 3px rgba(0,51,160,0.12); }
           .pd-thumb:not(.active):hover { border-color:#94a3b8; }
           .pd-thumb img,.pd-thumb-inner { width:100%; height:100%; object-fit:cover; display:block; }
-          .pd-main-wrap { flex:1; min-width:0; border-radius:16px; overflow:hidden; border:1px solid #e8e4de; background:#f8f7f4; aspect-ratio:1/1; position:relative; }
+          .pd-main-wrap { width:100%; border-radius:16px; overflow:hidden; border:1px solid #e8e4de; background:#f8f7f4; aspect-ratio:1/1; position:relative; }
           .pd-main-wrap img { width:100%; height:100%; object-fit:cover; display:block; transition:transform 0.4s ease; }
           .pd-main-wrap:hover img { transform:scale(1.03); }
           .pd-nav { position:absolute; top:50%; transform:translateY(-50%); width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,0.95); border:1px solid #e8e4de; cursor:pointer; display:grid; place-items:center; font-size:20px; font-weight:900; color:#0f172a; outline:none; transition:all 0.15s; box-shadow:0 2px 10px rgba(0,0,0,0.12); z-index:2; }
@@ -216,29 +216,12 @@ export default function AddToCartClient({ product }: Props) {
           .pd-counter { position:absolute; bottom:12px; right:12px; background:rgba(0,0,0,0.55); color:#fff; border-radius:99px; padding:3px 11px; font-size:12px; font-weight:700; backdrop-filter:blur(4px); }
           .pd-dots { display:none; justify-content:center; gap:6px; margin-top:10px; }
           @media(max-width:640px) {
-            .pd-thumbs { display:none; }
-            .pd-dots { display:flex; }
+            .pd-thumbs { display:flex; }
+            .pd-dots { display:none; }
           }
         `}</style>
 
         <div className="pd-gallery">
-          {/* Horizontal thumbs */}
-          {displayImages.length > 1 && (
-            <div className="pd-thumbs">
-              {displayImages.map((url, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`pd-thumb${activeIdx === i ? " active" : ""}`}
-                  onClick={() => setActiveIdx(i)}
-                  title={`View image ${i + 1}`}
-                >
-                  <SafeImage src={url} alt={`${product.title} ${i + 1}`} />
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* Main image */}
           <div className="pd-main-wrap">
             {displayImages.length > 0
@@ -266,6 +249,23 @@ export default function AddToCartClient({ product }: Props) {
               <div className="pd-counter">{activeIdx + 1} / {displayImages.length}</div>
             )}
           </div>
+
+          {/* Horizontal thumbs below main image */}
+          {displayImages.length > 1 && (
+            <div className="pd-thumbs">
+              {displayImages.map((url, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`pd-thumb${activeIdx === i ? " active" : ""}`}
+                  onClick={() => setActiveIdx(i)}
+                  title={`View image ${i + 1}`}
+                >
+                  <SafeImage src={url} alt={`${product.title} ${i + 1}`} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Mobile dots */}
