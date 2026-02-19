@@ -22,7 +22,19 @@ async function request<T>(
     let message = "Request failed";
     try {
       const data = await res.json();
-      message = data.detail || data.message || message;
+      // FastAPI 422 Unprocessable Entity returns detail as an array of validation errors
+      // e.g. [{ loc: ["body", "phone"], msg: "field required", type: "..." }]
+      // Joining them directly would produce "[object Object],[object Object]"
+      if (Array.isArray(data.detail)) {
+        message = data.detail
+          .map((e: any) => {
+            const field = e.loc?.slice(-1)[0] ?? "field";
+            return `${field}: ${e.msg}`;
+          })
+          .join(", ");
+      } else {
+        message = data.detail || data.message || message;
+      }
     } catch {}
     throw new Error(message);
   }
