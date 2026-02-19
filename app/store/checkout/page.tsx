@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { cartApi, ordersApi, addressesApi } from "@/lib/api";
 import { useCart } from "@/lib/cart";
+import { useAuth } from "@/lib/auth";
 import type { Cart, Address } from "@/lib/types";
 import { formatCurrency } from "@/lib/currency";
 
@@ -29,6 +30,15 @@ const EMPTY_ADDR = {
 export default function CheckoutPage() {
   const router = useRouter();
   const clearCart = useCart((s) => s.clearCart);
+
+  /* ── Auth guard — redirect to login if not authenticated ─── */
+  const user = useAuth((s) => s.user);
+  const authLoading = useAuth((s) => s.loading);
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/login?redirect=/store/checkout");
+    }
+  }, [authLoading, user, router]);
 
   /* cart */
   const [cart, setCart] = useState<Cart | null>(null);
@@ -150,6 +160,9 @@ export default function CheckoutPage() {
   }
 
   /* ── Guards ─────────────────────────────────────────── */
+  /* ── Show nothing while auth resolves (avoids flash then redirect) ── */
+  if (authLoading || !user) return null;
+
   if (cartLoading) {
     return (
       <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>

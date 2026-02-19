@@ -139,15 +139,17 @@ export default function CartPage() {
                   key={item.id}
                   style={{ background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", padding: 20, display: "flex", gap: 16, alignItems: "flex-start", opacity: updatingId === item.id ? 0.6 : 1, transition: "opacity 0.2s" }}
                 >
-                  {/* Image */}
+                  {/* Image — FIX: check all image fields; cart API may not populate product */}
                   <Link href={`/store/product/${item.product_id}`} style={{ flexShrink: 0 }}>
                     <div style={{ width: 80, height: 80, borderRadius: 12, background: "#f1f5f9", overflow: "hidden" }}>
-                      {product?.main_image ? (
-                        <img src={product.main_image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      ) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>📦</div>}
+                      {(() => {
+                        const imgSrc = product?.main_image ?? (product as any)?.image_url ?? item.variant?.image_url ?? null;
+                        return imgSrc
+                          ? <img src={imgSrc} alt={product?.title ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                          : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>📦</div>;
+                      })()}
                     </div>
                   </Link>
-
                   {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Link href={`/store/product/${item.product_id}`} style={{ textDecoration: "none" }}>

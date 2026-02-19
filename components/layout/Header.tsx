@@ -92,8 +92,10 @@ export default function Header() {
 
   const { toggleSidebar } = useUI();
 
-  // ✅ Use itemCount selector from Zustand store — no .items needed
-  const cartCount = useCart((s) => s.itemCount);
+  // FIX: derive count from items array — itemCount is not a stored field
+  const cartCount = useCart((s) =>
+    ((s as any).items ?? []).reduce((sum: number, i: { quantity: number }) => sum + i.quantity, 0)
+  );
 
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
