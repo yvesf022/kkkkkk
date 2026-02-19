@@ -150,6 +150,7 @@ export const productsApi = {
     return request(`/api/products/${id}`);
   },
 
+  /** Admin get-by-id — same public GET route, no separate admin endpoint */
   getAdmin(id: string): Promise<Product> {
     return request(`/api/products/${id}`);
   },
@@ -162,32 +163,55 @@ export const productsApi = {
     });
   },
 
+  /** FIX: Admin update is PATCH /api/products/admin/{product_id} */
   update(id: string, payload: any) {
-    return request(`/api/products/${id}`, {
+    return request(`/api/products/admin/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
   },
 
+  /** FIX: Admin analytics is GET /api/products/admin/{product_id}/analytics */
   getAnalytics(id: string): Promise<ProductAnalytics> {
-    return request<ProductAnalytics>(`/api/products/${id}/analytics`);
+    return request<ProductAnalytics>(`/api/products/admin/${id}/analytics`);
   },
 
   listVariants(id: string): Promise<ProductVariant[]> {
     return request<ProductVariant[]>(`/api/products/${id}/variants`);
   },
 
-  lifecycle(id: string, action: "publish" | "archive" | "draft" | "discontinue") {
-    return request(`/api/products/${id}/lifecycle`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
+  /**
+   * FIX: /lifecycle does not exist. Each action is its own route.
+   * Use publish / archive / draft / restore / discontinue methods below.
+   * @deprecated
+   */
+  lifecycle(id: string, action: "publish" | "archive" | "draft" | "restore") {
+    return request(`/api/products/${id}/${action}`, { method: "POST" });
+  },
+
+  publish(id: string) {
+    return request(`/api/products/${id}/publish`, { method: "POST" });
+  },
+
+  archive(id: string) {
+    return request(`/api/products/${id}/archive`, { method: "POST" });
+  },
+
+  draft(id: string) {
+    return request(`/api/products/${id}/draft`, { method: "POST" });
+  },
+
+  restore(id: string) {
+    return request(`/api/products/${id}/restore`, { method: "POST" });
   },
 
   softDelete(id: string) {
     return request(`/api/products/${id}`, { method: "DELETE" });
+  },
+
+  hardDelete(id: string) {
+    return request(`/api/products/${id}/hard`, { method: "DELETE" });
   },
 
   duplicate(id: string): Promise<{ id: string }> {
@@ -196,18 +220,35 @@ export const productsApi = {
     });
   },
 
+  /**
+   * FIX: Bulk-add images — POST /api/products/{product_id}/images/bulk
+   * No single-image upload endpoint exists in the API.
+   */
+  bulkAddImages(productId: string, payload: { images: string[] }) {
+    return request(`/api/products/${productId}/images/bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /** @deprecated route /api/products/admin/{id}/images does not exist — use bulkAddImages */
   uploadImage(productId: string, file: File) {
+    console.warn("uploadImage: no single-image upload endpoint. Use bulkAddImages with image URLs.");
     const form = new FormData();
     form.append("file", file);
-    return request(`/api/products/admin/${productId}/images`, {
+    return request(`/api/products/${productId}/images/bulk`, {
       method: "POST",
       body: form,
     });
   },
 
-  deleteImage(imageId: string) {
-    return request(`/api/products/admin/images/${imageId}`, {
-      method: "DELETE",
+  /** FIX: Set image position — PATCH /api/products/images/{image_id}/position */
+  setImagePosition(imageId: string, position: number) {
+    return request(`/api/products/images/${imageId}/position`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ position }),
     });
   },
 
@@ -215,6 +256,12 @@ export const productsApi = {
     return request(`/api/products/images/${imageId}/set-primary`, {
       method: "PATCH",
     });
+  },
+
+  /** @deprecated no delete-image endpoint exists in the API spec */
+  deleteImage(imageId: string) {
+    console.warn("deleteImage: no delete image endpoint found in API spec.");
+    return Promise.reject(new Error("Delete image endpoint not available"));
   },
 
   createVariant(productId: string, payload: {
@@ -232,18 +279,48 @@ export const productsApi = {
     });
   },
 
+  updateVariant(variantId: string, payload: Partial<ProductVariant>) {
+    return request(`/api/products/variants/${variantId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
   deleteVariant(variantId: string) {
     return request(`/api/products/variants/${variantId}`, {
       method: "DELETE",
     });
   },
 
-  reorderImages(productId: string, imageIds: string[]) {
-    return request(`/api/products/admin/${productId}/images/reorder`, {
+  duplicateVariant(variantId: string) {
+    return request(`/api/products/variants/${variantId}/duplicate`, {
+      method: "POST",
+    });
+  },
+
+  bulkUpdateVariants(payload: any) {
+    return request(`/api/products/variants/bulk`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image_ids: imageIds }),
+      body: JSON.stringify(payload),
     });
+  },
+
+  /**
+   * FIX: No /reorder route — use setImagePosition per image instead.
+   * Maps imageIds array to position index via individual PATCH calls.
+   */
+  reorderImages(_productId: string, imageIds: string[]) {
+    return Promise.all(
+      imageIds.map((id, index) =>
+        request(`/api/products/images/${id}/position`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ position: index }),
+        })
+      )
+    );
   },
 
   setMainImage(imageId: string) {
@@ -396,6 +473,15 @@ export const paymentsApi = {
   getById: (paymentId: string) =>
     request(`/api/payments/${paymentId}`),
 
+  /**
+   * Fetch an existing payment by order ID.
+   * Used as the primary fallback in initPayment when create() fails
+   * because a payment already exists for this order.
+   * Route: GET /api/payments/{payment_id} (same path, different semantic intent)
+   */
+  getByOrderId: (orderId: string) =>
+    request(`/api/payments/${orderId}`),
+
   adminList: (statusFilter?: PaymentStatus) => {
     const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
     return request(`/api/payments/admin${qs}`);
@@ -418,9 +504,10 @@ export const paymentsApi = {
   getBankDetails: () =>
     request("/api/payments/bank-details"),
 
+  /** FIX: field name must be "proof" to match Body_resubmit_payment_proof schema */
   resubmitProof: (paymentId: string, file: File) => {
     const form = new FormData();
-    form.append("file", file);
+    form.append("proof", file);
     return request(`/api/payments/${paymentId}/resubmit-proof`, {
       method: "POST",
       body: form,
@@ -993,6 +1080,49 @@ export const adminProductsApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids }),
+    });
+  },
+
+  /** ADDED: PATCH /api/products/admin/bulk — generic bulk mutate */
+  bulkMutate(payload: Record<string, any>) {
+    return request("/api/products/admin/bulk", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /** ADDED: POST /api/products/admin/bulk-discount */
+  bulkDiscount(ids: string[], discount: number) {
+    return request("/api/products/admin/bulk-discount", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, discount }),
+    });
+  },
+
+  /** ADDED: POST /api/products/admin/bulk-category */
+  bulkCategory(ids: string[], category: string) {
+    return request("/api/products/admin/bulk-category", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, category }),
+    });
+  },
+
+  /** ADDED: POST /api/products/admin/bulk-store */
+  bulkStore(ids: string[], store: string) {
+    return request("/api/products/admin/bulk-store", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, store }),
+    });
+  },
+
+  /** ADDED: DELETE /api/products/admin/empty-store */
+  emptyStore(store: string) {
+    return request(`/api/products/admin/empty-store?store=${encodeURIComponent(store)}`, {
+      method: "DELETE",
     });
   },
 };
