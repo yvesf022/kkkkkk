@@ -259,7 +259,7 @@ export default function Header() {
                 }}
               >
                 <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.85 }}>
-                  Hello, {user.name?.split(" ")[0] ?? user.email?.split("@")[0] ?? "there"}
+                  Hello, {user.full_name?.split(" ")[0] ?? user.email?.split("@")[0] ?? "there"}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 800 }}>
                   Account ▾
