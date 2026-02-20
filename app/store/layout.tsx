@@ -12,6 +12,11 @@ import { useCart } from "@/lib/cart";
 function CartInitializer() {
   const fetchCart = useCart((s) => s.fetchCart);
   useEffect(() => {
+    // Skip cart fetch on payment page — avoid competing requests during
+    // backend cold-start, and cart is already cleared by this point anyway
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/store/payment")) {
+      return;
+    }
     fetchCart();
   }, [fetchCart]);
   return null;

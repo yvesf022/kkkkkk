@@ -178,47 +178,66 @@ export default function PaymentClient() {
   }, [uiStep, payment?.status, payment?.id]);
 
   /* ── Init payment ── */
-  const initPayment = useCallback(async () => {
+  const initPayment = useCallback(async (attempt = 1) => {
     if (!orderId) return;
     setInitializing(true);
     setInitError(null);
     let resolved: Payment | null = null;
 
-    // Always use bank_transfer — only manual external payment is supported.
+    const MAX_ATTEMPTS = 4;
+    const RETRY_MS = 8000;
+
+    // Step 1: Try to create payment. Always bank_transfer (only manual payments supported).
     try {
-      resolved = await paymentsApi.create(orderId, { method: "bank_transfer" }) as Payment;
+      resolved = await paymentsApi.create(orderId) as Payment;
     } catch (createErr: any) {
       const errMsg: string = createErr?.message ?? "";
-      console.error("[initPayment] create failed:", errMsg);
+      const status: number = createErr?.status ?? 0;
+      console.error(`[initPayment] attempt ${attempt} — status ${status}:`, errMsg);
 
-      // 409 Conflict = payment already exists for this order, look it up
+      // "Failed to fetch" = network/CORS/cold-start — retry automatically
+      const isNetworkError =
+        errMsg === "Failed to fetch" ||
+        errMsg === "Load failed" ||
+        errMsg === "Network request failed" ||
+        errMsg === "NetworkError when attempting to fetch resource.";
+
+      // 409 = payment already exists for this order
       const isConflict =
-        (createErr?.status === 409) ||
+        status === 409 ||
         errMsg.toLowerCase().includes("already") ||
         errMsg.toLowerCase().includes("exist") ||
-        errMsg.toLowerCase().includes("conflict") ||
-        errMsg.toLowerCase().includes("duplicate");
+        errMsg.toLowerCase().includes("conflict");
 
-      if (isConflict) {
+      if (isNetworkError && attempt < MAX_ATTEMPTS) {
+        setInitError(`Server starting up… retrying (${attempt}/${MAX_ATTEMPTS - 1})`);
+        setTimeout(() => initPayment(attempt + 1), RETRY_MS);
+        return;
+      } else if (isNetworkError) {
+        setInitError("Cannot reach server. Please check your connection and try again.");
+        setInitializing(false);
+        return;
+      } else if (isConflict) {
+        // Payment already exists — look it up by scanning /api/payments/my
         resolved = await paymentsApi.getByOrderId(orderId);
       } else {
-        // Surface the real backend error with status for diagnosis
-        const statusHint = createErr?.status ? ` (HTTP ${createErr.status})` : "";
-        setInitError((errMsg || "Could not initialize payment") + statusHint);
+        // Real backend error — show it directly so we can diagnose
+        const hint = status ? ` (HTTP ${status})` : "";
+        setInitError((errMsg || "Could not initialize payment") + hint);
         setInitializing(false);
         return;
       }
     }
 
     if (!resolved) {
-      setInitError("No payment record found for this order. Please go back and re-place your order.");
+      setInitError("No payment found for this order. Please go back and place your order again.");
       setInitializing(false);
       return;
     }
 
     setPayment(resolved);
 
-    // Load status history
+    // Load status history (non-blocking)
     try {
       const h = await paymentsApi.getStatusHistory(resolved.id) as any;
       setStatusHistory(Array.isArray(h) ? h : h?.history ?? []);
@@ -227,12 +246,7 @@ export default function PaymentClient() {
     const hasProof = !!resolved.proof?.file_url;
     if (hasProof) setUploaded(true);
 
-    // FIX: Route to correct step based on actual payment status
-    // - paid → Step 4 (confirmed)
-    // - on_hold → Step 4 (proof submitted, awaiting admin review)
-    // - rejected → Step 2 (transfer again, show rejection alert)
-    // - pending + has proof → Step 4 (submitted)
-    // - pending + no proof → Step 2 (transfer)
+    // Route to correct step based on payment status
     if (resolved.status === "paid") {
       setCompletedSteps(new Set([1, 2, 3]));
       setUiStep(4);
@@ -243,7 +257,6 @@ export default function PaymentClient() {
       setCompletedSteps(new Set([1]));
       setUiStep(2);
     } else if (hasProof) {
-      // pending but proof was uploaded previously
       setCompletedSteps(new Set([1, 2, 3]));
       setUiStep(4);
     } else {
@@ -254,7 +267,7 @@ export default function PaymentClient() {
     setInitializing(false);
   }, [orderId]);
 
-  useEffect(() => { initPayment(); }, [initPayment]);
+  useEffect(() => { initPayment(1); }, [initPayment]);
 
   /* ── Actions ── */
   function markTransferDone() {
@@ -463,14 +476,18 @@ export default function PaymentClient() {
                 <div style={S.loadCenter}>
                   <div style={S.spinRing}><Icon.Spinner /></div>
                   <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", marginBottom: 4 }}>Connecting to payment system…</p>
-                  <p style={{ fontSize: 13, color: "#94A3B8" }}>Just a moment</p>
+                  {initError?.startsWith("Server starting") ? (
+                    <p style={{ fontSize: 13, color: "#F97316", fontWeight: 600 }}>{initError}</p>
+                  ) : (
+                    <p style={{ fontSize: 13, color: "#94A3B8" }}>Just a moment</p>
+                  )}
                 </div>
               ) : initError ? (
                 <div style={S.errSection}>
                   <div style={S.errIconRing}><Icon.Warning /></div>
                   <p style={{ fontSize: 17, fontWeight: 700, color: "#0F172A" }}>Unable to initialize</p>
                   <p style={{ fontSize: 13, color: "#64748B", maxWidth: 340, textAlign: "center" }}>{initError}</p>
-                  <button onClick={initPayment} style={S.primaryBtn} className="kbtn">Try Again</button>
+                  <button onClick={() => initPayment(1)} style={S.primaryBtn} className="kbtn">Try Again</button>
                   <Link href="/account/orders" style={{ fontSize: 13, color: "#94A3B8", textDecoration: "underline" }}>← Back to Orders</Link>
                 </div>
               ) : null}
