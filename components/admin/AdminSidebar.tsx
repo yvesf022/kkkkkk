@@ -42,7 +42,7 @@ const NAV = [
     items: [
       { label: "Stores",        href: "/admin/stores",               icon: "▣" },
       { label: "Audit Logs",    href: "/admin/logs",                 icon: "≡" },
-      { label: "Bank Settings", href: "/admin/settings/bank",        icon: "◻" },
+      { label: "Bank Settings", href: "/admin/settings/bank",        icon: "🏦" },
     ],
   },
 ];
