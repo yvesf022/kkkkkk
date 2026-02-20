@@ -111,12 +111,8 @@ export default function PaymentClient() {
   const [payment, setPayment]             = useState<Payment | null>(null);
   const [bankDetails, setBankDetails]     = useState<BankSettings | null>(null);
   const [statusHistory, setStatusHistory] = useState<any[]>([]);
-  const [initializing, setInitializing]   = useState(false); // FIX: start false so method select shows first
+  const [initializing, setInitializing]   = useState(true);
   const [initError, setInitError]         = useState<string | null>(null);
-
-  // FIX: Payment method must be selected before creating payment session
-  const [paymentMethod, setPaymentMethod] = useState<"bank_transfer" | "mobile_money" | "cash" | "card" | null>(null);
-  const [methodSelected, setMethodSelected] = useState(false);
 
   const [file, setFile]           = useState<File | null>(null);
   const [dragOver, setDragOver]   = useState(false);
@@ -184,18 +180,17 @@ export default function PaymentClient() {
   /* ── Init payment ── */
   const initPayment = useCallback(async () => {
     if (!orderId) return;
-    // FIX: Require method to be selected before creating payment
-    const method = paymentMethod ?? "bank_transfer";
     setInitializing(true);
     setInitError(null);
     let resolved: Payment | null = null;
 
-    // Step 1: Try to create a new payment session with the selected method
+    // Always use bank_transfer — only manual external payment is supported.
+    // Try to create a new payment session first.
     try {
-      resolved = await paymentsApi.create(orderId, { method }) as Payment;
+      resolved = await paymentsApi.create(orderId, { method: "bank_transfer" }) as Payment;
     } catch {
-      // Payment likely already exists for this order (409 conflict or similar).
-      // Step 2: Look up existing payment by scanning user's payment list.
+      // Payment already exists for this order (409 or similar).
+      // Look up existing payment by scanning user's payment list.
       resolved = await paymentsApi.getByOrderId(orderId);
     }
 
@@ -241,11 +236,9 @@ export default function PaymentClient() {
     }
 
     setInitializing(false);
-  }, [orderId, paymentMethod]);
+  }, [orderId]);
 
-  useEffect(() => {
-    if (methodSelected) { initPayment(); }
-  }, [initPayment, methodSelected]);
+  useEffect(() => { initPayment(); }, [initPayment]);
 
   /* ── Actions ── */
   function markTransferDone() {
@@ -445,61 +438,15 @@ export default function PaymentClient() {
         {/* ── Main ── */}
         <main style={S.main} className="kmain">
 
-          {/* ══ STEP 1: Method Selection + Initializing ══ */}
+          {/* ══ STEP 1: Initializing ══ */}
           {uiStep === 1 && (
             <div className="kpanel" style={S.panel}>
               <StepLabel n={1} />
-              <h1 style={S.panelTitle}>Choose payment method</h1>
-              <p style={S.panelSub}>How would you like to pay?</p>
-
-              {/* FIX: Method must be selected before payment session is created */}
-              {!methodSelected ? (
-                <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
-                  {([
-                    { value: "bank_transfer",  label: "Bank Transfer",   icon: "🏦", desc: "EFT or direct deposit" },
-                    { value: "mobile_money",   label: "Mobile Money",    icon: "📱", desc: "M-Pesa, EcoCash, etc." },
-                    { value: "cash",           label: "Cash Deposit",    icon: "💵", desc: "Deposit at branch" },
-                    { value: "card",           label: "Card Payment",    icon: "💳", desc: "Debit or credit card" },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setPaymentMethod(opt.value)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 14,
-                        padding: "14px 18px", borderRadius: 12,
-                        border: `2px solid ${paymentMethod === opt.value ? "#1E3A8A" : "#E2E8F0"}`,
-                        background: paymentMethod === opt.value ? "#EFF6FF" : "#fff",
-                        cursor: "pointer", textAlign: "left", fontFamily: FF,
-                        transition: "all .15s",
-                      }}
-                    >
-                      <span style={{ fontSize: 22 }}>{opt.icon}</span>
-                      <div>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: paymentMethod === opt.value ? "#1E3A8A" : "#0F172A", margin: 0 }}>{opt.label}</p>
-                        <p style={{ fontSize: 12, color: "#64748B", margin: 0 }}>{opt.desc}</p>
-                      </div>
-                      {paymentMethod === opt.value && (
-                        <span style={{ marginLeft: "auto", color: "#1E3A8A" }}><Icon.Check /></span>
-                      )}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={() => {
-                      if (!paymentMethod) { toast.error("Please select a payment method"); return; }
-                      setMethodSelected(true);
-                    }}
-                    disabled={!paymentMethod}
-                    style={{ ...S.primaryBtn, marginTop: 8, opacity: paymentMethod ? 1 : 0.45 }}
-                    className="kbtn"
-                  >
-                    Continue →
-                  </button>
-                </div>
-              ) : initializing ? (
+              <h1 style={S.panelTitle}>Setting up your payment</h1>
+              {initializing ? (
                 <div style={S.loadCenter}>
                   <div style={S.spinRing}><Icon.Spinner /></div>
-                  <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", marginBottom: 4 }}>Setting up your payment…</p>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", marginBottom: 4 }}>Connecting to payment system…</p>
                   <p style={{ fontSize: 13, color: "#94A3B8" }}>Just a moment</p>
                 </div>
               ) : initError ? (
