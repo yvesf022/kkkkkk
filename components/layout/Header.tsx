@@ -138,7 +138,13 @@ export default function Header() {
   }
 
   function goToLogin() {
-    router.push("/login");
+    const redirect = encodeURIComponent(pathname);
+    router.push(`/login?redirect=${redirect}`);
+  }
+
+  function goToRegister() {
+    const redirect = encodeURIComponent(pathname);
+    router.push(`/register?redirect=${redirect}`);
   }
 
   return (
@@ -234,9 +240,14 @@ export default function Header() {
           <CartHeaderButton onClick={goToCart} />
 
           {!user && (
-            <CapsuleLink onClick={goToLogin}>
-              Login
-            </CapsuleLink>
+            <>
+              <CapsuleLink onClick={goToLogin}>
+                Sign In
+              </CapsuleLink>
+              <CapsuleLink onClick={goToRegister}>
+                Register
+              </CapsuleLink>
+            </>
           )}
 
           {user && user.role === "user" && (

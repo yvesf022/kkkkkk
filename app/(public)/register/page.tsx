@@ -5,6 +5,7 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 
 const FF = "'DM Sans', -apple-system, sans-serif";
@@ -39,6 +40,7 @@ function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/account";
+  const authLogin = useAuth(s => s.login);
   const mergeGuestCart = useCart(s => s.mergeGuestCart);
   const fetchCart = useCart(s => s.fetchCart);
   const cartItems = useCart(s => s.cart?.items ?? []);
@@ -71,7 +73,7 @@ function RegisterContent() {
     setError(null);
     try {
       await authApi.register({ email, password, full_name: fullName });
-      await authApi.login({ email, password });
+      await authLogin(email, password);
       if (hasGuestCart) {
         await mergeGuestCart().catch(() => {});
       }
