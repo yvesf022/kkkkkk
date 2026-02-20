@@ -7,7 +7,7 @@ import { useUI } from "@/components/layout/uiStore";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
-import { CartHeaderButton } from "@/app/store/cart/page";
+import { CartHeaderButton } from "@/components/store/CartHeaderButton";
 
 /* ---------------------------------
    Helpers
