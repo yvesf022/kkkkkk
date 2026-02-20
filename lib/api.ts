@@ -32,7 +32,10 @@ async function request<T>(
       const data = await res.json();
       message = data.detail || data.message || message;
     } catch {}
-    throw new Error(message);
+    // Attach status so callers can distinguish 401 / 404 / 409 / 422 / 500
+    const err: any = new Error(message);
+    err.status = res.status;
+    throw err;
   }
 
   if (res.status === 204) return null as T;

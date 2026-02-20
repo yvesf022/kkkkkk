@@ -185,17 +185,33 @@ export default function PaymentClient() {
     let resolved: Payment | null = null;
 
     // Always use bank_transfer — only manual external payment is supported.
-    // Try to create a new payment session first.
     try {
       resolved = await paymentsApi.create(orderId, { method: "bank_transfer" }) as Payment;
-    } catch {
-      // Payment already exists for this order (409 or similar).
-      // Look up existing payment by scanning user's payment list.
-      resolved = await paymentsApi.getByOrderId(orderId);
+    } catch (createErr: any) {
+      const errMsg: string = createErr?.message ?? "";
+      console.error("[initPayment] create failed:", errMsg);
+
+      // 409 Conflict = payment already exists for this order, look it up
+      const isConflict =
+        (createErr?.status === 409) ||
+        errMsg.toLowerCase().includes("already") ||
+        errMsg.toLowerCase().includes("exist") ||
+        errMsg.toLowerCase().includes("conflict") ||
+        errMsg.toLowerCase().includes("duplicate");
+
+      if (isConflict) {
+        resolved = await paymentsApi.getByOrderId(orderId);
+      } else {
+        // Surface the real backend error with status for diagnosis
+        const statusHint = createErr?.status ? ` (HTTP ${createErr.status})` : "";
+        setInitError((errMsg || "Could not initialize payment") + statusHint);
+        setInitializing(false);
+        return;
+      }
     }
 
     if (!resolved) {
-      setInitError("Could not initialize payment. Please try again.");
+      setInitError("No payment record found for this order. Please go back and re-place your order.");
       setInitializing(false);
       return;
     }
