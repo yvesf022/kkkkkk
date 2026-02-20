@@ -7,7 +7,7 @@ import { useUI } from "@/components/layout/uiStore";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import toast from "react-hot-toast";
-import { CartHeaderButton } from "@/components/store/CartHeaderButton";
+import { CartHeaderButton } from "@/app/store/cart/page";
 
 /* ---------------------------------
    Helpers
@@ -89,11 +89,9 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
 
-  if (pathname.startsWith("/admin")) return null;
-
+  // ALL hooks must be called before any early return (Rules of Hooks)
   const { toggleSidebar } = useUI();
 
-  // FIX: derive count from items array — itemCount is not a stored field
   const cartCount = useCart((s) =>
     ((s as any).items ?? []).reduce((sum: number, i: { quantity: number }) => sum + i.quantity, 0)
   );
@@ -109,12 +107,14 @@ export default function Header() {
   /* Role guard */
   React.useEffect(() => {
     if (!user) return;
-
     if (user.role === "admin" && !pathname.startsWith("/admin")) {
       toast.error("Admin accounts cannot access user pages");
       router.replace("/admin");
     }
   }, [user, pathname, router]);
+
+  // Early return AFTER all hooks
+  if (pathname.startsWith("/admin")) return null;
 
   async function handleLogout() {
     try {
