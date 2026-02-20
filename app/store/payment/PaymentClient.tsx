@@ -146,7 +146,7 @@ export default function PaymentClient() {
     // We check sessionStorage to avoid clearing on every page visit/refresh.
     const key = `cart_cleared_${orderId}`;
     if (orderId && !sessionStorage.getItem(key)) {
-      clearCart().catch(() => {});
+      try { clearCart(); } catch {}
       sessionStorage.setItem(key, "1");
     }
   }, [orderId, clearCart]);
@@ -161,6 +161,7 @@ export default function PaymentClient() {
           setPayment(updated);
           if (updated.status === "paid") {
             clearInterval(pollTimerRef.current!);
+            setCompletedSteps(new Set([1, 2, 3]));
             toast.success("Payment confirmed! 🎉");
           } else if (updated.status === "rejected") {
             clearInterval(pollTimerRef.current!);
@@ -313,10 +314,10 @@ export default function PaymentClient() {
   }
 
   async function handleRetry() {
-    if (!orderId) return;
+    if (!payment?.id) return;
     setRetrying(true);
     try {
-      const p = await paymentsApi.retry(orderId) as Payment;
+      const p = await paymentsApi.retry(payment.id) as Payment;
       setPayment(p);
       setUploaded(false);
       setStatusHistory([]);
@@ -335,6 +336,7 @@ export default function PaymentClient() {
       const updated = await paymentsApi.getById(payment.id) as Payment;
       setPayment(updated);
       if (updated.status === "paid") {
+        setCompletedSteps(new Set([1, 2, 3]));
         toast.success("Payment confirmed!");
       } else if (updated.status === "rejected") {
         toast.error("Payment rejected.");

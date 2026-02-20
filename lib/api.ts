@@ -456,10 +456,10 @@ export function getMyOrders(): Promise<Order[]> {
 export const paymentsApi = {
   // bank_transfer is the only supported method — hardcoded here, no UI selection needed
   create: (orderId: string) =>
-    request<Payment>(`/api/payments/${orderId}`, {
+    request<Payment>(`/api/payments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: "bank_transfer" }),
+      body: JSON.stringify({ order_id: orderId, method: "bank_transfer" }),
     }),
 
   uploadProof: (paymentId: string, file: File) => {
@@ -532,8 +532,8 @@ export const paymentsApi = {
       body: JSON.stringify({ reason }),
     }),
 
-  retry: (orderId: string): Promise<Payment> =>
-    request<Payment>(`/api/payments/${orderId}/retry`, {
+  retry: (paymentId: string): Promise<Payment> =>
+    request<Payment>(`/api/payments/${paymentId}/retry`, {
       method: "POST",
     }),
 
