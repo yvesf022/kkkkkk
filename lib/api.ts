@@ -414,7 +414,7 @@ export const ordersApi = {
     }),
 
   cancel: (orderId: string, reason: string) =>
-    request(`/api/orders/${orderId}/cancel`, {
+    request(`/api/orders/my/${orderId}/cancel`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason }),
@@ -464,7 +464,7 @@ export const paymentsApi = {
 
   uploadProof: (paymentId: string, file: File) => {
     const form = new FormData();
-    form.append("proof", file); // backend declares: proof: UploadFile = File(...)
+    form.append("file", file); // FIX: backend expects "file" consistently
     return request(`/api/payments/${paymentId}/proof`, {
       method: "POST",
       body: form,

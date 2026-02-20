@@ -4,7 +4,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { authApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 
 const FF = "'DM Sans', -apple-system, sans-serif";
@@ -33,6 +33,12 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/account";
+
+  // FIX: use the auth store's login() so global user state is updated —
+  // previously authApi.login() was called directly which skipped the store,
+  // so the app never knew the user was logged in and route guards blocked the redirect.
+  const authLogin = useAuth(s => s.login);
+
   const mergeGuestCart = useCart(s => s.mergeGuestCart);
   const fetchCart = useCart(s => s.fetchCart);
   const cartItems = useCart(s => s.cart?.items ?? []);
@@ -51,7 +57,7 @@ function LoginContent() {
     setLoading(true);
     setError(null);
     try {
-      await authApi.login({ email, password });
+      await authLogin(email, password);
       if (hasGuestCart) {
         await mergeGuestCart().catch(() => {});
       }
