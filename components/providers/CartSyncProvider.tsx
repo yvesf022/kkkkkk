@@ -13,24 +13,24 @@ import { useEffect, useRef } from "react";
 import { useCart } from "@/lib/cart";
 
 export default function CartSyncProvider({ children }: { children: React.ReactNode }) {
-  const fetchCart = useCart((s) => s.fetchCart);
+  const fetchCartRef = useRef(useCart.getState().fetchCart);
   const hasFetched = useRef(false);
 
   useEffect(() => {
-    // Initial fetch on mount
-    if (!hasFetched.current) {
-      hasFetched.current = true;
-      fetchCart().catch(() => {}); // Silently ignore 401 for guests
-    }
+  const fetchCart = fetchCartRef.current;
 
-    // Re-fetch when tab regains focus — covers: payment app switch, back navigation
-    const handleFocus = () => {
-      fetchCart().catch(() => {});
-    };
+  if (!hasFetched.current) {
+    hasFetched.current = true;
+    fetchCart().catch(() => {});
+  }
 
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [fetchCart]);
+  const handleFocus = () => {
+    fetchCart().catch(() => {});
+  };
+
+  window.addEventListener("focus", handleFocus);
+  return () => window.removeEventListener("focus", handleFocus);
+}, []);
 
   return <>{children}</>;
 }
