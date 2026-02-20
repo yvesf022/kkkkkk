@@ -4,16 +4,12 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import type { Product, ProductVariant } from "@/lib/types";
 import { useCart } from "@/lib/cart";
+import { useAuth } from "@/lib/auth";
 import { formatCurrency } from "@/lib/currency";
 import { useRouter } from "next/navigation";
 
-interface Props {
-  product: Product;
-}
+interface Props { product: Product; }
 
-/* ── helpers ──────────────────────────────────────────────────── */
-
-/** Resolve all displayable image URLs — handles both string[] and ProductImage[] */
 function resolveImages(product: Product): string[] {
   const seen = new Set<string>();
   const urls: string[] = [];
@@ -37,36 +33,29 @@ function resolveImages(product: Product): string[] {
   return urls;
 }
 
-/** Safe image component — falls back to placeholder on broken URLs */
-function SafeImage({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties; }) {
+function SafeImage({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties }) {
   const [error, setError] = useState(false);
-
   if (error || !src) {
     return (
-      <div style={{ width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:56,background:"#f1f5f9",...style }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 56, background: "#f1f5f9", ...style }}>
         📦
       </div>
     );
   }
-
-  return (
-    <img src={src} alt={alt} onError={() => setError(true)}
-      style={{ width:"100%",height:"100%",objectFit:"cover",display:"block",...style }} />
-  );
+  return <img src={src} alt={alt} onError={() => setError(true)} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...style }} />;
 }
-
-/* ── main component ───────────────────────────────────────────── */
 
 export default function AddToCartClient({ product }: Props) {
   const router = useRouter();
   const addItem = useCart((s) => s.addItem);
   const cartLoading = useCart((s) => s.loading);
 
-  /* images */
+  // FIX #4: read auth state — unauthenticated users cannot add to cart
+  const { user } = useAuth();
+
   const allImages = resolveImages(product);
   const [activeIdx, setActiveIdx] = useState(0);
 
-  /* variants */
   const activeVariants = product.variants?.filter((v) => !v.is_deleted && v.is_active) ?? [];
   const attrKeys = Array.from(new Set(activeVariants.flatMap((v) => Object.keys(v.attributes))));
 
@@ -116,14 +105,21 @@ export default function AddToCartClient({ product }: Props) {
     );
   }
 
+  // Return URL so user lands back on this product after login
+  const returnUrl = `/store/product/${product.id}`;
+
   async function handleAdd() {
+    // FIX #4: Redirect to login if not authenticated — Amazon-style
+    if (!user) {
+      router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
     if (!inStock) { toast.error("Out of stock"); return; }
     if (qty < 1 || qty > maxStock) { toast.error("Invalid quantity"); return; }
     if (activeVariants.length > 0 && !resolvedVariant) {
       toast.error("Please select a valid variant combination");
       return;
     }
-
     setAdding(true);
     try {
       await addItem(product.id, qty, resolvedVariant?.id);
@@ -138,7 +134,7 @@ export default function AddToCartClient({ product }: Props) {
 
   return (
     <div
-      style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:48, alignItems:"start" }}
+      style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }}
       className="product-detail-grid"
     >
       {/* ═══════════════ IMAGE GALLERY ═══════════════ */}
@@ -169,21 +165,21 @@ export default function AddToCartClient({ product }: Props) {
           <div className="pd-main-wrap">
             {displayImages.length > 0
               ? <SafeImage src={displayImages[activeIdx] ?? displayImages[0]} alt={product.title} />
-              : <div style={{ width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:72 }}>📦</div>
+              : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 72 }}>📦</div>
             }
             {discountPct && (
-              <div style={{ position:"absolute",top:14,left:14,background:"#dc2626",color:"#fff",borderRadius:8,padding:"4px 10px",fontWeight:800,fontSize:13,zIndex:2 }}>
+              <div style={{ position: "absolute", top: 14, left: 14, background: "#dc2626", color: "#fff", borderRadius: 8, padding: "4px 10px", fontWeight: 800, fontSize: 13, zIndex: 2 }}>
                 -{discountPct}%
               </div>
             )}
-            {displayImages.length > 1 && (<>
-              <button type="button" className="pd-nav prev"
-                onClick={() => setActiveIdx(i => (i - 1 + displayImages.length) % displayImages.length)}>‹</button>
-              <button type="button" className="pd-nav next"
-                onClick={() => setActiveIdx(i => (i + 1) % displayImages.length)}>›</button>
-            </>)}
             {displayImages.length > 1 && (
-              <div className="pd-counter">{activeIdx + 1} / {displayImages.length}</div>
+              <>
+                <button type="button" className="pd-nav prev"
+                  onClick={() => setActiveIdx(i => (i - 1 + displayImages.length) % displayImages.length)}>‹</button>
+                <button type="button" className="pd-nav next"
+                  onClick={() => setActiveIdx(i => (i + 1) % displayImages.length)}>›</button>
+                <div className="pd-counter">{activeIdx + 1} / {displayImages.length}</div>
+              </>
             )}
           </div>
 
@@ -204,80 +200,80 @@ export default function AddToCartClient({ product }: Props) {
           <div className="pd-dots">
             {displayImages.map((_, i) => (
               <button key={i} type="button" onClick={() => setActiveIdx(i)}
-                style={{ width:activeIdx===i?22:8,height:8,borderRadius:99,background:activeIdx===i?"#0033a0":"#d1d5db",border:"none",cursor:"pointer",padding:0,transition:"all 0.2s" }} />
+                style={{ width: activeIdx === i ? 22 : 8, height: 8, borderRadius: 99, background: activeIdx === i ? "#0033a0" : "#d1d5db", border: "none", cursor: "pointer", padding: 0, transition: "all 0.2s" }} />
             ))}
           </div>
         )}
       </div>
 
       {/* ═══════════════ PRODUCT INFO & ACTIONS ═══════════════ */}
-      <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {product.brand && (
-          <div style={{ fontSize:12, fontWeight:700, color:"#64748b", letterSpacing:1, textTransform:"uppercase" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", letterSpacing: 1, textTransform: "uppercase" }}>
             {product.brand}
           </div>
         )}
 
-        <h1 style={{ fontSize:26, fontWeight:900, color:"#0f172a", lineHeight:1.25, margin:0 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 900, color: "#0f172a", lineHeight: 1.25, margin: 0 }}>
           {product.title}
         </h1>
 
         {product.rating && (
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <div style={{ display:"flex", gap:2 }}>
-              {[1,2,3,4,5].map((s) => (
-                <span key={s} style={{ fontSize:14, color: s<=Math.round(product.rating??0)?"#f59e0b":"#d1d5db" }}>★</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", gap: 2 }}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <span key={s} style={{ fontSize: 14, color: s <= Math.round(product.rating ?? 0) ? "#f59e0b" : "#d1d5db" }}>★</span>
               ))}
             </div>
-            <span style={{ fontSize:13, color:"#64748b" }}>
+            <span style={{ fontSize: 13, color: "#64748b" }}>
               {product.rating.toFixed(1)}
               {product.rating_number ? ` (${product.rating_number.toLocaleString()} reviews)` : ""}
             </span>
           </div>
         )}
 
-        <div style={{ display:"flex", alignItems:"baseline", gap:12 }}>
-          <span style={{ fontSize:30, fontWeight:900, color:"#0f172a", letterSpacing:-0.5 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+          <span style={{ fontSize: 30, fontWeight: 900, color: "#0f172a", letterSpacing: -0.5 }}>
             {formatCurrency(displayPrice)}
           </span>
           {displayCompare && displayCompare > displayPrice && (
-            <span style={{ fontSize:18, color:"#94a3b8", textDecoration:"line-through", fontWeight:400 }}>
+            <span style={{ fontSize: 18, color: "#94a3b8", textDecoration: "line-through", fontWeight: 400 }}>
               {formatCurrency(displayCompare)}
             </span>
           )}
         </div>
 
         {product.short_description && (
-          <p style={{ fontSize:14, color:"#475569", lineHeight:1.6, margin:0 }}>
+          <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.6, margin: 0 }}>
             {product.short_description}
           </p>
         )}
 
         {attrKeys.length > 0 && (
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {attrKeys.map((attrKey) => {
               const values = Array.from(new Set(activeVariants.map((v) => v.attributes[attrKey]).filter(Boolean)));
               return (
                 <div key={attrKey}>
-                  <div style={{ fontSize:12, fontWeight:700, color:"#374151", marginBottom:8, textTransform:"capitalize" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8, textTransform: "capitalize" }}>
                     {attrKey}:{" "}
-                    <span style={{ fontWeight:400, color:"#6b7280" }}>{selectedAttrs[attrKey]??"—"}</span>
+                    <span style={{ fontWeight: 400, color: "#6b7280" }}>{selectedAttrs[attrKey] ?? "—"}</span>
                   </div>
-                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {values.map((val) => {
                       const available = isOptionAvailable(attrKey, val);
                       const selected = selectedAttrs[attrKey] === val;
                       return (
                         <button key={val} type="button" disabled={!available} onClick={() => selectAttr(attrKey, val)}
                           style={{
-                            padding:"8px 16px", borderRadius:10,
+                            padding: "8px 16px", borderRadius: 10,
                             border: selected ? "2px solid #0f172a" : "1.5px solid #d1d5db",
                             background: selected ? "#0f172a" : "#fff",
                             color: selected ? "#fff" : available ? "#0f172a" : "#9ca3af",
-                            fontWeight: selected ? 700 : 500, fontSize:13,
+                            fontWeight: selected ? 700 : 500, fontSize: 13,
                             cursor: available ? "pointer" : "not-allowed",
-                            opacity: available ? 1 : 0.45, transition:"all 0.15s",
-                            position:"relative", textDecoration: !available ? "line-through" : "none",
+                            opacity: available ? 1 : 0.45, transition: "all 0.15s",
+                            position: "relative", textDecoration: !available ? "line-through" : "none",
                           }}>
                           {val}
                         </button>
@@ -291,73 +287,112 @@ export default function AddToCartClient({ product }: Props) {
         )}
 
         <div>
-          {inStock ? (
-            <span style={{ fontWeight:700, color:"#166534", fontSize:14 }}>✓ In Stock ({maxStock} available)</span>
-          ) : (
-            <span style={{ fontWeight:700, color:"#991b1b", fontSize:14 }}>✗ Out of Stock</span>
-          )}
+          {inStock
+            ? <span style={{ fontWeight: 700, color: "#166534", fontSize: 14 }}>✓ In Stock ({maxStock} available)</span>
+            : <span style={{ fontWeight: 700, color: "#991b1b", fontSize: 14 }}>✗ Out of Stock</span>
+          }
         </div>
 
         {inStock && (
-          <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-            <span style={{ fontWeight:700, fontSize:14 }}>Quantity</span>
-            <div style={{ display:"flex", alignItems:"center", borderRadius:12, border:"1.5px solid #e5e7eb", overflow:"hidden" }}>
-              <button type="button" onClick={() => setQty((q) => Math.max(1, q-1))} style={qtyBtnStyle} disabled={qty<=1}>−</button>
-              <div style={{ minWidth:52, textAlign:"center", fontWeight:800, fontSize:16 }}>{qty}</div>
-              <button type="button" onClick={() => setQty((q) => Math.min(maxStock, q+1))} style={qtyBtnStyle} disabled={qty>=maxStock}>+</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <span style={{ fontWeight: 700, fontSize: 14 }}>Quantity</span>
+            <div style={{ display: "flex", alignItems: "center", borderRadius: 12, border: "1.5px solid #e5e7eb", overflow: "hidden" }}>
+              <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} style={qtyBtnStyle} disabled={qty <= 1}>−</button>
+              <div style={{ minWidth: 52, textAlign: "center", fontWeight: 800, fontSize: 16 }}>{qty}</div>
+              <button type="button" onClick={() => setQty((q) => Math.min(maxStock, q + 1))} style={qtyBtnStyle} disabled={qty >= maxStock}>+</button>
             </div>
           </div>
         )}
 
-        {/* ── Add to Cart + View Cart buttons ── */}
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <button
-            onClick={handleAdd}
-            disabled={!inStock || adding || cartLoading}
-            style={{
-              padding:"16px", borderRadius:14, border:"none",
-              background: inStock ? "#0f172a" : "#9ca3af",
-              color:"#fff", fontSize:16, fontWeight:900,
-              cursor: inStock ? "pointer" : "not-allowed",
-              transition:"opacity 0.2s, transform 0.1s",
-              opacity: adding || cartLoading ? 0.75 : 1,
-            }}
-            onMouseEnter={(e) => { if (inStock) e.currentTarget.style.opacity = "0.87"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = adding ? "0.75" : "1"; }}
-          >
-            {adding ? "Adding…" : inStock ? "🛒 Add to Cart" : "Unavailable"}
-          </button>
+        {/* ── Add to Cart / Sign In ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
-          {justAdded && (
-            <button
-              onClick={() => router.push("/store/cart")}
-              style={{
-                padding:"16px", borderRadius:14, border:"2px solid #0f172a",
-                background:"#fff", color:"#0f172a", fontSize:16, fontWeight:900,
-                cursor:"pointer", transition:"all 0.2s",
-                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#0f172a";
-                e.currentTarget.style.color = "#fff";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#fff";
-                e.currentTarget.style.color = "#0f172a";
-              }}
-            >
-              🛍️ View Cart
-            </button>
+          {/* FIX #4: Guest user — show Amazon-style "Sign in to buy" panel */}
+          {!user && (
+            <div style={{
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              borderRadius: 14,
+              padding: "18px 20px",
+            }}>
+              <p style={{ margin: "0 0 12px", fontSize: 14, color: "#78350f", fontWeight: 600 }}>
+                Sign in to add this item to your cart
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button
+                  onClick={() => router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`)}
+                  style={{
+                    padding: "13px", borderRadius: 12, border: "none",
+                    background: "#0f172a", color: "#fff",
+                    fontSize: 15, fontWeight: 800, cursor: "pointer",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = "0.87"; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+                >
+                  🔒 Sign In to Buy
+                </button>
+                <button
+                  onClick={() => router.push(`/register?redirect=${encodeURIComponent(returnUrl)}`)}
+                  style={{
+                    padding: "12px", borderRadius: 12,
+                    border: "1.5px solid #0f172a", background: "#fff",
+                    color: "#0f172a", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#f8fafc"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
+                >
+                  Create Account — It&apos;s Free
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Authenticated user — normal add to cart */}
+          {user && (
+            <>
+              <button
+                onClick={handleAdd}
+                disabled={!inStock || adding || cartLoading}
+                style={{
+                  padding: "16px", borderRadius: 14, border: "none",
+                  background: inStock ? "#0f172a" : "#9ca3af",
+                  color: "#fff", fontSize: 16, fontWeight: 900,
+                  cursor: inStock ? "pointer" : "not-allowed",
+                  transition: "opacity 0.2s, transform 0.1s",
+                  opacity: adding || cartLoading ? 0.75 : 1,
+                }}
+                onMouseEnter={(e) => { if (inStock) e.currentTarget.style.opacity = "0.87"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = adding ? "0.75" : "1"; }}
+              >
+                {adding ? "Adding…" : inStock ? "🛒 Add to Cart" : "Unavailable"}
+              </button>
+
+              {justAdded && (
+                <button
+                  onClick={() => router.push("/store/cart")}
+                  style={{
+                    padding: "16px", borderRadius: 14, border: "2px solid #0f172a",
+                    background: "#fff", color: "#0f172a", fontSize: 16, fontWeight: 900,
+                    cursor: "pointer", transition: "all 0.2s",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#0f172a"; e.currentTarget.style.color = "#fff"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#0f172a"; }}
+                >
+                  🛍️ View Cart
+                </button>
+              )}
+            </>
           )}
         </div>
 
         {(product.sku || product.category) && (
-          <div style={{ display:"flex", flexDirection:"column", gap:4, paddingTop:8, borderTop:"1px solid #f1f5f9" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 8, borderTop: "1px solid #f1f5f9" }}>
             {product.sku && (
-              <div style={{ fontSize:12, color:"#94a3b8" }}>SKU: <span style={{ color:"#64748b" }}>{product.sku}</span></div>
+              <div style={{ fontSize: 12, color: "#94a3b8" }}>SKU: <span style={{ color: "#64748b" }}>{product.sku}</span></div>
             )}
             {product.category && (
-              <div style={{ fontSize:12, color:"#94a3b8" }}>Category: <span style={{ color:"#64748b" }}>{product.category}</span></div>
+              <div style={{ fontSize: 12, color: "#94a3b8" }}>Category: <span style={{ color: "#64748b" }}>{product.category}</span></div>
             )}
           </div>
         )}
@@ -369,6 +404,6 @@ export default function AddToCartClient({ product }: Props) {
 }
 
 const qtyBtnStyle: React.CSSProperties = {
-  padding:"10px 16px", background:"#fff", border:"none",
-  fontWeight:900, fontSize:20, cursor:"pointer", color:"#0f172a", lineHeight:1,
+  padding: "10px 16px", background: "#fff", border: "none",
+  fontWeight: 900, fontSize: 20, cursor: "pointer", color: "#0f172a", lineHeight: 1,
 };
