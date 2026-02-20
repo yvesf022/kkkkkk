@@ -1,9 +1,9 @@
+// FILE: app/admin/products/new/page.tsx  (Admin NEW Product)
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { productsApi, adminApi } from "@/lib/api";
-import type { Store } from "@/lib/types";
 
 type Step = "basic" | "pricing" | "inventory" | "images" | "review";
 const STEPS: { key: Step; label: string; icon: string }[] = [
@@ -15,19 +15,19 @@ const STEPS: { key: Step; label: string; icon: string }[] = [
 ];
 
 type Form = {
-  title:             string;
-  short_description: string;
-  description:       string;
-  category:          string;
-  brand:             string;
-  store:             string;
-  sku:               string;
-  price:             string;
-  compare_price:     string;
-  status:            string;
-  stock:             string;
+  title:               string;
+  short_description:   string;
+  description:         string;
+  category:            string;
+  brand:               string;
+  store:               string;
+  sku:                 string;
+  price:               string;
+  compare_price:       string;
+  status:              string;
+  stock:               string;
   low_stock_threshold: string;
-  image_urls:        string;
+  image_urls:          string;
 };
 
 const INIT: Form = {
@@ -45,7 +45,9 @@ export default function NewProductPage() {
   const [form,    setForm]    = useState<Form>(INIT);
   const [saving,  setSaving]  = useState(false);
   const [errors,  setErrors]  = useState<Partial<Record<keyof Form, string>>>({});
-  const [stores,  setStores]  = useState<Store[]>([]);
+  // FIX: stores come from adminApi.listStores() — previously typed as Store[]
+  // but Store type may differ; use any[] to avoid type mismatch crash
+  const [stores,  setStores]  = useState<any[]>([]);
   const [toast,   setToast]   = useState<{ msg: string; ok: boolean } | null>(null);
   const [created, setCreated] = useState<{ id: string; title: string } | null>(null);
 
@@ -55,7 +57,9 @@ export default function NewProductPage() {
   };
 
   useEffect(() => {
-    adminApi.listStores().then((r: any) => setStores(r ?? [])).catch(() => {});
+    adminApi.listStores()
+      .then((r: any) => setStores(Array.isArray(r) ? r : r?.results ?? []))
+      .catch(() => {});
   }, []);
 
   function set(field: keyof Form, value: string) {
@@ -63,10 +67,9 @@ export default function NewProductPage() {
     setErrors((p) => ({ ...p, [field]: undefined }));
   }
 
-  const stepIndex   = STEPS.findIndex((s) => s.key === step);
-  const isFirst     = stepIndex === 0;
-  const isLast      = stepIndex === STEPS.length - 1;
-  const isReview    = step === "review";
+  const stepIndex = STEPS.findIndex((s) => s.key === step);
+  const isFirst   = stepIndex === 0;
+  const isLast    = stepIndex === STEPS.length - 1;
 
   function validateStep(s: Step): boolean {
     const errs: Partial<Record<keyof Form, string>> = {};
@@ -102,25 +105,31 @@ export default function NewProductPage() {
     }
     setSaving(true);
     try {
+      // FIX: send store_id not store — backend CreateProduct schema uses store_id
+      // Also omit undefined fields cleanly so backend doesn't reject them
       const payload: Record<string, any> = {
-        title:             form.title.trim(),
-        short_description: form.short_description.trim() || undefined,
-        description:       form.description.trim() || undefined,
-        category:          form.category.trim() || undefined,
-        brand:             form.brand.trim() || undefined,
-        store:             form.store.trim() || undefined,
-        sku:               form.sku.trim() || undefined,
-        price:             Number(form.price),
-        compare_price:     form.compare_price ? Number(form.compare_price) : undefined,
-        status:            form.status,
-        stock:             form.stock !== "" ? Number(form.stock) : 0,
+        title:               form.title.trim(),
+        price:               Number(form.price),
+        status:              form.status,
+        stock:               form.stock !== "" ? Number(form.stock) : 0,
         low_stock_threshold: form.low_stock_threshold ? Number(form.low_stock_threshold) : 10,
       };
+      if (form.short_description.trim()) payload.short_description = form.short_description.trim();
+      if (form.description.trim())       payload.description        = form.description.trim();
+      if (form.category.trim())          payload.category           = form.category.trim();
+      if (form.brand.trim())             payload.brand              = form.brand.trim();
+      if (form.sku.trim())               payload.sku                = form.sku.trim();
+      if (form.compare_price)            payload.compare_price      = Number(form.compare_price);
+      // FIX: send as both store and store_id to cover either backend field name
+      if (form.store.trim()) {
+        payload.store    = form.store.trim();
+        payload.store_id = form.store.trim();
+      }
 
       const result = await productsApi.create(payload) as any;
       const newId = result?.id ?? "";
 
-      // Add images if any provided
+      // Add images if provided
       const urls = form.image_urls.split("\n").map((u) => u.trim()).filter(Boolean);
       if (urls.length > 0 && newId) {
         try {
@@ -143,7 +152,6 @@ export default function NewProductPage() {
     ).length / 10) * 100
   );
 
-  // ── SUCCESS SCREEN ────────────────────────────────────
   if (created) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -154,15 +162,9 @@ export default function NewProductPage() {
             <strong style={{ color: "#0f172a" }}>{created.title}</strong> has been created successfully.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={() => router.push(`/admin/products/${created.id}`)} style={primaryBtn}>
-              Open Product →
-            </button>
-            <button onClick={() => { setForm(INIT); setStep("basic"); setCreated(null); }} style={outlineBtn}>
-              Create Another
-            </button>
-            <button onClick={() => router.push("/admin/products")} style={outlineBtn}>
-              Back to Products
-            </button>
+            <button onClick={() => router.push(`/admin/products/${created.id}`)} style={primaryBtn}>Open Product →</button>
+            <button onClick={() => { setForm(INIT); setStep("basic"); setCreated(null); }} style={outlineBtn}>Create Another</button>
+            <button onClick={() => router.push("/admin/products")} style={outlineBtn}>Back to Products</button>
           </div>
         </div>
       </div>
@@ -171,7 +173,6 @@ export default function NewProductPage() {
 
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#f8fafc", minHeight: "100vh" }}>
-      {/* TOAST */}
       {toast && (
         <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 500, background: toast.ok ? "#0f172a" : "#dc2626", color: "#fff", boxShadow: "0 8px 24px rgba(0,0,0,0.18)", animation: "slideIn 0.2s ease" }}>
           {toast.ok ? "✓" : "✕"} {toast.msg}
@@ -179,7 +180,6 @@ export default function NewProductPage() {
       )}
 
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "28px 24px" }}>
-        {/* ── HEADER ── */}
         <div style={{ marginBottom: 28 }}>
           <button onClick={() => router.push("/admin/products")} style={ghostBtn}>← Products</button>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10, flexWrap: "wrap", gap: 12 }}>
@@ -187,7 +187,6 @@ export default function NewProductPage() {
               <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.5px", margin: 0 }}>New Product</h1>
               <p style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>Fill in product details. You can always update later.</p>
             </div>
-            {/* Completion bar */}
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>Completeness {completionPct}%</div>
               <div style={{ width: 160, height: 6, background: "#e2e8f0", borderRadius: 99, overflow: "hidden" }}>
@@ -197,29 +196,19 @@ export default function NewProductPage() {
           </div>
         </div>
 
-        {/* ── STEP PROGRESS ── */}
+        {/* STEP PROGRESS */}
         <div style={{ display: "flex", gap: 0, marginBottom: 28, overflowX: "auto" }}>
           {STEPS.map((s, i) => {
-            const done    = STEPS.findIndex((x) => x.key === step) > i;
+            const done    = stepIndex > i;
             const current = s.key === step;
             return (
               <div key={s.key} style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
-                <button
-                  onClick={() => setStep(s.key)}
-                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", flex: 1, padding: "8px 4px" }}
-                >
-                  <div style={{
-                    width: 32, height: 32, borderRadius: "50%",
-                    background: current ? "#0f172a" : done ? "#22c55e" : "#e2e8f0",
-                    color: current || done ? "#fff" : "#94a3b8",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: done ? 16 : 13, fontWeight: 700, transition: "all 0.2s",
-                  }}>
+                <button onClick={() => setStep(s.key)}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", flex: 1, padding: "8px 4px" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: current ? "#0f172a" : done ? "#22c55e" : "#e2e8f0", color: current || done ? "#fff" : "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: done ? 16 : 13, fontWeight: 700, transition: "all 0.2s" }}>
                     {done ? "✓" : s.icon}
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: current ? 700 : 400, color: current ? "#0f172a" : done ? "#22c55e" : "#94a3b8", whiteSpace: "nowrap" }}>
-                    {s.label}
-                  </span>
+                  <span style={{ fontSize: 11, fontWeight: current ? 700 : 400, color: current ? "#0f172a" : done ? "#22c55e" : "#94a3b8", whiteSpace: "nowrap" }}>{s.label}</span>
                 </button>
                 {i < STEPS.length - 1 && (
                   <div style={{ height: 2, flex: 1, background: done ? "#22c55e" : "#e2e8f0", marginBottom: 20, transition: "background 0.3s" }} />
@@ -229,10 +218,9 @@ export default function NewProductPage() {
           })}
         </div>
 
-        {/* ── STEP CONTENT ── */}
+        {/* STEP CONTENT */}
         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 28, marginBottom: 20 }}>
 
-          {/* BASIC INFO */}
           {step === "basic" && (
             <div>
               <StepTitle title="Basic Information" desc="Name, description and classification" />
@@ -243,7 +231,7 @@ export default function NewProductPage() {
                 <input style={inputStyle} value={form.short_description} onChange={(e) => set("short_description", e.target.value)} placeholder="One-line summary for product cards" />
               </Field>
               <Field label="Full Description">
-                <textarea style={{ ...inputStyle, minHeight: 110, resize: "vertical" }} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Detailed product description, features, and benefits…" />
+                <textarea style={{ ...inputStyle, minHeight: 110, resize: "vertical" }} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Detailed product description…" />
               </Field>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <Field label="Category">
@@ -256,7 +244,7 @@ export default function NewProductPage() {
                   {stores.length > 0 ? (
                     <select style={inputStyle} value={form.store} onChange={(e) => set("store", e.target.value)}>
                       <option value="">— Select store —</option>
-                      {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      {stores.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   ) : (
                     <input style={inputStyle} value={form.store} onChange={(e) => set("store", e.target.value)} placeholder="Store ID" />
@@ -269,7 +257,6 @@ export default function NewProductPage() {
             </div>
           )}
 
-          {/* PRICING */}
           {step === "pricing" && (
             <div>
               <StepTitle title="Pricing" desc="Set the selling price and optional compare price" />
@@ -287,8 +274,6 @@ export default function NewProductPage() {
                   </div>
                 </Field>
               </div>
-
-              {/* Discount preview */}
               {form.price && form.compare_price && Number(form.compare_price) > Number(form.price) && (
                 <div style={{ marginTop: 4, padding: "12px 16px", background: "#f0fdf4", borderRadius: 10, border: "1px solid #bbf7d0" }}>
                   <span style={{ fontSize: 13, color: "#15803d", fontWeight: 600 }}>
@@ -296,7 +281,6 @@ export default function NewProductPage() {
                   </span>
                 </div>
               )}
-
               <div style={{ marginTop: 20 }}>
                 <Field label="Initial Status">
                   <div style={{ display: "flex", gap: 10 }}>
@@ -304,15 +288,11 @@ export default function NewProductPage() {
                       { v: "draft",  label: "Draft",  desc: "Hidden from store",  icon: "📝" },
                       { v: "active", label: "Active", desc: "Live immediately",   icon: "✅" },
                     ].map((o) => (
-                      <button
-                        key={o.v}
-                        type="button"
-                        onClick={() => set("status", o.v)}
-                        style={{ flex: 1, padding: "14px 16px", borderRadius: 10, border: `2px solid ${form.status === o.v ? "#0f172a" : "#e2e8f0"}`, background: form.status === o.v ? "#0f172a" : "#fff", cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}
-                      >
+                      <button key={o.v} type="button" onClick={() => set("status", o.v)}
+                        style={{ flex: 1, padding: "14px 16px", borderRadius: 10, border: `2px solid ${form.status === o.v ? "#0f172a" : "#e2e8f0"}`, background: form.status === o.v ? "#0f172a" : "#fff", cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
                         <div style={{ fontSize: 18, marginBottom: 4 }}>{o.icon}</div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: form.status === o.v ? "#fff" : "#0f172a" }}>{o.label}</div>
-                        <div style={{ fontSize: 12, color: form.status === o.v ? "#94a3b8" : "#94a3b8" }}>{o.desc}</div>
+                        <div style={{ fontSize: 12, color: "#94a3b8" }}>{o.desc}</div>
                       </button>
                     ))}
                   </div>
@@ -321,7 +301,6 @@ export default function NewProductPage() {
             </div>
           )}
 
-          {/* INVENTORY */}
           {step === "inventory" && (
             <div>
               <StepTitle title="Inventory" desc="Set initial stock levels" />
@@ -335,25 +314,18 @@ export default function NewProductPage() {
               </div>
               <div style={{ marginTop: 8, padding: "12px 16px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
                 <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
-                  💡 You can also adjust inventory later from the product detail page using "Set", "Adjust", or "Incoming" modes.
+                  💡 You can adjust inventory later from the product detail page using "Set", "Adjust", or "Incoming" modes.
                 </p>
               </div>
             </div>
           )}
 
-          {/* IMAGES */}
           {step === "images" && (
             <div>
-              <StepTitle title="Product Images" desc="Add image URLs (one per line) — you can also add/manage images after creating the product" />
+              <StepTitle title="Product Images" desc="Add image URLs (one per line) — you can also manage images after creating the product" />
               <Field label="Image URLs (optional)">
-                <textarea
-                  style={{ ...inputStyle, minHeight: 130, resize: "vertical", fontFamily: "monospace", fontSize: 12 }}
-                  value={form.image_urls}
-                  onChange={(e) => set("image_urls", e.target.value)}
-                  placeholder={"https://cdn.example.com/product-1.jpg\nhttps://cdn.example.com/product-2.jpg"}
-                />
+                <textarea style={{ ...inputStyle, minHeight: 130, resize: "vertical", fontFamily: "monospace", fontSize: 12 }} value={form.image_urls} onChange={(e) => set("image_urls", e.target.value)} placeholder={"https://cdn.example.com/product-1.jpg\nhttps://cdn.example.com/product-2.jpg"} />
               </Field>
-              {/* Preview thumbnails */}
               {form.image_urls && (
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
                   {form.image_urls.split("\n").filter((u) => u.trim().startsWith("http")).map((url, i) => (
@@ -366,24 +338,23 @@ export default function NewProductPage() {
             </div>
           )}
 
-          {/* REVIEW */}
           {step === "review" && (
             <div>
               <StepTitle title="Review & Create" desc="Confirm product details before creating" />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <ReviewSection title="Basic Info" items={[
-                  ["Title",       form.title || "—"],
-                  ["Category",    form.category || "—"],
-                  ["Brand",       form.brand || "—"],
-                  ["SKU",         form.sku || "—"],
-                  ["Store",       form.store || "—"],
+                  ["Title",    form.title || "—"],
+                  ["Category", form.category || "—"],
+                  ["Brand",    form.brand || "—"],
+                  ["SKU",      form.sku || "—"],
+                  ["Store",    form.store || "—"],
                 ]} />
                 <ReviewSection title="Pricing & Status" items={[
-                  ["Price",           form.price ? `R ${Number(form.price).toLocaleString()}` : "—"],
-                  ["Compare Price",   form.compare_price ? `R ${Number(form.compare_price).toLocaleString()}` : "—"],
-                  ["Status",          form.status],
-                  ["Stock",           form.stock || "0"],
-                  ["Low Stock At",    form.low_stock_threshold || "10"],
+                  ["Price",         form.price ? `R ${Number(form.price).toLocaleString()}` : "—"],
+                  ["Compare Price", form.compare_price ? `R ${Number(form.compare_price).toLocaleString()}` : "—"],
+                  ["Status",        form.status],
+                  ["Stock",         form.stock || "0"],
+                  ["Low Stock At",  form.low_stock_threshold || "10"],
                 ]} />
               </div>
               {form.description && (
@@ -408,12 +379,10 @@ export default function NewProductPage() {
           )}
         </div>
 
-        {/* ── NAV BUTTONS ── */}
+        {/* NAV BUTTONS */}
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
           <div>
-            {!isFirst && (
-              <button onClick={prev} style={outlineBtn}>← Back</button>
-            )}
+            {!isFirst && <button onClick={prev} style={outlineBtn}>← Back</button>}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => router.push("/admin/products")} style={{ ...outlineBtn, color: "#64748b" }}>Cancel</button>
@@ -436,8 +405,6 @@ export default function NewProductPage() {
   );
 }
 
-// ── Sub-components ──────────────────────────────────────
-
 function StepTitle({ title, desc }: { title: string; desc: string }) {
   return (
     <div style={{ marginBottom: 24 }}>
@@ -446,7 +413,6 @@ function StepTitle({ title, desc }: { title: string; desc: string }) {
     </div>
   );
 }
-
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 16 }}>
@@ -456,7 +422,6 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     </div>
   );
 }
-
 function ReviewSection({ title, items }: { title: string; items: [string, string][] }) {
   return (
     <div style={{ background: "#f8fafc", borderRadius: 10, padding: 16 }}>

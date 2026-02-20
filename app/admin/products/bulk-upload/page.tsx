@@ -1,3 +1,4 @@
+// FILE: app/admin/products/bulk-upload/page.tsx  (Admin BULK UPLOAD)
 "use client";
 
 import { useState, useRef, useCallback } from "react";
@@ -5,10 +6,10 @@ import { useRouter } from "next/navigation";
 import { bulkUploadApi } from "@/lib/api";
 
 type ValidationResult = {
-  total_rows:   number;
-  valid:        boolean;
-  errors:       { row: number; field: string; error: string }[];
-  warnings:     { row: number; field: string; warning: string }[];
+  total_rows: number;
+  valid:      boolean;
+  errors:     { row: number; field: string; error: string }[];
+  warnings:   { row: number; field: string; warning: string }[];
 };
 
 type PreviewRow = {
@@ -26,11 +27,11 @@ type PreviewResult = {
 };
 
 type UploadResult = {
-  created?:    number;
-  updated?:    number;
-  errors?:     number;
-  job_id?:     string;
-  message?:    string;
+  created?:  number;
+  updated?:  number;
+  errors?:   number;
+  job_id?:   string;
+  message?:  string;
 };
 
 type Phase = "idle" | "validating" | "previewing" | "uploading" | "done" | "error";
@@ -146,7 +147,6 @@ export default function BulkUploadPage() {
     error:      "Something went wrong",
   };
 
-  // ── DONE SCREEN ───────────────────────────────────────
   if (phase === "done" && uploadRes) {
     const hasErrors = (uploadRes.errors ?? 0) > 0;
     return (
@@ -156,9 +156,9 @@ export default function BulkUploadPage() {
           <h2 style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>Upload Complete</h2>
           <div style={{ display: "flex", gap: 16, justifyContent: "center", marginBottom: 28, flexWrap: "wrap" }}>
             {[
-              { label: "Created",  value: uploadRes.created ?? 0,  color: "#15803d", bg: "#dcfce7" },
-              { label: "Updated",  value: uploadRes.updated ?? 0,  color: "#1d4ed8", bg: "#dbeafe" },
-              { label: "Errors",   value: uploadRes.errors  ?? 0,  color: "#dc2626", bg: "#fee2e2" },
+              { label: "Created", value: uploadRes.created ?? 0, color: "#15803d", bg: "#dcfce7" },
+              { label: "Updated", value: uploadRes.updated ?? 0, color: "#1d4ed8", bg: "#dbeafe" },
+              { label: "Errors",  value: uploadRes.errors  ?? 0, color: "#dc2626", bg: "#fee2e2" },
             ].map((s) => (
               <div key={s.label} style={{ padding: "14px 24px", borderRadius: 12, background: s.bg, minWidth: 100 }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
@@ -179,30 +179,19 @@ export default function BulkUploadPage() {
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#f8fafc", minHeight: "100vh" }}>
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 24px" }}>
-        {/* ── HEADER ── */}
         <div style={{ marginBottom: 28 }}>
           <button onClick={() => router.push("/admin/products")} style={ghostBtn}>← Products</button>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.5px", marginTop: 10 }}>Bulk Upload Products</h1>
           <p style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>Upload a CSV to create or update products. Validate and preview before importing.</p>
         </div>
 
-        {/* ── DROP ZONE ── */}
+        {/* DROP ZONE */}
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
           onDrop={onDrop}
           onClick={() => inputRef.current?.click()}
-          style={{
-            border: `2px dashed ${drag ? "#0f172a" : file ? "#22c55e" : "#cbd5e1"}`,
-            borderRadius: 16,
-            padding: "40px 24px",
-            textAlign: "center",
-            cursor: "pointer",
-            background: drag ? "#f8fafc" : file ? "#f0fdf4" : "#fff",
-            marginBottom: 20,
-            transition: "all 0.2s",
-          }}
-        >
+          style={{ border: `2px dashed ${drag ? "#0f172a" : file ? "#22c55e" : "#cbd5e1"}`, borderRadius: 16, padding: "40px 24px", textAlign: "center", cursor: "pointer", background: drag ? "#f8fafc" : file ? "#f0fdf4" : "#fff", marginBottom: 20, transition: "all 0.2s" }}>
           <input ref={inputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
           <div style={{ fontSize: 40, marginBottom: 12 }}>{file ? "📄" : "📤"}</div>
           {file ? (
@@ -220,7 +209,7 @@ export default function BulkUploadPage() {
           )}
         </div>
 
-        {/* ── PROGRESS BAR ── */}
+        {/* PROGRESS */}
         {isWorking && (
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -233,14 +222,12 @@ export default function BulkUploadPage() {
           </div>
         )}
 
-        {/* ── ERROR BANNER ── */}
         {errorMsg && (
           <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "12px 16px", color: "#991b1b", fontSize: 14, marginBottom: 16 }}>
             ✕ {errorMsg}
           </div>
         )}
 
-        {/* ── ACTION BUTTONS ── */}
         {file && (
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 20px", marginBottom: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ fontSize: 13, color: "#64748b", marginRight: 4 }}>Actions:</span>
@@ -256,7 +243,6 @@ export default function BulkUploadPage() {
           </div>
         )}
 
-        {/* ── VALIDATION RESULT ── */}
         {validation && (
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
@@ -268,12 +254,10 @@ export default function BulkUploadPage() {
                 </span>
               </div>
             </div>
-
-            {/* Summary stats */}
             <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
               {[
-                { label: "Errors",   count: validation.errors.length,   bg: "#fee2e2",   color: "#dc2626" },
-                { label: "Warnings", count: validation.warnings.length, bg: "#fff7ed",   color: "#c2410c" },
+                { label: "Errors",   count: validation.errors.length,   bg: "#fee2e2", color: "#dc2626" },
+                { label: "Warnings", count: validation.warnings.length, bg: "#fff7ed", color: "#c2410c" },
               ].map((s) => (
                 <div key={s.label} style={{ flex: 1, padding: "10px 14px", borderRadius: 10, background: s.bg }}>
                   <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.count}</div>
@@ -281,8 +265,6 @@ export default function BulkUploadPage() {
                 </div>
               ))}
             </div>
-
-            {/* Tabs */}
             {(validation.errors.length > 0 || validation.warnings.length > 0) && (
               <>
                 <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
@@ -296,7 +278,6 @@ export default function BulkUploadPage() {
                     );
                   })}
                 </div>
-
                 <div style={{ overflowX: "auto", maxHeight: 300, overflowY: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead style={{ position: "sticky", top: 0, background: "#f8fafc" }}>
@@ -309,9 +290,7 @@ export default function BulkUploadPage() {
                     <tbody>
                       {(activeTab === "errors" ? validation.errors : validation.warnings).map((item, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                          <td style={{ padding: "8px 12px" }}>
-                            <span style={{ padding: "2px 8px", background: "#f1f5f9", borderRadius: 99, fontSize: 12, fontWeight: 600 }}>Row {item.row}</span>
-                          </td>
+                          <td style={{ padding: "8px 12px" }}><span style={{ padding: "2px 8px", background: "#f1f5f9", borderRadius: 99, fontSize: 12, fontWeight: 600 }}>Row {item.row}</span></td>
                           <td style={{ padding: "8px 12px", fontWeight: 500, color: "#374151" }}>{item.field}</td>
                           <td style={{ padding: "8px 12px", color: activeTab === "errors" ? "#dc2626" : "#c2410c" }}>{activeTab === "errors" ? (item as any).error : (item as any).warning}</td>
                         </tr>
@@ -321,26 +300,20 @@ export default function BulkUploadPage() {
                 </div>
               </>
             )}
-
             {validation.valid && (
               <div style={{ marginTop: 16, padding: "12px 16px", background: "#f0fdf4", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
                 <span style={{ fontSize: 14, color: "#15803d", fontWeight: 600 }}>✓ CSV is valid and ready to import</span>
-                <button onClick={upload} disabled={isWorking} style={{ ...primaryBtn, background: "#15803d" }}>
-                  🚀 Import Now
-                </button>
+                <button onClick={upload} disabled={isWorking} style={{ ...primaryBtn, background: "#15803d" }}>🚀 Import Now</button>
               </div>
             )}
           </div>
         )}
 
-        {/* ── PREVIEW TABLE ── */}
         {preview && (
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>Preview</h3>
-              <span style={{ fontSize: 13, color: "#64748b" }}>
-                Showing {preview.preview.length} of <strong style={{ color: "#0f172a" }}>{preview.total_rows}</strong> rows
-              </span>
+              <span style={{ fontSize: 13, color: "#64748b" }}>Showing {preview.preview.length} of <strong style={{ color: "#0f172a" }}>{preview.total_rows}</strong> rows</span>
             </div>
             <div style={{ overflowX: "auto", maxHeight: 400, overflowY: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -359,14 +332,8 @@ export default function BulkUploadPage() {
                       <td style={{ padding: "8px 12px", color: "#94a3b8", fontWeight: 600, fontSize: 12 }}>{i + 1}</td>
                       <td style={{ padding: "8px 12px", fontWeight: 600, color: "#0f172a", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.title || "—"}</td>
                       <td style={{ padding: "8px 12px", fontWeight: 700, color: "#0f172a" }}>{row.price ? `R ${Number(row.price).toLocaleString()}` : "—"}</td>
-                      <td style={{ padding: "8px 12px" }}>
-                        {row.category ? (
-                          <span style={{ padding: "2px 8px", background: "#eff6ff", color: "#1d4ed8", borderRadius: 99, fontSize: 11, fontWeight: 600 }}>{row.category}</span>
-                        ) : "—"}
-                      </td>
-                      <td style={{ padding: "8px 12px" }}>
-                        <span style={{ color: !row.stock || row.stock === "0" ? "#dc2626" : "#15803d", fontWeight: 600 }}>{row.stock || "0"}</span>
-                      </td>
+                      <td style={{ padding: "8px 12px" }}>{row.category ? <span style={{ padding: "2px 8px", background: "#eff6ff", color: "#1d4ed8", borderRadius: 99, fontSize: 11, fontWeight: 600 }}>{row.category}</span> : "—"}</td>
+                      <td style={{ padding: "8px 12px" }}><span style={{ color: !row.stock || row.stock === "0" ? "#dc2626" : "#15803d", fontWeight: 600 }}>{row.stock || "0"}</span></td>
                       <td style={{ padding: "8px 12px", color: "#64748b" }}>{row.store || "—"}</td>
                     </tr>
                   ))}
@@ -374,14 +341,11 @@ export default function BulkUploadPage() {
               </table>
             </div>
             <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={upload} disabled={isWorking} style={primaryBtn}>
-                🚀 Upload All {preview.total_rows} Products
-              </button>
+              <button onClick={upload} disabled={isWorking} style={primaryBtn}>🚀 Upload All {preview.total_rows} Products</button>
             </div>
           </div>
         )}
 
-        {/* ── CSV GUIDE ── */}
         {!file && (
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>CSV Format Guide</h3>
@@ -409,9 +373,7 @@ export default function BulkUploadPage() {
                   ].map(([col, req, type, ex], i) => (
                     <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
                       <td style={{ padding: "7px 12px", fontFamily: "monospace", fontWeight: 600, color: "#0f172a" }}>{col}</td>
-                      <td style={{ padding: "7px 12px" }}>
-                        <span style={{ padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 600, background: req === "Yes" ? "#fee2e2" : "#f1f5f9", color: req === "Yes" ? "#dc2626" : "#64748b" }}>{req}</span>
-                      </td>
+                      <td style={{ padding: "7px 12px" }}><span style={{ padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 600, background: req === "Yes" ? "#fee2e2" : "#f1f5f9", color: req === "Yes" ? "#dc2626" : "#64748b" }}>{req}</span></td>
                       <td style={{ padding: "7px 12px", color: "#7c3aed", fontFamily: "monospace", fontSize: 12 }}>{type}</td>
                       <td style={{ padding: "7px 12px", color: "#64748b" }}>{ex}</td>
                     </tr>
@@ -422,10 +384,6 @@ export default function BulkUploadPage() {
           </div>
         )}
       </div>
-
-      <style>{`
-        @keyframes slideIn { from{transform:translateY(-10px);opacity:0} to{transform:translateY(0);opacity:1} }
-      `}</style>
     </div>
   );
 }
