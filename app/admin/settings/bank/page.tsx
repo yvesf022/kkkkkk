@@ -34,7 +34,8 @@ export default function AdminBankSettingsPage() {
     setLoading(true);
     try {
       const data = await adminApi.getBankSettings();
-      setSettings(Array.isArray(data) ? data : [data].filter(Boolean));
+      // Backend returns a plain array
+      setSettings(Array.isArray(data) ? data : data ? [data] : []);
     } catch { toast.error("Failed to load bank settings"); }
     finally { setLoading(false); }
   }
@@ -130,7 +131,15 @@ export default function AdminBankSettingsPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                     <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{s.bank_name}</h3>
                     {s.is_primary && <Badge status="paid" label="Primary" />}
-                    <Badge status={s.is_active ? "active" : "inactive"} />
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700,
+                      background: s.is_active ? "#F0FDF4" : "#FEF2F2",
+                      color: s.is_active ? "#065F46" : "#991B1B",
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.is_active ? "#10B981" : "#EF4444", display: "inline-block" }} />
+                      {s.is_active ? "Active" : "Inactive"}
+                    </span>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "8px 24px" }}>
                     {[
