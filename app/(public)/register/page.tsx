@@ -1,6 +1,7 @@
+// FILE: app/(public)/register/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authApi } from "@/lib/api";
@@ -34,7 +35,7 @@ const CheckMark = () => (
   </svg>
 );
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/account";
@@ -53,7 +54,6 @@ export default function RegisterPage() {
 
   const hasGuestCart = cartItems.length > 0;
 
-  // Password strength
   const pwdChecks = {
     length: password.length >= 8,
     uppercase: /[A-Z]/.test(password),
@@ -71,9 +71,7 @@ export default function RegisterPage() {
     setError(null);
     try {
       await authApi.register({ email, password, full_name: fullName });
-      // Auto login after register
       await authApi.login({ email, password });
-      // Merge guest cart BEFORE redirecting
       if (hasGuestCart) {
         await mergeGuestCart().catch(() => {});
       }
@@ -166,7 +164,6 @@ export default function RegisterPage() {
                 <EyeIcon open={showPass} />
               </button>
             </div>
-            {/* Password strength */}
             {password && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
@@ -219,6 +216,14 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterContent />
+    </Suspense>
   );
 }
 

@@ -1,6 +1,7 @@
+// FILE: app/(public)/login/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authApi } from "@/lib/api";
@@ -28,7 +29,7 @@ const Spinner = () => (
   </svg>
 );
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/account";
@@ -51,9 +52,8 @@ export default function LoginPage() {
     setError(null);
     try {
       await authApi.login({ email, password });
-      // Merge guest cart BEFORE redirecting
       if (hasGuestCart) {
-        await mergeGuestCart().catch(() => {}); // best-effort
+        await mergeGuestCart().catch(() => {});
       }
       await fetchCart().catch(() => {});
       router.push(redirectTo);
@@ -68,14 +68,12 @@ export default function LoginPage() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } } * { box-sizing: border-box; }`}</style>
 
       <div style={S.card}>
-        {/* Logo/Brand */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={S.logoRing}>🛍️</div>
           <h1 style={S.title}>Welcome back</h1>
           <p style={S.subtitle}>Sign in to your account</p>
         </div>
 
-        {/* Cart preservation notice */}
         {hasGuestCart && (
           <div style={S.cartNotice}>
             <span style={{ fontSize: 16 }}>🛒</span>
@@ -155,6 +153,14 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }
 
