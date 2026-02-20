@@ -1,0 +1,99 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [active]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - navigation [ref=e7]:
+            - button "previous" [disabled] [ref=e8]:
+              - img "previous" [ref=e9]
+            - generic [ref=e11]:
+              - generic [ref=e12]: 1/
+              - text: "3"
+            - button "next" [ref=e13] [cursor=pointer]:
+              - img "next" [ref=e14]
+          - img
+        - generic [ref=e16]:
+          - link "Next.js 16.1.4 (stale) Turbopack" [ref=e17] [cursor=pointer]:
+            - /url: https://nextjs.org/docs/messages/version-staleness
+            - img [ref=e18]
+            - generic "There is a newer version (16.1.6) available, upgrade recommended!" [ref=e20]: Next.js 16.1.4 (stale)
+            - generic [ref=e21]: Turbopack
+          - img
+      - generic [ref=e22]:
+        - dialog "Console Error" [ref=e23]:
+          - generic [ref=e26]:
+            - generic [ref=e27]:
+              - generic [ref=e28]:
+                - generic [ref=e30]: Console Error
+                - generic [ref=e31]:
+                  - button "Copy Error Info" [ref=e32] [cursor=pointer]:
+                    - img [ref=e33]
+                  - button "No related documentation found" [disabled] [ref=e35]:
+                    - img [ref=e36]
+                  - button "Attach Node.js inspector" [ref=e38] [cursor=pointer]:
+                    - img [ref=e39]
+              - generic [ref=e48]: The result of getServerSnapshot should be cached to avoid an infinite loop
+            - generic [ref=e49]:
+              - generic [ref=e50]:
+                - paragraph [ref=e52]:
+                  - img [ref=e54]
+                  - generic [ref=e57]: app/(public)/login/page.tsx (44:28) @ LoginContent
+                  - button "Open in editor" [ref=e58] [cursor=pointer]:
+                    - img [ref=e60]
+                - generic [ref=e63]:
+                  - generic [ref=e64]: 42 | const mergeGuestCart = useCart(s => s.mergeGuestCart);
+                  - generic [ref=e65]: 43 | const fetchCart = useCart(s => s.fetchCart);
+                  - generic [ref=e66]: "> 44 | const cartItems = useCart(s => s.cart?.items ?? []);"
+                  - generic [ref=e67]: "| ^"
+                  - generic [ref=e68]: 45 |
+                  - generic [ref=e69]: 46 | const [email, setEmail] = useState("");
+                  - generic [ref=e70]: 47 | const [password, setPassword] = useState("");
+              - generic [ref=e71]:
+                - generic [ref=e72]:
+                  - paragraph [ref=e73]:
+                    - text: Call Stack
+                    - generic [ref=e74]: "22"
+                  - button "Show 20 ignore-listed frame(s)" [ref=e75] [cursor=pointer]:
+                    - text: Show 20 ignore-listed frame(s)
+                    - img [ref=e76]
+                - generic [ref=e78]:
+                  - generic [ref=e79]:
+                    - text: LoginContent
+                    - button "Open LoginContent in editor" [ref=e80] [cursor=pointer]:
+                      - img [ref=e81]
+                  - text: app/(public)/login/page.tsx (44:28)
+                - generic [ref=e83]:
+                  - generic [ref=e84]:
+                    - text: LoginPage
+                    - button "Open LoginPage in editor" [ref=e85] [cursor=pointer]:
+                      - img [ref=e86]
+                  - text: app/(public)/login/page.tsx (168:7)
+          - generic [ref=e88]: "1"
+          - generic [ref=e89]: "2"
+        - contentinfo [ref=e90]:
+          - region "Error feedback" [ref=e91]:
+            - paragraph [ref=e92]:
+              - link "Was this helpful?" [ref=e93] [cursor=pointer]:
+                - /url: https://nextjs.org/telemetry#error-feedback
+            - button "Mark as helpful" [ref=e94] [cursor=pointer]:
+              - img [ref=e95]
+            - button "Mark as not helpful" [ref=e98] [cursor=pointer]:
+              - img [ref=e99]
+    - generic [ref=e105] [cursor=pointer]:
+      - button "Open Next.js Dev Tools" [ref=e106]:
+        - img [ref=e107]
+      - generic [ref=e110]:
+        - button "Open issues overlay" [ref=e111]:
+          - generic [ref=e112]:
+            - generic [ref=e113]: "2"
+            - generic [ref=e114]: "3"
+          - generic [ref=e115]:
+            - text: Issue
+            - generic [ref=e116]: s
+        - button "Collapse issues badge" [ref=e117]:
+          - img [ref=e118]
+  - 'heading "Application error: a client-side exception has occurred while loading localhost (see the browser console for more information)." [level=2] [ref=e122]'
+```

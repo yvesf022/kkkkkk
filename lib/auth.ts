@@ -1,14 +1,8 @@
 "use client";
 
 import { create } from "zustand";
-import { authApi } from "./api";
+import { authApi, tokenStorage } from "./api";
 import type { User as AppUser } from "./types";
-
-/**
- * IMPORTANT:
- * We reuse the authoritative User type from lib/types.ts
- * DO NOT redefine User here.
- */
 
 export type User = AppUser;
 
@@ -29,26 +23,24 @@ export const useAuth = create<AuthState>((set) => ({
   error: null,
 
   hydrate: async () => {
+    // If no token stored, skip the /me call entirely — avoids 401 crash
+    if (!tokenStorage.get()) {
+      set({ user: null, loading: false });
+      return;
+    }
+
     set({ loading: true, error: null });
 
     try {
       const user = (await authApi.me()) as User;
       set({ user, loading: false });
     } catch (err: any) {
-      if (err?.status === 401) {
-        set({ user: null, loading: false });
-      } else if (err?.status === 403) {
-        set({
-          user: null,
-          loading: false,
-          error: "Your account has been disabled.",
-        });
+      // Token expired or invalid — clear it
+      tokenStorage.remove();
+      if (err?.status === 403) {
+        set({ user: null, loading: false, error: "Your account has been disabled." });
       } else {
-        set({
-          user: null,
-          loading: false,
-          error: "Failed to load session.",
-        });
+        set({ user: null, loading: false });
       }
     }
   },
@@ -57,16 +49,34 @@ export const useAuth = create<AuthState>((set) => ({
     set({ loading: true, error: null });
 
     try {
-      await authApi.login({ email, password });
-      const user = (await authApi.me()) as User;
+      const data: any = await authApi.login({ email, password });
+
+      // ✅ Save token returned from backend into localStorage
+      if (data?.access_token) {
+        tokenStorage.set(data.access_token);
+      }
+
+      // Use the user data returned from login directly (no extra /me call needed)
+      const user: User = {
+        id: data.id,
+        email: data.email,
+        full_name: data.full_name,
+        phone: data.phone,
+        role: data.role,
+        avatar_url: data.avatar_url ?? null,
+        is_active: data.is_active ?? true,
+        created_at: data.created_at ?? new Date().toISOString(),
+      };
+
       set({ user, loading: false });
     } catch (err: any) {
+      tokenStorage.remove();
       if (err?.status === 401) {
         set({ loading: false, error: "Invalid email or password." });
       } else if (err?.status === 403) {
         set({ loading: false, error: "Your account has been disabled." });
       } else {
-        set({ loading: false, error: "Login failed." });
+        set({ loading: false, error: "Login failed. Please try again." });
       }
       throw err;
     }
@@ -74,6 +84,7 @@ export const useAuth = create<AuthState>((set) => ({
 
   logout: async () => {
     set({ loading: true, error: null });
+    tokenStorage.remove();
     try {
       await authApi.logout();
     } finally {
@@ -82,6 +93,7 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   clear: () => {
+    tokenStorage.remove();
     set({ user: null, loading: false, error: null });
   },
 }));
