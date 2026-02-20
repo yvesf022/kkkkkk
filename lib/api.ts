@@ -455,12 +455,15 @@ export function getMyOrders(): Promise<Order[]> {
 
 export const paymentsApi = {
   // bank_transfer is the only supported method — hardcoded here, no UI selection needed
-  create: (orderId: string) =>
-    request<Payment>(`/api/payments`, {
+  create: async (orderId: string): Promise<Payment> => {
+    const res = await request<any>(`/api/payments/${orderId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ order_id: orderId, method: "bank_transfer" }),
-    }),
+      body: JSON.stringify({ method: "bank_transfer" }),
+    });
+    // Backend returns { payment_id, order_id, ... } — normalize to Payment shape ({ id, ... })
+    return { ...res, id: res.id ?? res.payment_id };
+  },
 
   uploadProof: (paymentId: string, file: File) => {
     const form = new FormData();
@@ -471,8 +474,11 @@ export const paymentsApi = {
     });
   },
 
-  getMy: (): Promise<Payment[]> =>
-    request<Payment[]>("/api/payments/my"),
+  getMy: async (): Promise<Payment[]> => {
+    const res = await request<any>("/api/payments/my");
+    // Backend returns { total, results: [...] } wrapper
+    return Array.isArray(res) ? res : res?.results ?? [];
+  },
 
   getById: (paymentId: string): Promise<Payment> =>
     request<Payment>(`/api/payments/${paymentId}`),
@@ -484,19 +490,20 @@ export const paymentsApi = {
    */
   getByOrderId: async (orderId: string): Promise<Payment | null> => {
     try {
-      const all = await request<any>("/api/payments/my");
-      const list: Payment[] = Array.isArray(all)
-        ? all
-        : all?.results ?? all?.payments ?? [];
+      const res = await request<any>("/api/payments/my");
+      // Backend returns { total, results: [...] } wrapper
+      const list: Payment[] = Array.isArray(res) ? res : res?.results ?? [];
       return list.find((p) => p.order_id === orderId) ?? null;
     } catch {
       return null;
     }
   },
 
-  adminList: (statusFilter?: PaymentStatus) => {
-    const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
-    return request(`/api/payments/admin${qs}`);
+  adminList: async (statusFilter?: PaymentStatus) => {
+    const qs = statusFilter ? `?status=${statusFilter}` : "";
+    const res = await request<any>(`/api/payments/admin${qs}`);
+    // Backend returns { total, results: [...] } wrapper
+    return Array.isArray(res) ? res : res?.results ?? [];
   },
 
   adminGetById: (paymentId: string) =>
@@ -532,10 +539,13 @@ export const paymentsApi = {
       body: JSON.stringify({ reason }),
     }),
 
-  retry: (paymentId: string): Promise<Payment> =>
-    request<Payment>(`/api/payments/${paymentId}/retry`, {
+  retry: async (orderId: string): Promise<Payment> => {
+    const res = await request<any>(`/api/payments/${orderId}/retry`, {
       method: "POST",
-    }),
+    });
+    // Backend returns { payment_id, order_id, ... } — normalize to Payment shape
+    return { ...res, id: res.id ?? res.payment_id };
+  },
 
   updateMethod: (paymentId: string, method: string) =>
     request(`/api/payments/${paymentId}/method`, {

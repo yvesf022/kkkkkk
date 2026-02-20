@@ -314,10 +314,10 @@ export default function PaymentClient() {
   }
 
   async function handleRetry() {
-    if (!payment?.id) return;
+    if (!orderId) return;
     setRetrying(true);
     try {
-      const p = await paymentsApi.retry(payment.id) as Payment;
+      const p = await paymentsApi.retry(orderId) as Payment;
       setPayment(p);
       setUploaded(false);
       setStatusHistory([]);
