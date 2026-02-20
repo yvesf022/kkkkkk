@@ -251,9 +251,8 @@ export const productsApi = {
     });
   },
 
-  deleteImage(_imageId: string) {
-    console.warn("deleteImage: no delete image endpoint found in API spec.");
-    return Promise.reject(new Error("Delete image endpoint not available"));
+  deleteImage(imageId: string) {
+    return request(`/api/products/images/${imageId}`, { method: "DELETE" });
   },
 
   createVariant(productId: string, payload: {
@@ -366,6 +365,12 @@ export const productsApi = {
 
 export const ordersApi = {
   create: (payload: {
+    items?: Array<{
+      product_id: string;
+      variant_id?: string;
+      quantity: number;
+      price: number;
+    }>;
     total_amount: number;
     shipping_address?: Record<string, any>;
     notes?: string;
@@ -446,12 +451,16 @@ export function getMyOrders(): Promise<Order[]> {
 ===================================================== */
 
 export const paymentsApi = {
-  create: (orderId: string) =>
-    request<Payment>(`/api/payments/${orderId}`, { method: "POST" }),
+  create: (orderId: string, payload: { method: "card" | "cash" | "mobile_money" | "bank_transfer" }) =>
+    request<Payment>(`/api/payments/${orderId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
 
   uploadProof: (paymentId: string, file: File) => {
     const form = new FormData();
-    form.append("proof", file);
+    form.append("file", file); // FIX: backend expects "file", not "proof"
     return request(`/api/payments/${paymentId}/proof`, {
       method: "POST",
       body: form,
@@ -505,7 +514,7 @@ export const paymentsApi = {
 
   resubmitProof: (paymentId: string, file: File) => {
     const form = new FormData();
-    form.append("proof", file);
+    form.append("file", file); // FIX: backend expects "file", not "proof"
     return request(`/api/payments/${paymentId}/resubmit-proof`, {
       method: "POST",
       body: form,
@@ -524,8 +533,18 @@ export const paymentsApi = {
       method: "POST",
     }),
 
+  updateMethod: (paymentId: string, method: string) =>
+    request(`/api/payments/${paymentId}/method`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method }),
+    }),
+
   getStatusHistory: (paymentId: string) =>
     request(`/api/payments/${paymentId}/status-history`),
+
+  getPaymentAttempts: (orderId: string) =>
+    request(`/api/payments/order/${orderId}/attempts`),
 };
 
 /* =====================================================
@@ -635,6 +654,10 @@ export const cartApi = {
 
 export const wishlistApi = {
   get: () =>
+    request("/api/wishlist"),
+
+  // FIX: wishlist.ts store calls .list() — alias added
+  list: () =>
     request("/api/wishlist"),
 
   add: (productId: string) =>
@@ -1064,6 +1087,22 @@ export const adminProductsApi = {
     });
   },
 
+  bulkHardDelete(ids: string[]) {
+    return request("/api/products/admin/bulk-hard-delete", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+  },
+
+  bulkRestorePrice(ids: string[]) {
+    return request("/api/products/admin/bulk-restore-price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+  },
+
   bulkArchive(ids: string[]) {
     return request("/api/products/admin/bulk-archive", {
       method: "POST",
@@ -1298,5 +1337,56 @@ export const adminApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+  },
+
+  deleteBankSettings(settingsId: string) {
+    return request(`/api/payments/admin/bank-settings/${settingsId}`, {
+      method: "DELETE",
+    });
+  },
+
+  getPaymentStats() {
+    return request("/api/payments/admin/stats");
+  },
+
+  // ── Store Reset ──────────────────────────────────────
+  storeResetPreview() {
+    return request("/api/admin/store-reset/preview");
+  },
+
+  storeResetProductsOnly() {
+    return request("/api/admin/store-reset/products-only", { method: "POST" });
+  },
+
+  storeResetOrdersOnly() {
+    return request("/api/admin/store-reset/orders-only", { method: "POST" });
+  },
+
+  storeResetUsersData() {
+    return request("/api/admin/store-reset/users-data", { method: "POST" });
+  },
+
+  storeResetAuditLogs() {
+    return request("/api/admin/store-reset/audit-logs", { method: "POST" });
+  },
+
+  storeResetFull() {
+    return request("/api/admin/store-reset/full", { method: "POST" });
+  },
+
+  storeResetRestoreStock() {
+    return request("/api/admin/store-reset/restore-stock", { method: "POST" });
+  },
+
+  storeResetDeactivateAll() {
+    return request("/api/admin/store-reset/deactivate-all-products", { method: "POST" });
+  },
+
+  storeResetActivateAll() {
+    return request("/api/admin/store-reset/activate-all-products", { method: "POST" });
+  },
+
+  storeResetPurgeCancelledOrders() {
+    return request("/api/admin/store-reset/cancelled-orders", { method: "DELETE" });
   },
 };

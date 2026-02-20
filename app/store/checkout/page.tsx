@@ -162,6 +162,12 @@ export default function CheckoutPage() {
       };
 
       const order = await ordersApi.create({
+        items: items.map((i) => ({
+          product_id: i.product_id,
+          variant_id: i.variant_id ?? undefined,
+          quantity: i.quantity,
+          price: i.price,
+        })),
         total_amount: subtotal,
         shipping_address: shippingAddress,
         notes: notes.trim() || undefined,
