@@ -176,7 +176,12 @@ export const useCart = create<CartStore>()(
     }),
     {
       name: "karabo-cart",                          // localStorage key
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => {
+        if (typeof window === "undefined") {
+          return { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+        }
+        return localStorage;
+      }),
       // Only persist cart data — not loading/error states
       partialize: (state) => ({
         cart: state.cart,
