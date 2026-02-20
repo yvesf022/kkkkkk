@@ -344,7 +344,7 @@ export default function AdminBankSettingsPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
                   <Btn small variant="primary" onClick={() => openEdit(s)}>Edit</Btn>
                   {!s.is_primary && (
-                    <Btn small onClick={() => setPrimary(s)} title="Show this account first to customers">
+                    <Btn small onClick={() => setPrimary(s)}>
                       Set Primary
                     </Btn>
                   )}
