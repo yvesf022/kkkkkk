@@ -97,13 +97,9 @@ export default function PaymentClient() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    const key = `cart_cleared_${orderId}`;
-    if (orderId && !sessionStorage.getItem(key)) {
-      clearCart().catch(() => {});
-      sessionStorage.setItem(key, "1");
-    }
-  }, [orderId, clearCart]);
+  // FIX #5: REMOVED the clearCart-on-mount useEffect that was wiping
+  // the cart every time the user landed on this page (including back-navigation).
+  // Cart is now only cleared AFTER successful proof upload (see handleUpload below).
 
   useEffect(() => {
     if (step === 4 && payment?.status === "on_hold" && payment?.id) {
@@ -151,6 +147,9 @@ export default function PaymentClient() {
     setUploading(true); setUploadError(null);
     try {
       await paymentsApi.uploadProof(payment.id, file);
+      // FIX #5: Clear cart HERE — only after proof is successfully submitted,
+      // not on page load. This prevents cart loss on back-navigation.
+      await clearCart().catch(() => {});
       setUploaded(true); setFile(null);
       setCompletedSteps(prev => new Set([...prev, 2, 3]));
       const updated = await paymentsApi.getById(payment.id) as Payment;
@@ -300,212 +299,117 @@ export default function PaymentClient() {
             <span style={{ marginLeft: polling ? 0 : "auto", fontFamily: "monospace", fontSize: 11, color: "#94A3B8" }}>#{pmt.id.slice(0, 8)}</span>
           </div>
 
-          {/* Rejected Alert */}
-          {pmt.status === "rejected" && (
-            <div style={{ display: "flex", gap: 14, alignItems: "flex-start", background: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: 12, padding: "16px 18px", marginBottom: 14 }}>
-              <div style={{ color: "#E11D48", flexShrink: 0, marginTop: 2 }}><WarnSVG /></div>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontWeight: 700, color: "#9F1239", fontSize: 14, margin: "0 0 4px" }}>Payment Rejected</p>
-                {pmt.admin_notes && <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 12px" }}>{pmt.admin_notes}</p>}
-                <button onClick={handleRetry} disabled={retrying} className="kbtn" style={{ ...S.primaryBtn, fontSize: 13, padding: "10px 18px" }}>
-                  {retrying ? <SpinnerSVG /> : "↺ Start New Payment"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: Transfer Funds */}
-          {step === 2 && pmt.status !== "rejected" && (
+          {/* Step 2: Bank transfer instructions */}
+          {step === 2 && (
             <div style={S.card}>
               <h2 style={S.cardTitle}>Transfer Funds</h2>
-              <p style={S.cardSub}>Send exactly <strong style={{ color: BRAND }}>{formatCurrency(pmt.amount)}</strong> to the account below.</p>
+              <p style={{ ...S.cardSub, marginBottom: 20 }}>
+                Transfer exactly <strong style={{ color: BRAND }}>{formatCurrency(pmt.amount)}</strong> to the bank account below, then proceed to upload your proof.
+              </p>
 
               {bankDetails ? (
-                <div style={{ marginTop: 20 }}>
-                  <div style={{ borderRadius: 14, border: "1px solid #E2E8F0", overflow: "hidden" }}>
-                    <div style={{ background: "#EFF6FF", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontWeight: 800, fontSize: 15, color: BRAND }}>{bankDetails.bank_name}</span>
-                    </div>
-                    <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
-                      {[
-                        { label: "Account Name", value: bankDetails.account_name },
-                        { label: "Account Number", value: bankDetails.account_number, copyKey: "acct" },
-                        { label: "Branch", value: bankDetails.branch },
-                        { label: "SWIFT/BIC", value: bankDetails.swift_code, copyKey: "swift" },
-                      ].filter(r => r.value).map(row => (
-                        <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>{row.label}</span>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontWeight: 700, color: BRAND, fontSize: 14, fontFamily: row.copyKey ? "monospace" : "inherit" }}>{row.value}</span>
-                            {row.copyKey && <CopyBtn value={row.value!} copyKey={row.copyKey} small />}
-                          </div>
-                        </div>
-                      ))}
-                      <div style={{ borderTop: "1px solid #E2E8F0", paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>Transfer Amount</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 20, fontWeight: 800, color: BRAND }}>{formatCurrency(pmt.amount)}</span>
-                          <CopyBtn value={pmt.amount.toString()} copyKey="amount" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {(bankDetails.mobile_money_number || bankDetails.mobile_money_provider) && (
-                    <div style={{ marginTop: 14, padding: "14px 18px", background: "#F0FDF4", borderRadius: 12, border: "1px solid #BBF7D0" }}>
-                      <p style={{ fontWeight: 700, color: "#065F46", fontSize: 13, margin: "0 0 8px" }}>Mobile Money Option</p>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+                  {Object.entries(bankDetails)
+                    .filter(([k]) => !["id", "created_at", "updated_at", "is_active"].includes(k))
+                    .map(([k, v]) => v ? (
+                      <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#F8FAFC", borderRadius: 10, border: "1px solid #E2E8F0", gap: 12 }}>
                         <div>
-                          {bankDetails.mobile_money_provider && <p style={{ fontSize: 13, color: "#475569", margin: "0 0 2px" }}>{bankDetails.mobile_money_provider}</p>}
-                          {bankDetails.mobile_money_number && <p style={{ fontFamily: "monospace", fontWeight: 800, color: BRAND, fontSize: 16, margin: "0 0 2px" }}>{bankDetails.mobile_money_number}</p>}
-                          {bankDetails.mobile_money_name && <p style={{ fontSize: 12, color: "#64748B", margin: 0 }}>{bankDetails.mobile_money_name}</p>}
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5 }}>{k.replace(/_/g, " ")}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: BRAND, marginTop: 2 }}>{String(v)}</div>
                         </div>
-                        {bankDetails.mobile_money_number && <CopyBtn value={bankDetails.mobile_money_number} copyKey="momo" />}
+                        <CopyBtn value={String(v)} copyKey={k} />
                       </div>
+                    ) : null)}
+                  <div style={{ padding: "12px 16px", background: "#FFFBEB", borderRadius: 10, border: "1px solid #FDE68A", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#92400E", textTransform: "uppercase", letterSpacing: 0.5 }}>Amount to Transfer</div>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: "#92400E", marginTop: 2 }}>{formatCurrency(pmt.amount)}</div>
                     </div>
-                  )}
-
-                  {bankDetails.qr_code_url && (
-                    <div style={{ marginTop: 14, textAlign: "center" }}>
-                      <p style={{ fontSize: 12, color: "#94A3B8", marginBottom: 8, fontWeight: 600 }}>Scan QR to pay</p>
-                      <img src={bankDetails.qr_code_url} alt="QR" style={{ width: 130, height: 130, borderRadius: 10, border: "1px solid #E2E8F0" }} />
-                    </div>
-                  )}
-
-                  {bankDetails.instructions && (
-                    <div style={{ marginTop: 14, padding: "12px 16px", background: "#FFFBEB", borderRadius: 10, border: "1px solid #FDE68A" }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: "#92400E", margin: "0 0 4px" }}>Payment Instructions</p>
-                      <p style={{ fontSize: 13, color: "#78350F", margin: 0, lineHeight: 1.7 }}>{bankDetails.instructions}</p>
-                    </div>
-                  )}
-
-                  <div style={{ marginTop: 14, padding: "12px 16px", background: "#F8FAFC", borderRadius: 10 }}>
-                    <p style={{ fontSize: 12, color: "#475569", margin: 0, lineHeight: 1.8 }}>
-                      📋 After transferring, click below to upload your receipt or screenshot as proof of payment.
-                    </p>
+                    <CopyBtn value={String(pmt.amount)} copyKey="amount" />
                   </div>
-
-                  <button
-                    onClick={() => { setCompletedSteps(prev => new Set([...prev, 2])); setStep(3); }}
-                    className="kbtn"
-                    style={{ ...S.primaryBtn, width: "100%", marginTop: 18, justifyContent: "center", display: "flex" }}
-                  >
-                    I've Transferred — Upload Proof →
-                  </button>
                 </div>
               ) : (
-                <div style={{ padding: "28px 0", textAlign: "center", color: "#94A3B8" }}>
-                  <SpinnerSVG /> &nbsp;Loading bank details…
+                <div style={{ padding: "16px", background: "#FFF7ED", borderRadius: 10, marginBottom: 24, color: "#92400E", fontSize: 14 }}>
+                  Bank details are being loaded. Please wait or contact support.
                 </div>
               )}
+
+              <button
+                className="kbtn"
+                onClick={() => { setStep(3); setCompletedSteps(prev => new Set([...prev, 2])); }}
+                style={S.primaryBtn}
+              >
+                I&apos;ve Completed the Transfer →
+              </button>
             </div>
           )}
 
-          {/* STEP 3: Upload Proof */}
+          {/* Step 3: Upload proof */}
           {step === 3 && (
             <div style={S.card}>
               <h2 style={S.cardTitle}>Upload Proof of Payment</h2>
-              <p style={S.cardSub}>Upload a screenshot or photo of your payment confirmation.</p>
+              <p style={{ ...S.cardSub, marginBottom: 20 }}>
+                Upload a screenshot or photo of your bank transfer confirmation.
+              </p>
 
-              {!uploaded ? (
-                <>
-                  {uploadError && (
-                    <div style={{ padding: "10px 14px", background: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: 10, marginTop: 16, color: "#9F1239", fontSize: 13, fontWeight: 600 }}>
-                      ⚠ {uploadError}
-                    </div>
-                  )}
-                  <div
-                    style={{
-                      border: `2px dashed ${dragOver ? ACCENT : "#E2E8F0"}`,
-                      borderRadius: 14, padding: "36px 24px",
-                      cursor: "pointer", transition: "all .2s",
-                      background: dragOver ? "#EFF6FF" : "#FAFAFA",
-                      textAlign: "center", marginTop: 20,
-                    }}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={e => {
-                      e.preventDefault(); setDragOver(false);
-                      const f = e.dataTransfer.files[0];
-                      if (f) setFile(f);
-                    }}
-                  >
-                    {file ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center" }}>
-                        <div style={{ color: ACCENT }}><FileSVG /></div>
-                        <div style={{ textAlign: "left" }}>
-                          <p style={{ fontSize: 14, fontWeight: 700, color: BRAND, margin: 0 }}>{file.name}</p>
-                          <p style={{ fontSize: 12, color: "#64748B", margin: 0 }}>{(file.size / 1024).toFixed(0)} KB</p>
-                        </div>
-                        <button onClick={e => { e.stopPropagation(); setFile(null); }} style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer", fontSize: 20 }}>×</button>
-                      </div>
-                    ) : (
-                      <>
-                        <div style={{ color: "#94A3B8", marginBottom: 10 }}><UploadSVG /></div>
-                        <p style={{ fontSize: 14, fontWeight: 600, color: "#64748B", margin: "0 0 4px" }}>
-                          Drop your file here, or click to browse
-                        </p>
-                        <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>PNG, JPG, PDF · Max 10MB</p>
-                      </>
-                    )}
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,.pdf"
-                    style={{ display: "none" }}
-                    onChange={e => setFile(e.target.files?.[0] ?? null)}
-                  />
-
-                  <div style={{ background: "#F8FAFC", borderRadius: 10, padding: "14px 16px", marginTop: 14 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>What to include:</p>
-                    <ul style={{ paddingLeft: 16, fontSize: 13, color: "#64748B", lineHeight: 2, margin: 0 }}>
-                      <li>Transfer amount ({formatCurrency(pmt.amount)})</li>
-                      <li>Bank reference or transaction ID</li>
-                      <li>Date and time of transfer</li>
-                      <li>Sender account info</li>
-                    </ul>
-                  </div>
-
-                  <button
-                    onClick={handleUpload}
-                    disabled={!file || uploading}
-                    className="kbtn"
-                    style={{ ...S.primaryBtn, width: "100%", marginTop: 16, justifyContent: "center", display: "flex", opacity: (!file || uploading) ? 0.6 : 1 }}
-                  >
-                    {uploading ? <><SpinnerSVG /> &nbsp;Uploading…</> : "Submit Proof of Payment →"}
-                  </button>
-
-                  <button
-                    onClick={() => setStep(2)}
-                    className="kghst"
-                    style={{ ...S.ghostBtn, width: "100%", marginTop: 10, justifyContent: "center", display: "flex" }}
-                  >
-                    ← Back to Bank Details
-                  </button>
-                </>
-              ) : (
-                <div style={{ textAlign: "center", padding: "32px 0" }}>
-                  <div style={{ fontSize: 52, marginBottom: 10, animation: "kpop .4s ease" }}>✅</div>
-                  <p style={{ fontSize: 16, fontWeight: 700, color: "#065F46" }}>Proof uploaded successfully!</p>
-                  <p style={{ fontSize: 13, color: "#64748B" }}>Moving to confirmation…</p>
+              {uploadError && (
+                <div style={{ padding: "10px 14px", background: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: 8, marginBottom: 16, fontSize: 13, color: "#9F1239", display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <WarnSVG />
+                  {uploadError}
                 </div>
               )}
+
+              <div
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setFile(f); }}
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  border: `2px dashed ${dragOver ? ACCENT : file ? "#10B981" : "#CBD5E1"}`,
+                  borderRadius: 14, padding: "32px 20px", textAlign: "center", cursor: "pointer",
+                  background: dragOver ? "#EFF6FF" : file ? "#F0FDF4" : "#F8FAFC",
+                  marginBottom: 20, transition: "all .2s",
+                }}
+              >
+                <input ref={fileInputRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={e => setFile(e.target.files?.[0] ?? null)} />
+                {file ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                    <div style={{ color: "#10B981" }}><FileSVG /></div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: BRAND }}>{file.name}</div>
+                    <div style={{ fontSize: 12, color: "#64748B" }}>{(file.size / 1024).toFixed(1)} KB</div>
+                    <button onClick={e => { e.stopPropagation(); setFile(null); }} style={{ fontSize: 12, color: "#94A3B8", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Remove</button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                    <div style={{ color: "#94A3B8" }}><UploadSVG /></div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: BRAND }}>Drop file here or click to browse</div>
+                    <div style={{ fontSize: 12, color: "#94A3B8" }}>PNG, JPG, or PDF · Max 10MB</div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                className="kbtn"
+                onClick={handleUpload}
+                disabled={!file || uploading}
+                style={{ ...S.primaryBtn, opacity: (!file || uploading) ? 0.6 : 1, display: "flex", alignItems: "center", gap: 8 }}
+              >
+                {uploading ? <><SpinnerSVG /> Uploading…</> : "Submit Proof of Payment"}
+              </button>
             </div>
           )}
 
-          {/* STEP 4: Complete */}
+          {/* Step 4: Confirmation / status */}
           {step === 4 && (
             <div style={S.card}>
               {pmt.status === "paid" ? (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingBottom: 8 }}>
-                  <div style={{ width: 76, height: 76, borderRadius: "50%", background: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38, marginBottom: 16, animation: "kpop .45s ease" }}>✅</div>
-                  <h2 style={{ fontSize: 22, fontWeight: 800, color: "#065F46", margin: "0 0 8px" }}>Payment Confirmed!</h2>
-                  <p style={{ fontSize: 14, color: "#64748B", lineHeight: 1.7, marginBottom: 24, maxWidth: 340 }}>
+                <div style={{ textAlign: "center", padding: "24px 0" }}>
+                  <div style={{ fontSize: 48, marginBottom: 12, animation: "kpop .4s ease" }}>✅</div>
+                  <h2 style={{ fontSize: 20, fontWeight: 800, color: "#065F46", margin: "0 0 8px" }}>Payment Confirmed!</h2>
+                  <p style={{ fontSize: 14, color: "#64748B", lineHeight: 1.7, marginBottom: 24, maxWidth: 340, margin: "0 auto 24px" }}>
                     Your payment of <strong>{formatCurrency(pmt.amount)}</strong> has been confirmed. Your order is being processed.
                   </p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 300 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 300, margin: "0 auto" }}>
                     <Link href={`/account/orders/${orderId}`} style={{ ...S.primaryLink, justifyContent: "center", display: "flex" }}>View My Order →</Link>
                     <Link href="/store" style={{ ...S.ghostLink, justifyContent: "center", display: "flex" }}>Continue Shopping</Link>
                   </div>

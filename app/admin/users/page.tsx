@@ -15,22 +15,32 @@ type User = {
 };
 
 export default function AdminUsersPage() {
-  const [users,    setUsers]    = useState<User[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [search,   setSearch]   = useState("");
-  const [tab,      setTab]      = useState("all");
-  const [roleModal,setRoleModal]= useState<User | null>(null);
-  const [newRole,  setNewRole]  = useState("user");
+  const [users,      setUsers]      = useState<User[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [search,     setSearch]     = useState("");
+  const [tab,        setTab]        = useState("all");
+  const [roleModal,  setRoleModal]  = useState<User | null>(null);
+  const [newRole,    setNewRole]    = useState("user");
   const [submitting, setSubmitting] = useState(false);
-  const [delModal, setDelModal] = useState<User | null>(null);
+  const [delModal,   setDelModal]   = useState<User | null>(null);
 
   async function load() {
     setLoading(true);
     try {
       const data = await adminApi.listUsers();
-      setUsers((data as any) || []);
-    } catch { toast.error("Failed to load users"); }
-    finally { setLoading(false); }
+      // FIX #9: API may return { users: [] } or { results: [] } — not a plain array.
+      // Calling .filter() on a plain object throws "data.filter is not a function"
+      // which Next.js catches and surfaces as "client-side exception".
+      const raw = data as any;
+      setUsers(Array.isArray(raw) ? raw : raw?.users ?? raw?.results ?? []);
+    } catch (e: any) {
+      // FIX #9 + #10: 401 means session expired — redirect to admin login
+      if (e?.status === 401) {
+        window.location.href = "/admin/login";
+        return;
+      }
+      toast.error(e?.message ?? "Failed to load users");
+    } finally { setLoading(false); }
   }
 
   useEffect(() => { load(); }, []);
@@ -133,19 +143,13 @@ export default function AdminUsersPage() {
                     <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{u.email}</div>
                   </div>
                 </TD>
-                <TD>
-                  <Badge status={u.role} label={u.role} />
-                </TD>
-                <TD>
-                  <Badge status={u.is_active ? "active" : "inactive"} label={u.is_active ? "Active" : "Disabled"} />
-                </TD>
+                <TD><Badge status={u.role} label={u.role} /></TD>
+                <TD><Badge status={u.is_active ? "active" : "inactive"} label={u.is_active ? "Active" : "Disabled"} /></TD>
                 <TD muted>{fmtDateTime(u.created_at)}</TD>
                 <TD muted>{fmtDateTime(u.last_login) || "Never"}</TD>
                 <TD>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <Link href={`/admin/users/${u.id}`}>
-                      <Btn small>View</Btn>
-                    </Link>
+                    <Link href={`/admin/users/${u.id}`}><Btn small>View</Btn></Link>
                     <Btn small variant={u.is_active ? "warning" : "success"} onClick={() => toggleActive(u)}>
                       {u.is_active ? "Disable" : "Enable"}
                     </Btn>

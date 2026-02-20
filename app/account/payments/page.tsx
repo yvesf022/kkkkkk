@@ -18,7 +18,11 @@ export default function PaymentsPage() {
   async function load() {
     try {
       const [p, b] = await Promise.allSettled([paymentsApi.getMy(), paymentsApi.getBankDetails()]);
-      if (p.status === "fulfilled") setPayments((p.value as any) ?? []);
+      if (p.status === "fulfilled") {
+        // FIX #3: API may return { payments: [] } or { results: [] } instead of a plain array
+        const val = p.value as any;
+        setPayments(Array.isArray(val) ? val : val?.payments ?? val?.results ?? []);
+      }
       if (b.status === "fulfilled") setBankDetails(b.value);
     } finally { setLoading(false); }
   }
@@ -27,7 +31,9 @@ export default function PaymentsPage() {
     setSelected(p);
     try {
       const h = await paymentsApi.getStatusHistory(p.id);
-      setHistory((h as any) ?? []);
+      // FIX: history may also be wrapped
+      const hVal = h as any;
+      setHistory(Array.isArray(hVal) ? hVal : hVal?.history ?? hVal?.results ?? []);
     } catch { setHistory([]); }
   }
 
@@ -114,7 +120,6 @@ export default function PaymentsPage() {
         <div style={card}>
           <h3 style={sectionTitle}>Payment #{selected.id?.slice(0, 8)}</h3>
 
-          {/* Status History Timeline */}
           {history.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#475569", marginBottom: 10 }}>Status History</div>
@@ -131,9 +136,7 @@ export default function PaymentsPage() {
             </div>
           )}
 
-          {/* Actions */}
           <div style={{ display: "grid", gap: 14 }}>
-            {/* Upload / Resubmit proof */}
             {["pending", "on_hold"].includes(selected.status) && (
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#0f172a" }}>
@@ -149,7 +152,6 @@ export default function PaymentsPage() {
               </div>
             )}
 
-            {/* Action buttons */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               {selected.status === "pending" && (
                 <button onClick={handleCancel} disabled={actionLoading} style={{ ...btn, color: "#dc2626", borderColor: "#fca5a5" }}>Cancel Payment</button>

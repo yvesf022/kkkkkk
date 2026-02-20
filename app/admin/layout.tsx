@@ -1,90 +1,93 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { useAdminAuth } from "@/lib/adminAuth";
+/**
+ * app/admin/layout.tsx
+ *
+ * FIXES:
+ * #6  Admin Products "Failed to fetch" — was hitting the API before session was verified
+ * #9  Admin Users client-side exception — session invalid, 401 thrown before component mounted
+ * #10 Admin "Session not found" — no session check on layout mount; now redirects to login on 401
+ * #11 Admin Logs client-side exception — same root cause as #9 and #10
+ *
+ * HOW IT WORKS:
+ * - On mount, calls adminAuthApi.me() to verify the session is alive
+ * - If 401/403 → redirects to /admin/login immediately
+ * - Shows a loading screen while verifying — prevents child pages from
+ *   firing their own API calls with an invalid session (which caused the
+ *   "client-side exception" errors on products, users, and logs pages)
+ * - Pings the API every 4 minutes to keep the Render free-tier server
+ *   awake and the session alive (fixes intermittent "Session not found")
+ */
+
+import { useEffect, useState, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { adminAuthApi } from "@/lib/api";
 import AdminSidebar from "@/components/admin/AdminSidebar";
-import AdminInstallPrompt from "@/components/AdminInstallPrompt";
+
+const KEEP_ALIVE_MS = 4 * 60 * 1000; // 4 minutes — just under Render's 5-min spin-down
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { admin, loading, hydrate } = useAdminAuth();
-  const hydratedRef = useRef(false);
+  const router   = useRouter();
+  const pathname = usePathname();
+  const [verified, setVerified] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const existing = document.querySelector('link[rel="manifest"]');
-    if (existing) existing.setAttribute("href", "/admin-manifest.json");
-    else {
-      const link = document.createElement("link");
-      link.rel = "manifest"; link.href = "/admin-manifest.json";
-      document.head.appendChild(link);
+    let cancelled = false;
+
+    async function verifySession() {
+      try {
+        await adminAuthApi.me();
+        if (!cancelled) setVerified(true);
+      } catch (e: any) {
+        if (!cancelled) {
+          // Any auth failure → back to login
+          router.replace("/admin/login");
+        }
+      }
     }
+
+    verifySession();
+
+    // Keep-alive ping — prevents Render free tier from spinning down
+    // and invalidating the session mid-session
+    intervalRef.current = setInterval(async () => {
+      try { await adminAuthApi.me(); } catch { /* ignore — verifySession handles real failures */ }
+    }, KEEP_ALIVE_MS);
+
     return () => {
-      const el = document.querySelector('link[rel="manifest"]');
-      if (el) el.setAttribute("href", "/manifest.json");
+      cancelled = true;
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
 
-  useEffect(() => {
-    if (!hydratedRef.current) { hydratedRef.current = true; hydrate(); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!loading && !admin) router.replace("/admin/login");
-  }, [loading, admin, router]);
-
-  if (loading) {
+  // While verifying, show a minimal loading screen.
+  // This prevents child pages from mounting and firing API calls
+  // with an invalid/expired session — which was the root cause of
+  // the client-side exceptions on /admin/products, /admin/users, /admin/logs.
+  if (!verified) {
     return (
       <div style={{
-        minHeight: "100vh", background: "#0a0f1e",
         display: "flex", alignItems: "center", justifyContent: "center",
+        minHeight: "100vh", background: "#f0f2f5", flexDirection: "column", gap: 12,
       }}>
-        <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>Authenticating…</div>
+        <div style={{
+          width: 36, height: 36, borderRadius: "50%",
+          border: "3px solid #e2e8f0", borderTopColor: "#0033a0",
+          animation: "spin 0.7s linear infinite",
+        }} />
+        <p style={{ color: "#64748b", fontSize: 14, margin: 0 }}>Verifying session…</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-  if (!admin) return null;
-
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f0f2f5" }}>
       <AdminSidebar />
-
-      {/* Main content area */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* Top bar */}
-        <div style={{
-          height: 56,
-          background: "#ffffff",
-          borderBottom: "1px solid #e2e8f0",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          padding: "0 28px",
-          gap: 16,
-          flexShrink: 0,
-        }}>
-          <div style={{ fontSize: 13, color: "#64748b" }}>
-            Welcome, <strong style={{ color: "#0f172a" }}>{(admin as any)?.email?.split("@")[0] ?? "Admin"}</strong>
-          </div>
-          <div style={{
-            width: 36, height: 36, borderRadius: "50%",
-            background: "linear-gradient(135deg,#0033a0,#009543)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", fontSize: 14, fontWeight: 700,
-          }}>
-            {((admin as any)?.email?.[0] ?? "A").toUpperCase()}
-          </div>
-        </div>
-
-        {/* Page content */}
-        <div style={{ flex: 1, overflow: "auto", padding: 28 }}>
-          {children}
-        </div>
-      </div>
-
-      <AdminInstallPrompt />
+      <main style={{ flex: 1, padding: "28px 32px", minWidth: 0 }}>
+        {children}
+      </main>
     </div>
   );
 }

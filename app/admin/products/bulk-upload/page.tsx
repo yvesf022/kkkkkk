@@ -48,6 +48,8 @@ export default function BulkUploadPage() {
   const [uploadRes,  setUploadRes]  = useState<UploadResult | null>(null);
   const [errorMsg,   setErrorMsg]   = useState<string | null>(null);
   const [activeTab,  setActiveTab]  = useState<"errors" | "warnings">("errors");
+  // FIX #7: Track whether the format guide is collapsed (so it can always be accessed)
+  const [guideOpen,  setGuideOpen]  = useState(true);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -185,6 +187,63 @@ export default function BulkUploadPage() {
           <p style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>Upload a CSV to create or update products. Validate and preview before importing.</p>
         </div>
 
+        {/* FIX #7: CSV Format Guide is NOW ALWAYS VISIBLE (collapsible, not hidden on file select).
+            Previously it was wrapped in {!file && (...)} which hid it once a file was chosen,
+            leaving users with no reference when troubleshooting upload failures. */}
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, marginBottom: 20, overflow: "hidden" }}>
+          <button
+            onClick={() => setGuideOpen(o => !o)}
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+          >
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>📋 CSV Format Guide</span>
+            <span style={{ fontSize: 18, color: "#94a3b8", lineHeight: 1 }}>{guideOpen ? "▲" : "▼"}</span>
+          </button>
+          {guideOpen && (
+            <div style={{ padding: "0 20px 20px", overflowX: "auto" }}>
+              <p style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>
+                Your CSV must have a header row. Only <strong>title</strong> and <strong>price</strong> are required. Column names are case-sensitive.
+              </p>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                    {["Column", "Required", "Type", "Example"].map((h) => (
+                      <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#475569", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["title",         "Yes", "string",  "Sony WH-1000XM5"],
+                    ["price",         "Yes", "number",  "1499.99"],
+                    ["stock",         "No",  "integer", "50"],
+                    ["category",      "No",  "string",  "Electronics"],
+                    ["brand",         "No",  "string",  "Sony"],
+                    ["sku",           "No",  "string",  "SONY-WH1000XM5"],
+                    ["description",   "No",  "string",  "Noise-cancelling headphones"],
+                    ["compare_price", "No",  "number",  "1999.99"],
+                    ["store",         "No",  "string",  "Store ID or slug"],
+                    ["status",        "No",  "string",  "active / draft"],
+                  ].map(([col, req, type, ex], i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "7px 12px", fontFamily: "monospace", fontWeight: 600, color: "#0f172a" }}>{col}</td>
+                      <td style={{ padding: "7px 12px" }}>
+                        <span style={{ padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 600, background: req === "Yes" ? "#fee2e2" : "#f1f5f9", color: req === "Yes" ? "#dc2626" : "#64748b" }}>{req}</span>
+                      </td>
+                      <td style={{ padding: "7px 12px", color: "#7c3aed", fontFamily: "monospace", fontSize: 12 }}>{type}</td>
+                      <td style={{ padding: "7px 12px", color: "#64748b" }}>{ex}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 14, padding: "10px 14px", background: "#fffbeb", borderRadius: 8, border: "1px solid #fde68a", fontSize: 13, color: "#92400e" }}>
+                <strong>Example first two rows:</strong><br />
+                <code style={{ fontFamily: "monospace", fontSize: 12 }}>title,price,stock,category</code><br />
+                <code style={{ fontFamily: "monospace", fontSize: 12 }}>Sony WH-1000XM5,1499.99,50,Electronics</code>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* DROP ZONE */}
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
@@ -204,7 +263,7 @@ export default function BulkUploadPage() {
           ) : (
             <>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Drop CSV file here</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>or click to browse</div>
+              <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>or click to browse · .csv files only</div>
             </>
           )}
         </div>
@@ -342,44 +401,6 @@ export default function BulkUploadPage() {
             </div>
             <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
               <button onClick={upload} disabled={isWorking} style={primaryBtn}>🚀 Upload All {preview.total_rows} Products</button>
-            </div>
-          </div>
-        )}
-
-        {!file && (
-          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>CSV Format Guide</h3>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                    {["Column", "Required", "Type", "Example"].map((h) => (
-                      <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#475569", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ["title",         "Yes", "string",  "Sony WH-1000XM5"],
-                    ["price",         "Yes", "number",  "1499.99"],
-                    ["stock",         "No",  "integer", "50"],
-                    ["category",      "No",  "string",  "Electronics"],
-                    ["brand",         "No",  "string",  "Sony"],
-                    ["sku",           "No",  "string",  "SONY-WH1000XM5"],
-                    ["description",   "No",  "string",  "Noise-cancelling…"],
-                    ["compare_price", "No",  "number",  "1999.99"],
-                    ["store",         "No",  "string",  "Store ID or slug"],
-                    ["status",        "No",  "string",  "active / draft"],
-                  ].map(([col, req, type, ex], i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "7px 12px", fontFamily: "monospace", fontWeight: 600, color: "#0f172a" }}>{col}</td>
-                      <td style={{ padding: "7px 12px" }}><span style={{ padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 600, background: req === "Yes" ? "#fee2e2" : "#f1f5f9", color: req === "Yes" ? "#dc2626" : "#64748b" }}>{req}</span></td>
-                      <td style={{ padding: "7px 12px", color: "#7c3aed", fontFamily: "monospace", fontSize: 12 }}>{type}</td>
-                      <td style={{ padding: "7px 12px", color: "#64748b" }}>{ex}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         )}
