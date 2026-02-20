@@ -649,7 +649,7 @@ export default function PaymentClient() {
                     <div style={S.sessionWarn}>
                       <Icon.Warning />
                       <span>Payment session not confirmed.</span>
-                      <button onClick={initPayment} style={S.retryInline}>Retry</button>
+                      <button onClick={() => initPayment(1)} style={S.retryInline}>Retry</button>
                     </div>
                   )}
 
