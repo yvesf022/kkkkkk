@@ -27,7 +27,14 @@ html, body {
 
 * {
   -webkit-tap-highlight-color: transparent;
+  /* manipulation allows scroll+tap but blocks pinch-zoom */
   touch-action: manipulation;
+}
+
+/* Hard lock: prevent any pinch/double-tap zoom on the root */
+html {
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
 }
 
 /* ======================================================
@@ -576,8 +583,9 @@ p {
    Mobile browsers scale it down automatically.
    Users can pinch-zoom freely to read any section.
 ====================================================== */
-@media (max-width: 1024px) {
-  /* Minor refinements at tablet — layout stays desktop */
-  .adminSidebar { width: 220px; }
-  :root { --admin-sidebar-w: 220px; }
-}
+/* ======================================================
+   STRICT DESKTOP LOCK — no responsive breakpoints.
+   The 1024px layout renders identically on every device.
+   Zoom is disabled in layout.tsx viewport meta.
+   touch-action on html blocks OS-level pinch-zoom.
+====================================================== */

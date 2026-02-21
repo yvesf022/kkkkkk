@@ -26,6 +26,43 @@ export default function ClientShell({
       window.matchMedia("(display-mode: fullscreen)").matches ||
       (window.navigator as any).standalone === true; // iOS Safari PWA
     if (isStandalone) setShowSplash(true);
+
+    // JS zoom-lock: safety net for browsers/WebViews that ignore viewport meta.
+    // Resets any OS-level zoom attempt back to the locked scale immediately.
+    const lockZoom = () => {
+      const vp = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+      if (vp) {
+        // Force a repaint of the viewport meta to reset zoom
+        vp.content = "width=1024, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no";
+      }
+    };
+
+    // Block double-tap zoom
+    let lastTap = 0;
+    const onTouchEnd = (e: TouchEvent) => {
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        e.preventDefault();
+        lockZoom();
+      }
+      lastTap = now;
+    };
+
+    // Block pinch-zoom at the gesture level
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+        lockZoom();
+      }
+    };
+
+    document.addEventListener("touchend",  onTouchEnd,  { passive: false });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+
+    return () => {
+      document.removeEventListener("touchend",  onTouchEnd);
+      document.removeEventListener("touchmove", onTouchMove);
+    };
   }, []);
 
   /* 🔥 SINGLE SOURCE OF AUTH HYDRATION */
