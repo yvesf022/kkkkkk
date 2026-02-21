@@ -162,15 +162,12 @@ export const authApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    // Backend returns user data. We need a token.
-    // Since backend uses cookies, we call /api/auth/me to verify,
-    // but we store a flag so we know we're logged in.
-    // BETTER: Ask backend to also return token in body.
-    // For now we store a session marker and rely on the cookie for this request only,
-    // then switch fully once backend returns token in body.
-    // 
-    // TEMPORARY BRIDGE: store user data, rely on cookie just for /me calls.
-    // The real fix is in the backend — see note below.
+    // Backend returns { access_token, token_type, user } or { token, user }
+    // Save whichever token field is present so all subsequent requests are authenticated.
+    const token = data?.access_token ?? data?.token ?? null;
+    if (token) {
+      tokenStorage.set(token);
+    }
     return data;
   },
 
@@ -421,8 +418,16 @@ export const ordersApi = {
       body: JSON.stringify(payload),
     }),
 
-  getMy: (): Promise<Order[]> => request("/api/orders/my"),
-  myOrders: (): Promise<Order[]> => request("/api/orders/my"),
+  getMy: async (): Promise<Order[]> => {
+    const data: any = await request("/api/orders/my");
+    // Backend returns paginated: { total, page, per_page, pages, results: Order[] }
+    // Unwrap so all callers always receive a plain Order[] array.
+    return Array.isArray(data) ? data : data?.results ?? data?.orders ?? [];
+  },
+  myOrders: async (): Promise<Order[]> => {
+    const data: any = await request("/api/orders/my");
+    return Array.isArray(data) ? data : data?.results ?? data?.orders ?? [];
+  },
   getById: (id: string): Promise<Order> => request(`/api/orders/${id}`),
 
   getAdmin: (statusFilter?: string): Promise<Order[]> => {
