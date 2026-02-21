@@ -40,10 +40,10 @@ function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/account";
-  const authLogin = useAuth(s => s.login);
-  const mergeGuestCart = useCart(s => s.mergeGuestCart);
-  const fetchCart = useCart(s => s.fetchCart);
-  const cartItems = useCart(s => s.cart?.items ?? []);
+  const authLogin = useAuth((s) => s.login);
+  const mergeGuestCart = useCart((s) => s.mergeGuestCart);
+  const fetchCart = useCart((s) => s.fetchCart);
+  const cartItems = useCart((s) => s.cart?.items) ?? [];
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");

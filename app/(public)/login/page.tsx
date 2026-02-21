@@ -34,14 +34,10 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/account";
 
-  // FIX: use the auth store's login() so global user state is updated —
-  // previously authApi.login() was called directly which skipped the store,
-  // so the app never knew the user was logged in and route guards blocked the redirect.
-  const authLogin = useAuth(s => s.login);
-
-  const mergeGuestCart = useCart(s => s.mergeGuestCart);
-  const fetchCart = useCart(s => s.fetchCart);
-  const cartItems = useCart(s => s.cart?.items ?? []);
+  const authLogin = useAuth((s) => s.login);
+  const mergeGuestCart = useCart((s) => s.mergeGuestCart);
+  const fetchCart = useCart((s) => s.fetchCart);
+  const cartItems = useCart((s) => s.cart?.items) ?? [];
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
