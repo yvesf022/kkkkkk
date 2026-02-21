@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import type { Product, ProductVariant } from "@/lib/types";
 import { useCart } from "@/lib/cart";
@@ -50,8 +50,19 @@ export default function AddToCartClient({ product }: Props) {
   const addItem = useCart((s) => s.addItem);
   const cartLoading = useCart((s) => s.loading);
 
-  // FIX #4: read auth state — unauthenticated users cannot add to cart
-  const { user } = useAuth();
+  // ── Auth: read state + trigger hydration if not already done ──────────────
+  // This component can render outside of RequireAuth (public product pages),
+  // so it must own hydration itself. Without this, user is permanently null
+  // for authenticated visitors because no parent ever calls hydrate().
+  const { user, loading: authLoading } = useAuth();
+  const hydrate = useAuth((s) => s.hydrate);
+  const hydratedOnce = useRef(false);
+  useEffect(() => {
+    if (!hydratedOnce.current) {
+      hydratedOnce.current = true;
+      hydrate();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const allImages = resolveImages(product);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -109,6 +120,8 @@ export default function AddToCartClient({ product }: Props) {
   const returnUrl = `/store/product/${product.id}`;
 
   async function handleAdd() {
+    // Still hydrating — button shouldn't be reachable, but guard anyway
+    if (authLoading) return;
     // FIX #4: Redirect to login if not authenticated — Amazon-style
     if (!user) {
       router.push(`/login?redirect=${encodeURIComponent(returnUrl)}`);
@@ -307,8 +320,20 @@ export default function AddToCartClient({ product }: Props) {
         {/* ── Add to Cart / Sign In ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
-          {/* FIX #4: Guest user — show Amazon-style "Sign in to buy" panel */}
-          {!user && (
+          {/* HYDRATING: show neutral skeleton — never flash "Sign in" to real users */}
+          {authLoading && (
+            <div style={{
+              height: 52, borderRadius: 14,
+              background: "linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)",
+              backgroundSize: "200% 100%",
+              animation: "shimmer 1.2s infinite",
+            }}>
+              <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+            </div>
+          )}
+
+          {/* GUEST: hydration complete, confirmed unauthenticated */}
+          {!authLoading && !user && (
             <div style={{
               background: "#fffbeb",
               border: "1px solid #fde68a",
@@ -347,8 +372,8 @@ export default function AddToCartClient({ product }: Props) {
             </div>
           )}
 
-          {/* Authenticated user — normal add to cart */}
-          {user && (
+          {/* AUTHENTICATED: hydration complete, confirmed logged in */}
+          {!authLoading && user && (
             <>
               <button
                 onClick={handleAdd}
