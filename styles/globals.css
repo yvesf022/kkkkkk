@@ -6,9 +6,7 @@
 ====================================================== */
 
 html {
-  /* Larger base font so text stays readable when scaled down on mobile */
   font-size: 16px;
-  min-width: 1024px;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   scroll-behavior: smooth;
@@ -562,13 +560,114 @@ p {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ======================================================
-   NO MOBILE BREAKPOINTS — Jumia-style fixed desktop.
-   The full 1024px layout renders on all screen sizes.
-   Mobile browsers scale it down automatically.
-   Tablet breakpoint kept for minor refinements only.
+   RESPONSIVE BREAKPOINTS
+   Standard device-width responsive layout.
+   Matches how Jumia Nigeria renders on mobile.
 ====================================================== */
+
+/* Tablet */
 @media (max-width: 1024px) {
-  /* Minor refinements at tablet — layout stays desktop */
   .adminSidebar { width: 220px; }
   :root { --admin-sidebar-w: 220px; }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .hero-products {
+    max-width: 100%;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+
+  .navbar-container {
+    height: 60px;
+    padding: 0 16px;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .product-info {
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .product-title {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .product-price {
+    font-size: 13px;
+  }
+
+  .hero-section {
+    padding: 28px 0;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-products {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .section-spacing {
+    padding: 28px 0;
+  }
+
+  /* Admin sidebar becomes overlay on mobile */
+  .adminSidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 9999;
+    transform: translateX(-100%);
+    width: 260px !important;
+    box-shadow: var(--shadow-strong);
+  }
+
+  .adminSidebar.open {
+    transform: translateX(0);
+  }
+
+  .adminMenuBtn {
+    display: flex !important;
+  }
+
+  .adminSidebarOverlay.open {
+    display: block !important;
+  }
+
+  .adminContent {
+    padding: 16px;
+  }
+}
+
+/* Small mobile (iPhone SE etc) */
+@media (max-width: 390px) {
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .product-info {
+    padding: 10px;
+  }
 }

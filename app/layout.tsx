@@ -15,12 +15,12 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#0f172a" },
     { media: "(prefers-color-scheme: dark)",  color: "#0f172a" },
   ],
-  // Jumia-style: fixed 1024px desktop layout on all screens.
-  // initialScale 0.4 starts zoomed out so full layout fits the phone screen.
-  // User can pinch-zoom in freely. minimumScale 0.25 allows full zoom-out.
-  width: 1024,
-  initialScale: 0.4,
-  minimumScale: 0.25,
+  // Standard responsive viewport — same as Jumia Nigeria.
+  // width=device-width renders at the actual screen width (no zoom-out trick).
+  // The layout itself is responsive via CSS, matching correctly on all screen sizes.
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 1,
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",
