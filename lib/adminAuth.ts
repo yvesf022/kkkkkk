@@ -75,11 +75,10 @@ export const useAdminAuth = create<AdminAuthState>((set) => ({
     set({ loading: true, error: null });
 
     try {
+      // login() now saves access_token to adminTokenStorage internally
       await adminAuthApi.login({ email, password });
 
-      // IMPORTANT:
-      // Do NOT trust login response alone.
-      // Always hydrate from /me.
+      // Token is now in localStorage — /me will send it as Authorization header
       const admin = await adminAuthApi.me();
       set({ admin, loading: false });
     } catch (err: any) {

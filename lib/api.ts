@@ -199,11 +199,14 @@ export const authApi = {
 
 export const adminAuthApi = {
   login: async (payload: { email: string; password: string }): Promise<Admin> => {
-    const data = await request<Admin>("/api/admin/auth/login", {
+    const data: any = await request<Admin>("/api/admin/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    // Save admin token so adminRequest() can attach it as Authorization header
+    const token = data?.access_token ?? data?.token ?? null;
+    if (token) adminTokenStorage.set(token);
     return data;
   },
 
