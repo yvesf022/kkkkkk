@@ -14,12 +14,16 @@ const BRAND = "#0A0F1E";
 const ACCENT = "#1E3A8A";
 const POLL_MS = 30_000;
 
-/* ─── Status config ─── */
+/**
+ * STATUS_META only used AFTER proof is submitted (step 4).
+ * Before that the banner shows a neutral "initialized" state.
+ */
 const STATUS_META: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
-  pending:  { bg: "#FFFBEB", fg: "#92400E", dot: "#F59E0B", label: "Pending Review" },
-  on_hold:  { bg: "#FFF7ED", fg: "#7C3D0A", dot: "#F97316", label: "Under Review" },
-  paid:     { bg: "#F0FDF4", fg: "#065F46", dot: "#10B981", label: "Confirmed" },
-  rejected: { bg: "#FFF1F2", fg: "#9F1239", dot: "#F43F5E", label: "Rejected" },
+  initialized: { bg: "#EFF6FF", fg: "#1E40AF", dot: "#3B82F6", label: "Payment Initialized" },
+  pending:     { bg: "#FFFBEB", fg: "#92400E", dot: "#F59E0B", label: "Pending Review" },
+  on_hold:     { bg: "#FFF7ED", fg: "#7C3D0A", dot: "#F97316", label: "Under Review" },
+  paid:        { bg: "#F0FDF4", fg: "#065F46", dot: "#10B981", label: "Confirmed" },
+  rejected:    { bg: "#FFF1F2", fg: "#9F1239", dot: "#F43F5E", label: "Rejected" },
 };
 
 /* ─── Step definitions ─── */
@@ -73,6 +77,13 @@ const ClockIcon = () => (
     <path d="M10 6v4.5l3 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+const InfoIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+    <circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M10 9v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <circle cx="10" cy="6.5" r=".9" fill="currentColor" />
+  </svg>
+);
 
 /* ─── Helper: normalize API responses ─── */
 function normalizePayments(raw: unknown): Payment[] {
@@ -84,7 +95,9 @@ function normalizePayments(raw: unknown): Payment[] {
 }
 
 /* ─── CopyBtn sub-component ─── */
-function CopyBtn({ value, copyKey, copied, onCopy }: { value: string; copyKey: string; copied: string | null; onCopy: (v: string, k: string) => void }) {
+function CopyBtn({ value, copyKey, copied, onCopy }: {
+  value: string; copyKey: string; copied: string | null; onCopy: (v: string, k: string) => void;
+}) {
   const isCopied = copied === copyKey;
   return (
     <button
@@ -95,6 +108,7 @@ function CopyBtn({ value, copyKey, copied, onCopy }: { value: string; copyKey: s
         color: isCopied ? "#10B981" : "#64748B",
         cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
         fontSize: 11, fontWeight: 600, fontFamily: FF, transition: "all .15s",
+        flexShrink: 0,
       }}
     >
       {isCopied ? <CheckIcon /> : <CopyIcon />}
@@ -118,7 +132,7 @@ function BankRow({ label, value, copyKey, copied, onCopy, highlight }: {
       border: `1px solid ${highlight ? "#FDE68A" : "#E2E8F0"}`,
       gap: 12,
     }}>
-      <div>
+      <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: highlight ? "#92400E" : "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
           {label}
         </div>
@@ -174,6 +188,31 @@ function StepNav({ step, completedSteps }: { step: number; completedSteps: Set<n
   );
 }
 
+/* ─── "Upload Later" callout shown after order is created ─── */
+function UploadLaterCallout({ orderId }: { orderId: string }) {
+  return (
+    <div style={{
+      display: "flex", gap: 12, padding: "14px 16px",
+      background: "#EFF6FF", borderRadius: 12, border: "1px solid #BFDBFE",
+      alignItems: "flex-start", marginTop: 4,
+    }}>
+      <span style={{ color: "#3B82F6", flexShrink: 0, paddingTop: 1 }}><InfoIcon /></span>
+      <div>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#1E40AF", fontFamily: FF }}>
+          No rush — you can upload later too
+        </p>
+        <p style={{ margin: "4px 0 0", fontSize: 12, color: "#1E40AF", opacity: 0.8, lineHeight: 1.7, fontFamily: FF }}>
+          Your order has been saved. If you need to leave now, you can always upload your proof of payment from{" "}
+          <Link href={`/account/orders/${orderId}`} style={{ color: "#1E40AF", fontWeight: 700 }}>
+            Account → Orders
+          </Link>
+          {" "}at any time.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════ */
@@ -182,7 +221,6 @@ export default function PaymentClient() {
   const router = useRouter();
   const orderId = searchParams.get("order_id");
 
-  // ✅ Safe selector — returns stable function reference, not a new object/array
   const clearCart = useCart((s) => s.clearCart);
 
   /* ─── Core state ─── */
@@ -194,20 +232,14 @@ export default function PaymentClient() {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   /* ─── File upload state ─── */
-  const [file, setFile]           = useState<File | null>(null);
-  const [dragOver, setDragOver]   = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploaded, setUploaded]   = useState(false);
+  const [file, setFile]               = useState<File | null>(null);
+  const [dragOver, setDragOver]       = useState(false);
+  const [uploading, setUploading]     = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* ─── Cancel state ─── */
-  const [showCancelForm, setShowCancelForm] = useState(false);
-  const [cancelReason, setCancelReason]     = useState("");
-  const [cancelling, setCancelling]         = useState(false);
-
-  /* ─── Retry state ─── */
-  const [retrying, setRetrying] = useState(false);
+  /* ─── Method change state ─── */
+  const [changingMethod, setChangingMethod] = useState(false);
 
   /* ─── Polling ─── */
   const [polling, setPolling] = useState(false);
@@ -216,23 +248,16 @@ export default function PaymentClient() {
   /* ─── Copy ─── */
   const [copied, setCopied] = useState<string | null>(null);
 
-  /* ─── Method change ─── */
-  const [selectedMethod, setSelectedMethod] = useState<string>("bank_transfer");
-  const [changingMethod, setChangingMethod] = useState(false);
-
   /* ─── Fetch bank details once ─── */
   useEffect(() => {
     paymentsApi.getBankDetails()
       .then((b: any) => {
-        // API returns array or single object
         setBankDetails(Array.isArray(b) ? (b[0] ?? null) : (b ?? null));
       })
-      .catch(() => {}); // non-fatal
+      .catch(() => {});
   }, []);
 
   /* ─── Initialize payment ─── */
-  // FIX: getByOrderId can return null if user has no payments yet → fall through to create()
-  // FIX: create() returns a Payment directly (not wrapped) — handle both shapes
   const initPayment = useCallback(async () => {
     if (!orderId) { setInitError("No order ID in URL. Please return to checkout."); setInitializing(false); return; }
     setInitializing(true); setInitError(null);
@@ -252,35 +277,26 @@ export default function PaymentClient() {
         pmt = await paymentsApi.create(orderId) as Payment;
       }
 
-      // 3. Normalise ALL known backend response shapes:
-      //    { payment: {...} }  |  { data: {...} }  |  { result: {...} }  |  plain Payment
+      // 3. Normalise all known backend response shapes
       const raw = pmt as any;
       if (raw?.payment?.id)  pmt = raw.payment;
       else if (raw?.data?.id)    pmt = raw.data;
       else if (raw?.result?.id)  pmt = raw.result;
-      // still no id? — backend might have returned the payment directly, keep as-is
-
-      // Log to console so we can see the actual shape in production
-      if (typeof window !== "undefined") {
-        console.debug("[PaymentClient] resolved payment:", pmt);
-      }
 
       if (!(pmt as any)?.id) {
         console.error("[PaymentClient] unrecognised payment shape:", raw);
-        throw new Error(`Payment created (200) but response has no ID. Shape: ${Object.keys(raw ?? {}).join(", ") || "empty"}`);
+        throw new Error(`Payment created but response has no ID. Shape: ${Object.keys(raw ?? {}).join(", ") || "empty"}`);
       }
 
       setPayment(pmt);
 
-      // 4. Route to correct step based on current status
+      // 4. Route to correct step based on current payment state
       if (pmt.status === "paid") {
         setStep(4); setCompletedSteps(new Set([1, 2, 3, 4]));
-      } else if (pmt.status === "on_hold") {
+      } else if (pmt.status === "on_hold" || pmt.status === "rejected") {
         setStep(4); setCompletedSteps(new Set([1, 2, 3]));
-      } else if (pmt.status === "rejected") {
-        setStep(4); setCompletedSteps(new Set([1]));
       } else if (pmt.proof) {
-        // proof already uploaded but status still pending → waiting for review
+        // Proof already uploaded but status still pending → waiting for review
         setStep(4); setCompletedSteps(new Set([1, 2, 3]));
       } else {
         // Fresh payment — go to transfer step
@@ -295,15 +311,20 @@ export default function PaymentClient() {
 
   useEffect(() => { initPayment(); }, [initPayment]);
 
-  /* ─── Poll for status changes when on_hold ─── */
+  /* ─── Poll for status changes after proof submitted ─── */
   useEffect(() => {
-    if (step === 4 && payment?.status === "on_hold" && payment?.id) {
+    const shouldPoll = step === 4 && payment?.id &&
+      (payment.status === "on_hold" || (payment.status === "pending" && payment.proof));
+
+    if (shouldPoll) {
       pollRef.current = setInterval(async () => {
         setPolling(true);
         try {
-          const updated = await paymentsApi.getById(payment.id) as Payment;
+          const updated = await paymentsApi.getById(payment!.id) as Payment;
           setPayment(updated);
-          if (updated.status !== "on_hold") clearInterval(pollRef.current!);
+          if (updated.status === "paid" || updated.status === "rejected") {
+            clearInterval(pollRef.current!);
+          }
         } catch {
           // silent — keep trying
         } finally {
@@ -312,7 +333,7 @@ export default function PaymentClient() {
       }, POLL_MS);
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [step, payment?.status, payment?.id]);
+  }, [step, payment?.status, payment?.id, payment?.proof]);
 
   /* ─── Copy helper ─── */
   function copyText(value: string, key: string) {
@@ -323,10 +344,9 @@ export default function PaymentClient() {
   }
 
   /* ─── Upload proof → POST /api/payments/{payment_id}/proof ─── */
-  // ⚠️  DO NOT call paymentsApi.uploadProof() here.
-  //     The shared request() helper always spreads headers:{} into fetch(),
-  //     which prevents the browser from auto-generating the multipart boundary → 422.
-  //     We call fetch() directly so Content-Type is set automatically.
+  // NOTE: We call fetch() directly (not paymentsApi.uploadProof) because the shared
+  // request() helper always spreads headers:{} — which prevents the browser from
+  // auto-generating the multipart/form-data boundary, causing a 422.
   async function handleUpload() {
     if (!file || !payment) return;
     setUploading(true); setUploadError(null);
@@ -342,7 +362,7 @@ export default function PaymentClient() {
 
       const res = await fetch(`${API_BASE}/api/payments/${payment.id}/proof`, {
         method: "POST",
-        // ✅ NO Content-Type header — browser sets multipart/form-data + boundary automatically
+        // NO Content-Type header — browser sets multipart/form-data + boundary automatically
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
       });
@@ -356,16 +376,18 @@ export default function PaymentClient() {
         throw new Error(msg);
       }
 
-      // ✅ Clear cart only AFTER successful proof submission
+      // Clear cart only AFTER successful proof submission
       await clearCart().catch(() => {});
 
-      setUploaded(true); setFile(null);
+      setFile(null);
       setCompletedSteps((prev) => new Set([...prev, 2, 3]));
 
-      // Refresh payment status
+      // Refresh payment to get updated status + proof URL
       const updated = await paymentsApi.getById(payment.id) as Payment;
       setPayment(updated);
-      setTimeout(() => setStep(4), 600);
+
+      // Small delay so the user sees the upload finish before transitioning
+      setTimeout(() => setStep(4), 500);
     } catch (e: any) {
       setUploadError(e?.message ?? "Upload failed. Please try again.");
     } finally {
@@ -373,46 +395,15 @@ export default function PaymentClient() {
     }
   }
 
-  /* ─── Cancel payment → PATCH /api/payments/{payment_id}/cancel ─── */
-  async function handleCancel() {
-    if (!payment || !cancelReason.trim()) return;
-    setCancelling(true);
-    try {
-      await paymentsApi.cancel(payment.id, cancelReason);
-      router.push(`/account/orders/${orderId}`);
-    } catch (e: any) {
-      setUploadError(e?.message ?? "Cancel failed.");
-      setCancelling(false);
-    }
-  }
-
-  /* ─── Retry payment → POST /api/payments/{order_id}/retry ─── */
-  async function handleRetry() {
-    if (!orderId) return;
-    setRetrying(true);
-    try {
-      const newPmt = await paymentsApi.retry(orderId) as Payment;
-      setPayment(newPmt);
-      setCompletedSteps(new Set([1]));
-      setUploaded(false); setFile(null); setUploadError(null);
-      setStep(2);
-    } catch (e: any) {
-      setUploadError(e?.message ?? "Retry failed.");
-    } finally {
-      setRetrying(false);
-    }
-  }
-
   /* ─── Update payment method → PATCH /api/payments/{payment_id}/method ─── */
   async function handleMethodChange(method: string) {
-    if (!payment || method === payment.method) return;
+    if (!payment || method === payment.method || changingMethod) return;
     setChangingMethod(true);
     try {
       await paymentsApi.updateMethod(payment.id, method);
       setPayment((prev) => prev ? { ...prev, method: method as any } : prev);
-      setSelectedMethod(method);
     } catch (e: any) {
-      setUploadError(e?.message ?? "Method update failed.");
+      setUploadError(e?.message ?? "Could not update payment method.");
     } finally {
       setChangingMethod(false);
     }
@@ -461,7 +452,16 @@ export default function PaymentClient() {
 
   /* ═══════════ MAIN RENDER ═══════════ */
   const pmt = payment;
-  const pMeta = STATUS_META[pmt.status] ?? STATUS_META.pending;
+
+  /**
+   * Determine what status label to show in the banner.
+   * "Pending Review" only appears AFTER proof has been submitted.
+   * Before that, the payment is simply "initialized" (step 2 or 3).
+   */
+  const bannerKey: string =
+    step === 4 ? (pmt.status in STATUS_META ? pmt.status : "pending")
+    : "initialized";
+  const pMeta = STATUS_META[bannerKey];
 
   return (
     <div style={S.page}>
@@ -506,19 +506,21 @@ export default function PaymentClient() {
               <div style={{ marginBottom: 20 }}>
                 <p style={S.fieldLabel}>Payment Method</p>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {["bank_transfer", "mobile_money", "cash"].map((m) => (
+                  {(["bank_transfer", "mobile_money", "cash"] as const).map((m) => (
                     <button
                       key={m}
                       onClick={() => handleMethodChange(m)}
                       disabled={changingMethod}
                       style={{
-                        padding: "8px 16px", borderRadius: 8, fontSize: 13, fontFamily: FF, fontWeight: 600, cursor: "pointer", transition: "all .15s",
-                        background: (pmt.method === m || selectedMethod === m) ? ACCENT : "#F8FAFC",
-                        color: (pmt.method === m || selectedMethod === m) ? "#fff" : "#64748B",
-                        border: (pmt.method === m || selectedMethod === m) ? `1px solid ${ACCENT}` : "1px solid #E2E8F0",
+                        padding: "8px 16px", borderRadius: 8, fontSize: 13, fontFamily: FF,
+                        fontWeight: 600, cursor: "pointer", transition: "all .15s",
+                        background: pmt.method === m ? ACCENT : "#F8FAFC",
+                        color: pmt.method === m ? "#fff" : "#64748B",
+                        border: pmt.method === m ? `1px solid ${ACCENT}` : "1px solid #E2E8F0",
+                        opacity: changingMethod ? 0.6 : 1,
                       }}
                     >
-                      {changingMethod && selectedMethod === m ? <Spinner size={12} /> : m.replace(/_/g, " ")}
+                      {changingMethod && pmt.method !== m ? <Spinner size={12} /> : m.replace(/_/g, " ")}
                     </button>
                   ))}
                 </div>
@@ -572,7 +574,7 @@ export default function PaymentClient() {
                   />
 
                   {bankDetails.instructions && (
-                    <div style={{ padding: "12px 16px", background: "#EFF6FF", borderRadius: 10, border: "1px solid #BFDBFE", fontSize: 13, color: "#1E40AF", lineHeight: 1.7 }}>
+                    <div style={{ padding: "12px 16px", background: "#EFF6FF", borderRadius: 10, border: "1px solid #BFDBFE", fontSize: 13, color: "#1E40AF", lineHeight: 1.7, fontFamily: FF }}>
                       ℹ️ {bankDetails.instructions}
                     </div>
                   )}
@@ -598,36 +600,8 @@ export default function PaymentClient() {
                 I've Completed the Transfer →
               </button>
 
-              {/* Cancel link */}
-              {!showCancelForm ? (
-                <button
-                  onClick={() => setShowCancelForm(true)}
-                  style={{ background: "none", border: "none", color: "#94A3B8", fontSize: 13, cursor: "pointer", fontFamily: FF, padding: "12px 0 0", display: "block" }}
-                >
-                  Cancel this payment
-                </button>
-              ) : (
-                <div style={{ marginTop: 16, padding: "16px", background: "#FFF1F2", borderRadius: 12, border: "1px solid #FECDD3" }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#9F1239", margin: "0 0 10px", fontFamily: FF }}>Cancel this payment?</p>
-                  <textarea
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="Reason for cancellation…"
-                    rows={3}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #FECDD3", fontSize: 13, fontFamily: FF, resize: "vertical", outline: "none", background: "#fff" }}
-                  />
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button
-                      onClick={handleCancel}
-                      disabled={cancelling || !cancelReason.trim()}
-                      style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "#DC2626", color: "#fff", fontWeight: 700, fontSize: 13, fontFamily: FF, cursor: "pointer", opacity: cancelling || !cancelReason.trim() ? 0.6 : 1 }}
-                    >
-                      {cancelling ? "Cancelling…" : "Confirm Cancel"}
-                    </button>
-                    <button onClick={() => setShowCancelForm(false)} style={S.ghostBtn}>Keep</button>
-                  </div>
-                </div>
-              )}
+              {/* Upload later notice */}
+              <UploadLaterCallout orderId={orderId!} />
             </div>
           )}
 
@@ -636,11 +610,11 @@ export default function PaymentClient() {
             <div style={S.card}>
               <h2 style={S.cardTitle}>Upload Proof of Payment</h2>
               <p style={{ ...S.cardSub, marginBottom: 22 }}>
-                Upload your bank transfer receipt, screenshot, or confirmation email.
+                Upload your bank transfer receipt, screenshot, or confirmation email. Your order status will move to <strong>Pending Review</strong> once uploaded.
               </p>
 
               {uploadError && (
-                <div style={{ display: "flex", gap: 8, padding: "10px 14px", background: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: 8, marginBottom: 16, fontSize: 13, color: "#9F1239", fontFamily: FF }}>
+                <div style={{ display: "flex", gap: 8, padding: "10px 14px", background: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: 8, marginBottom: 16, fontSize: 13, color: "#9F1239", fontFamily: FF, alignItems: "center" }}>
                   <AlertIcon /> {uploadError}
                 </div>
               )}
@@ -686,13 +660,13 @@ export default function PaymentClient() {
                 )}
               </div>
 
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
                 <button
                   onClick={handleUpload}
                   disabled={!file || uploading}
                   style={{ ...S.primaryBtn, opacity: (!file || uploading) ? 0.6 : 1 }}
                 >
-                  {uploading ? <><Spinner size={16} /> Uploading…</> : "Submit Proof"}
+                  {uploading ? <><Spinner size={16} /> Uploading…</> : "Submit Proof →"}
                 </button>
                 <button
                   onClick={() => { setStep(2); setCompletedSteps((prev) => { const n = new Set(prev); n.delete(2); return n; }); }}
@@ -701,6 +675,9 @@ export default function PaymentClient() {
                   ← Back
                 </button>
               </div>
+
+              {/* Upload later notice — shown prominently on the upload step too */}
+              <UploadLaterCallout orderId={orderId!} />
             </div>
           )}
 
@@ -736,39 +713,46 @@ export default function PaymentClient() {
                       Reason: {pmt.admin_notes}
                     </p>
                   )}
+                  <p style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6, maxWidth: 340, margin: "0 auto 20px", fontFamily: FF }}>
+                    Please upload a new proof of payment from your order page.
+                  </p>
                   <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                    <button onClick={handleRetry} disabled={retrying} style={S.primaryBtn}>
-                      {retrying ? <><Spinner size={16} /> Retrying…</> : "↺ Retry Payment"}
-                    </button>
-                    <Link href={`/account/orders/${orderId}`} style={S.ghostLink}>View Order</Link>
+                    {/* Direct user to upload from account/orders — the correct backend route is POST /api/payments/{id}/proof */}
+                    <Link href={`/account/orders/${orderId}`} style={S.primaryLink}>
+                      Upload New Proof →
+                    </Link>
+                    <Link href="/store" style={S.ghostLink}>Continue Shopping</Link>
                   </div>
                 </div>
               )}
 
-              {/* ON HOLD / PENDING review */}
+              {/* PENDING REVIEW or ON HOLD — only shown AFTER proof was submitted */}
               {(pmt.status === "on_hold" || pmt.status === "pending") && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-                  <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#FFF7ED", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, marginBottom: 16, animation: "pop .4s ease" }}>
+                  <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#FFFBEB", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, marginBottom: 16, animation: "pop .4s ease" }}>
                     ⏳
                   </div>
-                  <h2 style={{ fontSize: 22, fontWeight: 800, color: "#7C3D0A", margin: "0 0 8px", fontFamily: FF }}>Under Review</h2>
+                  <h2 style={{ fontSize: 22, fontWeight: 800, color: "#92400E", margin: "0 0 8px", fontFamily: FF }}>
+                    Proof Submitted — Pending Review
+                  </h2>
                   <p style={{ fontSize: 14, color: "#64748B", lineHeight: 1.7, maxWidth: 360, marginBottom: 8, fontFamily: FF }}>
-                    Your proof of payment has been submitted. You'll be notified once confirmed — usually within a few hours.
+                    Your proof of payment has been received. You'll be notified once our team confirms it — usually within a few hours.
                   </p>
-                  <p style={{ fontSize: 12, color: "#94A3B8", marginBottom: 24, display: "flex", alignItems: "center", gap: 5, fontFamily: FF }}>
+                  <p style={{ fontSize: 12, color: "#94A3B8", marginBottom: 20, display: "flex", alignItems: "center", gap: 5, fontFamily: FF }}>
                     <ClockIcon /> Auto-checking every 30 seconds
                   </p>
 
                   {/* Progress tracker */}
-                  <div style={{ width: "100%", background: "#F8FAFC", borderRadius: 12, padding: "16px 20px", marginBottom: 24, textAlign: "left" }}>
+                  <div style={{ width: "100%", background: "#F8FAFC", borderRadius: 12, padding: "16px 20px", marginBottom: 20, textAlign: "left" }}>
                     {[
+                      { label: "Order placed", done: true },
                       { label: "Payment initialized", done: true },
                       { label: "Transfer completed", done: true },
                       { label: "Proof uploaded", done: true },
                       { label: "Admin review", active: true },
                       { label: "Order confirmed", done: false },
-                    ].map((item, i) => (
-                      <div key={i} style={{ display: "flex", gap: 10, paddingBottom: i < 4 ? 10 : 0, alignItems: "flex-start" }}>
+                    ].map((item, i, arr) => (
+                      <div key={i} style={{ display: "flex", gap: 10, paddingBottom: i < arr.length - 1 ? 10 : 0, alignItems: "flex-start" }}>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", marginTop: 4, flexShrink: 0, background: item.done ? "#10B981" : item.active ? "#F97316" : "#E2E8F0" }} />
                         <span style={{ fontSize: 13, color: item.done ? BRAND : item.active ? "#7C3D0A" : "#94A3B8", fontWeight: (item.done || item.active) ? 600 : 400, fontFamily: FF }}>
                           {item.label}
@@ -776,8 +760,27 @@ export default function PaymentClient() {
                         {item.active && (
                           <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 800, color: "#F97316", textTransform: "uppercase", fontFamily: FF }}>In Progress</span>
                         )}
+                        {item.done && (
+                          <span style={{ marginLeft: "auto", color: "#10B981" }}><CheckIcon /></span>
+                        )}
                       </div>
                     ))}
+                  </div>
+
+                  {/* Reassurance: user can track from account */}
+                  <div style={{
+                    width: "100%", display: "flex", gap: 12, padding: "14px 16px",
+                    background: "#EFF6FF", borderRadius: 12, border: "1px solid #BFDBFE",
+                    alignItems: "flex-start", textAlign: "left", marginBottom: 20,
+                  }}>
+                    <span style={{ color: "#3B82F6", flexShrink: 0, paddingTop: 1 }}><InfoIcon /></span>
+                    <p style={{ margin: 0, fontSize: 12, color: "#1E40AF", lineHeight: 1.7, fontFamily: FF }}>
+                      You can safely close this page. Track your order status anytime under{" "}
+                      <Link href="/account/orders" style={{ color: "#1E40AF", fontWeight: 700 }}>
+                        Account → Orders
+                      </Link>
+                      . We'll notify you when the payment is confirmed.
+                    </p>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 300 }}>
@@ -826,7 +829,23 @@ export default function PaymentClient() {
             </p>
           </div>
 
-          {/* Status history shortcut */}
+          {/* Upload later reminder — persistent in sidebar */}
+          {(step === 2 || step === 3) && (
+            <div style={{ padding: "12px 16px", background: "#FFFBEB", borderRadius: 12, border: "1px solid #FDE68A" }}>
+              <p style={{ fontSize: 12, color: "#92400E", margin: "0 0 4px", fontWeight: 700, fontFamily: FF }}>
+                📂 Can't upload now?
+              </p>
+              <p style={{ fontSize: 12, color: "#92400E", margin: 0, lineHeight: 1.7, fontFamily: FF }}>
+                No problem. Go to{" "}
+                <Link href="/account/orders" style={{ color: "#92400E", fontWeight: 700 }}>
+                  Account → Orders
+                </Link>{" "}
+                and upload your proof there anytime.
+              </p>
+            </div>
+          )}
+
+          {/* Order details link */}
           <Link
             href={`/account/orders/${orderId}`}
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 16px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#fff", color: "#475569", textDecoration: "none", fontSize: 13, fontWeight: 600, fontFamily: FF }}
