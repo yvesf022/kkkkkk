@@ -1,73 +1,58 @@
 "use client";
 
-/**
- * app/account/payments/page.tsx
- *
- * FIXES:
- * #2a — Product images now shown on each payment's order items
- * #2b — Full edit actions: delete payment (if pending), cancel, resubmit proof, retry, view proof
- * #3  — Array normalisation (payments + history) so page never shows endless loading
- */
-
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { paymentsApi, ordersApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
+import type { Payment } from "@/lib/types";
 
-const FF = "'DM Sans', -apple-system, sans-serif";
-const BRAND = "#0F172A";
+const FF = "'Sora', 'DM Sans', -apple-system, sans-serif";
+const BRAND = "#0A0F1E";
 const ACCENT = "#2563EB";
 
-const STATUS_META: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
-  pending:  { bg: "#FFFBEB", fg: "#92400E", dot: "#F59E0B", label: "Pending" },
-  on_hold:  { bg: "#FFF7ED", fg: "#7C3D0A", dot: "#F97316", label: "Under Review" },
-  paid:     { bg: "#F0FDF4", fg: "#065F46", dot: "#10B981", label: "Paid" },
-  rejected: { bg: "#FFF1F2", fg: "#9F1239", dot: "#F43F5E", label: "Rejected" },
+const STATUS: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
+  pending:  { label: "Awaiting Payment",  color: "#92400E", bg: "#FFFBEB", border: "#FDE68A", dot: "#F59E0B" },
+  on_hold:  { label: "Under Review",      color: "#7C3D0A", bg: "#FFF7ED", border: "#FED7AA", dot: "#F97316" },
+  paid:     { label: "Confirmed",          color: "#065F46", bg: "#F0FDF4", border: "#BBF7D0", dot: "#10B981" },
+  rejected: { label: "Rejected",           color: "#991B1B", bg: "#FFF1F2", border: "#FECDD3", dot: "#F43F5E" },
 };
 
-function Thumb({ src, alt }: { src?: string | null; alt: string }) {
+function Thumb({ src, alt, size = 44 }: { src?: string|null; alt: string; size?: number }) {
   const [err, setErr] = useState(false);
-  if (!src || err) {
-    return <div style={{ width: 44, height: 44, borderRadius: 8, background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>📦</div>;
-  }
-  return <img src={src} alt={alt} onError={() => setErr(true)} style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: "1px solid #F1F5F9" }} />;
+  if (!src || err) return (
+    <div style={{ width: size, height: size, borderRadius: 8, background: "linear-gradient(135deg,#F1F5F9,#E2E8F0)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.4, flexShrink: 0 }}>📦</div>
+  );
+  return <img src={src} alt={alt} onError={() => setErr(true)} style={{ width: size, height: size, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: "1px solid #F1F5F9" }} />;
 }
 
-function Toast({ msg, type }: { msg: string; type: "ok" | "err" }) {
+function Spinner() {
   return (
-    <div style={{
-      position: "fixed", bottom: 24, right: 24, padding: "12px 20px", borderRadius: 10,
-      background: type === "ok" ? BRAND : "#DC2626",
-      color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: FF,
-      zIndex: 9999, boxShadow: "0 4px 20px rgba(0,0,0,.25)", animation: "fadeUp .3s ease",
-    }}>
-      {type === "ok" ? "✓" : "✗"} {msg}
-    </div>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: "kspin .7s linear infinite" }}>
+      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" strokeOpacity=".12"/>
+      <path d="M10 2a8 8 0 018 8" stroke={ACCENT} strokeWidth="2" strokeLinecap="round"/>
+    </svg>
   );
 }
 
 export default function AccountPaymentsPage() {
-  const router = useRouter();
-
-  const [payments,     setPayments]     = useState<any[]>([]);
-  const [bankDetails,  setBankDetails]  = useState<any>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [selected,     setSelected]     = useState<any | null>(null);
-  const [history,      setHistory]      = useState<any[]>([]);
-  const [orderItems,   setOrderItems]   = useState<any[]>([]);
-  const [loadingItems, setLoadingItems] = useState(false);
-  const [actionBusy,   setActionBusy]   = useState(false);
-  const [toast,        setToast]        = useState<{ msg: string; type: "ok" | "err" } | null>(null);
-  const [proofFile,    setProofFile]    = useState<File | null>(null);
-  const [dragOver,     setDragOver]     = useState(false);
-  const [showUpload,   setShowUpload]   = useState(false);
-  const [showCancel,   setShowCancel]   = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
-  const [showDelete,   setShowDelete]   = useState(false);
+  const [payments,    setPayments]    = useState<any[]>([]);
+  const [bankDetails, setBankDetails] = useState<any>(null);
+  const [loading,     setLoading]     = useState(true);
+  const [selected,    setSelected]    = useState<any|null>(null);
+  const [history,     setHistory]     = useState<any[]>([]);
+  const [orderItems,  setOrderItems]  = useState<any[]>([]);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [actionBusy,  setActionBusy]  = useState(false);
+  const [toast,       setToast]       = useState<{msg:string;type:"ok"|"err"}|null>(null);
+  const [proofFile,   setProofFile]   = useState<File|null>(null);
+  const [dragOver,    setDragOver]    = useState(false);
+  const [showUpload,  setShowUpload]  = useState(false);
+  const [showCancel,  setShowCancel]  = useState(false);
+  const [cancelReason,setCancelReason]= useState("");
+  const [showDelete,  setShowDelete]  = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function flash(msg: string, type: "ok" | "err" = "ok") {
+  function flash(msg: string, type: "ok"|"err" = "ok") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   }
@@ -77,62 +62,48 @@ export default function AccountPaymentsPage() {
     try {
       const [rawPmts, bank] = await Promise.allSettled([paymentsApi.getMy(), paymentsApi.getBankDetails()]);
       if (rawPmts.status === "fulfilled") {
-        const val = rawPmts.value as any;
-        setPayments(Array.isArray(val) ? val : val?.payments ?? val?.results ?? []);
+        const v: any = rawPmts.value;
+        setPayments(Array.isArray(v) ? v : v?.payments ?? v?.results ?? []);
       }
       if (bank.status === "fulfilled") setBankDetails(bank.value);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
   useEffect(() => { load(); }, []);
 
   async function selectPayment(p: any) {
-    setSelected(p);
-    setShowUpload(false);
-    setShowCancel(false);
-    setShowDelete(false);
-    setProofFile(null);
-    setOrderItems([]);
-
-    // Load status history
+    setSelected(p); setShowUpload(false); setShowCancel(false); setShowDelete(false); setProofFile(null);
+    setOrderItems([]); setHistory([]);
+    setLoadingDetail(true);
     try {
-      const h = await paymentsApi.getStatusHistory(p.id);
-      const hv = h as any;
-      setHistory(Array.isArray(hv) ? hv : hv?.history ?? hv?.results ?? []);
-    } catch { setHistory([]); }
-
-    // Load order items for product images
-    if (p.order_id) {
-      setLoadingItems(true);
-      try {
-        const order = await ordersApi.getById(p.order_id);
-        setOrderItems((order as any)?.items ?? []);
-      } catch { setOrderItems([]); }
-      finally { setLoadingItems(false); }
-    }
+      const [hist, order] = await Promise.allSettled([
+        paymentsApi.getStatusHistory(p.id),
+        p.order_id ? ordersApi.getById(p.order_id) : Promise.resolve(null),
+      ]);
+      if (hist.status === "fulfilled") {
+        const hv: any = hist.value;
+        setHistory(Array.isArray(hv) ? hv : hv?.history ?? hv?.results ?? []);
+      }
+      if (order.status === "fulfilled" && order.value) {
+        setOrderItems((order.value as any)?.items ?? []);
+      }
+    } catch {} finally { setLoadingDetail(false); }
   }
 
-  async function act(fn: () => Promise<any>, successMsg: string, reloadSelected = true) {
+  async function act(fn: () => Promise<any>, msg: string) {
     setActionBusy(true);
     try {
       await fn();
-      flash(successMsg);
+      flash(msg);
       await load();
-      if (reloadSelected && selected) {
-        // Re-select the same payment with fresh data
-        const refreshed = await paymentsApi.getMy();
-        const list: any[] = Array.isArray(refreshed) ? refreshed : (refreshed as any)?.payments ?? (refreshed as any)?.results ?? [];
-        const fresh = list.find(p => p.id === selected.id);
-        if (fresh) await selectPayment(fresh);
-        else setSelected(null);
-      }
-    } catch (e: any) {
-      flash(e?.message ?? "Action failed", "err");
-    } finally {
-      setActionBusy(false);
-    }
+      // refresh selected
+      const fresh: any[] = await paymentsApi.getMy().then((v: any) =>
+        Array.isArray(v) ? v : v?.payments ?? v?.results ?? []
+      ).catch(() => []);
+      const next = fresh.find(p => p.id === selected?.id);
+      if (next) await selectPayment(next); else setSelected(null);
+    } catch (e: any) { flash(e?.message ?? "Action failed", "err"); }
+    finally { setActionBusy(false); }
   }
 
   async function handleUploadProof() {
@@ -143,340 +114,305 @@ export default function AccountPaymentsPage() {
       } else {
         await paymentsApi.uploadProof(selected.id, proofFile);
       }
-      setProofFile(null);
-      setShowUpload(false);
-    }, "Proof uploaded successfully!");
+      setProofFile(null); setShowUpload(false);
+    }, "Proof uploaded!");
   }
 
   async function handleCancelPayment() {
-    if (!selected || !cancelReason.trim()) { flash("Please enter a reason", "err"); return; }
-    await act(() => paymentsApi.cancel(selected.id, cancelReason), "Payment cancelled.");
-    setCancelReason("");
-    setShowCancel(false);
+    if (!cancelReason.trim()) { flash("Please enter a reason", "err"); return; }
+    await act(() => paymentsApi.cancel(selected.id, cancelReason), "Payment cancelled");
+    setCancelReason(""); setShowCancel(false);
   }
 
   async function handleDeletePayment() {
-    if (!selected) return;
-    await act(async () => {
-      // Use delete endpoint if available, otherwise cancel
-      if ((paymentsApi as any).delete) {
-        await (paymentsApi as any).delete(selected.id);
-      } else {
-        await paymentsApi.cancel(selected.id, "Deleted by user");
-      }
-      setSelected(null);
-    }, "Payment deleted.", false);
-    setShowDelete(false);
+    await act(() => paymentsApi.cancel(selected.id, "User requested deletion"), "Payment cancelled and removed");
+    setShowDelete(false); setSelected(null);
   }
 
-  async function handleRetry() {
-    if (!selected) return;
-    await act(() => paymentsApi.retry(selected.order_id), "New payment created.");
-    router.push(`/store/payment?order_id=${selected.order_id}`);
-  }
-
-  const canUploadProof = selected && ["pending", "on_hold", "rejected"].includes(selected.status);
-  const canCancel      = selected && ["pending", "on_hold"].includes(selected.status);
-  const canDelete      = selected && selected.status === "pending";
-  const canRetry       = selected && selected.status === "rejected";
-
-  if (loading) return (
-    <div style={{ maxWidth: 800, fontFamily: FF }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900 }}>My Payments</h1>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {[1, 2, 3].map(i => (
-          <div key={i} style={{ height: 80, borderRadius: 12, background: "linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.4s infinite" }} />
-        ))}
-      </div>
-      <style>{`@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}`}</style>
-    </div>
-  );
+  const s = selected ? STATUS[selected.status] ?? STATUS.pending : null;
+  const canUpload = selected && ["pending", "on_hold", "rejected"].includes(selected.status);
+  const canCancel = selected && ["pending", "on_hold"].includes(selected.status);
+  const canDelete = selected && selected.status === "pending";
+  const canRetry  = selected && selected.status === "rejected";
 
   return (
-    <div style={{ maxWidth: 800, fontFamily: FF }}>
+    <div style={{ fontFamily: FF, maxWidth: 920, paddingBottom: 60 }}>
       <style>{`
-        @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
-        * { box-sizing:border-box; }
-        .pbtn:hover { opacity:.85 !important; }
-        .gbtn:hover { background:#F1F5F9 !important; }
-        textarea:focus,input:focus { outline:none; border-color:${ACCENT} !important; }
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
+        @keyframes kspin { to { transform: rotate(360deg); } }
+        @keyframes kfadeup { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+        .kpmt-row { transition: background .15s, box-shadow .15s; cursor: pointer; border-radius: 14px; }
+        .kpmt-row:hover { background: #F8FAFC !important; }
+        .kpmt-row.selected { background: #EFF6FF !important; box-shadow: inset 0 0 0 2px ${ACCENT}; }
+        .kcard { background:#fff; border:1px solid #E2E8F0; border-radius:16px; padding:22px; }
+        .kbtn-ghost { background:transparent; border:1px solid #E2E8F0; color:#475569; padding:9px 16px; border-radius:10px; font-weight:600; font-size:13px; font-family:${FF}; cursor:pointer; }
+        .kbtn-ghost:hover { background:#F8FAFC; }
+        .kbtn-primary { background:${ACCENT}; color:#fff; border:none; padding:10px 18px; border-radius:10px; font-weight:700; font-size:14px; font-family:${FF}; cursor:pointer; }
+        .kbtn-danger { background:#DC2626; color:#fff; border:none; padding:10px 18px; border-radius:10px; font-weight:700; font-size:14px; font-family:${FF}; cursor:pointer; }
+        .kbtn-full { width:100%; display:flex; align-items:center; justify-content:center; }
       `}</style>
 
-      {toast && <Toast msg={toast.msg} type={toast.type} />}
-
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900, margin: "0 0 4px" }}>My Payments</h1>
-        <p style={{ color: "#64748b", fontSize: 14, margin: 0 }}>{payments.length} payment{payments.length !== 1 ? "s" : ""} total</p>
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 28 }}>
+        <p style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Account</p>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: BRAND, letterSpacing: "-0.04em", margin: 0 }}>My Payments</h1>
+        {!loading && <p style={{ fontSize: 14, color: "#64748B", marginTop: 4 }}>{payments.length} payment record{payments.length !== 1 ? "s" : ""}</p>}
       </div>
 
-      {/* Bank details */}
-      {bankDetails && (
-        <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 14, padding: "16px 20px", marginBottom: 20 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: "#166534", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bank Details for Payment</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
-            {Object.entries(bankDetails)
-              .filter(([k]) => !["id", "created_at", "updated_at", "is_active"].includes(k))
-              .map(([k, v]) => v ? (
-                <div key={k}>
-                  <span style={{ fontSize: 11, color: "#4ADE80", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{k.replace(/_/g, " ")}: </span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#166534" }}>{String(v)}</span>
-                </div>
-              ) : null)}
-          </div>
+      {loading && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "80px 0", color: "#94A3B8" }}>
+          <Spinner /><p style={{ fontSize: 14 }}>Loading payments…</p>
         </div>
       )}
 
-      {payments.length === 0 ? (
-        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "56px 24px", textAlign: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>💳</div>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: BRAND, marginBottom: 6 }}>No payments yet</h3>
-          <p style={{ color: "#64748b", fontSize: 14, marginBottom: 20 }}>When you pay for an order, it will appear here.</p>
-          <Link href="/store" style={{ padding: "10px 22px", borderRadius: 8, background: BRAND, color: "#fff", textDecoration: "none", fontWeight: 600, fontSize: 14 }}>Browse Store</Link>
-        </div>
-      ) : (
-        <div style={{ display: "grid", gap: 10, marginBottom: 24 }}>
-          {payments.map((p: any) => {
-            const meta = STATUS_META[p.status] ?? STATUS_META.pending;
-            const isSelected = selected?.id === p.id;
-            return (
-              <div
-                key={p.id}
-                onClick={() => selectPayment(p)}
-                style={{
-                  background: isSelected ? "#EFF6FF" : "#fff",
-                  border: `1px solid ${isSelected ? ACCENT : "#E2E8F0"}`,
-                  borderRadius: 14, padding: "16px 18px",
-                  cursor: "pointer", transition: "all .15s",
-                  animation: "fadeUp .3s ease",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ fontFamily: "monospace", fontSize: 12, color: "#94a3b8", marginBottom: 2 }}>#{p.id?.slice(0, 10)}</div>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: BRAND }}>{formatCurrency(p.amount)}</div>
-                    <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-                      {p.created_at ? new Date(p.created_at).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
-                      {p.order_id && <> · <Link href={`/account/orders/${p.order_id}`} onClick={e => e.stopPropagation()} style={{ color: ACCENT, fontWeight: 600 }}>View Order →</Link></>}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: meta.dot, flexShrink: 0 }}/>
-                    <span style={{ padding: "4px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, background: meta.bg, color: meta.fg }}>
-                      {meta.label}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      {!loading && payments.length === 0 && (
+        <div style={{ textAlign: "center", padding: "80px 0" }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>💳</div>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: BRAND, margin: "0 0 8px" }}>No payments yet</h3>
+          <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>Your payment history will appear here after placing orders.</p>
+          <Link href="/store" style={{ padding: "12px 28px", borderRadius: 10, background: ACCENT, color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>Browse Store →</Link>
         </div>
       )}
 
-      {/* ── Selected payment detail panel ── */}
-      {selected && (
-        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 16, padding: "24px", animation: "fadeUp .25s ease", marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
-            <div>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: BRAND, margin: "0 0 4px" }}>
-                Payment #{selected.id?.slice(0, 10)}
-              </h2>
-              <span style={{
-                padding: "4px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700,
-                background: (STATUS_META[selected.status] ?? STATUS_META.pending).bg,
-                color: (STATUS_META[selected.status] ?? STATUS_META.pending).fg,
-              }}>
-                {(STATUS_META[selected.status] ?? STATUS_META.pending).label}
-              </span>
-            </div>
-            <button onClick={() => setSelected(null)} style={{ background: "#F1F5F9", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13, color: "#64748b" }}>✕ Close</button>
-          </div>
+      {!loading && payments.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 340px" : "1fr", gap: 16, alignItems: "start" }}>
 
-          {/* FIX #2a: Order items with product images */}
-          {loadingItems ? (
-            <div style={{ padding: "16px 0", color: "#94a3b8", fontSize: 13 }}>Loading items…</div>
-          ) : orderItems.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
-              <h4 style={{ fontSize: 13, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Items in this Order</h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {orderItems.map((item: any, i: number) => {
-                  const imgSrc =
-                    item.product?.main_image ??
-                    (item.product?.images as any)?.[0]?.image_url ??
-                    (item.product?.images as any)?.[0]?.url ??
-                    (typeof (item.product?.images as any)?.[0] === "string" ? (item.product?.images as any)?.[0] : null) ??
-                    item.image_url ??
-                    null;
-                  return (
-                    <div key={item.id ?? i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "#F8FAFC", borderRadius: 10 }}>
-                      <Thumb src={imgSrc} alt={item.title ?? "Product"} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: BRAND, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</p>
-                        {item.variant && (
-                          <p style={{ fontSize: 11, color: "#94A3B8", margin: "2px 0 0" }}>
-                            {Object.entries(item.variant.attributes).map(([k, v]) => `${k}: ${v}`).join(" · ")}
-                          </p>
-                        )}
-                        <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>Qty: {item.quantity}</p>
-                      </div>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: BRAND, flexShrink: 0 }}>{formatCurrency(item.price * item.quantity)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, paddingTop: 10, borderTop: "1px solid #F1F5F9" }}>
-                <span style={{ fontWeight: 800, fontSize: 16, color: BRAND }}>Total: {formatCurrency(selected.amount)}</span>
-              </div>
-            </div>
-          )}
+          {/* ── Payments list ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {payments.map((p, i) => {
+              const st = STATUS[p.status] ?? STATUS.pending;
+              const isSelected = selected?.id === p.id;
+              return (
+                <div key={p.id} onClick={() => isSelected ? setSelected(null) : selectPayment(p)}
+                  className={`kpmt-row${isSelected ? " selected" : ""}`}
+                  style={{ background: "#fff", border: `1px solid ${isSelected ? ACCENT : "#E2E8F0"}`, padding: "16px 18px", animation: `kfadeup .25s ease ${i*0.04}s both` }}>
 
-          {/* Status history */}
-          {history.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
-              <h4 style={{ fontSize: 13, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Status History</h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {history.map((h: any, i: number) => (
-                  <div key={i} style={{ display: "flex", gap: 10, fontSize: 13 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: i === 0 ? ACCENT : "#CBD5E1", marginTop: 4, flexShrink: 0 }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                     <div>
-                      <span style={{ fontWeight: 600, color: BRAND, textTransform: "capitalize" }}>{h.status?.replace(/_/g, " ")}</span>
-                      {h.note && <span style={{ color: "#64748b" }}> — {h.note}</span>}
-                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>{h.created_at ? new Date(h.created_at).toLocaleString() : ""}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                        <code style={{ fontSize: 12, fontWeight: 700, color: BRAND, background: "#F1F5F9", padding: "2px 8px", borderRadius: 6 }}>#{p.id.slice(0,8).toUpperCase()}</code>
+                        <span style={{ fontSize: 11, color: "#94A3B8" }}>{new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      </div>
+                      <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, textTransform: "capitalize" }}>via {p.method?.replace(/_/g, " ")}</p>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: BRAND }}>{formatCurrency(p.amount)}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 20, background: st.bg, border: `1px solid ${st.border}`, fontSize: 11, fontWeight: 700, color: st.color }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: st.dot }}/>
+                        {st.label}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Proof link */}
-          {selected.proof?.file_url && (
-            <div style={{ padding: "10px 14px", background: "#F0FDF4", borderRadius: 10, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, color: "#166534", fontWeight: 600 }}>📎 Proof of payment uploaded</span>
-              <a href={selected.proof.file_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: ACCENT, fontWeight: 600 }}>View →</a>
-            </div>
-          )}
+                  {/* Proof indicator */}
+                  {p.proof?.file_url && (
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#10B981", fontWeight: 600, background: "#F0FDF4", padding: "3px 8px", borderRadius: 6 }}>
+                      📎 Proof uploaded
+                    </div>
+                  )}
 
-          {/* Admin notes */}
-          {selected.admin_notes && (
-            <div style={{ padding: "10px 14px", background: "#FFF1F2", borderRadius: 10, marginBottom: 16, fontSize: 13, color: "#9F1239" }}>
-              <strong>Admin note:</strong> {selected.admin_notes}
-            </div>
-          )}
-
-          {/* ── FIX #2b: Edit / Action buttons ── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-
-            {/* Upload / Resubmit proof */}
-            {canUploadProof && !showUpload && (
-              <button onClick={() => setShowUpload(true)} className="pbtn"
-                style={{ padding: "11px", borderRadius: 10, background: ACCENT, color: "#fff", border: "none", fontWeight: 700, fontSize: 14, fontFamily: FF, cursor: "pointer" }}>
-                {selected.status === "pending" ? "📎 Upload Proof of Payment" : "↩ Resubmit Proof"}
-              </button>
-            )}
-            {canUploadProof && showUpload && (
-              <div style={{ padding: 16, background: "#EFF6FF", borderRadius: 12, border: "1px solid #BFDBFE" }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#1E40AF", marginBottom: 12 }}>
-                  {selected.status === "pending" ? "Upload Proof of Payment" : "Resubmit Proof"}
-                </p>
-                <div
-                  style={{ border: `2px dashed ${dragOver ? ACCENT : "#BFDBFE"}`, borderRadius: 10, padding: "20px 16px", textAlign: "center", cursor: "pointer", background: dragOver ? "#DBEAFE" : "#F8FAFC", transition: "all .2s", marginBottom: 12 }}
-                  onClick={() => fileRef.current?.click()}
-                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setProofFile(f); }}
-                >
-                  {proofFile
-                    ? <p style={{ fontSize: 13, color: BRAND, fontWeight: 600 }}>📄 {proofFile.name}</p>
-                    : <p style={{ fontSize: 13, color: "#94A3B8" }}>Drop file or click to browse (image/PDF)</p>
-                  }
+                  {p.order_id && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: "#94A3B8" }}>
+                      Order: <code style={{ color: BRAND, fontWeight: 600 }}>#{p.order_id.slice(0,8).toUpperCase()}</code>
+                    </div>
+                  )}
                 </div>
-                <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={e => setProofFile(e.target.files?.[0] ?? null)} />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={handleUploadProof} disabled={!proofFile || actionBusy} className="pbtn"
-                    style={{ flex: 1, padding: "11px", borderRadius: 10, background: ACCENT, color: "#fff", border: "none", fontWeight: 700, fontSize: 14, fontFamily: FF, cursor: "pointer", opacity: (!proofFile || actionBusy) ? 0.6 : 1 }}>
-                    {actionBusy ? "Uploading…" : "Submit Proof"}
-                  </button>
-                  <button onClick={() => setShowUpload(false)} className="gbtn"
-                    style={{ padding: "11px 18px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#fff", cursor: "pointer", fontSize: 13, fontFamily: FF }}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Retry rejected payment */}
-            {canRetry && (
-              <button onClick={handleRetry} disabled={actionBusy} className="pbtn"
-                style={{ padding: "11px", borderRadius: 10, background: "#166534", color: "#fff", border: "none", fontWeight: 700, fontSize: 14, fontFamily: FF, cursor: "pointer" }}>
-                {actionBusy ? "Processing…" : "↺ Retry Payment"}
-              </button>
-            )}
-
-            {/* View order */}
-            {selected.order_id && (
-              <Link href={`/account/orders/${selected.order_id}`}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "11px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#fff", color: "#475569", textDecoration: "none", fontWeight: 600, fontSize: 14 }}>
-                📦 View Order
-              </Link>
-            )}
-
-            {/* Cancel payment */}
-            {canCancel && !showCancel && (
-              <button onClick={() => setShowCancel(true)} className="gbtn"
-                style={{ padding: "11px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 14, fontFamily: FF, color: "#475569" }}>
-                Cancel Payment
-              </button>
-            )}
-            {canCancel && showCancel && (
-              <div style={{ padding: 14, background: "#FFF1F2", borderRadius: 12, border: "1px solid #FECDD3" }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#9F1239", marginBottom: 8 }}>Cancel this payment?</p>
-                <textarea
-                  value={cancelReason}
-                  onChange={e => setCancelReason(e.target.value)}
-                  placeholder="Reason for cancellation…"
-                  rows={2}
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #FECDD3", fontSize: 13, fontFamily: FF, resize: "vertical", color: BRAND }}
-                />
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button onClick={handleCancelPayment} disabled={actionBusy} className="pbtn"
-                    style={{ flex: 1, padding: "10px", borderRadius: 10, background: "#DC2626", color: "#fff", border: "none", fontWeight: 700, fontSize: 13, fontFamily: FF, cursor: "pointer" }}>
-                    {actionBusy ? "Cancelling…" : "Confirm Cancel"}
-                  </button>
-                  <button onClick={() => setShowCancel(false)} className="gbtn"
-                    style={{ padding: "10px 16px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#fff", cursor: "pointer", fontSize: 13, fontFamily: FF }}>
-                    Keep
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Delete pending payment */}
-            {canDelete && !showDelete && (
-              <button onClick={() => setShowDelete(true)} className="gbtn"
-                style={{ padding: "11px", borderRadius: 10, border: "1px solid #FECDD3", background: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 14, fontFamily: FF, color: "#DC2626" }}>
-                🗑 Delete Payment
-              </button>
-            )}
-            {canDelete && showDelete && (
-              <div style={{ padding: 14, background: "#FFF1F2", borderRadius: 12, border: "1px solid #FECDD3" }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#9F1239", marginBottom: 4 }}>Delete this payment record?</p>
-                <p style={{ fontSize: 13, color: "#64748B", marginBottom: 14 }}>This is irreversible. Your order will remain, but this payment will be removed.</p>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={handleDeletePayment} disabled={actionBusy} className="pbtn"
-                    style={{ flex: 1, padding: "10px", borderRadius: 10, background: "#DC2626", color: "#fff", border: "none", fontWeight: 700, fontSize: 13, fontFamily: FF, cursor: "pointer" }}>
-                    {actionBusy ? "Deleting…" : "Delete"}
-                  </button>
-                  <button onClick={() => setShowDelete(false)} className="gbtn"
-                    style={{ padding: "10px 16px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#fff", cursor: "pointer", fontSize: 13, fontFamily: FF }}>
-                    Keep
-                  </button>
-                </div>
-              </div>
-            )}
+              );
+            })}
           </div>
+
+          {/* ── Detail panel ── */}
+          {selected && s && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, animation: "kfadeup .25s ease" }}>
+
+              <div className="kcard">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: BRAND, margin: 0 }}>Payment Detail</h3>
+                  <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94A3B8", fontSize: 18, lineHeight: 1 }}>✕</button>
+                </div>
+
+                {/* Status badge */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: s.bg, border: `1px solid ${s.border}`, borderRadius: 10, marginBottom: 16 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.dot, flexShrink: 0 }}/>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: s.color }}>{s.label}</span>
+                </div>
+
+                {/* Key info */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                  {[
+                    ["Payment ID",  `#${selected.id.slice(0,8).toUpperCase()}`],
+                    ["Amount",      formatCurrency(selected.amount)],
+                    ["Method",      selected.method?.replace(/_/g," ")],
+                    ["Date",        new Date(selected.created_at).toLocaleString()],
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>{label}</span>
+                      <span style={{ fontSize: 13, color: BRAND, fontWeight: 600, textTransform: "capitalize" }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Proof link */}
+                {selected.proof?.file_url && (
+                  <a href={selected.proof.file_url} target="_blank" rel="noreferrer"
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, textDecoration: "none", marginBottom: 12 }}>
+                    <span style={{ fontSize: 13, color: "#065F46", fontWeight: 600 }}>📎 Proof of payment</span>
+                    <span style={{ fontSize: 13, color: ACCENT, fontWeight: 600 }}>View →</span>
+                  </a>
+                )}
+
+                {/* Admin note */}
+                {selected.admin_notes && (
+                  <div style={{ padding: "10px 12px", background: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: 10, fontSize: 13, color: "#991B1B", marginBottom: 12 }}>
+                    <strong>Admin note:</strong> {selected.admin_notes}
+                  </div>
+                )}
+
+                {/* Order items with images */}
+                {loadingDetail && (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}><Spinner /></div>
+                )}
+                {!loadingDetail && orderItems.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Order Items</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {orderItems.map((item: any, i: number) => {
+                        const imgSrc = item.product?.main_image ?? (item.product?.images as any)?.[0]?.image_url ?? null;
+                        return (
+                          <div key={item.id ?? i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <Thumb src={imgSrc} alt={item.title} size={40} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 12, fontWeight: 600, color: BRAND, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</p>
+                              <p style={{ fontSize: 11, color: "#94A3B8", margin: 0 }}>Qty: {item.quantity}</p>
+                            </div>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: BRAND, flexShrink: 0 }}>{formatCurrency(item.subtotal)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Status history timeline */}
+                {history.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>History</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {history.map((h: any, i: number) => (
+                        <div key={i} style={{ display: "flex", gap: 10 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: i === 0 ? ACCENT : "#CBD5E1", marginTop: 4, flexShrink: 0 }}/>
+                          <div>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: BRAND, textTransform: "capitalize" }}>{h.status?.replace(/_/g," ")}</span>
+                            {h.reason && <span style={{ fontSize: 12, color: "#64748B" }}> — {h.reason}</span>}
+                            <p style={{ fontSize: 11, color: "#94A3B8", margin: "1px 0 0" }}>{h.created_at ? new Date(h.created_at).toLocaleString() : ""}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {selected.order_id && (
+                    <Link href={`/account/orders/${selected.order_id}`}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 16px", borderRadius: 10, border: "1px solid #E2E8F0", color: "#475569", textDecoration: "none", fontWeight: 600, fontSize: 13 }}>
+                      📦 View Order
+                    </Link>
+                  )}
+
+                  {canUpload && !showUpload && (
+                    <button onClick={() => setShowUpload(true)} className="kbtn-primary kbtn-full">
+                      📎 {selected.status === "pending" ? "Upload Proof" : "Resubmit Proof"}
+                    </button>
+                  )}
+                  {canUpload && showUpload && (
+                    <div style={{ padding: 14, background: "#EFF6FF", borderRadius: 12, border: "1px solid #BFDBFE" }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#1E40AF", margin: "0 0 10px" }}>Upload Proof of Payment</p>
+                      <div
+                        style={{ border: `2px dashed ${dragOver ? ACCENT : "#BFDBFE"}`, borderRadius: 10, padding: "16px", textAlign: "center", cursor: "pointer", background: dragOver ? "#DBEAFE" : "#F8FAFC", marginBottom: 10, transition: "all .2s" }}
+                        onClick={() => fileRef.current?.click()}
+                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setProofFile(f); }}
+                      >
+                        {proofFile
+                          ? <p style={{ fontSize: 13, fontWeight: 600, color: BRAND, margin: 0 }}>📄 {proofFile.name}</p>
+                          : <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>Drop or click to browse<br/><span style={{ fontSize: 11 }}>Image or PDF</span></p>}
+                      </div>
+                      <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={e => setProofFile(e.target.files?.[0] ?? null)} />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={handleUploadProof} disabled={!proofFile || actionBusy} className="kbtn-primary" style={{ flex: 1, opacity: (!proofFile || actionBusy) ? 0.6 : 1 }}>
+                          {actionBusy ? "Uploading…" : "Submit"}
+                        </button>
+                        <button onClick={() => setShowUpload(false)} className="kbtn-ghost">Cancel</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {canRetry && (
+                    <button onClick={() => act(() => paymentsApi.updateMethod(selected.id, selected.method), "Payment method updated. Please upload new proof.")} disabled={actionBusy} className="kbtn-primary kbtn-full" style={{ background: "#166534" }}>
+                      ↺ Retry Payment
+                    </button>
+                  )}
+
+                  {canCancel && !showCancel && (
+                    <button onClick={() => setShowCancel(true)} className="kbtn-ghost kbtn-full">Cancel Payment</button>
+                  )}
+                  {canCancel && showCancel && (
+                    <div style={{ padding: 14, background: "#FFF1F2", borderRadius: 12, border: "1px solid #FECDD3" }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#991B1B", margin: "0 0 8px" }}>Cancel this payment?</p>
+                      <textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Reason…" rows={2}
+                        style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #FECDD3", fontSize: 13, fontFamily: FF, resize: "vertical", color: BRAND, boxSizing: "border-box" }}/>
+                      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                        <button onClick={handleCancelPayment} disabled={actionBusy} className="kbtn-danger" style={{ flex: 1 }}>
+                          {actionBusy ? "Cancelling…" : "Confirm"}
+                        </button>
+                        <button onClick={() => setShowCancel(false)} className="kbtn-ghost">Keep</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {canDelete && !showDelete && (
+                    <button onClick={() => setShowDelete(true)} className="kbtn-ghost kbtn-full" style={{ color: "#DC2626", borderColor: "#FECDD3" }}>🗑 Delete Payment</button>
+                  )}
+                  {canDelete && showDelete && (
+                    <div style={{ padding: 14, background: "#FFF1F2", borderRadius: 12, border: "1px solid #FECDD3" }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#991B1B", margin: "0 0 4px" }}>Delete payment record?</p>
+                      <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 14px" }}>This cannot be undone. Your order remains intact.</p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={handleDeletePayment} disabled={actionBusy} className="kbtn-danger" style={{ flex: 1 }}>
+                          {actionBusy ? "Deleting…" : "Delete"}
+                        </button>
+                        <button onClick={() => setShowDelete(false)} className="kbtn-ghost">Keep</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bank details */}
+              {bankDetails && (
+                <div className="kcard" style={{ background: "#F8FAFC" }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>Payment Details</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: "#475569" }}>
+                    {bankDetails.bank_name && <div><strong style={{ color: BRAND }}>{bankDetails.bank_name}</strong></div>}
+                    {bankDetails.account_name && <div>Account: <strong style={{ color: BRAND }}>{bankDetails.account_name}</strong></div>}
+                    {bankDetails.account_number && <div>Number: <code style={{ color: BRAND, fontWeight: 700 }}>{bankDetails.account_number}</code></div>}
+                    {bankDetails.mobile_money_provider && <div>Mobile: <strong style={{ color: BRAND }}>{bankDetails.mobile_money_provider} {bankDetails.mobile_money_number}</strong></div>}
+                    {bankDetails.instructions && <p style={{ fontSize: 12, color: "#64748B", marginTop: 8, lineHeight: 1.6 }}>{bankDetails.instructions}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, padding: "12px 20px", borderRadius: 10, background: toast.type === "ok" ? BRAND : "#DC2626", color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: FF, zIndex: 9999, boxShadow: "0 4px 20px rgba(0,0,0,.25)", animation: "kfadeup .3s ease" }}>
+          {toast.type === "ok" ? "✓" : "✗"} {toast.msg}
         </div>
       )}
     </div>
