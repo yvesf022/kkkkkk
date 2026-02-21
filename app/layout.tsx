@@ -15,17 +15,15 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#0f172a" },
     { media: "(prefers-color-scheme: dark)",  color: "#0f172a" },
   ],
-  // STRICT DESKTOP LOCK — layout is always 1024px wide.
-  // width=1024 forces the browser to treat the viewport as 1024px regardless
-  // of physical screen size. On a 390px phone the browser auto-scales to
-  // 390/1024 ≈ 0.38 so the full layout fits with no horizontal scroll.
-  // minimumScale = maximumScale = 1 with userScalable=false locks the view
-  // completely — no pinch-zoom, no OS font scaling, identical on all devices.
+  // Scale the full 1024px layout down to fit any screen — like Jumia.
+  // width=1024 tells the browser the layout is 1024px wide.
+  // minimumScale=0.1 lets the browser auto-shrink it to fit any phone screen.
+  // Users can still pinch-zoom in to read any section.
   width: 1024,
   initialScale: 1,
-  minimumScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  minimumScale: 0.1,
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: "cover",
 };
 

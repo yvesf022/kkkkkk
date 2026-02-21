@@ -20,57 +20,9 @@ export default function ClientShell({
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    // Auto-dismiss splash after 2 seconds on all devices/browsers.
+    // Auto-dismiss splash after 2.5 seconds on all devices/browsers.
     const splashTimer = setTimeout(() => setShowSplash(false), 2500);
-
-    const vp = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
-
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.matchMedia("(display-mode: fullscreen)").matches ||
-      (window.navigator as any).standalone === true;
-
-    if (isStandalone && vp) {
-      // Installed PWA on mobile — use normal responsive viewport so the app
-      // scales to fit the screen instead of rendering at 1024px and zooming in.
-      vp.content = "width=device-width, initial-scale=1, viewport-fit=cover";
-    }
-
-    // JS zoom-lock: only apply when NOT in standalone (browser tab desktop lock).
-    const lockZoom = () => {
-      if (isStandalone || !vp) return;
-      vp.content = "width=1024, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no";
-    };
-
-    // Block double-tap zoom (browser only)
-    let lastTap = 0;
-    const onTouchEnd = (e: TouchEvent) => {
-      if (isStandalone) return;
-      const now = Date.now();
-      if (now - lastTap < 300) {
-        e.preventDefault();
-        lockZoom();
-      }
-      lastTap = now;
-    };
-
-    // Block pinch-zoom (browser only)
-    const onTouchMove = (e: TouchEvent) => {
-      if (isStandalone) return;
-      if (e.touches.length > 1) {
-        e.preventDefault();
-        lockZoom();
-      }
-    };
-
-    document.addEventListener("touchend",  onTouchEnd,  { passive: false });
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-
-    return () => {
-      clearTimeout(splashTimer);
-      document.removeEventListener("touchend",  onTouchEnd);
-      document.removeEventListener("touchmove", onTouchMove);
-    };
+    return () => clearTimeout(splashTimer);
   }, []);
 
   /* 🔥 SINGLE SOURCE OF AUTH HYDRATION */
