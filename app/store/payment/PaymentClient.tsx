@@ -252,10 +252,23 @@ export default function PaymentClient() {
         pmt = await paymentsApi.create(orderId) as Payment;
       }
 
-      // 3. Normalise response shape — some backends wrap in { payment: ... }
-      if ((pmt as any)?.payment) pmt = (pmt as any).payment;
+      // 3. Normalise ALL known backend response shapes:
+      //    { payment: {...} }  |  { data: {...} }  |  { result: {...} }  |  plain Payment
+      const raw = pmt as any;
+      if (raw?.payment?.id)  pmt = raw.payment;
+      else if (raw?.data?.id)    pmt = raw.data;
+      else if (raw?.result?.id)  pmt = raw.result;
+      // still no id? — backend might have returned the payment directly, keep as-is
 
-      if (!pmt?.id) throw new Error("Invalid payment response from server.");
+      // Log to console so we can see the actual shape in production
+      if (typeof window !== "undefined") {
+        console.debug("[PaymentClient] resolved payment:", pmt);
+      }
+
+      if (!(pmt as any)?.id) {
+        console.error("[PaymentClient] unrecognised payment shape:", raw);
+        throw new Error(`Payment created (200) but response has no ID. Shape: ${Object.keys(raw ?? {}).join(", ") || "empty"}`);
+      }
 
       setPayment(pmt);
 
