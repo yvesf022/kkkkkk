@@ -9,6 +9,7 @@ export type User = AppUser;
 type AuthState = {
   user: User | null;
   loading: boolean;
+  hydrated: boolean;
   error: string | null;
 
   hydrate: () => Promise<void>;
@@ -17,15 +18,17 @@ type AuthState = {
   clear: () => void;
 };
 
-export const useAuth = create<AuthState>((set) => ({
+export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
+  hydrated: false,
   error: null,
 
   hydrate: async () => {
-    // If no token stored, skip the /me call entirely — avoids 401 crash
+    if (get().hydrated) return;
+
     if (!tokenStorage.get()) {
-      set({ user: null, loading: false });
+      set({ user: null, loading: false, hydrated: true });
       return;
     }
 
@@ -33,14 +36,13 @@ export const useAuth = create<AuthState>((set) => ({
 
     try {
       const user = (await authApi.me()) as User;
-      set({ user, loading: false });
+      set({ user, loading: false, hydrated: true });
     } catch (err: any) {
-      // Token expired or invalid — clear it
       tokenStorage.remove();
       if (err?.status === 403) {
-        set({ user: null, loading: false, error: "Your account has been disabled." });
+        set({ user: null, loading: false, hydrated: true, error: "Your account has been disabled." });
       } else {
-        set({ user: null, loading: false });
+        set({ user: null, loading: false, hydrated: true });
       }
     }
   },
@@ -51,12 +53,10 @@ export const useAuth = create<AuthState>((set) => ({
     try {
       const data: any = await authApi.login({ email, password });
 
-      // ✅ Save token returned from backend into localStorage
       if (data?.access_token) {
         tokenStorage.set(data.access_token);
       }
 
-      // Use the user data returned from login directly (no extra /me call needed)
       const user: User = {
         id: data.id,
         email: data.email,
@@ -68,7 +68,7 @@ export const useAuth = create<AuthState>((set) => ({
         created_at: data.created_at ?? new Date().toISOString(),
       };
 
-      set({ user, loading: false });
+      set({ user, loading: false, hydrated: true });
     } catch (err: any) {
       tokenStorage.remove();
       if (err?.status === 401) {
@@ -88,12 +88,12 @@ export const useAuth = create<AuthState>((set) => ({
     try {
       await authApi.logout();
     } finally {
-      set({ user: null, loading: false });
+      set({ user: null, loading: false, hydrated: false });
     }
   },
 
   clear: () => {
     tokenStorage.remove();
-    set({ user: null, loading: false, error: null });
+    set({ user: null, loading: false, hydrated: false, error: null });
   },
 }));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
@@ -10,14 +10,11 @@ export default function RequireAuth({ children }: RequireAuthProps) {
   const router = useRouter();
   const { user, loading } = useAuth();
   const hydrate = useAuth(s => s.hydrate);
-  const hydrated = useRef(false);
 
   useEffect(() => {
-    if (!hydrated.current) {
-      hydrated.current = true;
-      hydrate();
-    }
-  }, []); // ← empty array, runs ONCE only — fixes React #185 infinite loop
+    // Safe to call on every mount — hydrate() is idempotent once hydrated:true
+    hydrate();
+  }, [hydrate]);
 
   useEffect(() => {
     if (!loading && !user) {
