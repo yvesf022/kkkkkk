@@ -15,10 +15,12 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#0f172a" },
     { media: "(prefers-color-scheme: dark)",  color: "#0f172a" },
   ],
-  // Use actual device width so the page reflows into a proper mobile layout.
-  width: "device-width",
+  // Jumia-style: fixed 1024px desktop layout on all screens.
+  // Mobile browsers scale the full desktop layout down to fit.
+  // Users can pinch-zoom freely to read any section.
+  width: 1024,
   initialScale: 1,
-  minimumScale: 1,
+  minimumScale: 0.25,
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",
@@ -34,62 +36,66 @@ export const viewport: Viewport = {
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"   stop-color="#0033a0"/>
-      <stop offset="100%" stop-color="#006b30"/>
+      <stop offset="0%"   stop-color="#040d07"/>
+      <stop offset="50%"  stop-color="#071610"/>
+      <stop offset="100%" stop-color="#050e08"/>
     </linearGradient>
-    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#c8a03c" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#c8a03c" stop-opacity="0"/>
+    </radialGradient>
     <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"   stop-color="#f0c040"/>
+      <stop offset="0%"   stop-color="#f0d080"/>
       <stop offset="100%" stop-color="#c8860a"/>
     </linearGradient>
-    <filter id="shadow">
-      <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000" flood-opacity="0.35"/>
+    <linearGradient id="mtn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0d3d26" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#050e08" stop-opacity="1"/>
+    </linearGradient>
+    <filter id="kshadow">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.5"/>
     </filter>
     <clipPath id="clip">
       <rect width="64" height="64" rx="14"/>
     </clipPath>
   </defs>
 
-  <!-- Background -->
+  <!-- Deep emerald background -->
   <rect width="64" height="64" rx="14" fill="url(#bg)"/>
 
-  <!-- Top shine -->
-  <rect width="64" height="64" rx="14" fill="url(#shine)" clip-path="url(#clip)"/>
+  <!-- Gold radial glow -->
+  <rect width="64" height="64" rx="14" fill="url(#glow)" clip-path="url(#clip)"/>
 
-  <!-- Border ring -->
-  <rect x="1.5" y="1.5" width="61" height="61" rx="12.5"
-        fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/>
+  <!-- Thin gold border ring -->
+  <rect x="1" y="1" width="62" height="62" rx="13"
+        fill="none" stroke="rgba(200,160,60,0.3)" stroke-width="1" clip-path="url(#clip)"/>
 
-  <!-- Diagonal accent stripe -->
-  <line x1="-4" y1="68" x2="68" y2="-4"
-        stroke="rgba(255,255,255,0.05)" stroke-width="20"
-        clip-path="url(#clip)"/>
-
-  <!-- Serif K — the hero element -->
-  <text
-    x="33" y="46"
-    text-anchor="middle"
-    font-size="40"
-    font-family="Georgia, 'Times New Roman', serif"
-    font-weight="700"
-    fill="#ffffff"
-    letter-spacing="-1"
-    filter="url(#shadow)"
-  >K</text>
-
-  <!-- Gold diamond — top right accent -->
-  <g transform="translate(49.5, 12) rotate(45)" filter="url(#shadow)">
-    <rect x="-4.5" y="-4.5" width="9" height="9" rx="1.2" fill="url(#gold)"/>
+  <!-- Lesotho mountain silhouette -->
+  <g clip-path="url(#clip)">
+    <path d="M0,64 L0,46 L10,34 L18,40 L28,24 L36,32 L44,20 L52,30 L58,22 L64,28 L64,64 Z"
+          fill="url(#mtn)" opacity="0.7"/>
+    <path d="M0,46 L10,34 L18,40 L28,24 L36,32 L44,20 L52,30 L58,22 L64,28"
+          fill="none" stroke="rgba(200,160,60,0.2)" stroke-width="0.8"/>
   </g>
 
-  <!-- White dot — bottom left, balances composition -->
-  <circle cx="11.5" cy="52.5" r="2.8" fill="rgba(255,255,255,0.3)"/>
+  <!-- Gold serif K -->
+  <text
+    x="32" y="44"
+    text-anchor="middle"
+    font-size="34"
+    font-family="Georgia, Times New Roman, serif"
+    font-weight="700"
+    fill="#c8a03c"
+    filter="url(#kshadow)"
+  >K</text>
 
-  <!-- Tiny gold dot — bottom right corner detail -->
-  <circle cx="53" cy="53" r="1.8" fill="rgba(240,192,64,0.5)"/>
+  <!-- Gold diamond top right -->
+  <g transform="translate(51,11) rotate(45)" filter="url(#kshadow)">
+    <rect x="-3.5" y="-3.5" width="7" height="7" rx="1" fill="url(#gold)"/>
+  </g>
+
+  <!-- Accent dot bottom left -->
+  <circle cx="10" cy="55" r="2" fill="rgba(200,160,60,0.4)"/>
 </svg>`;
 
 /* =====================================================
