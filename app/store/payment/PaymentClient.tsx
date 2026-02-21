@@ -224,7 +224,10 @@ export default function PaymentClient() {
   const clearCart = useCart((s) => s.clearCart);
 
   /* ─── Core state ─── */
-  const [payment, setPayment]               = useState<Payment | null>(null);
+  const [payment, _setPayment]              = useState<Payment | null>(null);
+  // paymentRef always mirrors state — prevents stale closures in handleUpload
+  const paymentRef = useRef<Payment | null>(null);
+  function setPayment(p: Payment | null) { paymentRef.current = p; _setPayment(p); }
   const [bankDetails, setBankDetails]       = useState<BankSettings | null>(null);
   const [initializing, setInitializing]     = useState(true);
   const [initError, setInitError]           = useState<string | null>(null);
@@ -277,15 +280,37 @@ export default function PaymentClient() {
         pmt = await paymentsApi.create(orderId) as Payment;
       }
 
-      // 3. Normalise all known backend response shapes
+      // 3. Normalise all known backend response shapes.
+      //
+      // create_payment returns hand-rolled dicts (NOT _serialize_payment):
+      //   New payment:      { payment_id, order_id, amount, status, method, reference_number }
+      //   Existing payment: { payment_id, order_id, amount, status, method, reference_number, message }
+      //
+      // So we must re-fetch by payment_id to get the full Payment object with `id` field.
+      // getMy() returns _serialize_payment objects which DO have `id` — only create() is inconsistent.
       const raw = pmt as any;
-      if (raw?.payment?.id)  pmt = raw.payment;
-      else if (raw?.data?.id)    pmt = raw.data;
-      else if (raw?.result?.id)  pmt = raw.result;
+
+      // Nested wrappers (unlikely but defensive)
+      if (raw?.payment?.id)     pmt = raw.payment;
+      else if (raw?.data?.id)   pmt = raw.data;
+      else if (raw?.result?.id) pmt = raw.result;
+      // Backend create_payment returns { payment_id: "...", ... } — normalize to { id: "...", ... }
+      else if (raw?.payment_id && !raw?.id) {
+        // Re-fetch full payment object so we get proof, status_history, etc.
+        console.debug("[PaymentClient] got payment_id from create, fetching full payment:", raw.payment_id);
+        try {
+          pmt = await paymentsApi.getById(raw.payment_id) as Payment;
+        } catch {
+          // If getById fails, synthesize minimal object so we can at least proceed
+          pmt = { id: raw.payment_id, order_id: raw.order_id, amount: raw.amount,
+                  status: raw.status ?? "pending", method: raw.method ?? "bank_transfer",
+                  created_at: new Date().toISOString() } as any as Payment;
+        }
+      }
 
       if (!(pmt as any)?.id) {
         console.error("[PaymentClient] unrecognised payment shape:", raw);
-        throw new Error(`Payment created but response has no ID. Shape: ${Object.keys(raw ?? {}).join(", ") || "empty"}`);
+        throw new Error(`Payment setup failed — unexpected response shape: ${Object.keys(raw ?? {}).join(", ") || "empty"}`);
       }
 
       setPayment(pmt);
@@ -344,25 +369,40 @@ export default function PaymentClient() {
   }
 
   /* ─── Upload proof → POST /api/payments/{payment_id}/proof ─── */
-  // NOTE: We call fetch() directly (not paymentsApi.uploadProof) because the shared
-  // request() helper always spreads headers:{} — which prevents the browser from
-  // auto-generating the multipart/form-data boundary, causing a 422.
+  //
+  // We call fetch() directly — NOT paymentsApi.uploadProof() — because the shared
+  // request() helper always passes `headers: {}` which causes fetch to set
+  // Content-Type: application/octet-stream and omit the multipart boundary → 422.
+  // Leaving Content-Type out entirely lets the browser auto-generate the boundary.
+  //
+  // FastAPI 422 detail is an array of objects: [{ loc, msg, type }]
+  // We stringify it so the full error is surfaced to the user / console.
   async function handleUpload() {
-    if (!file || !payment) return;
+    // Always read from ref — never from the `payment` state variable.
+    // State updates are async; if handleUpload was defined in an earlier render
+    // cycle it would close over a stale payment.id. The ref is always in sync.
+    const currentPayment = paymentRef.current;
+    if (!file || !currentPayment) return;
     setUploading(true); setUploadError(null);
+    console.debug("[PaymentClient] uploading proof for payment", currentPayment.id);
     try {
-      const form = new FormData();
-      form.append("file", file);
+      const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "https://karabo.onrender.com")
+        .replace(/\/$/, ""); // strip trailing slash
 
       const token = typeof window !== "undefined"
         ? localStorage.getItem("karabo_token")
         : null;
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://karabo.onrender.com";
+      // FastAPI parameter: `proof: UploadFile = File(...)` (payments.py line 675)
+      // The form field name MUST match the Python parameter name exactly.
+      const form = new FormData();
+      // ✅ Field name MUST be "proof" — matches FastAPI param: `proof: UploadFile = File(...)`
+      // Using "file" causes 422: "body -> proof: field required"
+      form.append("proof", file);
 
-      const res = await fetch(`${API_BASE}/api/payments/${payment.id}/proof`, {
+      const res = await fetch(`${API_BASE}/api/payments/${currentPayment.id}/proof`, {
         method: "POST",
-        // NO Content-Type header — browser sets multipart/form-data + boundary automatically
+        // ✅ NO Content-Type — browser sets "multipart/form-data; boundary=…" automatically
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
       });
@@ -371,7 +411,15 @@ export default function PaymentClient() {
         let msg = `Upload failed (${res.status})`;
         try {
           const data = await res.json();
-          msg = data?.detail ?? data?.message ?? msg;
+          // FastAPI 422 returns: { detail: [ { loc: [...], msg: "...", type: "..." } ] }
+          if (Array.isArray(data?.detail)) {
+            const errs = data.detail as Array<{ loc: string[]; msg: string; type: string }>;
+            console.error("[PaymentClient] 422 validation errors:", errs);
+            // Surface the first error's location + message so we can diagnose field name issues
+            msg = errs.map(e => `${e.loc?.join(".")} — ${e.msg}`).join("; ");
+          } else {
+            msg = data?.detail ?? data?.message ?? msg;
+          }
         } catch {}
         throw new Error(msg);
       }
@@ -383,7 +431,7 @@ export default function PaymentClient() {
       setCompletedSteps((prev) => new Set([...prev, 2, 3]));
 
       // Refresh payment to get updated status + proof URL
-      const updated = await paymentsApi.getById(payment.id) as Payment;
+      const updated = await paymentsApi.getById(currentPayment.id) as Payment;
       setPayment(updated);
 
       // Small delay so the user sees the upload finish before transitioning
@@ -400,8 +448,9 @@ export default function PaymentClient() {
     if (!payment || method === payment.method || changingMethod) return;
     setChangingMethod(true);
     try {
-      await paymentsApi.updateMethod(payment.id, method);
-      setPayment((prev) => prev ? { ...prev, method: method as any } : prev);
+      await paymentsApi.updateMethod(paymentRef.current!.id, method);
+      const cur = paymentRef.current;
+      if (cur) setPayment({ ...cur, method: method as any });
     } catch (e: any) {
       setUploadError(e?.message ?? "Could not update payment method.");
     } finally {
