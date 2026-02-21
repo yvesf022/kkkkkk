@@ -199,14 +199,11 @@ export const authApi = {
 
 export const adminAuthApi = {
   login: async (payload: { email: string; password: string }): Promise<Admin> => {
-    const data: any = await request<Admin>("/api/admin/auth/login", {
+    const data = await request<Admin>("/api/admin/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    // Save admin token so adminRequest() can attach it as Authorization header
-    const token = data?.access_token ?? data?.token ?? null;
-    if (token) adminTokenStorage.set(token);
     return data;
   },
 
@@ -433,9 +430,11 @@ export const ordersApi = {
   },
   getById: (id: string): Promise<Order> => request(`/api/orders/${id}`),
 
-  getAdmin: (statusFilter?: string): Promise<Order[]> => {
-    const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
-    return request(`/api/orders/admin${qs}`);
+  getAdmin: async (statusFilter?: string): Promise<Order[]> => {
+    const qs = statusFilter ? `?status=${statusFilter}` : "";
+    const data: any = await request(`/api/orders/admin${qs}`);
+    // Backend returns paginated: { results: Order[], total, page, stats }
+    return Array.isArray(data) ? data : data?.results ?? data?.orders ?? [];
   },
 
   adminOrders: (): Promise<Order[]> => request("/api/orders/admin"),
@@ -978,9 +977,14 @@ export const adminProductsApi = {
   bulkStore: (ids: string[], store: string) => request("/api/products/admin/bulk-store", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, store }),
   }),
-  emptyStore: (store: string) => request(
-    `/api/products/admin/empty-store?store=${encodeURIComponent(store)}`, { method: "DELETE" }
+  emptyStore: (confirm = true) => request(
+    `/api/products/admin/empty-store?confirm=true`, { method: "DELETE" }
   ),
+
+  resetSalesCount: (ids: string[]) => request("/api/products/admin/bulk", {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, action: "reset_sales" }),
+  }),
 };
 
 /* =====================================================
@@ -1085,4 +1089,18 @@ export const adminApi = {
   storeResetDeactivateAll: () => request("/api/admin/store-reset/deactivate-all-products", { method: "POST" }),
   storeResetActivateAll: () => request("/api/admin/store-reset/activate-all-products", { method: "POST" }),
   storeResetPurgeCancelledOrders: () => request("/api/admin/store-reset/cancelled-orders", { method: "DELETE" }),
+
+  // Store management
+  resetProductSales: (ids?: string[]) => request("/api/admin/store-reset/reset-sales", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(ids ? { ids } : {}),
+  }),
+  resetProductRatings: (ids?: string[]) => request("/api/admin/store-reset/reset-ratings", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(ids ? { ids } : {}),
+  }),
+  hardDeleteAllProducts: () => request("/api/admin/store-reset/hard-delete-all", {
+    method: "DELETE", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm: true }),
+  }),
 };
