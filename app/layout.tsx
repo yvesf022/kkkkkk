@@ -169,7 +169,7 @@ export const metadata: Metadata = {
     siteName:    "Karabo's Store",
     images: [
       {
-        url:    "/og-image.jpg",
+        url:    "/og-image.png",
         width:  1200,
         height: 630,
         alt:    "Karabo's Store – Luxury Boutique in Lesotho",
@@ -183,7 +183,7 @@ export const metadata: Metadata = {
     card:        "summary_large_image",
     title:       "Karabo's Store – Premium Boutique",
     description: "Premium fashion and beauty collections in Lesotho.",
-    images:      ["/og-image.jpg"],
+    images:      ["/og-image.png"],
   },
 };
 
