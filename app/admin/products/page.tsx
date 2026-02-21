@@ -159,15 +159,25 @@ export default function AdminProductsPage() {
 
   const totalPages = Math.ceil(total / perPage);
 
-  // FIX: robust image resolution — handles all possible field names from the backend
+  // Robust image resolution — handles every shape the backend may return:
+  // main_image (string), image_url (string), primary_image (string),
+  // images: [{image_url, is_primary}], images: [string], img (string)
   function getProductImage(p: ProductListItem): string | null {
-    return (p as any).main_image
-      ?? (p as any).image_url
-      ?? (p as any).primary_image
-      ?? (Array.isArray((p as any).images) && (p as any).images.length > 0
-          ? (p as any).images[0]?.image_url ?? (p as any).images[0]
-          : null)
-      ?? null;
+    const raw = p as any;
+    if (raw.main_image && typeof raw.main_image === "string") return raw.main_image;
+    if (raw.image_url  && typeof raw.image_url  === "string") return raw.image_url;
+    if (raw.primary_image && typeof raw.primary_image === "string") return raw.primary_image;
+    if (raw.img && typeof raw.img === "string") return raw.img;
+    if (Array.isArray(raw.images) && raw.images.length > 0) {
+      // Prefer the primary image object if present
+      const primary = raw.images.find((img: any) => img?.is_primary);
+      if (primary?.image_url) return primary.image_url;
+      const first = raw.images[0];
+      if (typeof first === "string") return first;
+      if (first?.image_url) return first.image_url;
+      if (first?.url) return first.url;
+    }
+    return null;
   }
 
   const stockLabel = (p: ProductListItem) => {

@@ -15,7 +15,18 @@ export default function ClientShell({
   children: React.ReactNode;
 }) {
   const hydrate = useAuth((s) => s.hydrate);
-  const [showSplash, setShowSplash] = useState(true);
+  // Only show splash when launched as an installed PWA (standalone/fullscreen mode).
+  // In a regular browser tab the splash should never appear — it only makes sense
+  // as an app launch screen, not on every page navigation in the browser.
+  const [showSplash, setShowSplash] = useState(false);
+
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia("(display-mode: fullscreen)").matches ||
+      (window.navigator as any).standalone === true; // iOS Safari PWA
+    if (isStandalone) setShowSplash(true);
+  }, []);
 
   /* 🔥 SINGLE SOURCE OF AUTH HYDRATION */
   useEffect(() => {
