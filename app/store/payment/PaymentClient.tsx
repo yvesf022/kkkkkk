@@ -323,13 +323,40 @@ export default function PaymentClient() {
   }
 
   /* ─── Upload proof → POST /api/payments/{payment_id}/proof ─── */
+  // ⚠️  DO NOT call paymentsApi.uploadProof() here.
+  //     The shared request() helper always spreads headers:{} into fetch(),
+  //     which prevents the browser from auto-generating the multipart boundary → 422.
+  //     We call fetch() directly so Content-Type is set automatically.
   async function handleUpload() {
     if (!file || !payment) return;
     setUploading(true); setUploadError(null);
     try {
-      await paymentsApi.uploadProof(payment.id, file);
+      const form = new FormData();
+      form.append("file", file);
 
-      // ✅ Clear cart only AFTER successful proof submission, not on mount
+      const token = typeof window !== "undefined"
+        ? localStorage.getItem("karabo_token")
+        : null;
+
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://karabo.onrender.com";
+
+      const res = await fetch(`${API_BASE}/api/payments/${payment.id}/proof`, {
+        method: "POST",
+        // ✅ NO Content-Type header — browser sets multipart/form-data + boundary automatically
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+
+      if (!res.ok) {
+        let msg = `Upload failed (${res.status})`;
+        try {
+          const data = await res.json();
+          msg = data?.detail ?? data?.message ?? msg;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      // ✅ Clear cart only AFTER successful proof submission
       await clearCart().catch(() => {});
 
       setUploaded(true); setFile(null);
