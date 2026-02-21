@@ -27,11 +27,14 @@ type PreviewResult = {
 };
 
 type UploadResult = {
-  created?:  number;
-  updated?:  number;
-  errors?:   number;
-  job_id?:   string;
-  message?:  string;
+  // Backend returns: upload_id, total, successful, failed, status, errors (list)
+  upload_id?:  string;
+  total?:      number;
+  successful?: number;
+  failed?:     number;
+  status?:     string;
+  errors?:     { row: number; title: string; error: string }[];
+  message?:    string;
 };
 
 type Phase = "idle" | "validating" | "previewing" | "uploading" | "done" | "error";
@@ -150,7 +153,7 @@ export default function BulkUploadPage() {
   };
 
   if (phase === "done" && uploadRes) {
-    const hasErrors = (uploadRes.errors ?? 0) > 0;
+    const hasErrors = (uploadRes.failed ?? 0) > 0;
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
         <div style={{ textAlign: "center", maxWidth: 480 }}>
@@ -158,9 +161,9 @@ export default function BulkUploadPage() {
           <h2 style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>Upload Complete</h2>
           <div style={{ display: "flex", gap: 16, justifyContent: "center", marginBottom: 28, flexWrap: "wrap" }}>
             {[
-              { label: "Created", value: uploadRes.created ?? 0, color: "#15803d", bg: "#dcfce7" },
-              { label: "Updated", value: uploadRes.updated ?? 0, color: "#1d4ed8", bg: "#dbeafe" },
-              { label: "Errors",  value: uploadRes.errors  ?? 0, color: "#dc2626", bg: "#fee2e2" },
+              { label: "Imported", value: uploadRes.successful ?? 0, color: "#15803d", bg: "#dcfce7" },
+              { label: "Total",    value: uploadRes.total     ?? 0, color: "#1d4ed8", bg: "#dbeafe" },
+              { label: "Failed",   value: uploadRes.failed    ?? 0, color: "#dc2626", bg: "#fee2e2" },
             ].map((s) => (
               <div key={s.label} style={{ padding: "14px 24px", borderRadius: 12, background: s.bg, minWidth: 100 }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
