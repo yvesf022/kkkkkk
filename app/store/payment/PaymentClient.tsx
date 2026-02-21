@@ -28,10 +28,10 @@ const STATUS_META: Record<string, { bg: string; fg: string; dot: string; label: 
 
 /* ─── Step definitions ─── */
 const STEPS = [
-  { n: 1, label: "Initialize" },
-  { n: 2, label: "Transfer" },
+  { n: 1, label: "Start" },
+  { n: 2, label: "Send Money" },
   { n: 3, label: "Upload Proof" },
-  { n: 4, label: "Complete" },
+  { n: 4, label: "Done" },
 ] as const;
 
 /* ─── Icons ─── */
@@ -202,7 +202,7 @@ function UploadLaterCallout({ orderId }: { orderId: string }) {
           No rush — you can upload later too
         </p>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "#1E40AF", opacity: 0.8, lineHeight: 1.7, fontFamily: FF }}>
-          Your order has been saved. If you need to leave now, you can always upload your proof of payment from{" "}
+          Your order has been saved. If you need to leave the page now, you can come back later and upload your proof from{" "}
           <Link href={`/account/orders/${orderId}`} style={{ color: "#1E40AF", fontWeight: 700 }}>
             Account → Orders
           </Link>
@@ -544,11 +544,24 @@ export default function PaymentClient() {
           {/* ──── STEP 2: Bank transfer ──── */}
           {step === 2 && (
             <div style={S.card}>
-              <h2 style={S.cardTitle}>Transfer Funds</h2>
+              <h2 style={S.cardTitle}>Make Your Payment</h2>
+              <p style={{ ...S.cardSub, marginBottom: 8 }}>
+                This store uses <strong>manual payment</strong> — there is no automatic card payment here.
+                You will need to send the money yourself directly to the store's account.
+              </p>
+              <p style={{ ...S.cardSub, marginBottom: 8 }}>
+                You can do this in any of the following ways:
+              </p>
+              <ul style={{ margin: "0 0 12px 18px", padding: 0, fontSize: 14, color: "#475569", lineHeight: 2, fontFamily: FF }}>
+                <li>📱 <strong>Mobile Money</strong> — use your mobile money app (e.g. M-Pesa or EcoCash) to send the amount</li>
+                <li>🏦 <strong>Bank App / Internet Banking</strong> — log into your bank app and do an EFT transfer</li>
+                <li>🏧 <strong>ATM</strong> — go to any ATM and do a funds transfer to the account below</li>
+                <li>🏢 <strong>Bank Branch</strong> — visit your bank in person and ask the teller to transfer the money</li>
+              </ul>
               <p style={{ ...S.cardSub, marginBottom: 24 }}>
-                Transfer exactly{" "}
+                Send exactly{" "}
                 <strong style={{ color: BRAND }}>{formatCurrency(pmt.amount)}</strong>{" "}
-                to the account below. Use your order ID as the reference.
+                to the store account shown below. Use your order ID as the payment reference so we can match your payment to your order.
               </p>
 
               {/* Payment method selector */}
@@ -646,7 +659,7 @@ export default function PaymentClient() {
                 onClick={() => { setStep(3); setCompletedSteps((prev) => new Set([...prev, 2])); }}
                 style={S.primaryBtn}
               >
-                I've Completed the Transfer →
+                I Have Sent the Money →
               </button>
 
               {/* Upload later notice */}
@@ -657,9 +670,20 @@ export default function PaymentClient() {
           {/* ──── STEP 3: Upload proof ──── */}
           {step === 3 && (
             <div style={S.card}>
-              <h2 style={S.cardTitle}>Upload Proof of Payment</h2>
+              <h2 style={S.cardTitle}>Upload Your Proof of Payment</h2>
+              <p style={{ ...S.cardSub, marginBottom: 8 }}>
+                After sending the money, you need to upload a <strong>proof of payment</strong> so the store can verify that the payment was made by you.
+              </p>
+              <p style={{ ...S.cardSub, marginBottom: 8 }}>
+                Your proof of payment can be any of the following:
+              </p>
+              <ul style={{ margin: "0 0 12px 18px", padding: 0, fontSize: 14, color: "#475569", lineHeight: 2, fontFamily: FF }}>
+                <li>📸 A <strong>screenshot</strong> from your mobile money or banking app showing the transfer</li>
+                <li>🧾 A <strong>photo</strong> of the printed receipt you received at the ATM or bank</li>
+                <li>📄 A <strong>PDF or email confirmation</strong> from your bank</li>
+              </ul>
               <p style={{ ...S.cardSub, marginBottom: 22 }}>
-                Upload your bank transfer receipt, screenshot, or confirmation email. Your order status will move to <strong>Pending Review</strong> once uploaded.
+                ⚠️ Make sure the proof clearly shows <strong>your name</strong>, the <strong>amount sent</strong>, and the <strong>date of transfer</strong>. Your order will move to <strong>Pending Review</strong> once uploaded.
               </p>
 
               {uploadError && (
@@ -782,11 +806,32 @@ export default function PaymentClient() {
                     ⏳
                   </div>
                   <h2 style={{ fontSize: 22, fontWeight: 800, color: "#92400E", margin: "0 0 8px", fontFamily: FF }}>
-                    Proof Submitted — Pending Review
+                    Proof Received — Waiting for Verification
                   </h2>
                   <p style={{ fontSize: 14, color: "#64748B", lineHeight: 1.7, maxWidth: 360, marginBottom: 8, fontFamily: FF }}>
-                    Your proof of payment has been received. You'll be notified once our team confirms it — usually within a few hours.
+                    Thank you! Your proof of payment has been received by the store. Our team will review it and confirm your order — this usually takes a few hours during business hours.
                   </p>
+                  <p style={{ fontSize: 13, color: "#64748B", lineHeight: 1.7, maxWidth: 360, marginBottom: 8, fontFamily: FF }}>
+                    For <strong>faster verification</strong>, you can send your proof directly to the store admin on WhatsApp. You can also use WhatsApp to ask questions or follow up on your order.
+                  </p>
+                  <a
+                    href={`https://wa.me/919253258848?text=${encodeURIComponent("Hello, I have just submitted my proof of payment for my order. Please find my payment confirmation attached. Order Reference: #" + (orderId?.slice(0,8).toUpperCase() ?? ""))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 10,
+                      padding: "13px 22px", borderRadius: 12, marginBottom: 20,
+                      background: "#25D366", color: "#fff", textDecoration: "none",
+                      fontWeight: 800, fontSize: 14, fontFamily: FF,
+                      boxShadow: "0 2px 14px rgba(37,211,102,.35)",
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M16 2C8.268 2 2 8.268 2 16c0 2.496.654 4.84 1.8 6.868L2 30l7.32-1.776A13.93 13.93 0 0016 30c7.732 0 14-6.268 14-14S23.732 2 16 2z" fill="#25D366"/>
+                      <path d="M22.44 19.44c-.32-.16-1.892-.932-2.184-1.04-.292-.108-.504-.16-.716.16-.212.32-.82 1.04-.1 1.252.108.16-.32.48-.716.804-.396.324-1.188.988-2.02.44-.832-.548-1.784-1.456-2.452-2.388-.668-.932-1.112-2.14-1.224-2.508-.112-.368.044-.552.168-.712.108-.144.24-.376.36-.564.12-.188.16-.32.24-.536.08-.216.04-.408-.02-.564-.06-.156-.716-1.728-.98-2.368-.26-.624-.524-.54-.716-.55l-.608-.012c-.212 0-.556.08-.848.396-.292.316-1.112 1.088-1.112 2.652 0 1.564 1.14 3.076 1.3 3.288.16.212 2.244 3.424 5.44 4.8.76.328 1.352.524 1.816.672.764.244 1.46.21 2.01.128.614-.092 1.892-.772 2.16-1.52.268-.748.268-1.388.188-1.52-.08-.132-.292-.212-.612-.372z" fill="#fff"/>
+                    </svg>
+                    Send Proof on WhatsApp
+                  </a>
                   <p style={{ fontSize: 12, color: "#94A3B8", marginBottom: 20, display: "flex", alignItems: "center", gap: 5, fontFamily: FF }}>
                     <ClockIcon /> Auto-checking every 30 seconds
                   </p>
@@ -874,7 +919,7 @@ export default function PaymentClient() {
           {/* Security note */}
           <div style={{ padding: "12px 16px", background: "#F8FAFC", borderRadius: 12, border: "1px solid #E2E8F0" }}>
             <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, lineHeight: 1.8, fontFamily: FF }}>
-              🔒 Secure payment session. Your proof is reviewed by our team — usually within a few hours. Contact support for help.
+              🔒 Your payment is handled securely. Once you upload your proof, our team will review and verify it — usually within a few hours. You can also contact us on WhatsApp for help.
             </p>
           </div>
 
