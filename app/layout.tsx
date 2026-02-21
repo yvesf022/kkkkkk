@@ -15,12 +15,12 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#0f172a" },
     { media: "(prefers-color-scheme: dark)",  color: "#0f172a" },
   ],
-  // Standard responsive viewport — same as Jumia Nigeria.
-  // width=device-width renders at the actual screen width (no zoom-out trick).
-  // The layout itself is responsive via CSS, matching correctly on all screen sizes.
-  width: "device-width",
-  initialScale: 1,
-  minimumScale: 1,
+  // Jumia-style: fixed 1024px desktop layout on all screens.
+  // initialScale 0.4 starts zoomed out so full layout fits the phone screen.
+  // User can pinch-zoom in freely. minimumScale 0.25 allows full zoom-out.
+  width: 1024,
+  initialScale: 0.4,
+  minimumScale: 0.25,
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",
@@ -212,7 +212,8 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"  href="/splash/ipad10.png" />
       </head>
 
-      <body>
+      {/* Dark background painted immediately before JS loads — prevents white flash behind splash */}
+      <body style={{ background: "#050e08" }}>
         <KeepAliveProvider>
           <ClientShell>{children}</ClientShell>
           <ToastProvider />

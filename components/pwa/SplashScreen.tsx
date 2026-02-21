@@ -6,13 +6,13 @@ export default function SplashScreen({ onComplete }: { onComplete?: () => void }
   const [phase, setPhase] = useState<"enter" | "hold" | "exit" | "done">("enter");
 
   useEffect(() => {
-    // Phase timeline
-    const t1 = setTimeout(() => setPhase("hold"),  1200);  // animations settle
-    const t2 = setTimeout(() => setPhase("exit"),  3000);  // start exit
+    // Phase timeline — keep total under 2.5s so it feels snappy
+    const t1 = setTimeout(() => setPhase("hold"),   800);  // animations settle
+    const t2 = setTimeout(() => setPhase("exit"),  1800);  // start exit
     const t3 = setTimeout(() => {                          // fully gone
       setPhase("done");
       onComplete?.();
-    }, 3800);
+    }, 2500);
 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [onComplete]);
@@ -34,8 +34,11 @@ export default function SplashScreen({ onComplete }: { onComplete?: () => void }
           justify-content: center;
           overflow: hidden;
           background: #050e08;
-          transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-                      transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+          /* Paint immediately — no waiting for fonts or other resources */
+          contain: strict;
+          will-change: opacity, transform;
+          transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+                      transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .ks-splash.exit {
@@ -153,7 +156,7 @@ export default function SplashScreen({ onComplete }: { onComplete?: () => void }
             inset 0 1px 0 rgba(255,255,255,0.06);
           opacity: 0;
           transform: scale(0.7) translateY(10px);
-          animation: ks-popIn 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s forwards;
+          animation: ks-popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0s forwards;
           margin-bottom: 28px;
         }
 
