@@ -15,17 +15,13 @@ export default function ClientShell({
   children: React.ReactNode;
 }) {
   const hydrate = useAuth((s) => s.hydrate);
-  // Only show splash when launched as an installed PWA (standalone/fullscreen mode).
-  // In a regular browser tab the splash should never appear — it only makes sense
-  // as an app launch screen, not on every page navigation in the browser.
-  const [showSplash, setShowSplash] = useState(false);
+  // Show splash on every load — both desktop browsers and installed PWA.
+  // The splash auto-dismisses after 2 seconds via the timer below.
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.matchMedia("(display-mode: fullscreen)").matches ||
-      (window.navigator as any).standalone === true; // iOS Safari PWA
-    if (isStandalone) setShowSplash(true);
+    // Auto-dismiss splash after 2 seconds on all devices/browsers.
+    const splashTimer = setTimeout(() => setShowSplash(false), 2500);
 
     // JS zoom-lock: safety net for browsers/WebViews that ignore viewport meta.
     // Resets any OS-level zoom attempt back to the locked scale immediately.
@@ -60,6 +56,7 @@ export default function ClientShell({
     document.addEventListener("touchmove", onTouchMove, { passive: false });
 
     return () => {
+      clearTimeout(splashTimer);
       document.removeEventListener("touchend",  onTouchEnd);
       document.removeEventListener("touchmove", onTouchMove);
     };
