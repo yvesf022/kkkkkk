@@ -135,7 +135,7 @@ export default function AccountOrdersPage() {
             const pmt = paymentFor(order.id);
             const ps = pmt ? PAY[pmt.status] : null;
             const items = order.items ?? [];
-            const firstImg = items[0]?.product?.main_image ?? items[0]?.product?.images?.[0] ?? null;
+            const firstImg = items[0]?.product?.main_image ?? (items[0]?.product?.images as any)?.[0]?.image_url ?? null;
 
             return (
               <Link key={order.id} href={`/account/orders/${order.id}`} style={{ textDecoration: "none" }}>
@@ -168,7 +168,7 @@ export default function AccountOrdersPage() {
                     <div style={{ display: "flex", gap: -8 }}>
                       {items.slice(0, 4).map((item, idx) => (
                         <div key={item.id} style={{ marginLeft: idx > 0 ? -12 : 0, zIndex: items.length - idx }}>
-                          <Thumb src={item.product?.main_image ?? (item.product?.images as any)?.[0]} alt={item.title} size={48} />
+                          <Thumb src={item.product?.main_image ?? (item.product?.images as any)?.[0]?.image_url} alt={item.title ?? (item as any).product_title} size={48} />
                         </div>
                       ))}
                       {items.length > 4 && (

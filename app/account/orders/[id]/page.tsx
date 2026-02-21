@@ -84,7 +84,7 @@ export default function UserOrderDetailPage() {
         paymentsApi.getMy().catch(() => [] as Payment[]),
       ]);
       setOrder(ord);
-      const list: Payment[] = Array.isArray(pmts) ? pmts : (pmts as any)?.payments ?? [];
+      const list: Payment[] = Array.isArray(pmts) ? pmts : (pmts as any)?.results ?? (pmts as any)?.payments ?? [];
       const match = list.find(p => p.order_id === id) ?? null;
       setPayment(match);
     } catch (e: any) {
@@ -136,15 +136,46 @@ export default function UserOrderDetailPage() {
     if (!proofFile || !payment) return;
     setUploading(true);
     try {
-      if (payment.status === "on_hold" || payment.status === "rejected") {
-        await paymentsApi.resubmitProof(payment.id, proofFile);
-      } else {
-        await paymentsApi.uploadProof(payment.id, proofFile);
+      // Use direct fetch — NOT paymentsApi.uploadProof/resubmitProof — because:
+      // 1. The shared request() helper passes Content-Type which breaks multipart boundary
+      // 2. Backend param is `proof: UploadFile = File(...)` so field must be "proof" not "file"
+      // 3. There is no /resubmit-proof route; same POST /{id}/proof handles all statuses
+      const base = (process.env.NEXT_PUBLIC_API_URL ?? "https://karabo.onrender.com").replace(/\/$/, "");
+      const token = typeof window !== "undefined" ? localStorage.getItem("karabo_token") : null;
+      const form = new FormData();
+      form.append("proof", proofFile); // must match FastAPI param name
+
+      const res = await fetch(`${base}/api/payments/${payment.id}/proof`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+
+      if (!res.ok) {
+        let msg = `Upload failed (${res.status})`;
+        try {
+          const data = await res.json();
+          if (Array.isArray(data?.detail)) {
+            // FastAPI 422: detail is [{loc, msg, type}] — extract human-readable text
+            msg = (data.detail as Array<{loc: string[]; msg: string}>)
+              .map(e => `${e.loc.slice(-1)[0]}: ${e.msg}`).join("; ");
+          } else {
+            msg = (typeof data?.detail === "string" ? data.detail : null)
+               ?? data?.message ?? msg;
+          }
+        } catch {}
+        throw new Error(msg);
       }
-      flash("Proof uploaded successfully");
+
+      flash("Proof uploaded. Awaiting admin review.");
       setProofFile(null); setShowUpload(false);
       await load();
-    } catch (e: any) { flash(e?.message ?? "Upload failed", "err"); }
+    } catch (e: any) {
+      const msg = e instanceof Error ? e.message
+                : typeof e === "string" ? e
+                : "Upload failed. Please try again.";
+      flash(msg, "err");
+    }
     finally { setUploading(false); }
   }
 

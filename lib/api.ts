@@ -81,7 +81,14 @@ async function request<T>(
     let message = "Request failed";
     try {
       const data = await res.json();
-      message = data.detail || data.message || message;
+      // FastAPI 422 returns detail as an array [{loc, msg, type}] — must stringify
+      if (Array.isArray(data?.detail)) {
+        message = (data.detail as Array<{loc: string[]; msg: string}>)
+          .map(e => `${e.loc?.slice(-1)[0] ?? "field"}: ${e.msg}`).join("; ");
+      } else {
+        message = (typeof data?.detail === "string" ? data.detail : null)
+               ?? data?.message ?? message;
+      }
     } catch {}
     const err: any = new Error(message);
     err.status = res.status;
@@ -475,8 +482,10 @@ export const paymentsApi = {
     }),
 
   uploadProof: (paymentId: string, file: File) => {
+    // NOTE: field name MUST be "proof" — matches FastAPI param `proof: UploadFile = File(...)`
+    // Using "file" causes 422. Also: do NOT set Content-Type; browser sets multipart boundary.
     const form = new FormData();
-    form.append("file", file);
+    form.append("proof", file);
     return request(`/api/payments/${paymentId}/proof`, { method: "POST", body: form });
   },
 
@@ -509,10 +518,12 @@ export const paymentsApi = {
 
   getBankDetails: () => request("/api/payments/bank-details"),
 
+  // resubmitProof → same as uploadProof; backend POST /{id}/proof replaces existing proof
+  // for all statuses (pending / on_hold / rejected). No separate resubmit route exists.
   resubmitProof: (paymentId: string, file: File) => {
     const form = new FormData();
-    form.append("file", file);
-    return request(`/api/payments/${paymentId}/resubmit-proof`, { method: "POST", body: form });
+    form.append("proof", file);
+    return request(`/api/payments/${paymentId}/proof`, { method: "POST", body: form });
   },
 
   cancel: (paymentId: string, reason: string) =>
