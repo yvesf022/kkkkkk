@@ -15,10 +15,9 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#0f172a" },
     { media: "(prefers-color-scheme: dark)",  color: "#0f172a" },
   ],
-  // Scale the full 1024px layout down to fit any screen — like Jumia.
-  // width=1024 tells the browser the layout is 1024px wide.
-  // minimumScale=0.1 lets the browser auto-shrink it to fit any phone screen.
-  // Users can still pinch-zoom in to read any section.
+  // width=1024 renders the full desktop layout.
+  // ClientShell.tsx calculates the correct initialScale at runtime
+  // so the whole page fits the screen without needing to zoom out.
   width: 1024,
   initialScale: 1,
   minimumScale: 0.1,

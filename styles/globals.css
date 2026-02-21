@@ -31,7 +31,7 @@ html, body {
   touch-action: manipulation;
 }
 
-/* Hard lock: prevent any pinch/double-tap zoom on the root */
+/* Allow pinch-zoom so users can zoom in to read details */
 html {
   touch-action: pan-x pan-y pinch-zoom;
   -ms-touch-action: pan-x pan-y pinch-zoom;

@@ -22,6 +22,28 @@ export default function ClientShell({
   useEffect(() => {
     // Auto-dismiss splash after 2.5 seconds on all devices/browsers.
     const splashTimer = setTimeout(() => setShowSplash(false), 2500);
+
+    const vp = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia("(display-mode: fullscreen)").matches ||
+      (window.navigator as any).standalone === true;
+
+    // Calculate scale so the 1024px layout fits the screen width exactly —
+    // no horizontal scroll, no manual zoom-out needed, like Jumia/Shein.
+    const scale = Math.min(1, window.screen.width / 1024);
+
+    if (vp) {
+      if (isStandalone) {
+        // Installed PWA — fit to device screen, allow pinch-zoom
+        vp.content = `width=1024, initial-scale=${scale}, minimum-scale=${scale}, maximum-scale=5, user-scalable=yes, viewport-fit=cover`;
+      } else {
+        // Browser tab — same auto-fit scale, allow pinch-zoom to read details
+        vp.content = `width=1024, initial-scale=${scale}, minimum-scale=${scale}, maximum-scale=5, user-scalable=yes, viewport-fit=cover`;
+      }
+    }
+
     return () => clearTimeout(splashTimer);
   }, []);
 
