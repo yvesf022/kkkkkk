@@ -246,11 +246,11 @@ export const productsApi = {
   },
 
   getAdmin(id: string): Promise<Product> {
-    return request(`/api/products/${id}`);
+    return adminRequest(`/api/products/${id}`);
   },
 
   create(payload: any) {
-    return request("/api/products", {
+    return adminRequest("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -258,7 +258,7 @@ export const productsApi = {
   },
 
   update(id: string, payload: any) {
-    return request(`/api/products/admin/${id}`, {
+    return adminRequest(`/api/products/admin/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -266,31 +266,31 @@ export const productsApi = {
   },
 
   getAnalytics(id: string): Promise<ProductAnalytics> {
-    return request<ProductAnalytics>(`/api/products/admin/${id}/analytics`);
+    return adminRequest<ProductAnalytics>(`/api/products/admin/${id}/analytics`);
   },
 
   listVariants(id: string): Promise<ProductVariant[]> {
-    return request<ProductVariant[]>(`/api/products/${id}/variants`);
+    return adminRequest<ProductVariant[]>(`/api/products/${id}/variants`);
   },
 
   lifecycle(id: string, action: "publish" | "archive" | "draft" | "restore") {
-    return request(`/api/products/${id}/${action}`, { method: "POST" });
+    return adminRequest(`/api/products/${id}/${action}`, { method: "POST" });
   },
 
-  publish(id: string) { return request(`/api/products/${id}/publish`, { method: "POST" }); },
-  archive(id: string) { return request(`/api/products/${id}/archive`, { method: "POST" }); },
-  draft(id: string)   { return request(`/api/products/${id}/draft`,   { method: "POST" }); },
-  restore(id: string) { return request(`/api/products/${id}/restore`, { method: "POST" }); },
+  publish(id: string) { return adminRequest(`/api/products/${id}/publish`, { method: "POST" }); },
+  archive(id: string) { return adminRequest(`/api/products/${id}/archive`, { method: "POST" }); },
+  draft(id: string)   { return adminRequest(`/api/products/${id}/draft`,   { method: "POST" }); },
+  restore(id: string) { return adminRequest(`/api/products/${id}/restore`, { method: "POST" }); },
 
-  softDelete(id: string) { return request(`/api/products/${id}`, { method: "DELETE" }); },
-  hardDelete(id: string) { return request(`/api/products/${id}/hard`, { method: "DELETE" }); },
+  softDelete(id: string) { return adminRequest(`/api/products/${id}`, { method: "DELETE" }); },
+  hardDelete(id: string) { return adminRequest(`/api/products/${id}/hard`, { method: "DELETE" }); },
 
   duplicate(id: string): Promise<{ id: string }> {
-    return request<{ id: string }>(`/api/products/${id}/duplicate`, { method: "POST" });
+    return adminRequest<{ id: string }>(`/api/products/${id}/duplicate`, { method: "POST" });
   },
 
   bulkAddImages(productId: string, payload: { images: string[] }) {
-    return request(`/api/products/${productId}/images/bulk`, {
+    return adminRequest(`/api/products/${productId}/images/bulk`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -300,11 +300,11 @@ export const productsApi = {
   uploadImage(productId: string, file: File) {
     const form = new FormData();
     form.append("file", file);
-    return request(`/api/products/${productId}/images/bulk`, { method: "POST", body: form });
+    return adminRequest(`/api/products/${productId}/images/bulk`, { method: "POST", body: form });
   },
 
   setImagePosition(imageId: string, position: number) {
-    return request(`/api/products/images/${imageId}/position`, {
+    return adminRequest(`/api/products/images/${imageId}/position`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ position }),
@@ -312,18 +312,18 @@ export const productsApi = {
   },
 
   setImagePrimary(imageId: string) {
-    return request(`/api/products/images/${imageId}/set-primary`, { method: "PATCH" });
+    return adminRequest(`/api/products/images/${imageId}/set-primary`, { method: "PATCH" });
   },
 
   deleteImage(imageId: string) {
-    return request(`/api/products/images/${imageId}`, { method: "DELETE" });
+    return adminRequest(`/api/products/images/${imageId}`, { method: "DELETE" });
   },
 
   createVariant(productId: string, payload: {
     title: string; sku?: string; price: number; stock: number;
     attributes: Record<string, string>; image_url?: string;
   }) {
-    return request<ProductVariant>(`/api/products/${productId}/variants`, {
+    return adminRequest<ProductVariant>(`/api/products/${productId}/variants`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -331,7 +331,7 @@ export const productsApi = {
   },
 
   updateVariant(variantId: string, payload: Partial<ProductVariant>) {
-    return request(`/api/products/variants/${variantId}`, {
+    return adminRequest(`/api/products/variants/${variantId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -339,15 +339,15 @@ export const productsApi = {
   },
 
   deleteVariant(variantId: string) {
-    return request(`/api/products/variants/${variantId}`, { method: "DELETE" });
+    return adminRequest(`/api/products/variants/${variantId}`, { method: "DELETE" });
   },
 
   duplicateVariant(variantId: string) {
-    return request(`/api/products/variants/${variantId}/duplicate`, { method: "POST" });
+    return adminRequest(`/api/products/variants/${variantId}/duplicate`, { method: "POST" });
   },
 
   bulkUpdateVariants(payload: any) {
-    return request(`/api/products/variants/bulk`, {
+    return adminRequest(`/api/products/variants/bulk`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -357,7 +357,7 @@ export const productsApi = {
   reorderImages(_productId: string, imageIds: string[]) {
     return Promise.all(
       imageIds.map((id, index) =>
-        request(`/api/products/images/${id}/position`, {
+        adminRequest(`/api/products/images/${id}/position`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ position: index }),
@@ -367,13 +367,13 @@ export const productsApi = {
   },
 
   setMainImage(imageId: string) {
-    return request(`/api/products/images/${imageId}/set-primary`, { method: "PATCH" });
+    return adminRequest(`/api/products/images/${imageId}/set-primary`, { method: "PATCH" });
   },
 
   updateInventory(productId: string, payload: {
     stock: number; note?: string; type?: string; reference?: string;
   }) {
-    return request(`/api/products/${productId}/inventory`, {
+    return adminRequest(`/api/products/${productId}/inventory`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -384,7 +384,8 @@ export const productsApi = {
     const qs = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined))
     ).toString();
-    const token = tokenStorage.get();
+    // Use admin token for admin export endpoint
+    const token = adminTokenStorage.get();
     const res = await fetch(
       `${API_BASE_URL}/api/products/admin/export${qs ? `?${qs}` : ""}`,
       { headers: token ? { Authorization: `Bearer ${token}` } : {} }
@@ -400,7 +401,7 @@ export const productsApi = {
   },
 
   updateVariantInventory(variantId: string, payload: { stock: number; note?: string }) {
-    return request(`/api/products/variants/${variantId}/inventory`, {
+    return adminRequest(`/api/products/variants/${variantId}/inventory`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -439,16 +440,16 @@ export const ordersApi = {
 
   getAdmin: async (statusFilter?: string): Promise<Order[]> => {
     const qs = statusFilter ? `?status=${statusFilter}` : "";
-    const data: any = await request(`/api/orders/admin${qs}`);
+    const data: any = await adminRequest(`/api/orders/admin${qs}`);
     // Backend returns paginated: { results: Order[], total, page, stats }
     return Array.isArray(data) ? data : data?.results ?? data?.orders ?? [];
   },
 
-  adminOrders: (): Promise<Order[]> => request("/api/orders/admin"),
-  getAdminById: (id: string): Promise<Order> => request(`/api/orders/admin/${id}`),
+  adminOrders: (): Promise<Order[]> => adminRequest("/api/orders/admin"),
+  getAdminById: (id: string): Promise<Order> => adminRequest(`/api/orders/admin/${id}`),
 
   updateShipping: (id: string, payload: { status: string }) =>
-    request(`/api/orders/admin/${id}/shipping`, {
+    adminRequest(`/api/orders/admin/${id}/shipping`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -518,13 +519,13 @@ export const paymentsApi = {
 
   adminList: (statusFilter?: PaymentStatus) => {
     const qs = statusFilter ? `?status_filter=${statusFilter}` : "";
-    return request(`/api/payments/admin${qs}`);
+    return adminRequest(`/api/payments/admin${qs}`);
   },
 
-  adminGetById: (paymentId: string) => request(`/api/payments/admin/${paymentId}`),
+  adminGetById: (paymentId: string) => adminRequest(`/api/payments/admin/${paymentId}`),
 
   review: (paymentId: string, status: "paid" | "rejected", adminNotes?: string) =>
-    request(`/api/payments/admin/${paymentId}/review`, {
+    adminRequest(`/api/payments/admin/${paymentId}/review`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, admin_notes: adminNotes }),
@@ -793,43 +794,43 @@ export const walletApi = {
 
 export const adminOrdersAdvancedApi = {
   hardDelete: (orderId: string) =>
-    request(`/api/admin/orders/${orderId}`, { method: "DELETE" }),
+    adminRequest(`/api/admin/orders/${orderId}`, { method: "DELETE" }),
 
   forceStatus: (orderId: string, payload: { status: string; reason: string }) =>
-    request(`/api/admin/orders/${orderId}/status`, {
+    adminRequest(`/api/admin/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
   processRefund: (orderId: string, payload: { amount: number; reason: string }) =>
-    request(`/api/admin/orders/${orderId}/refund`, {
+    adminRequest(`/api/admin/orders/${orderId}/refund`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
   processPartialRefund: (orderId: string, payload: { amount: number; reason: string }) =>
-    request(`/api/admin/orders/${orderId}/partial-refund`, {
+    adminRequest(`/api/admin/orders/${orderId}/partial-refund`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
-  getNotes: (orderId: string) => request(`/api/admin/orders/${orderId}/notes`),
+  getNotes: (orderId: string) => adminRequest(`/api/admin/orders/${orderId}/notes`),
 
   addNote: (orderId: string, payload: { content: string; is_internal?: boolean }) =>
-    request(`/api/admin/orders/${orderId}/notes`, {
+    adminRequest(`/api/admin/orders/${orderId}/notes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
   deleteNote: (orderId: string, noteId: string) =>
-    request(`/api/admin/orders/${orderId}/notes/${noteId}`, { method: "DELETE" }),
+    adminRequest(`/api/admin/orders/${orderId}/notes/${noteId}`, { method: "DELETE" }),
 
   restore: (orderId: string) =>
-    request(`/api/admin/orders/${orderId}/restore`, { method: "POST" }),
+    adminRequest(`/api/admin/orders/${orderId}/restore`, { method: "POST" }),
 };
 
 /* =====================================================
@@ -838,16 +839,16 @@ export const adminOrdersAdvancedApi = {
 
 export const adminPaymentsAdvancedApi = {
   hardDelete: (paymentId: string) =>
-    request(`/api/payments/admin/${paymentId}`, { method: "DELETE" }),
+    adminRequest(`/api/payments/admin/${paymentId}`, { method: "DELETE" }),
 
   forceStatus: (paymentId: string, payload: { status: string; reason: string }) =>
-    request(`/api/payments/admin/${paymentId}/status`, {
+    adminRequest(`/api/payments/admin/${paymentId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
-  getHistory: (paymentId: string) => request(`/api/payments/admin/${paymentId}/history`),
+  getHistory: (paymentId: string) => adminRequest(`/api/payments/admin/${paymentId}/history`),
 };
 
 /* =====================================================
@@ -856,23 +857,23 @@ export const adminPaymentsAdvancedApi = {
 
 export const adminUsersAdvancedApi = {
   hardDelete: (userId: string) =>
-    request(`/api/admin/users/${userId}`, { method: "DELETE" }),
+    adminRequest(`/api/admin/users/${userId}`, { method: "DELETE" }),
 
   forcePasswordReset: (userId: string, reason: string) =>
-    request(`/api/admin/users/${userId}/force-password-reset`, {
+    adminRequest(`/api/admin/users/${userId}/force-password-reset`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason }),
     }),
 
   getActivity: (userId: string, limit = 50) =>
-    request(`/api/admin/users/${userId}/activity?limit=${limit}`),
+    adminRequest(`/api/admin/users/${userId}/activity?limit=${limit}`),
 
   listSessions: (activeOnly = true) =>
-    request(`/api/admin/sessions?active_only=${activeOnly}`),
+    adminRequest(`/api/admin/sessions?active_only=${activeOnly}`),
 
   deleteSession: (sessionId: string) =>
-    request(`/api/admin/sessions/${sessionId}`, { method: "DELETE" }),
+    adminRequest(`/api/admin/sessions/${sessionId}`, { method: "DELETE" }),
 };
 
 /* =====================================================
@@ -883,7 +884,7 @@ export const bulkUploadApi = {
   upload: (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request("/api/products/admin/bulk-upload", { method: "POST", body: form });
+    return adminRequest("/api/products/admin/bulk-upload", { method: "POST", body: form });
   },
 
   validate: (file: File): Promise<{
@@ -893,7 +894,7 @@ export const bulkUploadApi = {
   }> => {
     const form = new FormData();
     form.append("file", file);
-    return request("/api/products/admin/import-validate", { method: "POST", body: form });
+    return adminRequest("/api/products/admin/import-validate", { method: "POST", body: form });
   },
 
   preview: (file: File): Promise<{
@@ -902,11 +903,11 @@ export const bulkUploadApi = {
   }> => {
     const form = new FormData();
     form.append("file", file);
-    return request("/api/products/admin/import-preview", { method: "POST", body: form });
+    return adminRequest("/api/products/admin/import-preview", { method: "POST", body: form });
   },
 
-  list: () => request("/api/products/admin/bulk-uploads"),
-  listUploads: () => request("/api/products/admin/bulk-uploads"),
+  list: () => adminRequest("/api/products/admin/bulk-uploads"),
+  listUploads: () => adminRequest("/api/products/admin/bulk-uploads"),
 };
 
 /* =====================================================
@@ -949,46 +950,46 @@ export const adminProductsApi = {
           .map(([k, v]) => [k, String(v)])
       )
     ).toString();
-    return request<{ total: number; results: ProductListItem[] }>(
+    return adminRequest<{ total: number; results: ProductListItem[] }>(
       "/api/products/admin/list" + (qs ? "?" + qs : "")
     );
   },
 
-  bulkDelete: (ids: string[]) => request("/api/products/admin/bulk-delete", {
+  bulkDelete: (ids: string[]) => adminRequest("/api/products/admin/bulk-delete", {
     method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }),
   }),
-  bulkHardDelete: (ids: string[]) => request("/api/products/admin/bulk-hard-delete", {
+  bulkHardDelete: (ids: string[]) => adminRequest("/api/products/admin/bulk-hard-delete", {
     method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }),
   }),
-  bulkRestorePrice: (ids: string[]) => request("/api/products/admin/bulk-restore-price", {
+  bulkRestorePrice: (ids: string[]) => adminRequest("/api/products/admin/bulk-restore-price", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }),
   }),
-  bulkArchive: (ids: string[]) => request("/api/products/admin/bulk-archive", {
+  bulkArchive: (ids: string[]) => adminRequest("/api/products/admin/bulk-archive", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }),
   }),
-  bulkActivate: (ids: string[]) => request("/api/products/admin/bulk-activate", {
+  bulkActivate: (ids: string[]) => adminRequest("/api/products/admin/bulk-activate", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }),
   }),
-  bulkDeactivate: (ids: string[]) => request("/api/products/admin/bulk-deactivate", {
+  bulkDeactivate: (ids: string[]) => adminRequest("/api/products/admin/bulk-deactivate", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }),
   }),
-  bulkMutate: (payload: Record<string, any>) => request("/api/products/admin/bulk", {
+  bulkMutate: (payload: Record<string, any>) => adminRequest("/api/products/admin/bulk", {
     method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
   }),
-  bulkDiscount: (ids: string[], discount: number) => request("/api/products/admin/bulk-discount", {
+  bulkDiscount: (ids: string[], discount: number) => adminRequest("/api/products/admin/bulk-discount", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, discount }),
   }),
-  bulkCategory: (ids: string[], category: string) => request("/api/products/admin/bulk-category", {
+  bulkCategory: (ids: string[], category: string) => adminRequest("/api/products/admin/bulk-category", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, category }),
   }),
-  bulkStore: (ids: string[], store: string) => request("/api/products/admin/bulk-store", {
+  bulkStore: (ids: string[], store: string) => adminRequest("/api/products/admin/bulk-store", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, store }),
   }),
-  emptyStore: (confirm = true) => request(
+  emptyStore: (confirm = true) => adminRequest(
     `/api/products/admin/empty-store?confirm=true`, { method: "DELETE" }
   ),
 
-  resetSalesCount: (ids: string[]) => request("/api/products/admin/bulk", {
+  resetSalesCount: (ids: string[]) => adminRequest("/api/products/admin/bulk", {
     method: "PATCH", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, action: "reset_sales" }),
   }),
@@ -999,114 +1000,114 @@ export const adminProductsApi = {
 ===================================================== */
 
 export const adminApi = {
-  getDashboard: () => request("/api/admin/dashboard"),
-  getOverviewAnalytics: () => request("/api/admin/analytics/overview"),
-  getRevenueAnalytics: () => request("/api/admin/analytics/revenue"),
-  getTopProducts: () => request("/api/admin/analytics/top-products"),
-  getDeadStock: () => request("/api/admin/analytics/dead-stock"),
-  getStockTurnover: () => request("/api/admin/analytics/stock-turnover"),
-  getOrdersAnalytics: () => request("/api/admin/orders/analytics"),
-  getOrdersRevenue: () => request("/api/admin/orders/revenue"),
-  getOrdersConversion: () => request("/api/admin/orders/conversion"),
-  getLowStock: () => request("/api/admin/inventory/low-stock"),
-  getOutOfStock: () => request("/api/admin/inventory/out-of-stock"),
-  getInventoryReport: () => request("/api/admin/inventory/report"),
+  getDashboard: () => adminRequest("/api/admin/dashboard"),
+  getOverviewAnalytics: () => adminRequest("/api/admin/analytics/overview"),
+  getRevenueAnalytics: () => adminRequest("/api/admin/analytics/revenue"),
+  getTopProducts: () => adminRequest("/api/admin/analytics/top-products"),
+  getDeadStock: () => adminRequest("/api/admin/analytics/dead-stock"),
+  getStockTurnover: () => adminRequest("/api/admin/analytics/stock-turnover"),
+  getOrdersAnalytics: () => adminRequest("/api/admin/orders/analytics"),
+  getOrdersRevenue: () => adminRequest("/api/admin/orders/revenue"),
+  getOrdersConversion: () => adminRequest("/api/admin/orders/conversion"),
+  getLowStock: () => adminRequest("/api/admin/inventory/low-stock"),
+  getOutOfStock: () => adminRequest("/api/admin/inventory/out-of-stock"),
+  getInventoryReport: () => adminRequest("/api/admin/inventory/report"),
 
   adjustInventory: (payload: { product_id: string; quantity: number; note?: string }) =>
-    request("/api/admin/inventory/adjust", {
+    adminRequest("/api/admin/inventory/adjust", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     }),
 
   incomingInventory: (payload: { product_id: string; quantity: number; note?: string }) =>
-    request("/api/admin/inventory/incoming", {
+    adminRequest("/api/admin/inventory/incoming", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     }),
 
-  listStores: () => request("/api/admin/stores"),
+  listStores: () => adminRequest("/api/admin/stores"),
 
   createStore: (payload: { name: string; [key: string]: any }) =>
-    request("/api/admin/stores", {
+    adminRequest("/api/admin/stores", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     }),
 
   updateStore: (storeId: string, payload: Record<string, any>) =>
-    request(`/api/admin/stores/${storeId}`, {
+    adminRequest(`/api/admin/stores/${storeId}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     }),
 
   deleteStore: (storeId: string) =>
-    request(`/api/admin/stores/${storeId}`, { method: "DELETE" }),
+    adminRequest(`/api/admin/stores/${storeId}`, { method: "DELETE" }),
 
-  getAuditLogs: () => request("/api/admin/logs"),
-  getEntityLogs: (entityId: string) => request(`/api/admin/logs/${entityId}`),
+  getAuditLogs: () => adminRequest("/api/admin/logs"),
+  getEntityLogs: (entityId: string) => adminRequest(`/api/admin/logs/${entityId}`),
 
   verifyPassword: (password: string) =>
-    request("/api/admin/verify-password", {
+    adminRequest("/api/admin/verify-password", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }),
     }),
 
   updateProductStatus: (productId: string, status: ProductStatus) =>
-    request(`/api/admin/products/${productId}/status`, {
+    adminRequest(`/api/admin/products/${productId}/status`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
     }),
 
   cancelOrder: (orderId: string, reason: string) =>
-    request(`/api/admin/orders/${orderId}/cancel`, {
+    adminRequest(`/api/admin/orders/${orderId}/cancel`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }),
     }),
 
   updateShippingStatus: (orderId: string, payload: { status: string }) =>
-    request(`/api/admin/orders/${orderId}/shipping`, {
+    adminRequest(`/api/admin/orders/${orderId}/shipping`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     }),
 
-  listUsers: () => request("/api/admin/users"),
-  disableUser: (userId: string) => request(`/api/admin/users/${userId}/disable`, { method: "POST" }),
-  enableUser: (userId: string) => request(`/api/admin/users/${userId}/enable`, { method: "POST" }),
+  listUsers: () => adminRequest("/api/admin/users"),
+  disableUser: (userId: string) => adminRequest(`/api/admin/users/${userId}/disable`, { method: "POST" }),
+  enableUser: (userId: string) => adminRequest(`/api/admin/users/${userId}/enable`, { method: "POST" }),
 
   changeUserRole: (userId: string, role: string) =>
-    request(`/api/admin/users/${userId}/role`, {
+    adminRequest(`/api/admin/users/${userId}/role`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }),
     }),
 
-  getBankSettings: () => request("/api/payments/admin/bank-settings"),
+  getBankSettings: () => adminRequest("/api/payments/admin/bank-settings"),
 
   createBankSettings: (payload: Record<string, any>) =>
-    request("/api/payments/admin/bank-settings", {
+    adminRequest("/api/payments/admin/bank-settings", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     }),
 
   updateBankSettings: (settingsId: string, payload: Record<string, any>) =>
-    request(`/api/payments/admin/bank-settings/${settingsId}`, {
+    adminRequest(`/api/payments/admin/bank-settings/${settingsId}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     }),
 
   deleteBankSettings: (settingsId: string) =>
-    request(`/api/payments/admin/bank-settings/${settingsId}`, { method: "DELETE" }),
+    adminRequest(`/api/payments/admin/bank-settings/${settingsId}`, { method: "DELETE" }),
 
-  getPaymentStats: () => request("/api/payments/admin/stats"),
+  getPaymentStats: () => adminRequest("/api/payments/admin/stats"),
 
-  storeResetPreview: () => request("/api/admin/store-reset/preview"),
-  storeResetProductsOnly: () => request("/api/admin/store-reset/products-only", { method: "POST" }),
-  storeResetOrdersOnly: () => request("/api/admin/store-reset/orders-only", { method: "POST" }),
-  storeResetUsersData: () => request("/api/admin/store-reset/users-data", { method: "POST" }),
-  storeResetAuditLogs: () => request("/api/admin/store-reset/audit-logs", { method: "POST" }),
-  storeResetFull: () => request("/api/admin/store-reset/full", { method: "POST" }),
-  storeResetRestoreStock: () => request("/api/admin/store-reset/restore-stock", { method: "POST" }),
-  storeResetDeactivateAll: () => request("/api/admin/store-reset/deactivate-all-products", { method: "POST" }),
-  storeResetActivateAll: () => request("/api/admin/store-reset/activate-all-products", { method: "POST" }),
-  storeResetPurgeCancelledOrders: () => request("/api/admin/store-reset/cancelled-orders", { method: "DELETE" }),
+  storeResetPreview: () => adminRequest("/api/admin/store-reset/preview"),
+  storeResetProductsOnly: () => adminRequest("/api/admin/store-reset/products-only", { method: "POST" }),
+  storeResetOrdersOnly: () => adminRequest("/api/admin/store-reset/orders-only", { method: "POST" }),
+  storeResetUsersData: () => adminRequest("/api/admin/store-reset/users-data", { method: "POST" }),
+  storeResetAuditLogs: () => adminRequest("/api/admin/store-reset/audit-logs", { method: "POST" }),
+  storeResetFull: () => adminRequest("/api/admin/store-reset/full", { method: "POST" }),
+  storeResetRestoreStock: () => adminRequest("/api/admin/store-reset/restore-stock", { method: "POST" }),
+  storeResetDeactivateAll: () => adminRequest("/api/admin/store-reset/deactivate-all-products", { method: "POST" }),
+  storeResetActivateAll: () => adminRequest("/api/admin/store-reset/activate-all-products", { method: "POST" }),
+  storeResetPurgeCancelledOrders: () => adminRequest("/api/admin/store-reset/cancelled-orders", { method: "DELETE" }),
 
   // Store management
-  resetProductSales: (ids?: string[]) => request("/api/admin/store-reset/reset-sales", {
+  resetProductSales: (ids?: string[]) => adminRequest("/api/admin/store-reset/reset-sales", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(ids ? { ids } : {}),
   }),
-  resetProductRatings: (ids?: string[]) => request("/api/admin/store-reset/reset-ratings", {
+  resetProductRatings: (ids?: string[]) => adminRequest("/api/admin/store-reset/reset-ratings", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(ids ? { ids } : {}),
   }),
-  hardDeleteAllProducts: () => request("/api/admin/store-reset/hard-delete-all", {
+  hardDeleteAllProducts: () => adminRequest("/api/admin/store-reset/hard-delete-all", {
     method: "DELETE", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ confirm: true }),
   }),
