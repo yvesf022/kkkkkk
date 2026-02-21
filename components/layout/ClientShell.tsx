@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import { UIProvider } from "@/components/layout/uiStore";
 import { useAuth } from "@/lib/auth";
 import FloatingCartButton from "@/components/store/FloatingCartButton";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
+import SplashScreen from "@/components/pwa/SplashScreen";
 
 export default function ClientShell({
   children,
@@ -14,6 +15,7 @@ export default function ClientShell({
   children: React.ReactNode;
 }) {
   const hydrate = useAuth((s) => s.hydrate);
+  const [showSplash, setShowSplash] = useState(true);
 
   /* 🔥 SINGLE SOURCE OF AUTH HYDRATION */
   useEffect(() => {
@@ -64,10 +66,15 @@ export default function ClientShell({
 
   return (
     <UIProvider>
+      {/* LUXURY SPLASH SCREEN — shows on first load */}
+      {showSplash && (
+        <SplashScreen onComplete={() => setShowSplash(false)} />
+      )}
+
       {/* HEADER */}
       <Header />
 
-      {/* MAIN LAYOUT — uses CSS class for proper mobile flex stacking */}
+      {/* MAIN LAYOUT */}
       <div className="appShell">
         <Sidebar />
         <main className="pageContentWrap">

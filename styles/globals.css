@@ -1,14 +1,11 @@
 /* ======================================================
-   DESKTOP-LOCKED LAYOUT
-   The viewport meta is set to width=1280 in layout.tsx.
-   Mobile browsers scale the full desktop layout down to
-   fit the screen — no mobile reflow, no tiny fonts.
-   Users can pinch-zoom to read any section comfortably.
+   KARABO LUXURY BOUTIQUE — RESPONSIVE LAYOUT
+   Viewport is set to device-width in layout.tsx.
+   The page reflows naturally on all screen sizes.
 ====================================================== */
 
 html {
-  /* Match the locked viewport width so nothing clips */
-  min-width: 1280px;
+  font-size: 16px; /* standard base — no scaling hacks needed */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   scroll-behavior: smooth;
@@ -18,15 +15,22 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
+  /* NO min-width: 1280px — let the page reflow on mobile */
 }
 
-body > * {
-  /* Allow content to breathe at desktop width */
-  min-width: 0;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* ======================================================
-   KARABO LUXURY BOUTIQUE - MOBILE BEAST MODE v3
+   CSS VARIABLES
 ====================================================== */
 
 :root {
@@ -52,15 +56,24 @@ body > * {
   --radius-lg: 16px;
   --radius-xl: 24px;
 
-  /* ── Admin sidebar width tokens ── */
+  /* Admin sidebar */
   --admin-sidebar-w: 260px;
   --admin-sidebar-collapsed: 0px;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+/* ======================================================
+   BODY
+====================================================== */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  background: var(--gray-50);
+  color: var(--gray-900);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Safe area padding for notch/home bar on iPhone */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* ======================================================
@@ -90,7 +103,6 @@ body > * {
   position: relative;
 }
 
-/* ── Admin Sidebar ── */
 .adminSidebar {
   width: var(--admin-sidebar-w);
   flex-shrink: 0;
@@ -99,10 +111,8 @@ body > * {
   display: flex;
   flex-direction: column;
   transition: transform 0.3s ease;
-  /* Always visible on desktop */
 }
 
-/* ── Admin Main Content ── */
 .adminContent {
   flex: 1;
   min-width: 0;
@@ -110,7 +120,6 @@ body > * {
   overflow-x: hidden;
 }
 
-/* ── Hamburger button — hidden on desktop ── */
 .adminMenuBtn {
   display: none;
   position: fixed;
@@ -130,7 +139,6 @@ body > * {
   box-shadow: var(--shadow-elevated);
 }
 
-/* ── Overlay behind open sidebar on mobile ── */
 .adminSidebarOverlay {
   display: none;
   position: fixed;
@@ -140,17 +148,8 @@ body > * {
 }
 
 /* ======================================================
-   MOBILE OPTIMIZATION
+   TOUCH TARGETS
 ====================================================== */
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  background: var(--gray-50);
-  color: var(--gray-900);
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
 
 button,
 a,
@@ -164,6 +163,51 @@ img {
   max-width: 100%;
   height: auto;
   display: block;
+}
+
+/* ======================================================
+   TYPOGRAPHY — fluid scaling with clamp()
+====================================================== */
+
+h1 {
+  font-size: clamp(24px, 6vw, 56px);
+  font-weight: 700;
+  letter-spacing: -1px;
+  margin-bottom: 20px;
+  color: var(--gray-900);
+  line-height: 1.1;
+}
+
+h2 {
+  font-size: clamp(20px, 4vw, 38px);
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: var(--gray-900);
+  letter-spacing: -0.5px;
+}
+
+h3 {
+  font-size: clamp(16px, 3vw, 28px);
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--gray-900);
+}
+
+p {
+  font-size: clamp(14px, 2vw, 17px);
+  color: var(--gray-700);
+  line-height: 1.7;
+}
+
+/* ======================================================
+   CONTAINER
+====================================================== */
+
+.container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px);
 }
 
 /* ======================================================
@@ -257,51 +301,6 @@ img {
   letter-spacing: 1.2px;
   text-transform: uppercase;
   line-height: 1;
-}
-
-/* ======================================================
-   TYPOGRAPHY
-====================================================== */
-
-h1 {
-  font-size: clamp(24px, 6vw, 56px);
-  font-weight: 700;
-  letter-spacing: -1px;
-  margin-bottom: 20px;
-  color: var(--gray-900);
-  line-height: 1.1;
-}
-
-h2 {
-  font-size: clamp(20px, 4vw, 38px);
-  font-weight: 700;
-  margin-bottom: 18px;
-  color: var(--gray-900);
-  letter-spacing: -0.5px;
-}
-
-h3 {
-  font-size: clamp(16px, 3vw, 28px);
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: var(--gray-900);
-}
-
-p {
-  font-size: clamp(14px, 2vw, 17px);
-  color: var(--gray-700);
-  line-height: 1.7;
-}
-
-/* ======================================================
-   CONTAINER
-====================================================== */
-
-.container {
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 clamp(16px, 4vw, 40px);
 }
 
 /* ======================================================
@@ -511,8 +510,8 @@ p {
 
 .floating-cart {
   position: fixed;
-  bottom: 24px;
   right: 24px;
+  bottom: max(24px, env(safe-area-inset-bottom));
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -561,34 +560,88 @@ p {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ======================================================
-   BASE FONT & TOUCH IMPROVEMENTS
-   font-size is intentionally larger here because mobile
-   browsers scale the whole 1280px page down to fit the
-   physical screen. A 20px font at ~0.3× ≈ 14px on screen
-   — readable without needing to pinch-zoom.
-====================================================== */
-
-html { font-size: 18px; }
-
-* {
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-/* ======================================================
-   TABLET  (≤ 1024px)  — still applies at desktop widths
+   TABLET  (≤ 1024px)
 ====================================================== */
 @media (max-width: 1024px) {
   .hero-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
   .product-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-
   .adminSidebar { width: 220px; }
   :root { --admin-sidebar-w: 220px; }
 }
 
 /* ======================================================
-   MOBILE BREAKPOINTS INTENTIONALLY REMOVED
-   The site renders at a fixed 1280px desktop width and
-   mobile browsers scale it down. This keeps the full
-   desktop layout intact on all screen sizes.
+   MOBILE  (≤ 768px)
 ====================================================== */
+@media (max-width: 768px) {
+  /* Hero stacks vertically */
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .hero-text { max-width: 100%; }
+
+  .hero-products {
+    max-width: 100%;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Product grid: 2 columns on mobile */
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  /* Navbar height reduced */
+  .navbar-container { height: 60px; }
+
+  /* Admin: sidebar slides in as overlay on mobile */
+  .adminSidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 9999;
+    transform: translateX(-100%);
+    width: 280px !important;
+  }
+
+  .adminSidebar.open {
+    transform: translateX(0);
+  }
+
+  .adminSidebarOverlay.open {
+    display: block;
+  }
+
+  .adminMenuBtn {
+    display: flex;
+  }
+
+  .adminContent {
+    padding: 16px;
+  }
+}
+
+/* ======================================================
+   SMALL MOBILE  (≤ 480px)
+====================================================== */
+@media (max-width: 480px) {
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .product-info { padding: 12px; }
+  .product-title { font-size: 13px; }
+  .product-price { font-size: 15px; }
+
+  .btn {
+    padding: 12px 20px;
+    font-size: 13px;
+  }
+
+  .card {
+    border-radius: var(--radius-md);
+  }
+}
