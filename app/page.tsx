@@ -1,1104 +1,1223 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+/**
+ * FILE: app/admin/pricing/page.tsx
+ * 🔥 BEAST MODE — Karabo Pricing Manager
+ *
+ * RULES:
+ *  ✦ A product is only "Priced" if the admin has priced it through THIS tool,
+ *    OR if the admin manually marks it as priced.
+ *  ✦ Products with existing DB prices are still treated as "Unpriced" in this
+ *    tool until the admin takes action here — the tool never assumes.
+ *  ✦ Priced state is stored in localStorage per session (key: karabo_pricing_v1)
+ *    so refreshing doesn't lose track of what was priced this session.
+ *  ✦ Admin can manually mark any product as "Priced" without re-entering a price.
+ */
+
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
+import { adminProductsApi, calculatePrice, exchangeApi, pricingApi } from "@/lib/api";
 import type { ProductListItem } from "@/lib/types";
-import { formatCurrency } from "@/lib/currency";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "";
+/* ═══════════════════════════════════════════════════
+   TYPES
+═══════════════════════════════════════════════════ */
 
-interface HP {
-  id: string; title: string; price: number; compare_price?: number | null;
-  discount_pct?: number | null; brand?: string; category?: string;
-  rating?: number | null; rating_number?: number | null;
-  in_stock: boolean; main_image?: string | null; sales?: number;
-}
-interface Section {
-  key: string; title: string; subtitle: string;
-  badge: string | null; theme: string;
-  view_all: string; products: HP[];
-}
+/**
+ * PricingState rules:
+ * - "unpriced"  → product has NOT been priced through this tool (default for ALL products)
+ * - "priced"    → priced via this tool OR manually marked by admin
+ * - "modified"  → has a calculated result not yet saved
+ * - "saving"    → API call in progress
+ * - "saved"     → successfully saved this session (transitions to "priced")
+ * - "error"     → save failed
+ */
+type PricingState = "unpriced" | "priced" | "modified" | "saving" | "saved" | "error";
 
-function safeViewAll(raw: string): string {
-  try {
-    const url = new URL(raw, "http://x");
-    const search = url.searchParams.get("search");
-    const category = url.searchParams.get("category");
-    const q = url.searchParams.get("q");
-    const sort = url.searchParams.get("sort");
-    const params = new URLSearchParams();
-    if (search) params.set("q", search);
-    if (q) params.set("q", q);
-    if (category) params.set("category", category);
-    if (sort) params.set("sort", sort);
-    return `/store${params.toString() ? "?" + params.toString() : ""}`;
-  } catch { return "/store"; }
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-const THEME_MAP: Record<string, { primary: string; glow: string }> = {
-  red:    { primary: "#c0392b", glow: "rgba(192,57,43,0.15)" },
-  green:  { primary: "#0f3f2f", glow: "rgba(15,63,47,0.15)" },
-  gold:   { primary: "#b8860b", glow: "rgba(184,134,11,0.15)" },
-  forest: { primary: "#1b5e4a", glow: "rgba(27,94,74,0.15)" },
-  navy:   { primary: "#1a3a6b", glow: "rgba(26,58,107,0.15)" },
-  plum:   { primary: "#6b1f7c", glow: "rgba(107,31,124,0.15)" },
-  teal:   { primary: "#00695c", glow: "rgba(0,105,92,0.15)" },
-  rust:   { primary: "#a0390f", glow: "rgba(160,57,15,0.15)" },
-  slate:  { primary: "#2c3e50", glow: "rgba(44,62,80,0.15)" },
-  olive:  { primary: "#4a6741", glow: "rgba(74,103,65,0.15)" },
-  rose:   { primary: "#8e1a4a", glow: "rgba(142,26,74,0.15)" },
-  indigo: { primary: "#2d3561", glow: "rgba(45,53,97,0.15)" },
-  amber:  { primary: "#9a4400", glow: "rgba(154,68,0,0.15)" },
-  sage:   { primary: "#3d6b52", glow: "rgba(61,107,82,0.15)" },
-  stone:  { primary: "#4a3728", glow: "rgba(74,55,40,0.15)" },
+type BatchRow = {
+  product: ProductListItem;
+  marketInr: string;
+  result: ReturnType<typeof calculatePrice> | null;
+  state: PricingState;
+  /** The price that was set through THIS tool (null if never priced here) */
+  toolPrice: number | null;
+  isSelected: boolean;
+  errorMsg?: string;
+  imgErr?: boolean;
 };
 
-/* ══════════════════════════════════════════════
-   HERO CARD — full-bleed image with luxury overlay
-══════════════════════════════════════════════ */
-function HeroCard({ p, size = "normal", onClick, index = 0 }: {
-  p: HP; size?: "large" | "normal"; onClick: () => void; index?: number;
+type SortKey = "default" | "name" | "price_asc" | "price_desc" | "unpriced_first";
+type FilterTab = "all" | "unpriced" | "priced";
+type MainTab = "batch" | "calc";
+
+/* ═══════════════════════════════════════════════════
+   LOCAL STORAGE — track which products were priced
+   through this tool (persists across page refreshes)
+═══════════════════════════════════════════════════ */
+
+const STORAGE_KEY = "karabo_pricing_v1";
+
+function loadPricedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch { return new Set(); }
+}
+
+function savePricedId(id: string) {
+  try {
+    const ids = loadPricedIds();
+    ids.add(id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {}
+}
+
+function removePricedId(id: string) {
+  try {
+    const ids = loadPricedIds();
+    ids.delete(id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {}
+}
+
+/* ═══════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════ */
+
+const marginPct = (r: ReturnType<typeof calculatePrice>) =>
+  parseFloat(((r.profit_inr * r.exchange_rate / r.final_price_lsl) * 100).toFixed(1));
+
+const marginColor = (r: ReturnType<typeof calculatePrice> | null): string => {
+  if (!r) return "var(--gray-300)";
+  const m = marginPct(r);
+  if (m < 8) return "#dc2626";
+  if (m < 15) return "#d97706";
+  return "var(--primary)";
+};
+
+const fmt = (n: number, dec = 2) => n.toFixed(dec);
+
+/* ═══════════════════════════════════════════════════
+   SMALL COMPONENTS
+═══════════════════════════════════════════════════ */
+
+function PricingBadge({ state }: { state: PricingState }) {
+  const map: Record<PricingState, { label: string; bg: string; color: string; dot: string }> = {
+    unpriced: { label: "Unpriced",  bg: "#fef3c7", color: "#92400e",           dot: "#d97706" },
+    priced:   { label: "Priced",    bg: "#dcfce7", color: "#14532d",           dot: "var(--primary)" },
+    modified: { label: "Modified",  bg: "#dbeafe", color: "#1e3a8a",           dot: "#2563eb" },
+    saving:   { label: "Saving…",   bg: "var(--gray-100)", color: "var(--gray-600)", dot: "var(--gray-400)" },
+    saved:    { label: "✓ Saved",   bg: "#dcfce7", color: "#14532d",           dot: "var(--primary)" },
+    error:    { label: "Error",     bg: "#fee2e2", color: "#991b1b",           dot: "#dc2626" },
+  };
+  const s = map[state];
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+      background: s.bg, color: s.color,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dot, flexShrink: 0 }} />
+      {s.label}
+    </span>
+  );
+}
+
+function ProgressArc({ pct }: { pct: number }) {
+  const size = 80, r = 32;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  const color = pct === 100 ? "var(--primary)" : pct > 60 ? "var(--accent)" : "#d97706";
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--gray-200)" strokeWidth={6} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={6}
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1)" }} />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: 17, fontWeight: 900, color: "var(--gray-900)", lineHeight: 1 }}>{pct}%</span>
+        <span style={{ fontSize: 9, color: "var(--gray-400)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>done</span>
+      </div>
+    </div>
+  );
+}
+
+function StatPill({ label, value, sub, accent, icon }: {
+  label: string; value: string | number; sub?: string; accent?: string; icon?: React.ReactNode;
 }) {
-  const [err, setErr] = useState(false);
-  const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price
-    ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
-
   return (
-    <div
-      className={`hcard hcard-${size}`}
-      onClick={onClick}
-      style={{ animationDelay: `${index * 80}ms` }}
-    >
-      <div className="hcard-inner">
-        {p.main_image && !err ? (
-          <img
-            src={p.main_image}
-            alt={p.title}
-            className="hcard-img"
-            onError={() => setErr(true)}
-            loading="lazy"
-          />
-        ) : (
-          <div className="hcard-empty">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <path d="M21 15l-5-5L5 21"/>
-            </svg>
-          </div>
-        )}
-
-        {/* Gradient overlay */}
-        <div className="hcard-gradient" />
-
-        {/* Badges */}
-        <div className="hcard-badges">
-          {disc && disc >= 5 && (
-            <span className="badge-off">
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-              -{disc}%
-            </span>
-          )}
-        </div>
-
-        {/* Bottom info */}
-        <div className="hcard-info">
-          {(p.category || p.brand) && (
-            <div className="hcard-cat">{p.brand ?? p.category}</div>
-          )}
-          <div className="hcard-title">{p.title}</div>
-          <div className="hcard-price-row">
-            <span className="hcard-price">{formatCurrency(p.price)}</span>
-            {p.compare_price && p.compare_price > p.price && (
-              <span className="hcard-old">{formatCurrency(p.compare_price)}</span>
-            )}
-            {p.rating && p.rating >= 4 && (
-              <span className="hcard-star">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="#f5c842" stroke="none">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-                {p.rating.toFixed(1)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Hover CTA */}
-        <div className="hcard-cta">
-          <span>View Product</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-          </svg>
-        </div>
+    <div style={{
+      background: "white", borderRadius: "var(--radius-md)",
+      border: "1px solid var(--gray-200)", padding: "10px 14px",
+      flex: 1, minWidth: 110, boxShadow: "var(--shadow-soft)",
+      borderLeft: accent ? `4px solid ${accent}` : "1px solid var(--gray-200)",
+    }}>
+      <div style={{ fontSize: 11, color: "var(--gray-400)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
+        {icon} {label}
       </div>
+      <div style={{ fontSize: 22, fontWeight: 900, color: accent ?? "var(--gray-900)", lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: "var(--gray-400)", marginTop: 3 }}>{sub}</div>}
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════
-   SECTION PRODUCT CARD
-══════════════════════════════════════════════ */
-function SectionCard({ p, idx, accentColor, onClick }: {
-  p: HP; idx: number; accentColor: string; onClick: () => void;
-}) {
-  const [err, setErr] = useState(false);
-  const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price
-    ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
-
-  return (
-    <div
-      className="scard"
-      onClick={onClick}
-      style={{ animationDelay: `${idx * 50}ms` }}
-    >
-      <div className="scard-img-wrap">
-        {p.main_image && !err ? (
-          <img
-            src={p.main_image}
-            alt={p.title}
-            className="scard-img"
-            onError={() => setErr(true)}
-            loading="lazy"
-          />
-        ) : (
-          <div className="scard-no-img">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <path d="M21 15l-5-5L5 21"/>
-            </svg>
-          </div>
-        )}
-        {disc && disc >= 5 && (
-          <div className="scard-badge" style={{ background: "#c0392b" }}>-{disc}%</div>
-        )}
-        {!p.in_stock && (
-          <div className="scard-soldout">Sold Out</div>
-        )}
-        <div className="scard-hover-overlay">
-          <div className="scard-view-btn" style={{ background: accentColor }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            Quick View
-          </div>
-        </div>
-      </div>
-
-      <div className="scard-info">
-        {(p.brand || p.category) && (
-          <div className="scard-brand" style={{ color: accentColor }}>{p.brand ?? p.category}</div>
-        )}
-        <div className="scard-title">{p.title}</div>
-        <div className="scard-footer">
-          <div className="scard-prices">
-            <span className="scard-price">{formatCurrency(p.price)}</span>
-            {p.compare_price && p.compare_price > p.price && (
-              <span className="scard-compare">{formatCurrency(p.compare_price)}</span>
-            )}
-          </div>
-          {p.rating && p.rating > 0 && (
-            <div className="scard-rating">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <svg key={i} width="9" height="9" viewBox="0 0 24 24"
-                  fill={i < Math.round(p.rating!) ? "#c8a75a" : "#e0e0e0"} stroke="none">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
-   SECTION ROW
-══════════════════════════════════════════════ */
-function SectionRow({ sec, onProductClick }: {
-  sec: Section; onProductClick: (id: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const rowRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const th = THEME_MAP[sec.theme] ?? THEME_MAP.forest;
-  const href = safeViewAll(sec.view_all);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
-    }, { threshold: 0.04 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  const scroll = (dir: "l" | "r") =>
-    rowRef.current?.scrollBy({ left: dir === "r" ? 680 : -680, behavior: "smooth" });
-
-  return (
-    <div
-      ref={ref}
-      className="section-block"
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "none" : "translateY(28px)",
-        transition: "opacity 0.55s ease, transform 0.55s ease",
-      }}
-    >
-      <div className="section-head">
-        <div className="section-head-left">
-          <div className="section-accent-bar" style={{ background: th.primary }} />
-          <div>
-            {sec.badge && (
-              <span className="section-badge" style={{ background: th.primary }}>{sec.badge}</span>
-            )}
-            <div className="section-title">{sec.title}</div>
-            <div className="section-sub">{sec.subtitle}</div>
-          </div>
-        </div>
-        <Link href={href} className="view-all-link" style={{ color: th.primary, borderColor: th.primary }}>
-          View All
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-          </svg>
-        </Link>
-      </div>
-
-      <div className="section-scroll-wrap">
-        <button className="scroll-btn scroll-btn-l" onClick={() => scroll("l")} aria-label="Scroll left"
-          style={{ ["--hover-bg" as any]: th.primary }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6"/>
-          </svg>
-        </button>
-
-        <div ref={rowRef} className="section-scroll">
-          {sec.products.map((p, i) => (
-            <SectionCard
-              key={p.id} p={p} idx={i}
-              accentColor={th.primary}
-              onClick={() => onProductClick(p.id)}
-            />
-          ))}
-          <Link href={href} className="see-more-card" style={{ borderColor: `${th.primary}40` }}>
-            <div className="see-more-circle" style={{ borderColor: th.primary, color: th.primary }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-              </svg>
-            </div>
-            <span className="see-more-label">See All<br/>{sec.title}</span>
-          </Link>
-        </div>
-
-        <button className="scroll-btn scroll-btn-r" onClick={() => scroll("r")} aria-label="Scroll right"
-          style={{ ["--hover-bg" as any]: th.primary }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
-   SKELETON SECTION
-══════════════════════════════════════════════ */
-function SkeletonSection() {
-  return (
-    <div className="section-block">
-      <div className="section-head">
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <div className="shimbox" style={{ width: 4, height: 44, borderRadius: 2 }} />
-          <div>
-            <div className="shimbox" style={{ width: 180, height: 18, borderRadius: 4, marginBottom: 6 }} />
-            <div className="shimbox" style={{ width: 120, height: 12, borderRadius: 4 }} />
-          </div>
-        </div>
-        <div className="shimbox" style={{ width: 90, height: 34, borderRadius: 50 }} />
-      </div>
-      <div style={{ display: "flex", gap: 2, padding: "12px 20px", overflow: "hidden" }}>
-        {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="shimbox" style={{ width: 190, height: 290, flexShrink: 0, borderRadius: 0 }} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
-   HERO SKELETON
-══════════════════════════════════════════════ */
-function HeroSkeleton() {
-  return (
-    <div className="hero-grid">
-      <div className="shimbox" style={{ gridColumn: "span 2" }} />
-      <div className="shimbox" />
-      <div className="shimbox" />
-      <div className="shimbox" />
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
-   CATEGORY STRIP — loaded dynamically from sections
-══════════════════════════════════════════════ */
-function CategoryStrip({ sections }: { sections: Section[] }) {
-  // Extract unique categories from sections, preferring curated ones first
-  const cats: { label: string; href: string }[] = [
-    { label: "All Products", href: "/store" },
-    { label: "Flash Deals", href: "/store?sort=discount" },
-    { label: "New Arrivals", href: "/store?sort=newest" },
-    { label: "Best Sellers", href: "/store?sort=popular" },
-    ...sections
-      .filter(s => !["flash_deals","new_arrivals","best_sellers","top_rated"].includes(s.key))
-      .map(s => ({
-        label: s.title,
-        href: safeViewAll(s.view_all),
-      })),
-  ];
-
-  return (
-    <div className="cat-strip">
-      <div className="cat-strip-inner">
-        {cats.slice(0, 18).map((c, i) => (
-          <Link key={i} href={c.href} className="cat-pill">
-            {c.label}
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
-   TRUST BAR — SVG icons only
-══════════════════════════════════════════════ */
-function TrustBar() {
-  const items = [
-    {
-      title: "Free Delivery",
-      sub: "Orders over M500",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1" y="3" width="15" height="13" rx="1"/>
-          <path d="M16 8h4l3 3v5h-7V8z"/>
-          <circle cx="5.5" cy="18.5" r="2.5"/>
-          <circle cx="18.5" cy="18.5" r="2.5"/>
-        </svg>
-      ),
-    },
-    {
-      title: "Authentic Products",
-      sub: "100% verified",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          <path d="M9 12l2 2 4-4"/>
-        </svg>
-      ),
-    },
-    {
-      title: "Easy Returns",
-      sub: "7-day hassle-free",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 2v6h6"/>
-          <path d="M3 8a9 9 0 1 0 .7-3.6"/>
-        </svg>
-      ),
-    },
-    {
-      title: "Secure Payment",
-      sub: "Encrypted checkout",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-          <line x1="1" y1="10" x2="23" y2="10"/>
-        </svg>
-      ),
-    },
-    {
-      title: "Gift Packaging",
-      sub: "Premium wrapping",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 12v10H4V12"/>
-          <path d="M2 7h20v5H2z"/>
-          <path d="M12 22V7"/>
-          <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
-          <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
-        </svg>
-      ),
-    },
-  ];
-
-  return (
-    <div className="trust-bar">
-      {items.map((item) => (
-        <div key={item.title} className="trust-item">
-          <div className="trust-icon-wrap">{item.icon}</div>
-          <div className="trust-text">
-            <div className="trust-title">{item.title}</div>
-            <div className="trust-sub">{item.sub}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
-   HERO BANNER — luxury welcome strip
-══════════════════════════════════════════════ */
-function HeroBanner() {
-  return (
-    <div className="hero-banner">
-      <div className="hero-banner-inner">
-        <div className="hero-banner-text">
-          <div className="hero-banner-eyebrow">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="#c8a75a" stroke="none">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-            Karabo Luxury Boutique
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="#c8a75a" stroke="none">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-          </div>
-          <div className="hero-banner-headline">Discover Premium Products</div>
-          <div className="hero-banner-sub">Curated selections · Unbeatable prices · Authentic always</div>
-        </div>
-        <Link href="/store" className="hero-shop-btn">
-          Shop All Products
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-          </svg>
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
-   MARQUEE
-══════════════════════════════════════════════ */
-function Marquee() {
-  const items = [
-    "Free Delivery on Orders over M500",
-    "100% Authentic Products",
-    "Secure & Encrypted Checkout",
-    "7-Day Easy Returns",
-    "Premium Gift Packaging",
-    "Lesotho's Finest Boutique",
-    "New Collections Weekly",
-    "Exclusive Member Rewards",
-  ];
-  return (
-    <div className="marquee-bar">
-      <div className="marquee-track">
-        {[...items, ...items, ...items].map((t, i) => (
-          <span key={i} className="marquee-item">
-            <svg width="5" height="5" viewBox="0 0 10 10" fill="#c8a75a" stroke="none">
-              <polygon points="5 0 6.12 3.38 9.51 3.45 6.97 5.56 7.94 9 5 7.02 2.06 9 3.03 5.56 0.49 3.45 3.88 3.38"/>
-            </svg>
-            {t}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════
    MAIN PAGE
-══════════════════════════════════════════════ */
-const ROTATE_MS = 5000;
+═══════════════════════════════════════════════════ */
 
-export default function HomePage() {
-  const router = useRouter();
-  const [pool, setPool]         = useState<HP[]>([]);
-  const [offset, setOffset]     = useState(0);
-  const [fading, setFading]     = useState(false);
-  const [sections, setSections] = useState<Section[]>([]);
-  const [heroLoad, setHeroLoad] = useState(true);
-  const [secLoad, setSecLoad]   = useState(true);
-  const rotateRef               = useRef<ReturnType<typeof setInterval> | null>(null);
+export default function AdminPricingPage() {
 
-  /* Fetch random hero products */
+  /* ── Exchange rate ── */
+  const [rate, setRate]               = useState(0.21);
+  const [rateSrc, setRateSrc]         = useState<"live" | "fallback">("fallback");
+  const [rateOverride, setOverride]   = useState("");
+  const [rateLoading, setRateLoading] = useState(true);
+  const effectiveRate = rateOverride ? (parseFloat(rateOverride) || rate) : rate;
+
   useEffect(() => {
-    async function fetchPool() {
-      try {
-        const res = await fetch(`${API}/api/products/random?count=100&with_images=true`);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setPool(data.products ?? []);
-      } catch {
-        try {
-          const res = await fetch(`${API}/api/products?per_page=100&in_stock=true`);
-          const data = await res.json();
-          setPool(shuffle((data.results ?? []).filter((p: HP) => p.main_image)));
-        } catch {}
-      } finally {
-        setHeroLoad(false);
-      }
+    exchangeApi.getINRtoLSL()
+      .then(({ rate: r, source }) => { setRate(r); setRateSrc(source); })
+      .finally(() => setRateLoading(false));
+  }, []);
+
+  /* ── State ── */
+  const [rows, setRows]               = useState<BatchRow[]>([]);
+  const [batchLoading, setBatch]      = useState(false);
+  const [bulkSaving, setBulkSaving]   = useState(false);
+  const [searchQ, setSearchQ]         = useState("");
+  const [catFilter, setCat]           = useState("");
+  const [brandFilter, setBrand]       = useState("");
+  const [sortKey, setSort]            = useState<SortKey>("unpriced_first");
+  const [filterTab, setFilterTab]     = useState<FilterTab>("all");
+  const [quickFillInr, setFill]       = useState("");
+  const [selectAll, setSelectAll]     = useState(false);
+  const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
+  const [totalCount, setTotal]        = useState(0);
+  const [mainTab, setMainTab]         = useState<MainTab>("batch");
+  const [qMarket, setQMarket]         = useState("");
+  const [showFormula, setShowFormula] = useState(false);
+  const [highlightUnpriced, setHL]    = useState(true);
+
+  const qVal    = parseFloat(qMarket) || 0;
+  const qResult = qVal > 0 ? calculatePrice({ market_price_inr: qVal, exchange_rate: effectiveRate }) : null;
+  const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+
+  const showToast = useCallback((msg: string, ok = true) => {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 4500);
+  }, []);
+
+  /* ── Derived ── */
+  const categories = useMemo(() =>
+    [...new Set(rows.map(r => r.product.category).filter(Boolean))].sort() as string[], [rows]);
+  const brands = useMemo(() =>
+    [...new Set(rows.map(r => r.product.brand).filter(Boolean))].sort() as string[], [rows]);
+
+  /* ── Stats ── */
+  const stats = useMemo(() => {
+    const total         = rows.length;
+    const unpriced      = rows.filter(r => r.state === "unpriced").length;
+    const priced        = rows.filter(r => r.state === "priced" || r.state === "saved").length;
+    const modified      = rows.filter(r => r.state === "modified").length;
+    const errors        = rows.filter(r => r.state === "error").length;
+    const withResult    = rows.filter(r => r.result).length;
+    const readyToSave   = rows.filter(r => r.result && r.state !== "saved" && r.state !== "saving" && r.state !== "priced").length;
+    const pctDone       = total > 0 ? Math.round((priced / total) * 100) : 0;
+    const selectedReady = rows.filter(r => r.isSelected && r.result && r.state !== "saved" && r.state !== "priced").length;
+    const estRevenue    = rows.filter(r => r.result).reduce((s, r) => s + (r.result?.final_price_lsl ?? 0), 0);
+    return { total, unpriced, priced, modified, errors, withResult, readyToSave, pctDone, selectedReady, estRevenue };
+  }, [rows]);
+
+  /* ── Load products ──
+     KEY CHANGE: ALL products load as "unpriced" unless they exist
+     in our localStorage set (meaning admin priced them via this tool
+     in a previous session). DB price is displayed but never used to
+     determine pricing state.
+  ── */
+  const loadProducts = useCallback(async () => {
+    setBatch(true);
+    try {
+      const params: Record<string, any> = { per_page: 200, page: 1 };
+      if (searchQ)     params.search_query = searchQ;
+      if (catFilter)   params.category     = catFilter;
+      if (brandFilter) params.brand        = brandFilter;
+      const res = await adminProductsApi.list(params);
+      const products = res.results ?? [];
+      setTotal(res.total ?? products.length);
+
+      // Load the set of IDs that were priced through this tool
+      const pricedViaToolIds = loadPricedIds();
+
+      setRows(products.map(p => ({
+        product: p,
+        marketInr: "",
+        result: null,
+        // Only "priced" if admin priced it via this tool (localStorage) — never assume from DB
+        state: pricedViaToolIds.has(p.id) ? "priced" : "unpriced",
+        toolPrice: pricedViaToolIds.has(p.id) ? (p.price ?? null) : null,
+        isSelected: false,
+      })));
+      setSelectAll(false);
+    } catch (e: any) {
+      showToast(e?.message ?? "Failed to load products", false);
+    } finally {
+      setBatch(false);
     }
-    fetchPool();
-  }, []);
+  }, [searchQ, catFilter, brandFilter, showToast]);
 
-  /* Auto-rotate hero */
+  /* ── Recalculate on rate change ── */
   useEffect(() => {
-    if (pool.length < 5) return;
-    rotateRef.current = setInterval(() => {
-      setFading(true);
-      setTimeout(() => {
-        setOffset(prev => {
-          const next = prev + 5;
-          return next + 5 > pool.length ? 0 : next;
-        });
-        setFading(false);
-      }, 400);
-    }, ROTATE_MS);
-    return () => { if (rotateRef.current) clearInterval(rotateRef.current); };
-  }, [pool.length]);
+    setRows(prev => prev.map(row => {
+      const v = parseFloat(row.marketInr);
+      if (!isNaN(v) && v > 0)
+        return { ...row, result: calculatePrice({ market_price_inr: v, exchange_rate: effectiveRate }) };
+      return row;
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveRate]);
 
-  /* Fetch sections */
-  useEffect(() => {
-    fetch(`${API}/api/homepage/sections`)
-      .then(r => r.json())
-      .then(d => setSections(d.sections ?? []))
-      .catch(() => setSections([]))
-      .finally(() => setSecLoad(false));
-  }, []);
+  /* ── Filtered + sorted display rows ── */
+  const displayRows = useMemo(() => {
+    let list = rows;
+    if (filterTab === "unpriced") list = list.filter(r => r.state === "unpriced" || r.state === "modified" || r.state === "error");
+    if (filterTab === "priced")   list = list.filter(r => r.state === "priced" || r.state === "saved");
+    const order: Record<PricingState, number> = { unpriced: 0, modified: 1, error: 2, saving: 3, priced: 4, saved: 5 };
+    if (sortKey === "unpriced_first") list = [...list].sort((a, b) => order[a.state] - order[b.state]);
+    if (sortKey === "name")           list = [...list].sort((a, b) => a.product.title.localeCompare(b.product.title));
+    if (sortKey === "price_asc")      list = [...list].sort((a, b) => (a.product.price ?? 0) - (b.product.price ?? 0));
+    if (sortKey === "price_desc")     list = [...list].sort((a, b) => (b.product.price ?? 0) - (a.product.price ?? 0));
+    return list;
+  }, [rows, filterTab, sortKey]);
 
-  const visible   = pool.length >= 5 ? pool.slice(offset, offset + 5) : [];
-  const heroBig   = visible[0] as HP | undefined;
-  const heroSmall = visible.slice(1, 5) as HP[];
-  const totalDots = Math.min(Math.ceil(pool.length / 5), 12);
+  /* ── Row update ── */
+  const updateRow = (id: string, val: string) => {
+    setRows(prev => prev.map(row => {
+      if (row.product.id !== id) return row;
+      const v = parseFloat(val);
+      const result = (!isNaN(v) && v > 0) ? calculatePrice({ market_price_inr: v, exchange_rate: effectiveRate }) : null;
+      // Modified means "has a calculated result not yet saved"
+      // If the input is cleared and product was already priced via tool, revert to priced
+      const wasToolPriced = loadPricedIds().has(id);
+      const newState: PricingState = result
+        ? "modified"
+        : wasToolPriced ? "priced" : "unpriced";
+      return { ...row, marketInr: val, result, state: newState };
+    }));
+  };
 
+  const setImgErr = (id: string) =>
+    setRows(prev => prev.map(r => r.product.id === id ? { ...r, imgErr: true } : r));
+
+  /* ── Manual "Mark as Priced" — admin decision, no price recalc required ── */
+  const markAsPriced = (id: string) => {
+    savePricedId(id);
+    setRows(prev => prev.map(r =>
+      r.product.id === id
+        ? { ...r, state: "priced", toolPrice: r.product.price ?? null }
+        : r
+    ));
+    showToast("Product marked as priced");
+  };
+
+  /* ── Manual "Mark as Unpriced" — admin resets it ── */
+  const markAsUnpriced = (id: string) => {
+    removePricedId(id);
+    setRows(prev => prev.map(r =>
+      r.product.id === id
+        ? { ...r, state: "unpriced", toolPrice: null, marketInr: "", result: null }
+        : r
+    ));
+    showToast("Product reset to unpriced", false);
+  };
+
+  /* ── Quick fill ── */
+  const applyQuickFill = () => {
+    const v = parseFloat(quickFillInr);
+    if (isNaN(v) || v <= 0) return;
+    const result = calculatePrice({ market_price_inr: v, exchange_rate: effectiveRate });
+    let count = 0;
+    setRows(prev => prev.map(row => {
+      if (row.state !== "unpriced") return row;
+      count++;
+      return { ...row, marketInr: String(v), result, state: "modified" };
+    }));
+    showToast(`Applied ₹${v.toLocaleString()} to ${count} unpriced products`);
+    setFill("");
+  };
+
+  /* ── Select ── */
+  const toggleSelectAll = () => {
+    const next = !selectAll;
+    setSelectAll(next);
+    setRows(prev => prev.map(r => ({ ...r, isSelected: next })));
+  };
+  const toggleRow = (id: string) =>
+    setRows(prev => prev.map(r => r.product.id === id ? { ...r, isSelected: !r.isSelected } : r));
+
+  /* ── Save single ── */
+  const saveRow = async (id: string) => {
+    const row = rows.find(r => r.product.id === id);
+    if (!row?.result) return;
+    setRows(prev => prev.map(r => r.product.id === id ? { ...r, state: "saving" } : r));
+    try {
+      await pricingApi.applyToProduct(id, row.result.final_price_lsl, row.result.compare_price_lsl);
+      // Mark this product as priced via tool in localStorage
+      savePricedId(id);
+      setRows(prev => prev.map(r =>
+        r.product.id === id
+          ? { ...r, state: "saved", toolPrice: r.result?.final_price_lsl ?? r.toolPrice }
+          : r
+      ));
+    } catch (e: any) {
+      setRows(prev => prev.map(r =>
+        r.product.id === id ? { ...r, state: "error", errorMsg: e?.message } : r
+      ));
+    }
+  };
+
+  /* ── Save all / selected ── */
+  const saveAll = async (selectedOnly = false) => {
+    const toSave = rows.filter(r =>
+      r.result &&
+      r.state !== "saved" &&
+      r.state !== "saving" &&
+      r.state !== "priced" &&
+      (!selectedOnly || r.isSelected)
+    );
+    if (!toSave.length) { showToast("No calculated prices to save.", false); return; }
+    setBulkSaving(true);
+    setRows(prev => prev.map(r =>
+      toSave.some(t => t.product.id === r.product.id) ? { ...r, state: "saving" } : r
+    ));
+    const items = toSave.map(r => ({
+      product_id: r.product.id, price_lsl: r.result!.final_price_lsl, compare_price_lsl: r.result!.compare_price_lsl,
+    }));
+    const res = await pricingApi.bulkApply(items);
+
+    // Update localStorage for successfully saved products
+    toSave.forEach(r => {
+      const failed = res.errors.some((e: string) => e.startsWith(r.product.id));
+      if (!failed) savePricedId(r.product.id);
+    });
+
+    setRows(prev => prev.map(r => {
+      const wasSaving = toSave.some(t => t.product.id === r.product.id);
+      if (!wasSaving) return r;
+      const failed = res.errors.some((e: string) => e.startsWith(r.product.id));
+      return {
+        ...r,
+        state: failed ? "error" : "saved",
+        toolPrice: failed ? r.toolPrice : (r.result?.final_price_lsl ?? r.toolPrice),
+      };
+    }));
+    setBulkSaving(false);
+    showToast(`${res.success} prices saved${res.failed ? `, ${res.failed} failed` : ""}`, res.failed === 0);
+  };
+
+  /* ── Keyboard nav ── */
+  const handleKeyDown = (e: React.KeyboardEvent, currentId: string) => {
+    if (e.key !== "Tab" && e.key !== "Enter") return;
+    e.preventDefault();
+    const ids = displayRows.map(r => r.product.id);
+    const nextId = ids[ids.indexOf(currentId) + 1];
+    if (nextId) {
+      const nextIdx = rows.findIndex(r => r.product.id === nextId);
+      inputRefs.current.get(nextIdx)?.focus();
+    }
+  };
+
+  /* ════════════════ RENDER ════════════════ */
   return (
-    <div className="page-root">
+    <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
-        :root{
-          --primary:#0f3f2f;--primary-dark:#0a2a1f;--primary-light:#1b5e4a;
-          --gold:#c8a75a;--gold-light:#d4b976;
-          --text:#1a1a1a;--text-muted:#64655e;--text-light:#9e9d97;
-          --border:#e5e3de;--bg:#f7f6f3;--white:#ffffff;
-          --shadow-sm:0 1px 4px rgba(0,0,0,0.07);
-          --shadow-md:0 4px 16px rgba(0,0,0,0.08);
-          --shadow-lg:0 8px 32px rgba(0,0,0,0.10);
-        }
-        ::-webkit-scrollbar{width:4px;height:3px}
-        ::-webkit-scrollbar-thumb{background:var(--primary);border-radius:4px}
-        ::-webkit-scrollbar-track{background:transparent}
+        @keyframes toastSlide { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes shimmer    { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
+        @keyframes spin       { to{transform:rotate(360deg)} }
+        @keyframes fadeUp     { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulseRing  { 0%,100%{box-shadow:0 0 0 0 rgba(200,167,90,0)} 50%{box-shadow:0 0 0 4px rgba(200,167,90,0.2)} }
 
-        @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
-        @keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
-        @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-33.333%)}}
+        html,body { margin:0;padding:0;height:100%;overflow:hidden; }
 
-        .shimbox{
-          background:linear-gradient(90deg,#ebebea 0%,#d9d8d5 50%,#ebebea 100%);
-          background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite;
-        }
+        .pm * { box-sizing:border-box; }
 
-        .page-root{
-          min-height:100vh;
-          background:var(--bg);
-          font-family:'DM Sans',system-ui,sans-serif;
-          color:var(--text);
+        /* ── Full-viewport shell ── */
+        .pm {
+          height:100vh;
+          display:flex;
+          flex-direction:column;
+          overflow:hidden;
+          font-size:13px;
         }
-
-        /* ── HERO BANNER ─────────────────── */
-        .hero-banner{
-          background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 60%,#061a10 100%);
-          position:relative;overflow:hidden;
+        /* Fixed top header strip */
+        .pm-header {
+          flex-shrink:0;
+          padding:8px 18px 0;
+          background:var(--gray-50);
+          border-bottom:1px solid var(--gray-200);
         }
-        .hero-banner::before{
-          content:'';position:absolute;inset:0;
-          background:radial-gradient(ellipse at 70% 50%,rgba(200,167,90,0.12) 0%,transparent 60%);
-          pointer-events:none;
+        /* Scrollable body below header */
+        .pm-body {
+          flex:1;
+          overflow:hidden;
+          display:flex;
+          flex-direction:column;
+          padding:8px 18px 0;
         }
-        .hero-banner-inner{
-          max-width:1500px;margin:0 auto;
-          padding:18px clamp(16px,3vw,40px);
-          display:flex;align-items:center;justify-content:space-between;
-          gap:20px;flex-wrap:wrap;position:relative;z-index:1;
+        /* The table + footer area scrolls */
+        .pm-table-wrap {
+          flex:1;
+          overflow:auto;
+          border:1px solid var(--gray-200);
+          border-radius:var(--radius-md);
+          background:white;
         }
-        .hero-banner-text{display:flex;flex-direction:column;gap:4px;}
-        .hero-banner-eyebrow{
-          display:flex;align-items:center;gap:7px;
-          font-size:11px;font-weight:500;color:var(--gold);
-          letter-spacing:1.5px;text-transform:uppercase;
-        }
-        .hero-banner-headline{
-          font-family:'Cormorant Garamond',serif;
-          font-size:clamp(20px,3vw,28px);font-weight:600;
-          color:#fff;letter-spacing:-0.3px;line-height:1.2;
-        }
-        .hero-banner-sub{
-          font-size:12px;color:rgba(255,255,255,0.6);
-          font-weight:400;letter-spacing:0.2px;
-        }
-        .hero-shop-btn{
-          display:inline-flex;align-items:center;gap:8px;
-          background:var(--gold);color:#fff;
-          padding:11px 24px;border-radius:4px;
-          font-size:13px;font-weight:700;
-          text-decoration:none;letter-spacing:0.3px;
-          white-space:nowrap;flex-shrink:0;
-          transition:all 0.2s ease;
-          box-shadow:0 2px 12px rgba(200,167,90,0.4);
-        }
-        .hero-shop-btn:hover{
-          background:#b8973e;transform:translateY(-1px);
-          box-shadow:0 4px 20px rgba(200,167,90,0.5);
-        }
-        .hero-shop-btn svg{transition:transform 0.2s ease;}
-        .hero-shop-btn:hover svg{transform:translateX(3px);}
-
-        /* ── HERO GRID ───────────────────── */
-        .hero-grid{
-          display:grid;
-          grid-template-columns:2fr 1fr 1fr;
-          grid-template-rows:340px 200px;
-          gap:3px;background:#1a1a1a;
-        }
-        @media(max-width:1100px){
-          .hero-grid{grid-template-columns:1fr 1fr;grid-template-rows:300px 300px;}
-        }
-        @media(max-width:640px){
-          .hero-grid{grid-template-columns:1fr 1fr;grid-template-rows:240px 200px 200px;}
+        /* Quick calc scrollable area */
+        .pm-calc-wrap {
+          flex:1;
+          overflow:auto;
+          padding-bottom:12px;
         }
 
-        .hcard{
-          position:relative;overflow:hidden;cursor:pointer;
-          background:#1a1a1a;
-          animation:scaleIn 0.5s ease both;
+        .pm-inr {
+          padding:6px 8px 6px 22px !important; border-radius:6px !important;
+          border:1.5px solid var(--gray-300) !important; background:var(--gray-50) !important;
+          color:var(--gray-900) !important; font-size:13px !important; font-weight:700 !important;
+          width:106px !important; min-height:unset !important; outline:none !important;
+          font-family:inherit !important; transition:border-color .15s,box-shadow .15s,background .15s !important;
         }
-        .hcard-large{grid-row:span 2;}
-        @media(max-width:1100px){.hcard-large{grid-column:span 2;grid-row:span 1;}}
-        @media(max-width:640px){.hcard-large{grid-column:span 2;grid-row:span 1;}}
+        .pm-inr:focus { border-color:var(--accent) !important; box-shadow:0 0 0 2px rgba(200,167,90,.18) !important; background:white !important; }
+        .pm-inr::placeholder { color:var(--gray-300) !important; font-weight:400 !important; }
+        .pm-inr:disabled { opacity:.4 !important; cursor:not-allowed !important; }
+        .pm-inr[data-f="1"] { border-color:var(--accent) !important; background:rgba(200,167,90,.05) !important; }
 
-        .hcard-inner{position:relative;width:100%;height:100%;}
-        .hcard-img{
-          width:100%;height:100%;object-fit:cover;display:block;
-          transition:transform 0.6s cubic-bezier(0.2,0.8,0.3,1);
-        }
-        .hcard:hover .hcard-img{transform:scale(1.08);}
-        .hcard-empty{
-          width:100%;height:100%;
-          display:flex;align-items:center;justify-content:center;
-          background:#2a2a2a;
-        }
-        .hcard-gradient{
-          position:absolute;inset:0;
-          background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.2) 50%,transparent 100%);
-          z-index:2;
-        }
-        .hcard-badges{
-          position:absolute;top:12px;left:12px;z-index:4;
-          display:flex;flex-direction:column;gap:5px;
-        }
-        .badge-off{
-          display:inline-flex;align-items:center;gap:4px;
-          background:#c0392b;color:#fff;
-          font-size:10px;font-weight:800;
-          padding:3px 9px;border-radius:3px;
-          letter-spacing:0.3px;
-        }
-        .hcard-info{
-          position:absolute;bottom:0;left:0;right:0;
-          padding:16px;z-index:3;
-        }
-        .hcard-cat{
-          font-size:9px;font-weight:600;color:rgba(255,255,255,0.5);
-          text-transform:uppercase;letter-spacing:1.5px;
-          display:block;margin-bottom:4px;
-        }
-        .hcard-title{
-          font-size:13px;font-weight:600;color:#fff;
-          line-height:1.35;margin-bottom:8px;
-          display:-webkit-box;-webkit-line-clamp:2;
-          -webkit-box-orient:vertical;overflow:hidden;
-        }
-        .hcard-large .hcard-title{
-          font-family:'Cormorant Garamond',serif;
-          font-size:clamp(16px,2.5vw,22px);font-weight:600;
-        }
-        .hcard-price-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-        .hcard-price{font-size:15px;font-weight:800;color:var(--gold);}
-        .hcard-large .hcard-price{font-size:18px;}
-        .hcard-old{font-size:11px;color:rgba(255,255,255,0.35);text-decoration:line-through;}
-        .hcard-star{
-          display:inline-flex;align-items:center;gap:3px;
-          font-size:10px;color:#f5c842;margin-left:auto;font-weight:600;
-        }
-        .hcard-cta{
-          position:absolute;inset:0;
-          display:flex;align-items:center;justify-content:center;gap:7px;
-          background:rgba(0,0,0,0.55);
-          color:#fff;font-size:13px;font-weight:700;
-          letter-spacing:0.5px;
-          opacity:0;transition:opacity 0.25s ease;
-          z-index:5;
-        }
-        .hcard:hover .hcard-cta{opacity:1;}
+        .pm-si { padding:7px 11px !important; border-radius:6px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-900) !important; font-size:12px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; transition:border-color .15s !important; }
+        .pm-si:focus { border-color:var(--primary) !important; box-shadow:0 0 0 2px rgba(15,63,47,.1) !important; }
+        .pm-si::placeholder { color:var(--gray-300) !important; }
+        .pm-sel { padding:7px 24px 7px 10px !important; border-radius:6px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-700) !important; font-size:12px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; appearance:none !important; cursor:pointer !important; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important; background-repeat:no-repeat !important; background-position:right 7px center !important; }
+        .pm-sel:focus { border-color:var(--primary) !important; }
 
-        /* ── HERO DOTS ───────────────────── */
-        .hero-dots{
-          display:flex;align-items:center;justify-content:center;
-          gap:6px;padding:12px 0;background:var(--white);
-          border-bottom:1px solid var(--border);
-        }
-        .hero-dot{
-          border:none;cursor:pointer;border-radius:3px;
-          background:var(--border);transition:all 0.3s ease;padding:0;
-          height:4px;
-        }
-        .hero-dot.active{background:var(--primary);}
+        .pm-b { display:inline-flex !important; align-items:center !important; gap:5px !important; padding:7px 14px !important; border-radius:6px !important; font-size:12px !important; font-weight:700 !important; border:none !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; white-space:nowrap !important; transition:all .15s ease !important; }
+        .pm-b:active:not(:disabled) { transform:scale(.97) !important; }
+        .pm-bg { background:var(--primary) !important; color:white !important; box-shadow:0 2px 5px rgba(15,63,47,.2) !important; }
+        .pm-bg:hover:not(:disabled) { background:var(--primary-light) !important; box-shadow:0 3px 10px rgba(15,63,47,.3) !important; transform:translateY(-1px) !important; }
+        .pm-bg:disabled { background:var(--gray-200) !important; color:var(--gray-400) !important; box-shadow:none !important; cursor:not-allowed !important; }
+        .pm-ba { background:var(--accent) !important; color:white !important; box-shadow:0 2px 5px rgba(200,167,90,.3) !important; }
+        .pm-ba:hover:not(:disabled) { background:var(--accent-light) !important; transform:translateY(-1px) !important; }
+        .pm-ba:disabled { opacity:.5 !important; cursor:not-allowed !important; }
+        .pm-bgh { background:white !important; color:var(--gray-700) !important; border:1.5px solid var(--gray-200) !important; }
+        .pm-bgh:hover:not(:disabled) { border-color:var(--primary) !important; color:var(--primary) !important; background:rgba(15,63,47,.04) !important; }
+        .pm-bbl { background:#2563eb !important; color:white !important; box-shadow:0 2px 5px rgba(37,99,235,.25) !important; }
+        .pm-bbl:hover:not(:disabled) { background:#1d4ed8 !important; transform:translateY(-1px) !important; }
+        .pm-bbl:disabled { opacity:.45 !important; cursor:not-allowed !important; }
+        .pm-bmk { background:#f0fdf4 !important; color:#14532d !important; border:1.5px solid #bbf7d0 !important; font-size:10px !important; padding:4px 9px !important; }
+        .pm-bmk:hover:not(:disabled) { background:#dcfce7 !important; border-color:#86efac !important; }
+        .pm-bum { background:#fff7ed !important; color:#92400e !important; border:1.5px solid #fed7aa !important; font-size:10px !important; padding:4px 9px !important; }
+        .pm-bum:hover:not(:disabled) { background:#ffedd5 !important; border-color:#fdba74 !important; }
 
-        /* ── MARQUEE ─────────────────────── */
-        .marquee-bar{
-          background:linear-gradient(90deg,var(--primary),var(--primary-light));
-          overflow:hidden;padding:0;
-        }
-        .marquee-track{
-          display:flex;width:300%;
-          animation:marquee 36s linear infinite;
-        }
-        .marquee-item{
-          display:inline-flex;align-items:center;gap:9px;
-          padding:9px 24px;white-space:nowrap;flex-shrink:0;
-          font-size:10px;font-weight:600;letter-spacing:1px;
-          text-transform:uppercase;color:rgba(255,255,255,0.9);
+        .pm-tab { display:inline-flex !important; align-items:center !important; gap:6px !important; padding:7px 16px !important; border-radius:var(--radius-sm) !important; font-size:12px !important; font-weight:700 !important; border:2px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .18s !important; }
+        .pm-ta { background:var(--primary) !important; color:white !important; border-color:var(--primary) !important; box-shadow:0 3px 10px rgba(15,63,47,.2) !important; }
+        .pm-ti { background:white !important; color:var(--gray-600) !important; border-color:var(--gray-200) !important; }
+        .pm-ti:hover { border-color:var(--primary) !important; color:var(--primary) !important; }
+        .pm-ft { display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 14px !important; border-radius:20px !important; font-size:11px !important; font-weight:700 !important; border:1.5px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .15s !important; }
+
+        .pm-row { transition:background .18s ease; }
+        .pm-row:hover > td { background-color: rgba(0,0,0,0.012) !important; }
+        .pm-sk { background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-50) 50%,var(--gray-100) 75%); background-size:600px 100%; animation:shimmer 1.6s infinite; border-radius:6px; }
+        .pm-spin { animation:spin .8s linear infinite; display:inline-block; }
+        .pm-mt { width:34px; height:4px; border-radius:3px; background:var(--gray-200); overflow:hidden; margin-top:2px; }
+        .pm-mf { height:100%; border-radius:3px; transition:width .4s ease; }
+        .pm-up { animation:fadeUp .35s cubic-bezier(.22,.9,.34,1) both; }
+        .pm-sf { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9900; animation:fadeUp .3s cubic-bezier(.22,.9,.34,1); }
+
+        .pm-unp-notice {
+          display:inline-flex; align-items:center; gap:4px;
+          font-size:10px; color:#92400e; font-weight:600;
+          background:#fffbeb; border:1px solid #fde68a;
+          padding:1px 6px; border-radius:3px;
         }
 
-        /* ── TRUST BAR ───────────────────── */
-        .trust-bar{
-          background:var(--white);
-          border-top:1px solid var(--border);
-          border-bottom:3px solid var(--border);
-          display:grid;
-          grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-        }
-        .trust-item{
-          display:flex;align-items:center;gap:12px;
-          padding:18px 20px;
-          border-right:1px solid var(--border);
-        }
-        .trust-item:last-child{border-right:none;}
-        .trust-icon-wrap{color:var(--primary);flex-shrink:0;}
-        .trust-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:1px;}
-        .trust-sub{font-size:11px;color:var(--text-muted);}
-
-        /* ── CATEGORY STRIP ──────────────── */
-        .cat-strip{
-          background:var(--white);
-          border-bottom:1px solid var(--border);
-          overflow-x:auto;padding:0 clamp(12px,3vw,40px);
-        }
-        .cat-strip::-webkit-scrollbar{height:0;}
-        .cat-strip-inner{
-          display:flex;gap:6px;padding:12px 0;
-          white-space:nowrap;align-items:center;
-        }
-        .cat-pill{
-          display:inline-flex;align-items:center;gap:5px;
-          padding:7px 16px;border-radius:3px;
-          border:1px solid var(--border);
-          background:var(--white);
-          font-size:12px;font-weight:500;
-          color:var(--text-muted);
-          text-decoration:none;flex-shrink:0;
-          transition:all 0.18s ease;letter-spacing:0.1px;
-        }
-        .cat-pill:hover{
-          border-color:var(--primary);
-          color:var(--primary);background:#f0f7f4;
-        }
-
-        /* ── SECTIONS ────────────────────── */
-        .sections-wrap{
-          padding-bottom:clamp(32px,5vw,64px);
-        }
-        .section-block{
-          background:var(--white);
-          margin-bottom:6px;
-        }
-        .section-head{
-          display:flex;align-items:center;justify-content:space-between;
-          padding:18px clamp(16px,3vw,28px) 14px;
-          border-bottom:1px solid var(--border);
-        }
-        .section-head-left{display:flex;align-items:center;gap:14px;}
-        .section-accent-bar{
-          width:4px;height:42px;border-radius:2px;flex-shrink:0;
-        }
-        .section-badge{
-          display:inline-block;
-          font-size:8px;font-weight:800;
-          padding:3px 9px;border-radius:2px;
-          color:#fff;letter-spacing:1px;text-transform:uppercase;
-          margin-bottom:4px;
-        }
-        .section-title{
-          font-family:'Cormorant Garamond',serif;
-          font-size:clamp(18px,2.5vw,24px);font-weight:600;
-          color:var(--text);letter-spacing:-0.3px;line-height:1.2;
-        }
-        .section-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
-        .view-all-link{
-          display:inline-flex;align-items:center;gap:6px;
-          font-size:12px;font-weight:700;
-          text-decoration:none;
-          padding:8px 18px;border-radius:3px;border:1.5px solid;
-          transition:all 0.18s ease;white-space:nowrap;
-          letter-spacing:0.3px;text-transform:uppercase;
-        }
-        .view-all-link:hover{color:#fff !important;background:currentColor;}
-
-        .section-scroll-wrap{position:relative;}
-        .section-scroll{
-          display:flex;gap:2px;overflow-x:auto;
-          padding:12px clamp(16px,3vw,28px);
-          scroll-behavior:smooth;
-          background:var(--bg);
-        }
-        .section-scroll::-webkit-scrollbar{height:0;}
-
-        .scroll-btn{
-          position:absolute;top:50%;transform:translateY(-50%);
-          width:32px;height:52px;
-          background:var(--white);
-          border:1px solid var(--border);
-          box-shadow:var(--shadow-md);
-          border-radius:2px;
-          display:flex;align-items:center;justify-content:center;
-          cursor:pointer;z-index:10;color:var(--text-muted);
-          transition:all 0.18s ease;
-        }
-        .scroll-btn:hover{
-          background:var(--primary);color:#fff;
-          border-color:var(--primary);
-        }
-        .scroll-btn-l{left:0;}
-        .scroll-btn-r{right:0;}
-
-        /* ── SECTION CARDS ───────────────── */
-        .scard{
-          width:190px;flex-shrink:0;
-          background:var(--white);
-          cursor:pointer;
-          border:1px solid transparent;
-          transition:all 0.22s ease;
-          animation:scaleIn 0.45s ease both;
-          position:relative;
-        }
-        .scard:hover{
-          border-color:rgba(15,63,47,0.25);
-          box-shadow:0 6px 24px rgba(15,63,47,0.10);
-          z-index:2;
-          transform:translateY(-2px);
-        }
-        .scard-img-wrap{
-          position:relative;height:190px;
-          background:#f4f3f0;overflow:hidden;
-        }
-        .scard-img{
-          width:100%;height:100%;object-fit:cover;display:block;
-          transition:transform 0.45s ease;
-        }
-        .scard:hover .scard-img{transform:scale(1.07);}
-        .scard-no-img{
-          width:100%;height:100%;
-          display:flex;align-items:center;justify-content:center;
-          background:#ece9e4;
-        }
-        .scard-badge{
-          position:absolute;top:8px;left:8px;
-          font-size:9px;font-weight:800;
-          color:#fff;padding:2px 8px;border-radius:2px;
-          z-index:3;letter-spacing:0.3px;
-        }
-        .scard-soldout{
-          position:absolute;top:8px;right:8px;
-          font-size:9px;font-weight:600;
-          background:rgba(0,0,0,0.6);color:#fff;
-          padding:2px 7px;border-radius:2px;z-index:3;
-        }
-        .scard-hover-overlay{
-          position:absolute;inset:0;
-          display:flex;align-items:flex-end;justify-content:center;
-          padding-bottom:12px;z-index:4;
-          opacity:0;transition:opacity 0.22s ease;
-        }
-        .scard:hover .scard-hover-overlay{opacity:1;}
-        .scard-view-btn{
-          display:inline-flex;align-items:center;gap:6px;
-          color:#fff;font-size:10px;font-weight:700;
-          padding:7px 16px;border-radius:2px;
-          letter-spacing:0.4px;text-transform:uppercase;
-          transform:translateY(6px);
-          transition:transform 0.22s ease;
-        }
-        .scard:hover .scard-view-btn{transform:translateY(0);}
-
-        .scard-info{padding:10px 12px 14px;}
-        .scard-brand{
-          font-size:9px;font-weight:700;
-          text-transform:uppercase;letter-spacing:0.7px;
-          margin-bottom:4px;
-        }
-        .scard-title{
-          font-size:12px;color:var(--text);line-height:1.4;
-          margin-bottom:8px;font-weight:400;
-          display:-webkit-box;-webkit-line-clamp:2;
-          -webkit-box-orient:vertical;overflow:hidden;
-          min-height:33px;
-        }
-        .scard-footer{
-          display:flex;align-items:flex-end;
-          justify-content:space-between;gap:6px;
-        }
-        .scard-prices{display:flex;flex-direction:column;gap:1px;}
-        .scard-price{font-size:14px;font-weight:800;color:var(--text);}
-        .scard-compare{
-          font-size:10px;color:var(--text-light);
-          text-decoration:line-through;
-        }
-        .scard-rating{display:flex;gap:1px;align-items:center;}
-
-        /* ── SEE MORE CARD ───────────────── */
-        .see-more-card{
-          width:140px;flex-shrink:0;
-          background:var(--white);
-          border:2px dashed #d6d4cf;
-          display:flex;flex-direction:column;
-          align-items:center;justify-content:center;
-          gap:12px;text-decoration:none;
-          padding:24px 16px;
-          transition:all 0.2s ease;cursor:pointer;
-          border-radius:0;
-        }
-        .see-more-card:hover{background:var(--bg);}
-        .see-more-circle{
-          width:44px;height:44px;border-radius:50%;
-          border:2px solid;
-          display:flex;align-items:center;justify-content:center;
-        }
-        .see-more-label{
-          font-size:10px;font-weight:700;
-          text-align:center;line-height:1.5;
-          text-transform:uppercase;letter-spacing:0.6px;
-          color:var(--text-muted);
-        }
-
-        /* ── EMPTY ───────────────────────── */
-        .empty-sections{
-          text-align:center;padding:80px 20px;
-          background:var(--white);margin:6px 0;
-        }
-        .empty-sections p{
-          font-family:'Cormorant Garamond',serif;
-          font-size:20px;color:var(--text-muted);
-        }
+        /* Compact card used inside the content area */
+        .pm .card { border-radius:var(--radius-md); border:1px solid var(--gray-200); background:white; }
       `}</style>
 
-      {/* HERO BANNER */}
-      <HeroBanner />
+      <div className="pm">
 
-      {/* HERO GRID */}
-      <div
-        className="hero-grid"
-        style={{ opacity: fading ? 0 : 1, transition: "opacity 0.4s ease" }}
-      >
-        {heroLoad ? (
-          <HeroSkeleton />
-        ) : (
-          <>
-            {heroBig && (
-              <HeroCard p={heroBig} size="large" index={0}
-                onClick={() => router.push(`/store/product/${heroBig.id}`)} />
-            )}
-            {heroSmall.map((p, i) => (
-              <HeroCard key={p.id} p={p} size="normal" index={i + 1}
-                onClick={() => router.push(`/store/product/${p.id}`)} />
-            ))}
-            {/* Fill empty spots if < 4 small */}
-            {heroLoad === false && visible.length < 5 && Array.from({ length: 5 - visible.length - 1 }).map((_, i) => (
-              <div key={`empty-${i}`} className="shimbox" />
-            ))}
-          </>
-        )}
-      </div>
-
-      {/* ROTATION DOTS */}
-      {!heroLoad && pool.length >= 5 && (
-        <div className="hero-dots">
-          {Array.from({ length: totalDots }).map((_, i) => (
-            <button
-              key={i}
-              className={`hero-dot ${i === Math.floor(offset / 5) ? "active" : ""}`}
-              style={{ width: i === Math.floor(offset / 5) ? 24 : 8 }}
-              onClick={() => {
-                setFading(true);
-                setTimeout(() => { setOffset(i * 5); setFading(false); }, 200);
-              }}
-              aria-label={`Group ${i + 1}`}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* MARQUEE */}
-      <Marquee />
-
-      {/* TRUST BAR */}
-      <TrustBar />
-
-      {/* CATEGORY STRIP — from backend sections */}
-      {!secLoad && sections.length > 0 && (
-        <CategoryStrip sections={sections} />
-      )}
-
-      {/* SECTIONS */}
-      <div className="sections-wrap">
-        {secLoad ? (
-          <>
-            <SkeletonSection />
-            <SkeletonSection />
-            <SkeletonSection />
-          </>
-        ) : sections.length === 0 ? (
-          <div className="empty-sections">
-            <p>Add products to your store — sections will appear automatically.</p>
+        {/* Toast */}
+        {toast && (
+          <div style={{
+            position: "fixed", top: 22, right: 22, zIndex: 99999,
+            background: toast.ok ? "var(--primary)" : "#dc2626", color: "white",
+            padding: "13px 22px", borderRadius: "var(--radius-md)", fontWeight: 700, fontSize: 14,
+            boxShadow: "var(--shadow-strong)", display: "flex", alignItems: "center", gap: 10,
+            animation: "toastSlide 0.3s ease",
+          }}>
+            <span style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", fontSize: 13, flexShrink: 0 }}>
+              {toast.ok ? "✓" : "✗"}
+            </span>
+            {toast.msg}
           </div>
-        ) : (
-          sections.map(sec => (
-            <SectionRow
-              key={sec.key}
-              sec={sec}
-              onProductClick={id => router.push(`/store/product/${id}`)}
-            />
-          ))
+        )}
+
+        {/* ══ PAGE HEADER ══ */}
+        <div className="pm-header">
+          {/* Breadcrumb + Title row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", paddingBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Link href="/admin" style={{ fontSize: 11, color: "var(--gray-400)", textDecoration: "none", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
+                Dashboard
+              </Link>
+              <span style={{ color: "var(--gray-200)", fontSize: 11 }}>›</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,var(--primary),var(--primary-light))", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                  </svg>
+                </div>
+                <div>
+                  <span style={{ fontSize: 15, fontWeight: 900, color: "var(--gray-900)", letterSpacing: -0.5 }}>Pricing Manager</span>
+                  <span style={{ fontSize: 11, color: "var(--gray-400)", marginLeft: 8 }}>INR → Maloti (M)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Exchange rate widget — compact inline */}
+            <div style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-sm)", padding: "6px 12px", boxShadow: "var(--shadow-soft)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                <span style={{
+                  width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                  background: rateLoading ? "var(--gray-300)" : rateSrc === "live" ? "#16a34a" : "#d97706",
+                }} />
+                <span style={{ fontWeight: 700, color: rateLoading ? "var(--gray-400)" : rateSrc === "live" ? "#16a34a" : "#d97706" }}>
+                  {rateLoading ? "Fetching…" : rateSrc === "live" ? "Live" : "Fallback"}
+                </span>
+                {!rateLoading && <span style={{ color: "var(--gray-700)", fontWeight: 600 }}>1 ₹ = M {effectiveRate.toFixed(5)}</span>}
+                {rateOverride && <span style={{ fontSize: 9, fontWeight: 800, background: "rgba(200,167,90,0.12)", color: "var(--accent)", padding: "1px 6px", borderRadius: 10 }}>OVERRIDE</span>}
+              </div>
+              <div style={{ display: "flex", gap: 5 }}>
+                <input type="number" placeholder="Override rate…" value={rateOverride} onChange={e => setOverride(e.target.value)} step="0.0001" className="pm-si" style={{ width: 130 }} />
+                {rateOverride && <button onClick={() => setOverride("")} className="pm-b pm-bgh" style={{ padding: "5px 10px !important", fontSize: 10 }}>Reset</button>}
+              </div>
+            </div>
+          </div>
+
+          {/* Info banner — single compact line */}
+          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "var(--radius-sm)", padding: "5px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 11, marginBottom: 6 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span style={{ fontWeight: 800, color: "#92400e" }}>Policy: </span>
+            <span style={{ color: "#78350f" }}>
+              All products load as <strong>Unpriced</strong>. Only marked <strong style={{ color: "var(--primary)" }}>Priced</strong> after you calculate &amp; save or manually mark here.
+            </span>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--gray-500)", flexShrink: 0 }}>
+              <span style={{ fontWeight: 700, color: "var(--primary)" }}>Formula:</span>
+              {([
+                ["(Market ₹", "var(--gray-900)", true],
+                ["+₹700 ship", "var(--gray-500)", false],
+                ["+₹500 profit)", "var(--gray-500)", false],
+                [`×M${effectiveRate.toFixed(4)}`, "var(--primary)", true],
+                ["= Final M", "var(--primary)", true],
+              ] as const).map(([t, c, b], i) => (
+                <span key={i} style={{ color: c as string, fontWeight: b ? 700 : 500 }}>
+                  {i > 0 && <span style={{ color: "var(--gray-200)", margin: "0 2px" }}>·</span>}
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Main tabs */}
+          <div style={{ display: "flex", gap: 6, paddingBottom: 6 }}>
+            {([
+              { id: "batch", icon: "⚡", label: `Batch Pricing${rows.length ? ` (${rows.length})` : ""}` },
+              { id: "calc",  icon: "🧮", label: "Quick Calculator" },
+            ] as const).map(t => (
+              <button key={t.id} onClick={() => setMainTab(t.id as MainTab)}
+                className={`pm-b pm-tab ${mainTab === t.id ? "pm-ta" : "pm-ti"}`}>
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ══ QUICK CALCULATOR ══ */}
+        {mainTab === "calc" && (
+          <div className="pm-body">
+            <div className="pm-calc-wrap">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 800 }}>
+            {/* Input card */}
+            <div className="card pm-up" style={{ padding: 28 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(200,167,90,0.1)", display: "grid", placeItems: "center" }}>
+                  <span style={{ fontSize: 20, fontWeight: 700 }}>₹</span>
+                </div>
+                <div style={{ fontWeight: 800, fontSize: 16 }}>Indian Market Price</div>
+              </div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "var(--gray-400)", textTransform: "uppercase", letterSpacing: "0.7px", display: "block", marginBottom: 8 }}>
+                Market Price (₹) <span style={{ color: "#dc2626" }}>*</span>
+              </label>
+              <div style={{ position: "relative", marginBottom: 20 }}>
+                <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 22, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
+                <input type="number" value={qMarket} onChange={e => setQMarket(e.target.value)} placeholder="2499" autoFocus
+                  style={{ width: "100%", padding: "14px 16px 14px 40px", border: `2px solid ${qResult ? "var(--accent)" : "var(--gray-200)"}`, borderRadius: "var(--radius-md)", fontSize: 30, fontWeight: 900, color: "var(--gray-900)", outline: "none", fontFamily: "inherit", background: qResult ? "rgba(200,167,90,0.04)" : "white", transition: "border-color 0.2s", minHeight: "unset" }} />
+              </div>
+              <div style={{ background: "var(--gray-50)", borderRadius: "var(--radius-sm)", border: "1px solid var(--gray-200)", padding: "14px 16px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--gray-400)", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 10 }}>Applied automatically</div>
+                {([["🚚 Shipping", "₹700 fixed"], ["💼 Profit", "₹500 fixed"], ["💱 Rate", `M ${effectiveRate.toFixed(5)}`]] as const).map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--gray-200)", fontSize: 13 }}>
+                    <span style={{ color: "var(--gray-500)" }}>{k}</span>
+                    <span style={{ fontWeight: 700 }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Result card */}
+            <div className="card pm-up" style={{ padding: 28 }}>
+              {qResult ? (
+                <>
+                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 18 }}>Price Breakdown</div>
+                  {([
+                    ["Market",     `₹ ${qVal.toLocaleString()}`,                 "var(--gray-900)"],
+                    ["+ Shipping", `₹ ${qResult.shipping_cost_inr.toLocaleString()}`, "var(--gray-500)"],
+                    ["+ Profit",   `₹ ${qResult.profit_inr.toLocaleString()}`,    "var(--gray-500)"],
+                  ] as const).map(([k, v, c]) => (
+                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--gray-100)", fontSize: 14 }}>
+                      <span style={{ color: "var(--gray-500)" }}>{k}</span>
+                      <span style={{ fontWeight: 700, color: c as string }}>{v}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 14px", fontSize: 14, borderBottom: "2px solid var(--gray-900)" }}>
+                    <span style={{ fontWeight: 700 }}>Total (INR)</span>
+                    <span style={{ fontWeight: 900 }}>₹ {qResult.total_cost_inr.toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13, color: "var(--gray-400)" }}>
+                    <span>× Exchange Rate</span>
+                    <span style={{ fontWeight: 700 }}>× {effectiveRate.toFixed(5)}</span>
+                  </div>
+                  {/* Result box — light background, no dark */}
+                  <div style={{ marginTop: 14, background: "linear-gradient(135deg,rgba(15,63,47,0.06),rgba(15,63,47,0.02))", border: "2px solid rgba(15,63,47,0.15)", borderRadius: "var(--radius-md)", padding: "22px 20px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, background: "rgba(15,63,47,0.04)", borderRadius: "50%" }} />
+                    <div style={{ fontSize: 11, color: "var(--gray-400)", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>FINAL PRICE (MALOTI)</div>
+                    <div style={{ fontSize: 48, fontWeight: 900, color: "var(--primary)", letterSpacing: -2, lineHeight: 1.1 }}>M {fmt(qResult.final_price_lsl)}</div>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "var(--gray-300)", textDecoration: "line-through" }}>M {fmt(qResult.compare_price_lsl)}</div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 10, background: "rgba(15,63,47,0.08)", borderRadius: 20, padding: "5px 14px", fontSize: 13, color: "var(--primary)" }}>
+                      <span style={{ fontWeight: 800 }}>{qResult.discount_pct}% off</span>
+                      <span style={{ opacity: 0.65 }}>· saves M {fmt(qResult.savings_lsl)}</span>
+                    </div>
+                    <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: marginPct(qResult) < 8 ? "#dc2626" : marginPct(qResult) < 15 ? "#d97706" : "var(--primary)" }}>
+                      Margin: {marginPct(qResult)}%{marginPct(qResult) < 8 ? " ⚠ Too low" : marginPct(qResult) < 15 ? " — Acceptable" : " ✓ Healthy"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                    {([["Compare", fmt(qResult.compare_price_lsl), "var(--accent)"], ["Savings", fmt(qResult.savings_lsl), "var(--primary)"]] as const).map(([l, v, c]) => (
+                      <div key={l} style={{ flex: 1, textAlign: "center", padding: "10px 12px", background: `rgba(${c === "var(--accent)" ? "200,167,90" : "15,63,47"},0.06)`, borderRadius: "var(--radius-sm)", border: `1px solid rgba(${c === "var(--accent)" ? "200,167,90" : "15,63,47"},0.12)` }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--gray-400)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>{l}</div>
+                        <div style={{ fontSize: 16, fontWeight: 900, color: c as string }}>M {v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div style={{ height: "100%", minHeight: 320, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, textAlign: "center" }}>
+                  <div style={{ width: 60, height: 60, borderRadius: 16, background: "var(--gray-50)", border: "1px solid var(--gray-200)", display: "grid", placeItems: "center" }}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  </div>
+                  <p style={{ fontSize: 14, color: "var(--gray-400)", margin: 0, maxWidth: 240 }}>Enter a market price to calculate the Maloti selling price</p>
+                </div>
+              )}
+            </div>
+            </div>{/* pm-calc-wrap */}
+          </div>{/* pm-body */}
+        )}
+
+        {/* ══ BATCH PRICING ══ */}
+        {mainTab === "batch" && (
+          <div className="pm-body">
+            {/* ── Dashboard ── */}
+            {rows.length > 0 && (
+              <div style={{ marginBottom: 8, animation: "fadeUp 0.3s ease", flexShrink: 0 }}>
+                {/* Progress + stats in one compact row */}
+                <div className="card" style={{ padding: "10px 16px", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                    <ProgressArc pct={stats.pctDone} />
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
+                        <span style={{ fontWeight: 800 }}>Pricing Progress</span>
+                        <span style={{ fontWeight: 700, color: "var(--gray-700)" }}>{stats.priced} / {stats.total} priced</span>
+                      </div>
+                      <div style={{ background: "var(--gray-100)", borderRadius: 20, height: 8, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${stats.pctDone}%`, background: stats.pctDone === 100 ? "linear-gradient(90deg,var(--primary),#16a34a)" : stats.pctDone > 60 ? "linear-gradient(90deg,var(--primary),var(--accent))" : "linear-gradient(90deg,#d97706,var(--accent))", borderRadius: 20, transition: "width 0.8s cubic-bezier(.4,0,.2,1)" }} />
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 6, fontSize: 11 }}>
+                        {[
+                          { label: `${stats.unpriced} unpriced`, color: "#d97706", show: true },
+                          { label: `${stats.priced} priced`,     color: "var(--primary)", show: true },
+                          { label: `${stats.modified} modified`, color: "#2563eb", show: stats.modified > 0 },
+                          { label: `${stats.errors} errors`,     color: "#dc2626", show: stats.errors > 0 },
+                        ].filter(x => x.show).map(x => (
+                          <span key={x.label} style={{ color: x.color, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ width: 7, height: 7, borderRadius: 2, background: x.color, display: "inline-block" }} />{x.label}
+                          </span>
+                        ))}
+                        {totalCount > rows.length && <span style={{ marginLeft: "auto", color: "var(--gray-400)" }}>Showing {rows.length} of {totalCount}</span>}
+                      </div>
+                    </div>
+                    {stats.estRevenue > 0 && (
+                      <div style={{ borderLeft: "1px solid var(--gray-200)", paddingLeft: 24, textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 11, color: "var(--gray-400)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 4 }}>Priced Inventory Est.</div>
+                        <div style={{ fontSize: 28, fontWeight: 900, color: "var(--primary)" }}>M {stats.estRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                        <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 2 }}>across {stats.withResult} products</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Stat pills — compact inline */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <StatPill label="Total" value={stats.total} icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>} />
+                  <StatPill label="Unpriced" value={stats.unpriced} accent={stats.unpriced > 0 ? "#d97706" : "var(--gray-300)"} sub={stats.unpriced > 0 ? "Needs pricing" : "All priced!"}
+                    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>} />
+                  <StatPill label="Priced" value={stats.priced} accent="var(--primary)" sub="Via this tool"
+                    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>} />
+                  <StatPill label="Ready to Save" value={stats.readyToSave} accent={stats.readyToSave > 0 ? "#2563eb" : "var(--gray-300)"} sub={stats.readyToSave > 0 ? "Save All →" : "Nothing pending"}
+                    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>} />
+                  {stats.errors > 0 && <StatPill label="Errors" value={stats.errors} accent="#dc2626" sub="Click to retry"
+                    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>} />}
+                </div>
+              </div>
+            )}
+
+            {/* ── Toolbar ── */}
+            <div className="card" style={{ padding: "10px 14px", marginBottom: 8, boxShadow: "var(--shadow-soft)", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: rows.length > 0 ? 10 : 0 }}>
+                <div style={{ position: "relative", flex: 1, maxWidth: 260 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2"
+                    style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                    <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                  </svg>
+                  <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} onKeyDown={e => e.key === "Enter" && loadProducts()} placeholder="Search products…" className="pm-si" style={{ width: "100%", paddingLeft: "30px !important" }} />
+                </div>
+                <select value={catFilter} onChange={e => setCat(e.target.value)} className="pm-sel" style={{ minWidth: 140 }}>
+                  <option value="">All Categories</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={brandFilter} onChange={e => setBrand(e.target.value)} className="pm-sel" style={{ minWidth: 130 }}>
+                  <option value="">All Brands</option>
+                  {brands.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+                <button onClick={() => loadProducts()} disabled={batchLoading} className="pm-b pm-bg" style={{ minWidth: 130 }}>
+                  {batchLoading
+                    ? <><span className="pm-spin" style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Loading…</>
+                    : rows.length > 0 ? "🔄 Reload" : "⚡ Load Products"}
+                </button>
+              </div>
+
+              {rows.length > 0 && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingTop: 10, borderTop: "1px solid var(--gray-100)" }}>
+                  {/* Quick fill */}
+                  {stats.unpriced > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(200,167,90,0.07)", border: "1.5px solid rgba(200,167,90,0.3)", borderRadius: 8, padding: "5px 10px" }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                      </svg>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#92400e", whiteSpace: "nowrap" }}>
+                        Quick Fill ({stats.unpriced}):
+                      </span>
+                      <div style={{ position: "relative" }}>
+                        <span style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", fontSize: 12, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
+                        <input type="number" value={quickFillInr} onChange={e => setFill(e.target.value)} onKeyDown={e => e.key === "Enter" && applyQuickFill()} placeholder="price" className="pm-inr" data-f={quickFillInr !== "" ? "1" : undefined} style={{ width: "88px !important", paddingLeft: "18px !important" }} />
+                      </div>
+                      <button onClick={applyQuickFill} disabled={!quickFillInr} className="pm-b pm-ba" style={{ padding: "5px 12px !important", fontSize: 11 }}>
+                        Apply
+                      </button>
+                    </div>
+                  )}
+
+                  <select value={sortKey} onChange={e => setSort(e.target.value as SortKey)} className="pm-sel">
+                    <option value="unpriced_first">⚠ Unpriced First</option>
+                    <option value="default">Default Order</option>
+                    <option value="name">Name A–Z</option>
+                    <option value="price_asc">Price ↑</option>
+                    <option value="price_desc">Price ↓</option>
+                  </select>
+
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--gray-600)", cursor: "pointer", userSelect: "none", minHeight: "unset" }}>
+                    <input type="checkbox" checked={highlightUnpriced} onChange={e => setHL(e.target.checked)} style={{ accentColor: "var(--primary)", width: 13, height: 13, cursor: "pointer", minHeight: "unset" }} />
+                    Highlight unpriced
+                  </label>
+
+                  <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                    {stats.selectedReady > 0 && (
+                      <button onClick={() => saveAll(true)} disabled={bulkSaving} className="pm-b pm-bbl">
+                        💾 Save Selected ({stats.selectedReady})
+                      </button>
+                    )}
+                    <button onClick={() => saveAll(false)} disabled={bulkSaving || stats.readyToSave === 0} className="pm-b pm-bg" style={{ minWidth: 148 }}>
+                      {bulkSaving
+                        ? <><span className="pm-spin" style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Saving…</>
+                        : `💾 Save All (${stats.readyToSave})`}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Filter tabs ── */}
+            {rows.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap", flexShrink: 0 }}>
+                {([
+                  { id: "all",      label: "All",        count: rows.length,    bg: "var(--gray-900)", fg: "white" },
+                  { id: "unpriced", label: "⚠ Unpriced", count: stats.unpriced + stats.modified + stats.errors, bg: "#d97706", fg: "white" },
+                  { id: "priced",   label: "✓ Priced",   count: stats.priced,   bg: "var(--primary)",  fg: "white" },
+                ] as const).map(t => {
+                  const active = filterTab === t.id;
+                  return (
+                    <button key={t.id} onClick={() => setFilterTab(t.id)} className="pm-ft"
+                      style={{ background: active ? t.bg : "white", color: active ? t.fg : "var(--gray-600)", border: `1.5px solid ${active ? "transparent" : "var(--gray-200)"}`, boxShadow: active ? "var(--shadow-card)" : "none" }}>
+                      {t.label}
+                      <span style={{ background: active ? "rgba(255,255,255,0.2)" : "var(--gray-100)", color: active ? "white" : "var(--gray-500)", padding: "1px 7px", borderRadius: 20, fontSize: 10, fontWeight: 800 }}>
+                        {t.count}
+                      </span>
+                    </button>
+                  );
+                })}
+                <span style={{ fontSize: 11, color: "var(--gray-400)", marginLeft: 4 }}>{displayRows.length} shown</span>
+                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--gray-300)" }}>⌨ Tab / Enter to jump between price inputs</span>
+              </div>
+            )}
+
+            {/* ── Empty state ── */}
+            {rows.length === 0 && !batchLoading && (
+              <div className="pm-table-wrap" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, textAlign: "center" }}>
+                <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg,rgba(15,63,47,0.08),rgba(200,167,90,0.1))", display: "grid", placeItems: "center" }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
+                    <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+                  </svg>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: "var(--gray-900)" }}>Ready to price your catalog</div>
+                <p style={{ fontSize: 13, color: "var(--gray-400)", maxWidth: 380, margin: 0 }}>
+                  All products load as <strong>Unpriced</strong>. Use the tool to calculate and save prices.
+                </p>
+                <button onClick={() => loadProducts()} className="pm-b pm-bg" style={{ padding: "10px 28px !important", fontSize: 13 }}>⚡ Load Products</button>
+              </div>
+            )}
+
+            {/* ── Skeleton ── */}
+            {batchLoading && rows.length === 0 && (
+              <div className="pm-table-wrap" style={{ overflow: "hidden" }}>
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} style={{ padding: "14px 18px", display: "flex", gap: 12, alignItems: "center", borderBottom: "1px solid var(--gray-100)", opacity: 1 - i * 0.1 }}>
+                    <div className="pm-sk" style={{ width: 44, height: 44, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div className="pm-sk" style={{ width: `${50 + i * 6}%`, height: 11, marginBottom: 7 }} />
+                      <div className="pm-sk" style={{ width: "22%", height: 9 }} />
+                    </div>
+                    <div className="pm-sk" style={{ width: 106, height: 32, flexShrink: 0 }} />
+                    <div className="pm-sk" style={{ width: 64, height: 32, flexShrink: 0 }} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ══ THE TABLE ══ */}
+            {displayRows.length > 0 && (
+              <div className="pm-table-wrap">
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1060 }}>
+                    <thead style={{ position: "sticky", top: 0, zIndex: 10 }}>
+                      <tr style={{ background: "var(--gray-50)", borderBottom: "2px solid var(--gray-200)" }}>
+                        <th style={{ ...TH, width: 32, paddingLeft: 14 }}>
+                          <input type="checkbox" checked={selectAll} onChange={toggleSelectAll} style={{ accentColor: "var(--primary)", width: 13, height: 13, cursor: "pointer", minHeight: "unset" }} />
+                        </th>
+                        <th style={{ ...TH, width: 4, padding: 0 }} />
+                        <th style={{ ...TH, textAlign: "left", minWidth: 240 }}>Product</th>
+                        <th style={TH}>Status</th>
+                        <th style={{ ...TH, textAlign: "right" }}>DB Price</th>
+                        <th style={{ ...TH, textAlign: "center", minWidth: 120 }}>Market (₹)</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Cost (₹)</th>
+                        <th style={{ ...TH, textAlign: "right", minWidth: 120, color: "var(--primary)" }}>→ Final (M)</th>
+                        <th style={{ ...TH, textAlign: "right" }}>Compare (M)</th>
+                        <th style={{ ...TH, textAlign: "center" }}>Margin</th>
+                        <th style={{ ...TH, textAlign: "center" }}>Disc%</th>
+                        <th style={{ ...TH, textAlign: "center", minWidth: 140 }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayRows.map(row => {
+                        const gIdx = rows.findIndex(r => r.product.id === row.product.id);
+                        const { state } = row;
+                        const isUp    = state === "unpriced";
+                        const isMod   = state === "modified";
+                        const isSaved = state === "saved";
+                        const isPriced = state === "priced";
+                        const isErr   = state === "error";
+                        const isSav   = state === "saving";
+
+                        const rowBg = isErr     ? "rgba(220,38,38,0.04)"
+                                    : isSaved   ? "rgba(22,163,74,0.04)"
+                                    : isPriced  ? "rgba(15,63,47,0.02)"
+                                    : isMod     ? "rgba(37,99,235,0.03)"
+                                    : (isUp && highlightUnpriced) ? "rgba(217,119,6,0.04)"
+                                    : "transparent";
+
+                        const barC = isErr     ? "#dc2626"
+                                   : isSaved   ? "#16a34a"
+                                   : isPriced  ? "var(--primary)"
+                                   : isMod     ? "#2563eb"
+                                   : isUp      ? "#d97706"
+                                   : "transparent";
+
+                        const mColor = marginColor(row.result);
+                        const mPct   = row.result ? marginPct(row.result) : 0;
+
+                        return (
+                          <tr key={row.product.id} className="pm-row" style={{ borderBottom: "1px solid var(--gray-100)" }}>
+                            {/* Checkbox */}
+                            <td style={{ ...TD, background: rowBg, width: 36, paddingLeft: 18 }}>
+                              <input type="checkbox" checked={row.isSelected} onChange={() => toggleRow(row.product.id)} style={{ accentColor: "var(--primary)", width: 14, height: 14, cursor: "pointer", minHeight: "unset" }} />
+                            </td>
+
+                            {/* State bar */}
+                            <td style={{ padding: 0, width: 4, background: rowBg }}>
+                              <div style={{ width: 4, minHeight: 70, background: barC, transition: "background 0.25s" }} />
+                            </td>
+
+                            {/* Product info */}
+                            <td style={{ ...TD, background: rowBg, minWidth: 240 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--gray-200)", background: "var(--gray-50)", display: "grid", placeItems: "center" }}>
+                                  {(row.product as any).main_image && !row.imgErr ? (
+                                    <img src={(row.product as any).main_image} alt={row.product.title} onError={() => setImgErr(row.product.id)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                  ) : (
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" strokeWidth="1.5">
+                                      <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+                                    </svg>
+                                  )}
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontWeight: 700, fontSize: 12, color: "var(--gray-900)", maxWidth: 200, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.3 }}>
+                                    {row.product.title}
+                                  </div>
+                                  <div style={{ fontSize: 10, color: "var(--gray-400)", marginTop: 2 }}>
+                                    {[row.product.brand, row.product.category].filter(Boolean).join(" · ") || "—"}
+                                  </div>
+                                  {row.product.sku && <div style={{ fontSize: 9, color: "var(--gray-300)", marginTop: 1, fontFamily: "monospace" }}>SKU: {row.product.sku}</div>}
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Status */}
+                            <td style={{ ...TD, background: rowBg }}><PricingBadge state={state} /></td>
+
+                            {/* DB Price — shown as info only, not used to determine pricing state */}
+                            <td style={{ ...TD, background: rowBg, textAlign: "right" }}>
+                              {row.product.price && row.product.price > 0 ? (
+                                <div>
+                                  <div style={{ fontWeight: 600, fontSize: 12, color: "var(--gray-400)" }}>
+                                    M {fmt(row.product.price)}
+                                  </div>
+                                  {(isPriced || isSaved) && row.toolPrice && (
+                                    <div style={{ fontSize: 10, fontWeight: 700, marginTop: 1, color: "var(--primary)" }}>
+                                      ✓ via tool
+                                    </div>
+                                  )}
+                                  {isUp && row.product.price > 0 && (
+                                    <div className="pm-unp-notice" style={{ marginTop: 3 }}>
+                                      not reviewed
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: 12, color: "var(--gray-300)" }}>No price</span>
+                              )}
+                            </td>
+
+                            {/* INR input */}
+                            <td style={{ ...TD, background: rowBg, textAlign: "center" }}>
+                              <div style={{ position: "relative", display: "inline-block" }}>
+                                <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
+                                <input
+                                  ref={el => { if (el) inputRefs.current.set(gIdx, el); else inputRefs.current.delete(gIdx); }}
+                                  type="number" value={row.marketInr}
+                                  onChange={e => updateRow(row.product.id, e.target.value)}
+                                  onKeyDown={e => handleKeyDown(e, row.product.id)}
+                                  placeholder="price" disabled={isSav}
+                                  className="pm-inr" data-f={row.marketInr !== "" ? "1" : undefined}
+                                />
+                              </div>
+                            </td>
+
+                            {/* Total cost INR */}
+                            <td style={{ ...TD, background: rowBg, textAlign: "right" }}>
+                              {row.result ? <span style={{ color: "var(--gray-400)", fontSize: 12 }}>₹{row.result.total_cost_inr.toLocaleString()}</span> : <span style={{ color: "var(--gray-200)" }}>—</span>}
+                            </td>
+
+                            {/* Final price */}
+                            <td style={{ ...TD, background: rowBg, textAlign: "right" }}>
+                              {row.result ? (
+                                <span style={{ fontWeight: 900, fontSize: 16, color: "var(--primary)", background: "rgba(15,63,47,0.07)", padding: "3px 10px", borderRadius: 8, display: "inline-block" }}>
+                                  M {fmt(row.result.final_price_lsl)}
+                                </span>
+                              ) : <span style={{ color: "var(--gray-200)" }}>—</span>}
+                            </td>
+
+                            {/* Compare price */}
+                            <td style={{ ...TD, background: rowBg, textAlign: "right" }}>
+                              {row.result ? <span style={{ color: "var(--gray-300)", fontSize: 12, textDecoration: "line-through" }}>M {fmt(row.result.compare_price_lsl)}</span> : <span style={{ color: "var(--gray-200)" }}>—</span>}
+                            </td>
+
+                            {/* Margin health */}
+                            <td style={{ ...TD, background: rowBg, textAlign: "center" }}>
+                              {row.result ? (
+                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                  <span style={{ fontWeight: 800, fontSize: 13, color: mColor }}>{mPct}%</span>
+                                  <div className="pm-mt">
+                                    <div className="pm-mf" style={{ width: `${Math.min(mPct / 30 * 100, 100)}%`, background: mColor }} />
+                                  </div>
+                                </div>
+                              ) : <span style={{ color: "var(--gray-200)" }}>—</span>}
+                            </td>
+
+                            {/* Discount % */}
+                            <td style={{ ...TD, background: rowBg, textAlign: "center" }}>
+                              {row.result ? (
+                                <span style={{ background: "#dcfce7", color: "#14532d", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
+                                  {row.result.discount_pct}%
+                                </span>
+                              ) : <span style={{ color: "var(--gray-200)" }}>—</span>}
+                            </td>
+
+                            {/* Action column — Save + Mark as Priced/Unpriced */}
+                            <td style={{ ...TD, background: rowBg, textAlign: "center" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
+                                {/* Primary action */}
+                                {isSav && (
+                                  <span className="pm-spin" style={{ width: 18, height: 18, border: "2.5px solid var(--gray-200)", borderTopColor: "var(--primary)", borderRadius: "50%" }} />
+                                )}
+                                {isErr && (
+                                  <button onClick={() => saveRow(row.product.id)} title={row.errorMsg}
+                                    className="pm-b" style={{ background: "#fee2e2 !important", color: "#991b1b !important", border: "1px solid #fca5a5 !important", fontSize: 11, padding: "5px 10px !important" }}>
+                                    Retry
+                                  </button>
+                                )}
+                                {isSaved && (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(22,163,74,0.1)", display: "grid", placeItems: "center" }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                                    </div>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)" }}>Saved</span>
+                                  </div>
+                                )}
+                                {!isSav && !isErr && !isSaved && (
+                                  <button
+                                    onClick={() => saveRow(row.product.id)}
+                                    disabled={!row.result}
+                                    className="pm-b"
+                                    style={{
+                                      background: row.result ? "var(--primary) !important" : "var(--gray-100) !important",
+                                      color: row.result ? "white !important" : "var(--gray-300) !important",
+                                      boxShadow: row.result ? "0 2px 6px rgba(15,63,47,0.2) !important" : "none !important",
+                                      cursor: row.result ? "pointer !important" : "not-allowed !important",
+                                      padding: "6px 14px !important", fontSize: 12,
+                                    }}>
+                                    Save
+                                  </button>
+                                )}
+
+                                {/* Secondary: Mark as Priced / Unpriced */}
+                                {(isUp || isMod) && !isSav && (
+                                  <button
+                                    onClick={() => markAsPriced(row.product.id)}
+                                    className="pm-b pm-bmk"
+                                    title="Mark this product as priced without recalculating"
+                                  >
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                                    Mark Priced
+                                  </button>
+                                )}
+                                {(isPriced || isSaved) && !isSav && (
+                                  <button
+                                    onClick={() => markAsUnpriced(row.product.id)}
+                                    className="pm-b pm-bum"
+                                    title="Reset this product to unpriced — requires re-review"
+                                  >
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 .7-3.6"/></svg>
+                                    Reset
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Table footer */}
+                <div style={{ padding: "8px 16px", borderTop: "1px solid var(--gray-100)", background: "var(--gray-50)", display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", fontSize: 11, color: "var(--gray-400)", flexShrink: 0 }}>
+                  <span>📦 {rows.length} loaded</span>
+                  <span>✏️ {stats.withResult} calculated</span>
+                  <span style={{ color: "#d97706", fontWeight: 700 }}>⚠ {stats.unpriced} unpriced</span>
+                  <span style={{ color: "var(--primary)", fontWeight: 700 }}>✓ {stats.priced} priced</span>
+                  {stats.errors > 0 && <span style={{ color: "#dc2626", fontWeight: 700 }}>✗ {stats.errors} errors</span>}
+                  {stats.readyToSave > 0 && (
+                    <span style={{ marginLeft: "auto", color: "#2563eb", fontWeight: 800 }}>⏳ {stats.readyToSave} unsaved — click Save All</span>
+                  )}
+                </div>
+              </div>{/* pm-table-wrap */}
+            )}
+          </div>{/* pm-body */}
+        )}
+
+        {/* ══ STICKY SAVE BAR ══ */}
+        {stats.readyToSave > 0 && (
+          <div className="pm-sf">
+            <div style={{
+              background: "white",
+              border: "1.5px solid var(--gray-200)",
+              borderRadius: "var(--radius-md)",
+              padding: "12px 20px",
+              display: "flex", alignItems: "center", gap: 16,
+              boxShadow: "0 12px 40px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.08)",
+              minWidth: 400,
+            }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent)", flexShrink: 0, animation: "pulseRing 2.5s infinite" }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: "var(--gray-900)" }}>{stats.readyToSave} price{stats.readyToSave !== 1 ? "s" : ""} ready to save</div>
+                <div style={{ fontSize: 11, color: "var(--gray-400)" }}>Changes won&apos;t appear in your store until saved</div>
+              </div>
+              <button
+                onClick={() => saveAll(false)}
+                disabled={bulkSaving}
+                className="pm-b pm-bg"
+                style={{ padding: "10px 22px !important", fontSize: 13, whiteSpace: "nowrap" }}>
+                {bulkSaving
+                  ? <><span className="pm-spin" style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", marginRight: 6 }} />Saving…</>
+                  : `💾 Save All (${stats.readyToSave})`}
+              </button>
+            </div>
+          </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
+
+/* ═══════════════════════════════════════════════════
+   STYLE CONSTANTS
+═══════════════════════════════════════════════════ */
+const TH: React.CSSProperties = {
+  padding: "9px 11px", fontSize: 10, fontWeight: 700,
+  color: "var(--gray-400)", textTransform: "uppercase",
+  letterSpacing: "0.6px", whiteSpace: "nowrap", textAlign: "center",
+};
+
+const TD: React.CSSProperties = {
+  padding: "10px 11px", fontSize: 12, verticalAlign: "middle",
+};
