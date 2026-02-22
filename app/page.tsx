@@ -25,31 +25,43 @@ interface Section {
 
 /* ─── Hero slides ───────────────────────────────────────────────── */
 const SLIDES = [
-  { headline: "Discover Your\nSignature Style",   sub: "Curated collections crafted for elegance" },
-  { headline: "New Arrivals\nJust Landed",         sub: "Fresh styles updated daily" },
-  { headline: "Luxury Finds\nAt Every Price",      sub: "Premium quality within reach" },
+  { headline: "Discover Your\nSignature Style",   sub: "Curated collections crafted for the discerning eye" },
+  { headline: "New Arrivals\nJust Landed",         sub: "Fresh styles updated daily — be the first to wear them" },
+  { headline: "Luxury Finds\nAt Every Price",      sub: "Premium quality that doesn't compromise" },
   { headline: "The Season's\nBest Picks",          sub: "Trending now across all categories" },
 ];
-const INTERVAL = 6500;
+const INTERVAL = 7000;
 
 /* ─── Theme palette ─────────────────────────────────────────────── */
 const THEME: Record<string, { accent: string; light: string; badge: string }> = {
-  red:    { accent: "#e53935", light: "rgba(229,57,53,0.08)",  badge: "#e53935" },
-  green:  { accent: "#0f3f2f", light: "rgba(15,63,47,0.07)",   badge: "#0f3f2f" },
-  gold:   { accent: "#c8a75a", light: "rgba(200,167,90,0.1)",  badge: "#c8a75a" },
-  forest: { accent: "#1b5e4a", light: "rgba(27,94,74,0.08)",   badge: "#1b5e4a" },
-  navy:   { accent: "#1a237e", light: "rgba(26,35,126,0.07)",  badge: "#1a237e" },
-  plum:   { accent: "#6a1b9a", light: "rgba(106,27,154,0.07)", badge: "#6a1b9a" },
-  teal:   { accent: "#00695c", light: "rgba(0,105,92,0.07)",   badge: "#00695c" },
-  rust:   { accent: "#bf360c", light: "rgba(191,54,12,0.07)",  badge: "#bf360c" },
-  slate:  { accent: "#37474f", light: "rgba(55,71,79,0.07)",   badge: "#37474f" },
-  olive:  { accent: "#558b2f", light: "rgba(85,139,47,0.07)",  badge: "#558b2f" },
-  rose:   { accent: "#ad1457", light: "rgba(173,20,87,0.07)",  badge: "#ad1457" },
-  indigo: { accent: "#283593", light: "rgba(40,53,147,0.07)",  badge: "#283593" },
-  amber:  { accent: "#e65100", light: "rgba(230,81,0,0.07)",   badge: "#e65100" },
-  sage:   { accent: "#33691e", light: "rgba(51,105,30,0.07)",  badge: "#33691e" },
-  stone:  { accent: "#4e342e", light: "rgba(78,52,46,0.07)",   badge: "#4e342e" },
+  red:    { accent: "#c62828", light: "rgba(198,40,40,0.06)",  badge: "#c62828" },
+  green:  { accent: "#0f3f2f", light: "rgba(15,63,47,0.06)",   badge: "#0f3f2f" },
+  gold:   { accent: "#b8933f", light: "rgba(184,147,63,0.08)", badge: "#b8933f" },
+  forest: { accent: "#1b5e4a", light: "rgba(27,94,74,0.06)",   badge: "#1b5e4a" },
+  navy:   { accent: "#1a237e", light: "rgba(26,35,126,0.06)",  badge: "#1a237e" },
+  plum:   { accent: "#6a1b9a", light: "rgba(106,27,154,0.06)", badge: "#6a1b9a" },
+  teal:   { accent: "#00695c", light: "rgba(0,105,92,0.06)",   badge: "#00695c" },
+  rust:   { accent: "#bf360c", light: "rgba(191,54,12,0.06)",  badge: "#bf360c" },
+  slate:  { accent: "#37474f", light: "rgba(55,71,79,0.06)",   badge: "#37474f" },
+  olive:  { accent: "#558b2f", light: "rgba(85,139,47,0.06)",  badge: "#558b2f" },
+  rose:   { accent: "#ad1457", light: "rgba(173,20,87,0.06)",  badge: "#ad1457" },
+  indigo: { accent: "#283593", light: "rgba(40,53,147,0.06)",  badge: "#283593" },
+  amber:  { accent: "#e65100", light: "rgba(230,81,0,0.06)",   badge: "#e65100" },
+  sage:   { accent: "#33691e", light: "rgba(51,105,30,0.06)",  badge: "#33691e" },
+  stone:  { accent: "#4e342e", light: "rgba(78,52,46,0.06)",   badge: "#4e342e" },
 };
+
+/* Safe view_all URL — strips broken sort params, keeps only valid ones */
+function safeViewAll(raw: string): string {
+  try {
+    const url = new URL(raw, "http://x");
+    const search = url.searchParams.get("search");
+    if (search) return `/products?search=${encodeURIComponent(search)}`;
+    return "/products";
+  } catch {
+    return "/products";
+  }
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -66,16 +78,14 @@ function shuffle<T>(arr: T[]): T[] {
 export default function HomePage() {
   const router = useRouter();
 
-  /* hero */
   const [heroProds, setHeroProds] = useState<ProductListItem[]>([]);
   const [slideIdx,  setSlideIdx]  = useState(0);
   const [animating, setAnimating] = useState(false);
   const [dir,       setDir]       = useState<"next"|"prev">("next");
-  const [cards,     setCards]     = useState<("idle"|"exit"|"enter")[]>(["idle","idle","idle","idle"]);
   const [heroLoad,  setHeroLoad]  = useState(true);
   const [progress,  setProgress]  = useState(0);
+  const [featAnim,  setFeatAnim]  = useState<"idle"|"exit"|"enter">("idle");
 
-  /* sections */
   const [sections,  setSections]  = useState<Section[]>([]);
   const [secLoad,   setSecLoad]   = useState(true);
 
@@ -83,7 +93,6 @@ export default function HomePage() {
   const progressRef = useRef<ReturnType<typeof setInterval>|null>(null);
   const t0Ref       = useRef(Date.now());
 
-  /* load hero */
   useEffect(() => {
     productsApi.list({ page: 1, per_page: 40 })
       .then(r => {
@@ -93,7 +102,6 @@ export default function HomePage() {
       .finally(() => setHeroLoad(false));
   }, []);
 
-  /* load sections */
   useEffect(() => {
     fetch(`${API}/api/homepage/sections`)
       .then(r => r.json())
@@ -102,25 +110,17 @@ export default function HomePage() {
       .finally(() => setSecLoad(false));
   }, []);
 
-  /* advance slide */
   const advance = useCallback((d: "next"|"prev" = "next") => {
     if (animating || heroProds.length < 4) return;
     setAnimating(true); setDir(d);
-    setCards(["exit","idle","idle","idle"]);
-    setTimeout(() => setCards(["exit","exit","idle","idle"]), 70);
-    setTimeout(() => setCards(["exit","exit","exit","idle"]), 140);
-    setTimeout(() => setCards(["exit","exit","exit","exit"]), 210);
+    setFeatAnim("exit");
     setTimeout(() => {
       setSlideIdx(p => d === "next" ? (p+1)%SLIDES.length : (p-1+SLIDES.length)%SLIDES.length);
-      setCards(["enter","idle","idle","idle"]);
-      setTimeout(() => setCards(["enter","enter","idle","idle"]), 90);
-      setTimeout(() => setCards(["enter","enter","enter","idle"]), 180);
-      setTimeout(() => setCards(["enter","enter","enter","enter"]), 270);
-      setTimeout(() => { setCards(["idle","idle","idle","idle"]); setAnimating(false); }, 700);
-    }, 440);
+      setFeatAnim("enter");
+      setTimeout(() => { setFeatAnim("idle"); setAnimating(false); }, 700);
+    }, 450);
   }, [animating, heroProds.length]);
 
-  /* timer */
   useEffect(() => {
     if (heroProds.length < 4) return;
     t0Ref.current = Date.now(); setProgress(0);
@@ -130,213 +130,398 @@ export default function HomePage() {
     timerRef.current = setInterval(() => {
       t0Ref.current = Date.now(); setProgress(0); advance("next");
     }, INTERVAL);
-    return () => {
-      clearInterval(timerRef.current!);
-      clearInterval(progressRef.current!);
-    };
+    return () => { clearInterval(timerRef.current!); clearInterval(progressRef.current!); };
   }, [heroProds.length, advance]);
 
-  /* hero product windows (4 at a time) */
+  /* Featured product = first of the current window */
   const heroWindow = heroProds.slice(slideIdx * 4, slideIdx * 4 + 4);
+  const featured   = heroWindow[0] ?? heroProds[0];
+  const side3      = heroWindow.slice(1, 4);
   const slide      = SLIDES[slideIdx];
 
-  /* ── RENDER ─────────────────────────────────────────────────── */
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", background: "#f5f3ef", minHeight: "100vh" }}>
+    <div style={{ fontFamily: "system-ui, sans-serif", background: "#f7f5f2", minHeight: "100vh" }}>
 
       {/* ── CSS ─────────────────────────────────────────────────── */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600&display=swap');
-        *{box-sizing:border-box}
-        ::-webkit-scrollbar{width:4px;height:4px}
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        ::-webkit-scrollbar{width:3px;height:3px}
         ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:rgba(200,167,90,.35);border-radius:4px}
+        ::-webkit-scrollbar-thumb{background:rgba(184,147,63,.3);border-radius:3px}
 
-        @keyframes slideUpFade  { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:none} }
-        @keyframes slideDownFade{ from{opacity:0;transform:translateY(-22px)} to{opacity:1;transform:none} }
-        @keyframes fadeIn       { from{opacity:0} to{opacity:1} }
-        @keyframes float1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(28px,-22px) scale(1.04)} 66%{transform:translate(-18px,14px) scale(.97)} }
-        @keyframes float2 { 0%,100%{transform:translate(0,0) scale(1)} 45%{transform:translate(-22px,-28px) scale(1.06)} 70%{transform:translate(18px,10px) scale(.96)} }
-        @keyframes float3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(14px,-22px)} }
-        @keyframes marquee{ from{transform:translateX(0)} to{transform:translateX(-33.333%)} }
-        @keyframes shimmer{ from{background-position:200% 0} to{background-position:-200% 0} }
-        @keyframes bounceY{ 0%,100%{transform:translateX(-50%) translateY(0);opacity:.5} 50%{transform:translateX(-50%) translateY(7px);opacity:1} }
-        @keyframes revealUp{ from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:none} }
-
-        @keyframes cardExitN  { from{opacity:1;transform:translateY(0) scale(1)}    to{opacity:0;transform:translateY(-20px) scale(.96)} }
-        @keyframes cardExitP  { from{opacity:1;transform:translateY(0) scale(1)}    to{opacity:0;transform:translateY(20px) scale(.96)} }
-        @keyframes cardEnterN { from{opacity:0;transform:translateY(20px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
-        @keyframes cardEnterP { from{opacity:0;transform:translateY(-20px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
-
-        .hcard:hover  { transform:translateY(-6px) scale(1.02)!important; box-shadow:0 20px 50px rgba(0,0,0,.5)!important; }
-        .pcard        { transition:transform .28s ease, box-shadow .28s ease; }
-        .pcard:hover  { transform:translateY(-5px)!important; box-shadow:0 12px 36px rgba(0,0,0,.13)!important; }
-        .pcard:hover .ptitle{ color:#0f3f2f!important; }
-        .pcard:hover .pimg  { transform:scale(1.05); }
-        .pimg         { transition:transform .4s ease; }
-
-        .scrollrow              { display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;scroll-behavior:smooth; }
-        .scrollrow::-webkit-scrollbar{ height:3px }
-        .scrollrow::-webkit-scrollbar-thumb{ background:rgba(200,167,90,.4);border-radius:3px }
-
-        .catpill:hover{ background:#0f3f2f!important;color:#fff!important;border-color:#0f3f2f!important; }
-        .arrowbtn:hover{ background:#0f3f2f!important;color:#fff!important;border-color:#0f3f2f!important; }
+        @keyframes fadeSlideUp   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:none} }
+        @keyframes fadeSlideDown { from{opacity:0;transform:translateY(-18px)} to{opacity:1;transform:none} }
+        @keyframes featExit      { from{opacity:1;transform:scale(1)} to{opacity:0;transform:scale(1.03)} }
+        @keyframes featEnter     { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} }
+        @keyframes marquee       { from{transform:translateX(0)} to{transform:translateX(-33.333%)} }
+        @keyframes shimmer       { from{background-position:200% 0} to{background-position:-200% 0} }
+        @keyframes float1        { 0%,100%{transform:translate(0,0)} 50%{transform:translate(20px,-16px)} }
+        @keyframes float2        { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-18px,14px)} }
+        @keyframes revealLeft    { from{opacity:0;transform:translateX(-24px)} to{opacity:1;transform:none} }
+        @keyframes sideCardIn    { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:none} }
+        @keyframes pulseRing     { 0%{transform:scale(.95);opacity:.7} 70%{transform:scale(1.08);opacity:0} 100%{opacity:0} }
 
         .shimbox{background:linear-gradient(90deg,#ece9e2 0%,#dedad2 50%,#ece9e2 100%);background-size:200% 100%;animation:shimmer 1.6s ease infinite;}
+
+        /* Featured hero card */
+        .feat-card { animation: none; transition: transform .5s ease, box-shadow .5s ease; }
+        .feat-card.exit { animation: featExit .45s cubic-bezier(.4,0,.6,1) both; }
+        .feat-card.enter { animation: featEnter .65s cubic-bezier(.2,.8,.3,1) both; }
+        .feat-card:hover .feat-img { transform: scale(1.04); }
+        .feat-img { transition: transform .7s cubic-bezier(.2,.8,.3,1); }
+
+        /* Side cards */
+        .scard { cursor:pointer; border-radius:12px; overflow:hidden; display:flex; background:#fff;
+          border:1px solid rgba(0,0,0,.06); transition:all .28s ease; position:relative; }
+        .scard:hover { transform:translateX(4px); box-shadow:0 8px 32px rgba(0,0,0,.1); }
+        .scard:hover .scard-img { transform:scale(1.06); }
+        .scard-img { transition:transform .4s ease; }
+
+        /* Magazine product cards */
+        .mcard { position:relative; border-radius:16px; overflow:hidden; cursor:pointer;
+          background:#fff; border:1px solid rgba(0,0,0,.07);
+          transition:all .38s cubic-bezier(.2,.8,.3,1); flex-shrink:0; }
+        .mcard:hover { transform:translateY(-8px); box-shadow:0 24px 56px rgba(0,0,0,.14); }
+        .mcard:hover .mcard-img { transform:scale(1.06); }
+        .mcard-img { transition:transform .55s ease; width:100%; height:100%; object-fit:cover; display:block; }
+        .mcard:hover .mcard-reveal { opacity:1; transform:translateY(0); }
+        .mcard-reveal { position:absolute; bottom:0; left:0; right:0; padding:20px 16px 18px;
+          background:linear-gradient(transparent,rgba(8,16,10,.85) 35%,rgba(4,8,6,.95));
+          transform:translateY(8px); opacity:.85; transition:all .35s ease; }
+
+        /* Scrollrow */
+        .scrollrow { display:flex; gap:16px; overflow-x:auto; padding-bottom:16px; scroll-behavior:smooth; }
+        .scrollrow::-webkit-scrollbar{ height:2px }
+        .scrollrow::-webkit-scrollbar-thumb{ background:rgba(184,147,63,.35);border-radius:2px }
+
+        /* Arrow buttons */
+        .arrowbtn { transition:all .18s ease !important; }
+        .arrowbtn:hover { background:#0f3f2f!important; color:#fff!important; border-color:#0f3f2f!important; }
+
+        /* View all link */
+        .viewall-link { transition:all .2s ease; }
+        .viewall-link:hover { background:#0f3f2f!important; color:#fff!important; border-color:#0f3f2f!important; }
+
+        /* End-of-row card */
+        .end-card { flex-shrink:0; border-radius:16px; border:1.5px dashed rgba(184,147,63,.35);
+          display:flex; flex-direction:column; align-items:center; justify-content:center;
+          gap:12px; text-decoration:none; padding:24px 20px; transition:all .25s ease; }
+        .end-card:hover { border-color:rgba(184,147,63,.7); background:rgba(184,147,63,.04)!important; }
+
+        /* Trust icons hover */
+        .trust-item { transition:transform .25s ease; }
+        .trust-item:hover { transform:translateY(-3px); }
+
+        /* Dot nav */
+        .dot-nav { width:7px; height:7px; border-radius:4px; border:none; cursor:pointer;
+          padding:0; transition:all .35s ease; }
       `}</style>
 
       {/* ══════════════════════════════════════════════════════════
-          HERO
+          HERO — CINEMATIC EDITORIAL LAYOUT
       ══════════════════════════════════════════════════════════ */}
       <section style={{
         position:"relative", overflow:"hidden",
-        minHeight:"clamp(480px,58vh,640px)",
-        background:"linear-gradient(155deg,#04080e 0%,#081428 30%,#06200f 65%,#030b05 100%)",
+        background:"linear-gradient(150deg,#04090d 0%,#071520 35%,#050e08 70%,#020608 100%)",
+        minHeight:"clamp(520px,62vh,720px)",
         display:"flex", flexDirection:"column",
       }}>
-        {/* grain */}
+        {/* grain overlay */}
         <div style={{position:"absolute",inset:0,zIndex:0,pointerEvents:"none",
-          backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E\")",
-          backgroundSize:"180px 180px",opacity:.7}} />
+          backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.032'/%3E%3C/svg%3E")`,
+          backgroundSize:"180px 180px", opacity:.8}} />
 
-        {/* orbs */}
-        <div style={{position:"absolute",top:"-8%",left:"2%",width:480,height:480,borderRadius:"50%",
-          background:"radial-gradient(circle,rgba(200,167,90,.1) 0%,transparent 70%)",
-          animation:"float1 14s ease-in-out infinite",zIndex:0}} />
-        <div style={{position:"absolute",bottom:"-12%",right:"5%",width:600,height:600,borderRadius:"50%",
-          background:"radial-gradient(circle,rgba(15,63,47,.28) 0%,transparent 70%)",
-          animation:"float2 18s ease-in-out infinite",zIndex:0}} />
-        <div style={{position:"absolute",top:"35%",right:"28%",width:220,height:220,borderRadius:"50%",
-          background:"radial-gradient(circle,rgba(200,167,90,.07) 0%,transparent 70%)",
-          animation:"float3 11s ease-in-out infinite",zIndex:0}} />
+        {/* ambient orbs */}
+        <div style={{position:"absolute",top:"-5%",left:"25%",width:500,height:500,borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(184,147,63,.09) 0%,transparent 70%)",
+          animation:"float1 16s ease-in-out infinite",zIndex:0,pointerEvents:"none"}} />
+        <div style={{position:"absolute",bottom:"-15%",right:"10%",width:650,height:650,borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(15,63,47,.22) 0%,transparent 70%)",
+          animation:"float2 20s ease-in-out infinite",zIndex:0,pointerEvents:"none"}} />
 
-        {/* gold diagonal line accent */}
-        <div style={{position:"absolute",top:0,right:"38%",width:1,height:"100%",
-          background:"linear-gradient(180deg,transparent,rgba(200,167,90,.15) 30%,rgba(200,167,90,.08) 70%,transparent)",
-          zIndex:0}} />
+        {/* vertical gold rule */}
+        <div style={{position:"absolute",top:0,left:"50%",width:1,height:"100%",
+          background:"linear-gradient(180deg,transparent,rgba(184,147,63,.12) 25%,rgba(184,147,63,.06) 75%,transparent)",
+          zIndex:0,pointerEvents:"none"}} />
 
-        {/* content */}
+        {/* content grid */}
         <div style={{
           position:"relative",zIndex:1,flex:1,
           maxWidth:1400,margin:"0 auto",width:"100%",
-          padding:"clamp(40px,6vw,88px) clamp(20px,4vw,60px)",
-          display:"grid",gridTemplateColumns:"auto 1fr",
-          gap:"clamp(32px,5vw,80px)",alignItems:"center",
+          padding:"clamp(36px,5vw,72px) clamp(20px,4vw,56px)",
+          display:"grid",
+          gridTemplateColumns:"minmax(0,1fr) minmax(0,1.35fr)",
+          gap:"clamp(28px,4vw,64px)",
+          alignItems:"center",
         }}>
-          {/* LEFT: text */}
-          <div style={{maxWidth:400}}>
-            {slide && !heroLoad ? (
-              <div key={slideIdx} style={{animation:"slideUpFade .55s ease both"}}>
-                {/* badge */}
-                <div style={{display:"inline-flex",alignItems:"center",gap:8,
-                  padding:"6px 16px",borderRadius:30,marginBottom:24,
-                  background:"rgba(200,167,90,.1)",border:"1px solid rgba(200,167,90,.22)"}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",background:"#c8a75a",display:"block"}} />
-                  <span style={{fontSize:10,fontWeight:600,color:"#c8a75a",letterSpacing:"2.5px",
-                    textTransform:"uppercase",fontFamily:"'Jost',system-ui,sans-serif"}}>Karabo Luxury</span>
-                </div>
 
-                {/* headline */}
+          {/* LEFT: copy + featured product */}
+          <div>
+            {/* text block */}
+            {!heroLoad && slide ? (
+              <div key={slideIdx} style={{animation:"revealLeft .55s ease both",marginBottom:32}}>
+                <div style={{display:"inline-flex",alignItems:"center",gap:9,marginBottom:22,
+                  padding:"5px 14px",borderRadius:30,
+                  background:"rgba(184,147,63,.1)",border:"1px solid rgba(184,147,63,.2)"}}>
+                  <span style={{width:5,height:5,borderRadius:"50%",background:"#b8933f",display:"block",
+                    boxShadow:"0 0 8px rgba(184,147,63,.6)"}} />
+                  <span style={{fontSize:9,fontWeight:600,color:"#b8933f",letterSpacing:"2.8px",
+                    textTransform:"uppercase",fontFamily:"'DM Sans',system-ui,sans-serif"}}>Karabo Boutique</span>
+                </div>
                 <h1 style={{
                   fontFamily:"'Cormorant Garamond',Georgia,serif",
-                  fontSize:"clamp(34px,5.5vw,66px)",fontWeight:600,
-                  color:"#fff",lineHeight:1.08,margin:"0 0 18px",
+                  fontSize:"clamp(32px,5vw,62px)",fontWeight:500,
+                  color:"#fff",lineHeight:1.07,margin:"0 0 14px",
                   whiteSpace:"pre-line",letterSpacing:"-0.02em",
                 }}>
                   {slide.headline}
                 </h1>
-
-                {/* sub */}
                 <p style={{
-                  fontFamily:"'Jost',system-ui,sans-serif",
-                  fontSize:"clamp(13px,1.6vw,16px)",color:"rgba(255,255,255,.6)",
-                  margin:"0 0 32px",lineHeight:1.7,
+                  fontFamily:"'DM Sans',system-ui,sans-serif",
+                  fontSize:"clamp(13px,1.5vw,15px)",color:"rgba(255,255,255,.5)",
+                  margin:"0 0 28px",lineHeight:1.75,fontWeight:300,
                 }}>
                   {slide.sub}
                 </p>
-
-                {/* CTAs */}
-                <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:36}}>
+                <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:32}}>
                   <Link href="/products" style={{
-                    padding:"13px 28px",borderRadius:50,
-                    background:"#c8a75a",color:"#08100a",
-                    fontWeight:600,fontSize:13,textDecoration:"none",
-                    fontFamily:"'Jost',system-ui,sans-serif",letterSpacing:.5,
-                    transition:"all .2s",boxShadow:"0 4px 20px rgba(200,167,90,.3)",
+                    padding:"12px 26px",borderRadius:50,
+                    background:"#b8933f",color:"#04090d",
+                    fontWeight:600,fontSize:12,textDecoration:"none",
+                    fontFamily:"'DM Sans',system-ui,sans-serif",letterSpacing:".8px",
+                    transition:"all .2s",boxShadow:"0 4px 24px rgba(184,147,63,.3)",
+                    textTransform:"uppercase",
                   }}>Shop Now</Link>
-                  <Link href="/products?sort=newest" style={{
-                    padding:"13px 28px",borderRadius:50,
-                    border:"1px solid rgba(255,255,255,.2)",
-                    color:"rgba(255,255,255,.85)",fontWeight:500,fontSize:13,
-                    textDecoration:"none",fontFamily:"'Jost',system-ui,sans-serif",letterSpacing:.5,
-                  }}>New Arrivals</Link>
+                  <Link href="/products" style={{
+                    padding:"12px 26px",borderRadius:50,
+                    border:"1px solid rgba(255,255,255,.15)",
+                    color:"rgba(255,255,255,.75)",fontWeight:400,fontSize:12,
+                    textDecoration:"none",fontFamily:"'DM Sans',system-ui,sans-serif",
+                    letterSpacing:".8px",textTransform:"uppercase",
+                    transition:"all .2s",
+                  }}>Explore All</Link>
                 </div>
-
-                {/* progress dots */}
+                {/* dot navigation */}
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   {SLIDES.map((_,i) => (
-                    <button key={i} onClick={() => {
+                    <button key={i} className="dot-nav" onClick={() => {
                       if (i===slideIdx||animating) return;
                       clearInterval(timerRef.current!); clearInterval(progressRef.current!);
                       t0Ref.current=Date.now(); setProgress(0);
                       advance(i>slideIdx?"next":"prev");
                     }} style={{
-                      width: i===slideIdx ? 28 : 7, height:7,
-                      borderRadius:4, border:"none", cursor:"pointer", padding:0,
-                      transition:"all .35s ease",
-                      background: i===slideIdx ? "#c8a75a" : "rgba(255,255,255,.22)",
+                      width: i===slideIdx ? 26 : 7,
+                      background: i===slideIdx ? "#b8933f" : "rgba(255,255,255,.2)",
                       position:"relative", overflow:"hidden",
                     }}>
                       {i===slideIdx && (
                         <span style={{
                           position:"absolute",top:0,left:0,height:"100%",
-                          width:`${progress}%`,
-                          background:"rgba(255,255,255,.3)",transition:"width 40ms linear",
+                          width:`${progress}%`, background:"rgba(255,255,255,.35)",
+                          transition:"width 40ms linear",
                         }} />
                       )}
+                    </button>
+                  ))}
+                  {/* nav arrows */}
+                  {([["prev","←"],["next","→"]] as const).map(([d,icon])=>(
+                    <button key={d} onClick={() => advance(d)} style={{
+                      marginLeft:4,width:30,height:30,borderRadius:"50%",
+                      border:"1px solid rgba(255,255,255,.15)",background:"transparent",
+                      color:"rgba(255,255,255,.55)",cursor:"pointer",fontSize:13,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      transition:"all .2s",fontFamily:"system-ui",
+                    }} onMouseEnter={e=>{(e.target as any).style.background="rgba(184,147,63,.15)";(e.target as any).style.borderColor="rgba(184,147,63,.4)";(e.target as any).style.color="#b8933f";}}
+                       onMouseLeave={e=>{(e.target as any).style.background="transparent";(e.target as any).style.borderColor="rgba(255,255,255,.15)";(e.target as any).style.color="rgba(255,255,255,.55)";}}>
+                      {icon}
                     </button>
                   ))}
                 </div>
               </div>
             ) : (
-              /* skeleton */
-              <div>
-                <div style={{height:16,width:120,borderRadius:8,marginBottom:24}} className="shimbox" />
-                <div style={{height:56,width:"80%",borderRadius:10,marginBottom:10}} className="shimbox" />
-                <div style={{height:56,width:"60%",borderRadius:10,marginBottom:20}} className="shimbox" />
+              <div style={{marginBottom:32}}>
+                <div style={{height:14,width:120,borderRadius:7,marginBottom:22}} className="shimbox" />
+                <div style={{height:52,width:"85%",borderRadius:8,marginBottom:8}} className="shimbox" />
+                <div style={{height:52,width:"65%",borderRadius:8,marginBottom:20}} className="shimbox" />
               </div>
             )}
+
+            {/* FEATURED PRODUCT — large cinematic card */}
+            {heroLoad ? (
+              <div style={{borderRadius:20,overflow:"hidden",height:260}} className="shimbox" />
+            ) : featured ? (
+              <div
+                className={`feat-card ${featAnim}`}
+                onClick={() => router.push(`/products/${featured.id}`)}
+                style={{
+                  borderRadius:20,overflow:"hidden",cursor:"pointer",
+                  position:"relative",
+                  boxShadow:"0 24px 64px rgba(0,0,0,.5)",
+                  height:"clamp(220px,22vw,300px)",
+                }}
+              >
+                {/* image */}
+                {(featured as any).main_image ? (
+                  <img
+                    src={(featured as any).main_image}
+                    alt={featured.title}
+                    className="feat-img"
+                    style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}
+                  />
+                ) : (
+                  <div style={{position:"absolute",inset:0,background:"rgba(15,26,58,.8)",
+                    display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <span style={{color:"rgba(255,255,255,.2)",fontSize:40,fontFamily:"'Cormorant Garamond',serif"}}>K</span>
+                  </div>
+                )}
+
+                {/* gradient overlay */}
+                <div style={{position:"absolute",inset:0,
+                  background:"linear-gradient(135deg,rgba(4,9,13,.7) 0%,transparent 50%,rgba(4,9,13,.4) 100%)"}} />
+
+                {/* discount badge */}
+                {(featured as any).compare_price && (featured as any).compare_price > featured.price && (
+                  <div style={{position:"absolute",top:14,right:14,
+                    background:"#b8933f",color:"#04090d",fontSize:10,fontWeight:700,
+                    padding:"4px 10px",borderRadius:20,fontFamily:"'DM Sans',system-ui,sans-serif",
+                    letterSpacing:.5}}>
+                    -{Math.round(((((featured as any).compare_price - featured.price) / (featured as any).compare_price)) * 100)}% OFF
+                  </div>
+                )}
+
+                {/* info overlay */}
+                <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"20px 20px 18px",
+                  background:"linear-gradient(transparent,rgba(4,9,13,.9))"}}>
+                  <div style={{fontSize:10,fontWeight:500,color:"rgba(255,255,255,.45)",
+                    fontFamily:"'DM Sans',system-ui,sans-serif",marginBottom:4,letterSpacing:.5,
+                    textTransform:"uppercase"}}>{(featured as any).category ?? "Featured"}</div>
+                  <div style={{fontSize:"clamp(13px,1.5vw,16px)",fontWeight:500,color:"#fff",
+                    fontFamily:"'Cormorant Garamond',Georgia,serif",
+                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:8}}>
+                    {featured.title}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:"clamp(14px,1.6vw,18px)",fontWeight:700,color:"#b8933f",
+                      fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+                      {formatCurrency(featured.price)}
+                    </span>
+                    {(featured as any).compare_price && (featured as any).compare_price > featured.price && (
+                      <span style={{fontSize:11,color:"rgba(255,255,255,.3)",textDecoration:"line-through",
+                        fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+                        {formatCurrency((featured as any).compare_price)}
+                      </span>
+                    )}
+                    <span style={{marginLeft:"auto",fontSize:10,color:"rgba(255,255,255,.45)",
+                      fontFamily:"'DM Sans',system-ui,sans-serif",letterSpacing:.3}}>
+                      View product →
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          {/* RIGHT: 2×2 product cards */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"clamp(10px,1.5vw,18px)"}}>
-            {heroLoad
-              ? Array.from({length:4}).map((_,i) => (
-                  <div key={i} style={{borderRadius:18,overflow:"hidden"}}>
-                    <div style={{paddingTop:"100%"}} className="shimbox" />
-                    <div style={{padding:12,background:"rgba(255,255,255,.04)"}}>
-                      <div style={{height:11,borderRadius:6,marginBottom:8,background:"rgba(255,255,255,.07)"}} />
-                      <div style={{height:15,width:"50%",borderRadius:6,background:"rgba(255,255,255,.05)"}} />
+          {/* RIGHT: 3 side trend cards */}
+          <div style={{display:"flex",flexDirection:"column",gap:"clamp(10px,1.5vw,16px)"}}>
+            {/* "Trending Now" label */}
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+              <div style={{width:18,height:1,background:"rgba(184,147,63,.4)"}} />
+              <span style={{fontSize:9,fontWeight:600,color:"rgba(184,147,63,.7)",letterSpacing:"2.5px",
+                textTransform:"uppercase",fontFamily:"'DM Sans',system-ui,sans-serif"}}>Trending Now</span>
+              <div style={{flex:1,height:1,background:"rgba(184,147,63,.15)"}} />
+            </div>
+
+            {heroLoad ? (
+              Array.from({length:3}).map((_,i)=>(
+                <div key={i} style={{borderRadius:12,overflow:"hidden",height:140}} className="shimbox" />
+              ))
+            ) : (
+              side3.map((p, i) => {
+                const disc = (p as any).compare_price && (p as any).compare_price > p.price
+                  ? Math.round((((p as any).compare_price - p.price)/(p as any).compare_price)*100) : null;
+                return (
+                  <div key={`${slideIdx}-side-${i}`} className="scard"
+                    onClick={() => router.push(`/products/${p.id}`)}
+                    style={{animation:`sideCardIn .5s ease ${i*.08+.1}s both`,height:140}}>
+                    {/* image */}
+                    <div style={{width:140,flexShrink:0,position:"relative",overflow:"hidden",
+                      background:"rgba(15,26,58,.8)"}}>
+                      {(p as any).main_image && (
+                        <img src={(p as any).main_image} alt={p.title} className="scard-img"
+                          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />
+                      )}
+                      {disc && (
+                        <div style={{position:"absolute",top:8,left:8,background:"#c62828",
+                          color:"#fff",fontSize:8,fontWeight:800,padding:"2px 7px",
+                          borderRadius:20,fontFamily:"'DM Sans',system-ui,sans-serif",letterSpacing:.4}}>
+                          -{disc}%
+                        </div>
+                      )}
+                    </div>
+                    {/* info */}
+                    <div style={{flex:1,padding:"16px 18px",display:"flex",flexDirection:"column",
+                      justifyContent:"space-between"}}>
+                      <div>
+                        <div style={{fontSize:9,fontWeight:500,color:"#9ca3af",marginBottom:6,
+                          fontFamily:"'DM Sans',system-ui,sans-serif",letterSpacing:.5,
+                          textTransform:"uppercase"}}>{(p as any).category ?? (p as any).brand ?? "Product"}</div>
+                        <div style={{fontSize:"clamp(13px,1.4vw,15px)",fontWeight:500,color:"#111",
+                          fontFamily:"'Cormorant Garamond',Georgia,serif",lineHeight:1.35,
+                          overflow:"hidden",display:"-webkit-box",
+                          WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
+                          {p.title}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8}}>
+                        <span style={{fontSize:15,fontWeight:700,color:"#0f3f2f",
+                          fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+                          {formatCurrency(p.price)}
+                        </span>
+                        {(p as any).compare_price && (p as any).compare_price > p.price && (
+                          <span style={{fontSize:10,color:"#9ca3af",textDecoration:"line-through",
+                            fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+                            {formatCurrency((p as any).compare_price)}
+                          </span>
+                        )}
+                        {(p as any).rating && (p as any).rating > 0 && (
+                          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:3}}>
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="#b8933f">
+                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                            <span style={{fontSize:10,color:"#6b7280",fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+                              {((p as any).rating as number).toFixed(1)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                ))
-              : heroWindow.length >= 4
-                ? heroWindow.map((p,i) => (
-                    <HeroCard key={`${slideIdx}-${p.id}`} p={p} state={cards[i]} dir={dir}
-                      onClick={() => router.push(`/products/${p.id}`)} />
-                  ))
-                : heroProds.slice(0,4).map((p,i) => (
-                    <HeroCard key={p.id} p={p} state="idle" dir="next"
-                      onClick={() => router.push(`/products/${p.id}`)} />
-                  ))
-            }
+                );
+              })
+            )}
+
+            {/* Shop all CTA */}
+            <Link href="/products" style={{
+              display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:4,
+              padding:"13px 0",borderRadius:12,textDecoration:"none",
+              border:"1px solid rgba(184,147,63,.25)",
+              color:"rgba(184,147,63,.8)",fontSize:11,fontWeight:600,letterSpacing:".8px",
+              fontFamily:"'DM Sans',system-ui,sans-serif",textTransform:"uppercase",
+              transition:"all .2s",background:"rgba(184,147,63,.04)",
+            }} onMouseEnter={e=>{(e.currentTarget as any).style.background="rgba(184,147,63,.1)";(e.currentTarget as any).style.borderColor="rgba(184,147,63,.5)";}}
+               onMouseLeave={e=>{(e.currentTarget as any).style.background="rgba(184,147,63,.04)";(e.currentTarget as any).style.borderColor="rgba(184,147,63,.25)";}}>
+              Explore all products
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+              </svg>
+            </Link>
           </div>
         </div>
 
-        {/* bounce arrow */}
-        <div style={{position:"absolute",bottom:22,left:"50%",zIndex:2,
-          animation:"bounceY 2.2s ease-in-out infinite"}}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {/* scroll cue */}
+        <div style={{position:"absolute",bottom:18,left:"50%",transform:"translateX(-50%)",zIndex:2}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 9l6 6 6-6"/>
           </svg>
         </div>
@@ -345,16 +530,16 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════════
           MARQUEE TRUST BAR
       ══════════════════════════════════════════════════════════ */}
-      <div style={{background:"#0f3f2f",overflow:"hidden"}}>
-        <div style={{display:"flex",animation:"marquee 30s linear infinite",width:"300%"}}>
+      <div style={{background:"#0f3f2f",overflow:"hidden",borderBottom:"1px solid rgba(255,255,255,.05)"}}>
+        <div style={{display:"flex",animation:"marquee 32s linear infinite",width:"300%"}}>
           {[0,1,2].map(gi => (
             <div key={gi} style={{display:"flex",flex:"0 0 33.333%",justifyContent:"space-around"}}>
               {["Free Delivery on Orders over M500","100% Authentic Products","Secure & Easy Checkout",
                 "7-Day Easy Returns","Premium Gift Packaging","Lesotho's Finest Boutique"].map((t,i) => (
-                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"11px 24px",whiteSpace:"nowrap"}}>
-                  <div style={{width:4,height:4,borderRadius:"50%",background:"#c8a75a",flexShrink:0}} />
-                  <span style={{fontSize:11,fontWeight:500,color:"rgba(255,255,255,.8)",
-                    letterSpacing:.6,fontFamily:"'Jost',system-ui,sans-serif"}}>{t}</span>
+                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 24px",whiteSpace:"nowrap"}}>
+                  <div style={{width:3,height:3,borderRadius:"50%",background:"#b8933f",flexShrink:0}} />
+                  <span style={{fontSize:10,fontWeight:400,color:"rgba(255,255,255,.7)",
+                    letterSpacing:".8px",fontFamily:"'DM Sans',system-ui,sans-serif",textTransform:"uppercase"}}>{t}</span>
                 </div>
               ))}
             </div>
@@ -363,32 +548,26 @@ export default function HomePage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          SECTIONS
+          SECTIONS — MAGAZINE EDITORIAL LAYOUT
       ══════════════════════════════════════════════════════════ */}
-      <div style={{paddingTop:"clamp(28px,4vw,48px)",paddingBottom:"clamp(48px,6vw,80px)"}}>
+      <div style={{paddingTop:"clamp(40px,5vw,64px)",paddingBottom:"clamp(56px,7vw,96px)"}}>
         {secLoad ? (
-          <div style={{maxWidth:1400,margin:"0 auto",padding:"0 clamp(16px,4vw,40px)"}}>
+          <div style={{maxWidth:1400,margin:"0 auto",padding:"0 clamp(16px,4vw,48px)"}}>
             {[0,1,2].map(si => (
-              <div key={si} style={{marginBottom:48}}>
-                <div style={{height:22,width:200,borderRadius:8,marginBottom:8}} className="shimbox" />
-                <div style={{height:14,width:300,borderRadius:6,marginBottom:20}} className="shimbox" />
-                <div style={{display:"flex",gap:14,overflow:"hidden"}}>
+              <div key={si} style={{marginBottom:56}}>
+                <div style={{height:18,width:180,borderRadius:6,marginBottom:8}} className="shimbox" />
+                <div style={{height:1,marginBottom:20,background:"#e8e4dc"}} />
+                <div style={{display:"flex",gap:16,overflow:"hidden"}}>
                   {Array.from({length:5}).map((_,i) => (
-                    <div key={i} style={{flexShrink:0,width:190,borderRadius:14,overflow:"hidden"}}>
-                      <div style={{paddingTop:"100%"}} className="shimbox" />
-                      <div style={{padding:12,background:"#ede9e2"}}>
-                        <div style={{height:12,borderRadius:6,marginBottom:6}} className="shimbox" />
-                        <div style={{height:16,width:"55%",borderRadius:6}} className="shimbox" />
-                      </div>
-                    </div>
+                    <div key={i} style={{flexShrink:0,width:210,borderRadius:16,overflow:"hidden",height:300}} className="shimbox" />
                   ))}
                 </div>
               </div>
             ))}
           </div>
         ) : sections.length === 0 ? (
-          <div style={{textAlign:"center",padding:"80px 20px",color:"#9ca3af",
-            fontFamily:"'Jost',system-ui,sans-serif"}}>
+          <div style={{textAlign:"center",padding:"100px 20px",color:"#9ca3af",
+            fontFamily:"'DM Sans',system-ui,sans-serif"}}>
             <p>Add products to your store — sections will appear automatically.</p>
           </div>
         ) : (
@@ -402,22 +581,23 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════════
           TRUST BLOCK
       ══════════════════════════════════════════════════════════ */}
-      <section style={{background:"#fff",borderTop:"1px solid #e8e4dc"}}>
+      <section style={{background:"#fff",borderTop:"1px solid #ede9e2"}}>
         <div style={{maxWidth:1400,margin:"0 auto",
-          padding:"clamp(36px,5vw,64px) clamp(20px,4vw,60px)",
+          padding:"clamp(40px,5vw,72px) clamp(20px,4vw,56px)",
           display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",
-          gap:"clamp(20px,3vw,40px)"}}>
+          gap:"clamp(24px,3vw,48px)"}}>
           {[
             { icon:<TIcon t="delivery"/>, t:"Free Delivery", d:"On all orders above M500" },
-            { icon:<TIcon t="auth"/>,     t:"100% Authentic", d:"Every product verified" },
+            { icon:<TIcon t="auth"/>,     t:"100% Authentic", d:"Every product verified & certified" },
             { icon:<TIcon t="returns"/>,  t:"Easy Returns",   d:"7-day hassle-free returns" },
-            { icon:<TIcon t="secure"/>,   t:"Secure Payment", d:"Fully protected transactions" },
+            { icon:<TIcon t="secure"/>,   t:"Secure Payment", d:"Fully encrypted transactions" },
           ].map(b => (
-            <div key={b.t} style={{textAlign:"center",padding:"20px 10px"}}>
-              <div style={{display:"flex",justifyContent:"center",marginBottom:14,color:"#0f3f2f"}}>{b.icon}</div>
-              <div style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:5,
-                fontFamily:"'Jost',system-ui,sans-serif"}}>{b.t}</div>
-              <div style={{fontSize:12,color:"#6b7280",fontFamily:"'Jost',system-ui,sans-serif",lineHeight:1.5}}>{b.d}</div>
+            <div key={b.t} className="trust-item" style={{textAlign:"center",padding:"24px 16px",
+              borderRadius:16,border:"1px solid transparent",transition:"all .25s ease",cursor:"default"}}>
+              <div style={{display:"flex",justifyContent:"center",marginBottom:16,color:"#0f3f2f"}}>{b.icon}</div>
+              <div style={{fontSize:13,fontWeight:600,color:"#0f172a",marginBottom:6,
+                fontFamily:"'DM Sans',system-ui,sans-serif",letterSpacing:".2px"}}>{b.t}</div>
+              <div style={{fontSize:12,color:"#9ca3af",fontFamily:"'DM Sans',system-ui,sans-serif",lineHeight:1.6,fontWeight:300}}>{b.d}</div>
             </div>
           ))}
         </div>
@@ -427,7 +607,7 @@ export default function HomePage() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SECTION ROW
+   SECTION ROW — MAGAZINE EDITORIAL CARDS
 ══════════════════════════════════════════════════════════════════ */
 function SectionRow({ sec, delay, onProductClick }: {
   sec: Section; delay: number; onProductClick: (id:string)=>void;
@@ -436,96 +616,99 @@ function SectionRow({ sec, delay, onProductClick }: {
   const rowRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const th = THEME[sec.theme] ?? THEME.forest;
+  const href = safeViewAll(sec.view_all);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const obs = new IntersectionObserver(([e]) => {
       if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
-    }, { threshold: 0.08 });
+    }, { threshold: 0.06 });
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
   const scroll = (dir: "l"|"r") => {
-    rowRef.current?.scrollBy({ left: dir==="r" ? 220 : -220, behavior:"smooth" });
+    rowRef.current?.scrollBy({ left: dir==="r" ? 240 : -240, behavior:"smooth" });
   };
 
   return (
     <div ref={ref} style={{
-      marginBottom:"clamp(28px,4vw,48px)",
+      marginBottom:"clamp(40px,5vw,64px)",
       opacity: visible ? 1 : 0,
-      transform: visible ? "none" : "translateY(28px)",
-      transition:`opacity .55s ease ${delay}s, transform .55s ease ${delay}s`,
+      transform: visible ? "none" : "translateY(32px)",
+      transition:`opacity .6s ease ${delay}s, transform .6s ease ${delay}s`,
     }}>
-      <div style={{maxWidth:1400,margin:"0 auto",padding:"0 clamp(16px,4vw,40px)"}}>
+      <div style={{maxWidth:1400,margin:"0 auto",padding:"0 clamp(16px,4vw,48px)"}}>
 
-        {/* header */}
+        {/* section header */}
         <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",
-          marginBottom:14,flexWrap:"wrap",gap:8}}>
+          marginBottom:16,flexWrap:"wrap",gap:12}}>
           <div>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-              <h2 style={{
-                fontFamily:"'Cormorant Garamond',Georgia,serif",
-                fontSize:"clamp(20px,2.8vw,30px)",fontWeight:600,
-                color:"#0f172a",margin:0,letterSpacing:"-0.02em",
-              }}>{sec.title}</h2>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:4}}>
               {sec.badge && (
                 <span style={{
-                  fontSize:9,fontWeight:800,padding:"3px 9px",borderRadius:20,
-                  background:th.accent,color:"#fff",letterSpacing:.8,
-                  fontFamily:"'Jost',system-ui,sans-serif",
+                  fontSize:8,fontWeight:800,padding:"3px 10px",borderRadius:20,
+                  background:th.accent,color:"#fff",letterSpacing:"1.2px",
+                  fontFamily:"'DM Sans',system-ui,sans-serif",textTransform:"uppercase",
                 }}>{sec.badge}</span>
               )}
+              <h2 style={{
+                fontFamily:"'Cormorant Garamond',Georgia,serif",
+                fontSize:"clamp(22px,3vw,32px)",fontWeight:500,
+                color:"#0f172a",margin:0,letterSpacing:"-0.02em",
+              }}>{sec.title}</h2>
             </div>
-            <p style={{fontSize:11,color:"#6b7280",margin:0,fontFamily:"'Jost',system-ui,sans-serif"}}>{sec.subtitle}</p>
+            <p style={{fontSize:11,color:"#9ca3af",margin:0,fontFamily:"'DM Sans',system-ui,sans-serif",
+              fontWeight:300,letterSpacing:".3px"}}>{sec.subtitle}</p>
           </div>
+
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             {(["l","r"] as const).map(d => (
               <button key={d} className="arrowbtn" onClick={()=>scroll(d)} style={{
-                width:34,height:34,borderRadius:"50%",
+                width:32,height:32,borderRadius:"50%",
                 border:"1px solid #ddd6cc",background:"#fff",
                 cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
-                color:"#6b7280",transition:"all .18s",
+                color:"#9ca3af",
               }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   {d==="l" ? <path d="M15 18l-6-6 6-6"/> : <path d="M9 18l6-6-6-6"/>}
                 </svg>
               </button>
             ))}
-            <Link href={sec.view_all} style={{
-              fontSize:11,fontWeight:600,color:th.accent,textDecoration:"none",
-              padding:"6px 14px",border:`1px solid ${th.accent}`,borderRadius:20,
-              fontFamily:"'Jost',system-ui,sans-serif",whiteSpace:"nowrap",transition:"all .18s",
-            }}>View all →</Link>
+            <Link href={href} className="viewall-link" style={{
+              fontSize:10,fontWeight:600,color:th.accent,textDecoration:"none",
+              padding:"7px 16px",border:`1px solid ${th.accent}`,borderRadius:20,
+              fontFamily:"'DM Sans',system-ui,sans-serif",whiteSpace:"nowrap",
+              letterSpacing:".6px",textTransform:"uppercase",
+            }}>View all</Link>
           </div>
         </div>
 
-        {/* gold gradient rule */}
-        <div style={{height:2,marginBottom:16,borderRadius:1,
-          background:`linear-gradient(90deg,${th.accent} 0%,${th.light.replace(")","").replace("rgba","rgb").replace(",0.",")")||"transparent"} 60%,transparent 100%)`}} />
+        {/* thin accent rule */}
+        <div style={{height:1,marginBottom:20,
+          background:`linear-gradient(90deg,${th.accent} 0%,rgba(0,0,0,.04) 50%,transparent 100%)`}} />
 
-        {/* scrollable row */}
+        {/* scrollable row of magazine cards */}
         <div ref={rowRef} className="scrollrow">
           {sec.products.map((p, i) => (
-            <ProductCard key={p.id} p={p} idx={i} theme={th} onClick={() => onProductClick(p.id)} />
+            <MagazineCard key={p.id} p={p} idx={i} theme={th} onClick={() => onProductClick(p.id)} />
           ))}
-          {/* view-all end card */}
-          <Link href={sec.view_all} style={{
-            flexShrink:0,width:160,borderRadius:14,
-            border:"1.5px dashed #ccc6bc",display:"flex",
-            flexDirection:"column",alignItems:"center",justifyContent:"center",
-            gap:10,textDecoration:"none",color:th.accent,padding:20,
-            background:th.light,transition:"all .2s",
+
+          {/* end card */}
+          <Link href={href} className="end-card" style={{
+            width:180,color:th.accent,background:"transparent",
           }}>
-            <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(0,0,0,.06)",
-              display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div style={{width:40,height:40,borderRadius:"50%",
+              border:`1.5px solid ${th.accent}`,display:"flex",
+              alignItems:"center",justifyContent:"center",opacity:.7}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
               </svg>
             </div>
-            <span style={{fontSize:11,fontWeight:600,textAlign:"center",
-              fontFamily:"'Jost',system-ui,sans-serif",lineHeight:1.4}}>
+            <span style={{fontSize:10,fontWeight:600,textAlign:"center",
+              fontFamily:"'DM Sans',system-ui,sans-serif",lineHeight:1.5,
+              letterSpacing:".6px",textTransform:"uppercase",opacity:.8}}>
               See all<br/>{sec.title}
             </span>
           </Link>
@@ -536,148 +719,106 @@ function SectionRow({ sec, delay, onProductClick }: {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   PRODUCT CARD
+   MAGAZINE CARD — tall portrait, editorial hover reveal
 ══════════════════════════════════════════════════════════════════ */
-function ProductCard({ p, idx, theme, onClick }: {
+function MagazineCard({ p, idx, theme, onClick }: {
   p: HP; idx: number; theme: typeof THEME[string]; onClick:()=>void;
 }) {
   const [err, setErr] = useState(false);
+  const disc = p.discount_pct && p.discount_pct > 0 ? p.discount_pct
+    : (p.compare_price && p.compare_price > p.price
+        ? Math.round(((p.compare_price - p.price)/p.compare_price)*100) : null);
+
   return (
-    <div className="pcard" onClick={onClick} style={{
-      flexShrink:0, width:186, borderRadius:14, overflow:"hidden",
-      background:"#fff", border:"1px solid #eae6df",
-      cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.05)",
-      animation:`slideUpFade .4s ease ${idx*.03}s both`,
+    <div className="mcard" onClick={onClick} style={{
+      width:200,
+      animation:`fadeSlideUp .45s ease ${idx*.04}s both`,
     }}>
-      {/* image */}
-      <div style={{position:"relative",paddingTop:"100%",background:"#f5f3ef",overflow:"hidden"}}>
+      {/* image area — tall portrait */}
+      <div style={{position:"relative",height:240,background:"#f0ede8",overflow:"hidden"}}>
         {p.main_image && !err
-          ? <img src={p.main_image} alt={p.title} onError={()=>setErr(true)}
-              className="pimg"
+          ? <img src={p.main_image} alt={p.title} className="mcard-img"
+              onError={()=>setErr(true)}
               style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />
-          : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ccc5b9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",
+              justifyContent:"center",flexDirection:"column",gap:6}}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc5b9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
               </svg>
             </div>
         }
-        {p.discount_pct && p.discount_pct > 0 && (
-          <div style={{position:"absolute",top:8,left:8,background:"#e53935",
-            color:"#fff",fontSize:9,fontWeight:800,padding:"2px 8px",
-            borderRadius:20,fontFamily:"'Jost',system-ui,sans-serif",letterSpacing:.4}}>
-            -{p.discount_pct}%
-          </div>
-        )}
-        {!p.in_stock && (
-          <div style={{position:"absolute",inset:0,background:"rgba(255,255,255,.65)",
-            display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <span style={{fontSize:10,fontWeight:700,color:"#6b7280",
-              background:"#fff",padding:"3px 9px",borderRadius:8,
-              fontFamily:"'Jost',system-ui,sans-serif"}}>Out of stock</span>
-          </div>
-        )}
-      </div>
 
-      {/* info */}
-      <div style={{padding:"12px 13px 15px"}}>
-        <p className="ptitle" style={{
-          fontFamily:"'Jost',system-ui,sans-serif",
-          fontSize:12,fontWeight:500,color:"#1c1917",
-          margin:"0 0 6px",lineHeight:1.35,
-          overflow:"hidden",display:"-webkit-box",
-          WebkitLineClamp:2,WebkitBoxOrient:"vertical",
-          transition:"color .15s",
-        }}>{p.title}</p>
-
-        {/* stars */}
-        {p.rating && p.rating > 0 && (
-          <div style={{display:"flex",alignItems:"center",gap:3,marginBottom:6}}>
-            <div style={{display:"flex",gap:1}}>
-              {[1,2,3,4,5].map(s => (
-                <svg key={s} width="9" height="9" viewBox="0 0 24 24"
-                  fill={s<=Math.round(p.rating!) ? "#c8a75a" : "#e2ddd6"}>
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-              ))}
-            </div>
-            {(p.rating_number ?? 0) > 0 && (
-              <span style={{fontSize:9,color:"#9ca3af",fontFamily:"'Jost',system-ui,sans-serif"}}>
-                ({p.rating_number})
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* price */}
-        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-          <span style={{fontSize:15,fontWeight:800,color:"#0f3f2f",
-            fontFamily:"'Jost',system-ui,sans-serif"}}>
-            {formatCurrency(p.price)}
-          </span>
-          {p.compare_price && p.compare_price > p.price && (
-            <span style={{fontSize:10,color:"#9ca3af",textDecoration:"line-through",
-              fontFamily:"'Jost',system-ui,sans-serif"}}>
-              {formatCurrency(p.compare_price)}
-            </span>
+        {/* top badges */}
+        <div style={{position:"absolute",top:10,left:10,right:10,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          {disc && disc > 0 ? (
+            <div style={{background:"#c62828",color:"#fff",fontSize:8,fontWeight:800,
+              padding:"3px 8px",borderRadius:20,fontFamily:"'DM Sans',system-ui,sans-serif",
+              letterSpacing:.5}}>−{disc}%</div>
+          ) : <div />}
+          {!p.in_stock && (
+            <div style={{background:"rgba(0,0,0,.55)",backdropFilter:"blur(4px)",color:"#fff",
+              fontSize:8,fontWeight:600,padding:"3px 8px",borderRadius:20,
+              fontFamily:"'DM Sans',system-ui,sans-serif",letterSpacing:.5}}>Sold out</div>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
 
-/* ══════════════════════════════════════════════════════════════════
-   HERO CARD
-══════════════════════════════════════════════════════════════════ */
-function HeroCard({ p, state, dir, onClick }: {
-  p: ProductListItem; state:"idle"|"exit"|"enter"; dir:"next"|"prev"; onClick:()=>void;
-}) {
-  const anim = {
-    exit:  dir==="next" ? "cardExitN" : "cardExitP",
-    enter: dir==="next" ? "cardEnterN" : "cardEnterP",
-    idle:  "none",
-  }[state];
-
-  const disc = p.compare_price && p.compare_price > p.price
-    ? Math.round(((p.compare_price - p.price)/p.compare_price)*100) : null;
-
-  return (
-    <div className="hcard" onClick={onClick} style={{
-      borderRadius:18,overflow:"hidden",cursor:"pointer",
-      background:"rgba(255,255,255,.07)",backdropFilter:"blur(18px)",
-      border:"1px solid rgba(255,255,255,.1)",
-      boxShadow:"0 16px 40px rgba(0,0,0,.4)",
-      transition:"transform .3s ease,box-shadow .3s ease",
-      animation:`${anim} .45s cubic-bezier(.4,0,.2,1) both`,
-    }}>
-      <div style={{position:"relative",paddingTop:"100%",background:"rgba(15,26,58,.8)"}}>
-        {p.main_image && (
-          <img src={p.main_image} alt={p.title}
-            style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />
-        )}
-        <div style={{position:"absolute",bottom:0,left:0,right:0,height:"55%",
-          background:"linear-gradient(transparent,rgba(0,0,0,.65))"}} />
-        {disc && (
-          <div style={{position:"absolute",top:10,left:10,background:"#c8a75a",
-            color:"#08100a",fontSize:9,fontWeight:800,padding:"2px 8px",
-            borderRadius:99,fontFamily:"'Jost',system-ui,sans-serif",letterSpacing:.5}}>
-            -{disc}%
+        {/* hover reveal — slides up from bottom */}
+        <div className="mcard-reveal">
+          <div style={{fontSize:9,fontWeight:500,color:"rgba(255,255,255,.5)",
+            fontFamily:"'DM Sans',system-ui,sans-serif",marginBottom:4,letterSpacing:".5px",
+            textTransform:"uppercase"}}>{p.category ?? p.brand ?? ""}</div>
+          <div style={{fontSize:13,fontWeight:400,color:"#fff",
+            fontFamily:"'Cormorant Garamond',Georgia,serif",lineHeight:1.3,
+            overflow:"hidden",display:"-webkit-box",
+            WebkitLineClamp:2,WebkitBoxOrient:"vertical",marginBottom:10}}>
+            {p.title}
           </div>
-        )}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:7}}>
+              <span style={{fontSize:14,fontWeight:700,color:"#b8933f",
+                fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+                {formatCurrency(p.price)}
+              </span>
+              {p.compare_price && p.compare_price > p.price && (
+                <span style={{fontSize:9,color:"rgba(255,255,255,.3)",textDecoration:"line-through",
+                  fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+                  {formatCurrency(p.compare_price)}
+                </span>
+              )}
+            </div>
+            {p.rating && p.rating > 0 && (
+              <div style={{display:"flex",alignItems:"center",gap:3}}>
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="#b8933f">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                <span style={{fontSize:9,color:"rgba(255,255,255,.55)",fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+                  {p.rating.toFixed(1)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-      <div style={{padding:"clamp(10px,1.4vw,14px)"}}>
-        <div style={{fontSize:"clamp(10px,1.1vw,12px)",fontWeight:500,
-          color:"rgba(255,255,255,.88)",overflow:"hidden",textOverflow:"ellipsis",
-          whiteSpace:"nowrap",marginBottom:4,fontFamily:"'Jost',system-ui,sans-serif"}}>
+
+      {/* card bottom info — visible always */}
+      <div style={{padding:"12px 14px 14px"}}>
+        <div style={{fontSize:10,fontWeight:400,color:"#b0a99f",
+          fontFamily:"'DM Sans',system-ui,sans-serif",marginBottom:3,letterSpacing:".4px",
+          textTransform:"uppercase"}}>{p.brand ?? p.category ?? ""}</div>
+        <div style={{fontSize:13,fontWeight:400,color:"#1c1917",
+          fontFamily:"'Cormorant Garamond',Georgia,serif",lineHeight:1.35,
+          overflow:"hidden",display:"-webkit-box",
+          WebkitLineClamp:2,WebkitBoxOrient:"vertical",marginBottom:8}}>
           {p.title}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:7}}>
-          <span style={{fontSize:"clamp(12px,1.4vw,16px)",fontWeight:800,color:"#c8a75a"}}>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <span style={{fontSize:14,fontWeight:700,color:"#0f3f2f",
+            fontFamily:"'DM Sans',system-ui,sans-serif"}}>
             {formatCurrency(p.price)}
           </span>
           {p.compare_price && p.compare_price > p.price && (
-            <span style={{fontSize:10,color:"rgba(255,255,255,.35)",
-              textDecoration:"line-through",fontFamily:"'Jost',system-ui,sans-serif"}}>
+            <span style={{fontSize:10,color:"#b0a99f",textDecoration:"line-through",
+              fontFamily:"'DM Sans',system-ui,sans-serif"}}>
               {formatCurrency(p.compare_price)}
             </span>
           )}
@@ -692,10 +833,10 @@ function HeroCard({ p, state, dir, onClick }: {
 ══════════════════════════════════════════════════════════════════ */
 function TIcon({ t }: { t:string }) {
   const icons: Record<string,React.ReactNode> = {
-    delivery:<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
-    auth:    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>,
-    returns: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8C5.5 4 10 2 14 2c5.5 0 10 4.5 10 10s-4.5 10-10 10c-4 0-7.5-2-9.5-5"/></svg>,
-    secure:  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+    delivery:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+    auth:    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>,
+    returns: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8C5.5 4 10 2 14 2c5.5 0 10 4.5 10 10s-4.5 10-10 10c-4 0-7.5-2-9.5-5"/></svg>,
+    secure:  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
   };
   return <>{icons[t]??null}</>;
 }
