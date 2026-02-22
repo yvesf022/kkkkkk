@@ -45,6 +45,7 @@ type BatchRow = {
   result: ReturnType<typeof calculatePrice> | null;
   status: "idle" | "saving" | "saved" | "error";
   errorMsg?: string;
+  imgErr?: boolean;
 };
 
 // ════════════════════════════════════════════════════════════════════
@@ -108,6 +109,10 @@ export default function AdminPricingPage() {
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveRate]);
+
+  const setImgErr = (idx: number) => {
+    setRows(prev => prev.map((row, i) => i === idx ? { ...row, imgErr: true } : row));
+  };
 
   const updateRow = (idx: number, val: string) => {
     setRows(prev => prev.map((row, i) => {
@@ -411,7 +416,7 @@ export default function AdminPricingPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: C.surface }}>
-                      {["Product", "Current Price (M)", "Market Price (₹)", "Cost (₹)", "→ Final Price (M)", "Compare (M)", "Discount", "Action"].map(h => (
+                      {["Product", "Current (M)", "Market Price (₹)", "Cost (₹)", "→ Final (M)", "Compare (M)", "Discount", "Action"].map(h => (
                         <th key={h} style={{
                           padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700,
                           color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px",
@@ -431,13 +436,56 @@ export default function AdminPricingPage() {
                       const totalInr = row.result ? row.result.total_cost_inr : null;
                       return (
                         <tr key={row.product.id} style={{ background: bg, transition: "background 0.25s" }}>
-                          <td style={tdStyle}>
-                            <div style={{ fontWeight: 600, fontSize: 13, color: C.text, maxWidth: 220 }}>{row.product.title}</div>
-                            {(row.product.brand || row.product.category) && (
-                              <div style={{ fontSize: 11, color: C.faint, marginTop: 2 }}>
-                                {[row.product.brand, row.product.category].filter(Boolean).join(" · ")}
+                          <td style={{ ...tdStyle, minWidth: 280 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              {/* Product image */}
+                              <div style={{
+                                width: 64, height: 64, flexShrink: 0,
+                                borderRadius: 10, overflow: "hidden",
+                                border: `1px solid ${C.border}`,
+                                background: C.surface,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+                              }}>
+                                {(row.product as any).main_image && !row.imgErr ? (
+                                  <img
+                                    src={(row.product as any).main_image}
+                                    alt={row.product.title}
+                                    onError={() => setImgErr(idx)}
+                                    style={{
+                                      width: "100%", height: "100%",
+                                      objectFit: "cover", display: "block",
+                                    }}
+                                  />
+                                ) : (
+                                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                    stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="3"/>
+                                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                                    <path d="M21 15l-5-5L5 21"/>
+                                  </svg>
+                                )}
                               </div>
-                            )}
+                              {/* Text */}
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{
+                                  fontWeight: 600, fontSize: 13, color: C.text,
+                                  maxWidth: 200, lineHeight: 1.35,
+                                  overflow: "hidden", display: "-webkit-box",
+                                  WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                                }}>
+                                  {row.product.title}
+                                </div>
+                                {(row.product.brand || row.product.category) && (
+                                  <div style={{ fontSize: 11, color: C.faint, marginTop: 3 }}>
+                                    {[row.product.brand, row.product.category].filter(Boolean).join(" · ")}
+                                  </div>
+                                )}
+                                {!(row.product as any).main_image && (
+                                  <div style={{ fontSize: 10, color: C.warn, marginTop: 2 }}>No image</div>
+                                )}
+                              </div>
+                            </div>
                           </td>
                           <td style={tdStyle}>
                             <span style={{ color: C.muted, fontSize: 13 }}>
@@ -529,6 +577,6 @@ function btnStyle(bg: string, disabled = false): React.CSSProperties {
 }
 
 const tdStyle: React.CSSProperties = {
-  padding: "11px 14px", fontSize: 13,
+  padding: "12px 14px", fontSize: 13,
   borderBottom: "1px solid #f1f5f9", verticalAlign: "middle",
 };
