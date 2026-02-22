@@ -1,9 +1,11 @@
 "use client";
 
+// FILE: app/admin/page.tsx  (Admin Dashboard)
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { adminApi, ordersApi, paymentsApi } from "@/lib/api";
-import { C, StatCard, Card, CardHeader, Badge, Btn, Table, TR, TD, fmtMoney, fmtNum, fmtDateTime, shortId, Skeleton, PageTitle } from "@/components/admin/AdminUI";
+import { adminApi, ordersApi, paymentsApi, calculatePrice, exchangeApi } from "@/lib/api";
+import { C, StatCard, Card, CardHeader, Badge, Btn, Table, TR, TD, fmtMoney, fmtNum, fmtDateTime, shortId, Skeleton } from "@/components/admin/AdminUI";
 
 type Stats = {
   total_products: number;
@@ -16,6 +18,131 @@ type Stats = {
   revenue_this_month: number;
 };
 
+// ── Quick Pricing Calculator (self-contained widget) ──────────────
+function PricingWidget() {
+  const [rate, setRate]       = useState(0.21);
+  const [rateSrc, setRateSrc] = useState<"live" | "fallback">("fallback");
+  const [market, setMarket]   = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    exchangeApi.getINRtoLSL().then(({ rate: r, source }) => {
+      setRate(r);
+      setRateSrc(source);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const val    = parseFloat(market) || 0;
+  const result = val > 0 ? calculatePrice({ market_price_inr: val, exchange_rate: rate }) : null;
+
+  return (
+    <Card style={{ marginBottom: 20, borderLeft: `4px solid ${C.navy}` }}>
+      <CardHeader
+        title="💰 Quick Price Calculator"
+        action={
+          <Link href="/admin/pricing" style={{ fontSize: 12, color: C.accent, textDecoration: "none", fontWeight: 600 }}>
+            Full Pricing Manager →
+          </Link>
+        }
+      />
+
+      {/* Rate indicator */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, fontSize: 12, color: C.muted }}>
+        <span style={{
+          display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+          background: loading ? "#94a3b8" : rateSrc === "live" ? "#22c55e" : "#f59e0b",
+        }} />
+        {loading ? "Fetching exchange rate…"
+          : rateSrc === "live"
+            ? `Live rate: 1 ₹ = M ${rate.toFixed(4)}`
+            : `Fallback rate: 1 ₹ = M ${rate.toFixed(4)} (live fetch failed)`}
+      </div>
+
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+        {/* Input */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 180px" }}>
+          <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Market Price in India (₹)
+          </label>
+          <input
+            type="number"
+            value={market}
+            onChange={e => setMarket(e.target.value)}
+            placeholder="e.g. 2499"
+            style={{
+              padding: "9px 12px", borderRadius: 8, border: `1px solid ${C.border}`,
+              fontSize: 16, fontWeight: 700, color: C.text, width: "100%", minHeight: "unset",
+              outline: "none",
+            }}
+          />
+        </div>
+
+        {/* Fixed costs reminder */}
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, flex: 1, minWidth: 160 }}>
+          <div>+ ₹700 <span style={{ color: C.faint }}>shipping</span></div>
+          <div>+ ₹500 <span style={{ color: C.faint }}>company profit</span></div>
+          <div>× M {rate.toFixed(4)} <span style={{ color: C.faint }}>exchange</span></div>
+        </div>
+
+        {/* Result */}
+        {result ? (
+          <div style={{
+            flex: 1, minWidth: 200,
+            background: "linear-gradient(135deg, #0f3f2f, #1b5e4a)",
+            borderRadius: 12, padding: "14px 18px", color: "#fff",
+          }}>
+            <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>FINAL PRICE</div>
+            <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: -0.5, lineHeight: 1 }}>
+              M {result.final_price_lsl.toFixed(2)}
+            </div>
+            <div style={{ fontSize: 12, opacity: 0.65, marginTop: 4 }}>
+              Compare: <s>M {result.compare_price_lsl.toFixed(2)}</s> · {result.discount_pct}% off
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            flex: 1, minWidth: 200, border: `2px dashed ${C.border}`,
+            borderRadius: 12, padding: "14px 18px", color: C.faint,
+            fontSize: 13, textAlign: "center",
+          }}>
+            Enter a market price to see the Maloti price
+          </div>
+        )}
+      </div>
+
+      {/* Breakdown when filled */}
+      {result && (
+        <div style={{
+          marginTop: 14, padding: "10px 14px",
+          background: C.surface, borderRadius: 8, fontSize: 12, color: C.muted,
+          display: "flex", gap: 20, flexWrap: "wrap",
+        }}>
+          <span>₹{val.toLocaleString()} market</span>
+          <span>+ ₹700 shipping</span>
+          <span>+ ₹500 profit</span>
+          <span style={{ fontWeight: 700, color: C.text }}>= ₹{result.total_cost_inr.toLocaleString()} total</span>
+          <span>× {rate.toFixed(4)}</span>
+          <span style={{ fontWeight: 700, color: "#0f3f2f" }}>= M {result.final_price_lsl.toFixed(2)}</span>
+        </div>
+      )}
+
+      <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+        <Link href="/admin/pricing" style={{
+          display: "inline-block", padding: "8px 16px", borderRadius: 8,
+          background: C.navy, color: "#fff", fontSize: 13, fontWeight: 600,
+          textDecoration: "none",
+        }}>
+          📦 Open Batch Pricing
+        </Link>
+        <span style={{ fontSize: 12, color: C.faint, alignSelf: "center" }}>
+          Price all products at once with the full Pricing Manager
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+// ── Main Dashboard ─────────────────────────────────────────────────
 export default function AdminDashboardPage() {
   const [stats,    setStats]    = useState<Stats | null>(null);
   const [orders,   setOrders]   = useState<any[]>([]);
@@ -85,10 +212,11 @@ export default function AdminDashboardPage() {
           {[
             { label: "+ Add Product",       href: "/admin/products/new",           bg: C.navy,    fg: "#fff" },
             { label: "Bulk Upload CSV",     href: "/admin/products/bulk-upload",   bg: C.green,   fg: "#fff" },
+            { label: "💰 Pricing Manager",  href: "/admin/pricing",                bg: "#7c3aed", fg: "#fff" },
             { label: "Review Payments",     href: "/admin/payments",               bg: "#dc2626", fg: "#fff", badge: s.pending_payments },
             { label: "Manage Orders",       href: "/admin/orders",                 bg: C.surface, fg: C.text },
             { label: "Inventory",           href: "/admin/inventory",              bg: C.surface, fg: C.text, badge: s.low_stock_products },
-            { label: "Analytics",           href: "/admin/analytics",             bg: C.surface, fg: C.text },
+            { label: "Analytics",           href: "/admin/analytics",              bg: C.surface, fg: C.text },
             { label: "Customers",           href: "/admin/users",                  bg: C.surface, fg: C.text },
             { label: "Stores",              href: "/admin/stores",                 bg: C.surface, fg: C.text },
             { label: "Audit Logs",          href: "/admin/logs",                   bg: C.surface, fg: C.text },
@@ -103,7 +231,10 @@ export default function AdminDashboardPage() {
             }}>
               {a.label}
               {(a as any).badge > 0 && (
-                <span style={{ background: a.bg === C.surface ? C.danger : "rgba(255,255,255,0.3)", color: a.bg === C.surface ? "#fff" : "#fff", borderRadius: 99, fontSize: 10, fontWeight: 800, padding: "1px 6px" }}>
+                <span style={{
+                  background: a.bg === C.surface ? C.danger : "rgba(255,255,255,0.3)",
+                  color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 800, padding: "1px 6px",
+                }}>
                   {(a as any).badge}
                 </span>
               )}
@@ -111,6 +242,9 @@ export default function AdminDashboardPage() {
           ))}
         </div>
       </Card>
+
+      {/* ── PRICING WIDGET ── */}
+      <PricingWidget />
 
       {/* ── Three-col live tables ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16 }}>

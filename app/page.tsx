@@ -3,19 +3,54 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { productsApi, categoriesApi } from "@/lib/api";
-import ProductCard from "@/components/store/ProductCard";
+import { productsApi } from "@/lib/api";
 import type { ProductListItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/currency";
 
-/* ================================================================
-   TYPES
-================================================================ */
-type HeroSlide = { products: ProductListItem[]; headline: string; sub: string };
+/* ─── API base ──────────────────────────────────────────────────── */
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-/* ================================================================
-   HELPERS
-================================================================ */
+/* ─── Types ─────────────────────────────────────────────────────── */
+interface HP {
+  id: string; title: string; price: number; compare_price?: number | null;
+  discount_pct?: number | null; brand?: string; category?: string;
+  rating?: number | null; rating_number?: number | null;
+  in_stock: boolean; main_image?: string | null;
+}
+interface Section {
+  key: string; title: string; subtitle: string;
+  badge: string | null; theme: string;
+  view_all: string; products: HP[];
+}
+
+/* ─── Hero slides ───────────────────────────────────────────────── */
+const SLIDES = [
+  { headline: "Discover Your\nSignature Style",   sub: "Curated collections crafted for elegance" },
+  { headline: "New Arrivals\nJust Landed",         sub: "Fresh styles updated daily" },
+  { headline: "Luxury Finds\nAt Every Price",      sub: "Premium quality within reach" },
+  { headline: "The Season's\nBest Picks",          sub: "Trending now across all categories" },
+];
+const INTERVAL = 6500;
+
+/* ─── Theme palette ─────────────────────────────────────────────── */
+const THEME: Record<string, { accent: string; light: string; badge: string }> = {
+  red:    { accent: "#e53935", light: "rgba(229,57,53,0.08)",  badge: "#e53935" },
+  green:  { accent: "#0f3f2f", light: "rgba(15,63,47,0.07)",   badge: "#0f3f2f" },
+  gold:   { accent: "#c8a75a", light: "rgba(200,167,90,0.1)",  badge: "#c8a75a" },
+  forest: { accent: "#1b5e4a", light: "rgba(27,94,74,0.08)",   badge: "#1b5e4a" },
+  navy:   { accent: "#1a237e", light: "rgba(26,35,126,0.07)",  badge: "#1a237e" },
+  plum:   { accent: "#6a1b9a", light: "rgba(106,27,154,0.07)", badge: "#6a1b9a" },
+  teal:   { accent: "#00695c", light: "rgba(0,105,92,0.07)",   badge: "#00695c" },
+  rust:   { accent: "#bf360c", light: "rgba(191,54,12,0.07)",  badge: "#bf360c" },
+  slate:  { accent: "#37474f", light: "rgba(55,71,79,0.07)",   badge: "#37474f" },
+  olive:  { accent: "#558b2f", light: "rgba(85,139,47,0.07)",  badge: "#558b2f" },
+  rose:   { accent: "#ad1457", light: "rgba(173,20,87,0.07)",  badge: "#ad1457" },
+  indigo: { accent: "#283593", light: "rgba(40,53,147,0.07)",  badge: "#283593" },
+  amber:  { accent: "#e65100", light: "rgba(230,81,0,0.07)",   badge: "#e65100" },
+  sage:   { accent: "#33691e", light: "rgba(51,105,30,0.07)",  badge: "#33691e" },
+  stone:  { accent: "#4e342e", light: "rgba(78,52,46,0.07)",   badge: "#4e342e" },
+};
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -25,612 +60,564 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const HEADLINES = [
-  { headline: "Discover Your\nSignature Style", sub: "Curated collections crafted for elegance" },
-  { headline: "New Arrivals\nJust Landed", sub: "Fresh styles updated daily" },
-  { headline: "The Season's\nBest Picks", sub: "Trending now across all categories" },
-  { headline: "Luxury Finds\nAt Every Price", sub: "Premium quality within reach" },
-];
-
-const INTERVAL = 7000;
-
-/* ================================================================
-   MAIN COMPONENT
-================================================================ */
+/* ══════════════════════════════════════════════════════════════════
+   PAGE
+══════════════════════════════════════════════════════════════════ */
 export default function HomePage() {
   const router = useRouter();
 
-  const [allProducts, setAllProducts] = useState<ProductListItem[]>([]);
-  const [featured, setFeatured] = useState<ProductListItem[]>([]);
-  const [trending, setTrending] = useState<ProductListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Hero state
-  const [slides, setSlides] = useState<HeroSlide[]>([]);
-  const [slideIndex, setSlideIndex] = useState(0);
+  /* hero */
+  const [heroProds, setHeroProds] = useState<ProductListItem[]>([]);
+  const [slideIdx,  setSlideIdx]  = useState(0);
   const [animating, setAnimating] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [direction, setDirection] = useState<"next" | "prev">("next");
+  const [dir,       setDir]       = useState<"next"|"prev">("next");
+  const [cards,     setCards]     = useState<("idle"|"exit"|"enter")[]>(["idle","idle","idle","idle"]);
+  const [heroLoad,  setHeroLoad]  = useState(true);
+  const [progress,  setProgress]  = useState(0);
 
-  // Individual card animation states [card0..card3]
-  const [cardStates, setCardStates] = useState<("idle" | "exit" | "enter")[]>(["idle","idle","idle","idle"]);
+  /* sections */
+  const [sections,  setSections]  = useState<Section[]>([]);
+  const [secLoad,   setSecLoad]   = useState(true);
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
+  const timerRef    = useRef<ReturnType<typeof setInterval>|null>(null);
+  const progressRef = useRef<ReturnType<typeof setInterval>|null>(null);
+  const t0Ref       = useRef(Date.now());
 
-  /* ---- Load products ---- */
+  /* load hero */
   useEffect(() => {
-    async function load() {
-      try {
-        const first = await productsApi.list({ page: 1, per_page: 40 });
-        const total: number = (first as any)?.total ?? 0;
-        let all: ProductListItem[] = (first as any)?.results ?? [];
-
-        if (total > 40) {
-          const maxPage = Math.min(Math.ceil(total / 40), 5);
-          const rndPage = Math.floor(Math.random() * (maxPage - 1)) + 2;
-          try {
-            const extra = await productsApi.list({ page: rndPage, per_page: 40 });
-            all = [...all, ...((extra as any)?.results ?? [])];
-          } catch {}
-        }
-
-        const s = shuffle(all);
-        setAllProducts(s);
-        setFeatured(s.slice(0, 8));
-        setTrending(s.slice(8, 16));
-
-        // Build 5 slides
-        const built: HeroSlide[] = HEADLINES.map((h, i) => ({
-          products: s.slice(i * 4, i * 4 + 4),
-          ...h,
-        })).filter((sl) => sl.products.length === 4);
-
-        setSlides(built);
-        setCardStates(["idle","idle","idle","idle"]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    productsApi.list({ page: 1, per_page: 40 })
+      .then(r => {
+        const all = shuffle((r as any)?.results ?? []);
+        setHeroProds(all as ProductListItem[]);
+      })
+      .finally(() => setHeroLoad(false));
   }, []);
 
-  /* ---- Auto-advance slides ---- */
-  const advanceSlide = useCallback((dir: "next" | "prev" = "next") => {
-    if (animating || slides.length < 2) return;
-    setAnimating(true);
-    setDirection(dir);
-
-    // Staggered exit: each card exits 80ms after previous
-    setCardStates(["exit","idle","idle","idle"]);
-    setTimeout(() => setCardStates(["exit","exit","idle","idle"]), 80);
-    setTimeout(() => setCardStates(["exit","exit","exit","idle"]), 160);
-    setTimeout(() => setCardStates(["exit","exit","exit","exit"]), 240);
-
-    // After exit, switch slide
-    setTimeout(() => {
-      setSlideIndex((prev) => dir === "next"
-        ? (prev + 1) % slides.length
-        : (prev - 1 + slides.length) % slides.length
-      );
-      // Staggered enter
-      setCardStates(["enter","idle","idle","idle"]);
-      setTimeout(() => setCardStates(["enter","enter","idle","idle"]), 100);
-      setTimeout(() => setCardStates(["enter","enter","enter","idle"]), 200);
-      setTimeout(() => setCardStates(["enter","enter","enter","enter"]), 300);
-      setTimeout(() => {
-        setCardStates(["idle","idle","idle","idle"]);
-        setAnimating(false);
-      }, 700);
-    }, 500);
-  }, [animating, slides.length]);
-
-  /* ---- Timer ---- */
+  /* load sections */
   useEffect(() => {
-    if (slides.length < 2) return;
+    fetch(`${API}/api/homepage/sections`)
+      .then(r => r.json())
+      .then(d => setSections(d.sections ?? []))
+      .catch(() => setSections([]))
+      .finally(() => setSecLoad(false));
+  }, []);
 
-    startTimeRef.current = Date.now();
-    setProgress(0);
+  /* advance slide */
+  const advance = useCallback((d: "next"|"prev" = "next") => {
+    if (animating || heroProds.length < 4) return;
+    setAnimating(true); setDir(d);
+    setCards(["exit","idle","idle","idle"]);
+    setTimeout(() => setCards(["exit","exit","idle","idle"]), 70);
+    setTimeout(() => setCards(["exit","exit","exit","idle"]), 140);
+    setTimeout(() => setCards(["exit","exit","exit","exit"]), 210);
+    setTimeout(() => {
+      setSlideIdx(p => d === "next" ? (p+1)%SLIDES.length : (p-1+SLIDES.length)%SLIDES.length);
+      setCards(["enter","idle","idle","idle"]);
+      setTimeout(() => setCards(["enter","enter","idle","idle"]), 90);
+      setTimeout(() => setCards(["enter","enter","enter","idle"]), 180);
+      setTimeout(() => setCards(["enter","enter","enter","enter"]), 270);
+      setTimeout(() => { setCards(["idle","idle","idle","idle"]); setAnimating(false); }, 700);
+    }, 440);
+  }, [animating, heroProds.length]);
 
+  /* timer */
+  useEffect(() => {
+    if (heroProds.length < 4) return;
+    t0Ref.current = Date.now(); setProgress(0);
     progressRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      setProgress(Math.min((elapsed / INTERVAL) * 100, 100));
-    }, 50);
-
+      setProgress(Math.min(((Date.now() - t0Ref.current) / INTERVAL) * 100, 100));
+    }, 40);
     timerRef.current = setInterval(() => {
-      startTimeRef.current = Date.now();
-      setProgress(0);
-      advanceSlide("next");
+      t0Ref.current = Date.now(); setProgress(0); advance("next");
     }, INTERVAL);
-
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (progressRef.current) clearInterval(progressRef.current);
+      clearInterval(timerRef.current!);
+      clearInterval(progressRef.current!);
     };
-  }, [slides.length, advanceSlide]);
+  }, [heroProds.length, advance]);
 
-  /* ---- Manual nav ---- */
-  function goToSlide(i: number) {
-    if (i === slideIndex || animating) return;
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (progressRef.current) clearInterval(progressRef.current);
-    startTimeRef.current = Date.now();
-    setProgress(0);
-    advanceSlide(i > slideIndex ? "next" : "prev");
-  }
+  /* hero product windows (4 at a time) */
+  const heroWindow = heroProds.slice(slideIdx * 4, slideIdx * 4 + 4);
+  const slide      = SLIDES[slideIdx];
 
-  const currentSlide = slides[slideIndex];
-
-  /* ============================================================
-     RENDER
-  ============================================================ */
+  /* ── RENDER ─────────────────────────────────────────────────── */
   return (
-    <div style={{ fontFamily: "'Georgia', 'Times New Roman', serif", background: "#fafaf8" }}>
+    <div style={{ fontFamily: "system-ui, sans-serif", background: "#f5f3ef", minHeight: "100vh" }}>
 
-      {/* ============================================================
-          HERO — CINEMATIC FULL BLEED
-      ============================================================ */}
+      {/* ── CSS ─────────────────────────────────────────────────── */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600&display=swap');
+        *{box-sizing:border-box}
+        ::-webkit-scrollbar{width:4px;height:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:rgba(200,167,90,.35);border-radius:4px}
+
+        @keyframes slideUpFade  { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:none} }
+        @keyframes slideDownFade{ from{opacity:0;transform:translateY(-22px)} to{opacity:1;transform:none} }
+        @keyframes fadeIn       { from{opacity:0} to{opacity:1} }
+        @keyframes float1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(28px,-22px) scale(1.04)} 66%{transform:translate(-18px,14px) scale(.97)} }
+        @keyframes float2 { 0%,100%{transform:translate(0,0) scale(1)} 45%{transform:translate(-22px,-28px) scale(1.06)} 70%{transform:translate(18px,10px) scale(.96)} }
+        @keyframes float3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(14px,-22px)} }
+        @keyframes marquee{ from{transform:translateX(0)} to{transform:translateX(-33.333%)} }
+        @keyframes shimmer{ from{background-position:200% 0} to{background-position:-200% 0} }
+        @keyframes bounceY{ 0%,100%{transform:translateX(-50%) translateY(0);opacity:.5} 50%{transform:translateX(-50%) translateY(7px);opacity:1} }
+        @keyframes revealUp{ from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:none} }
+
+        @keyframes cardExitN  { from{opacity:1;transform:translateY(0) scale(1)}    to{opacity:0;transform:translateY(-20px) scale(.96)} }
+        @keyframes cardExitP  { from{opacity:1;transform:translateY(0) scale(1)}    to{opacity:0;transform:translateY(20px) scale(.96)} }
+        @keyframes cardEnterN { from{opacity:0;transform:translateY(20px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes cardEnterP { from{opacity:0;transform:translateY(-20px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+
+        .hcard:hover  { transform:translateY(-6px) scale(1.02)!important; box-shadow:0 20px 50px rgba(0,0,0,.5)!important; }
+        .pcard        { transition:transform .28s ease, box-shadow .28s ease; }
+        .pcard:hover  { transform:translateY(-5px)!important; box-shadow:0 12px 36px rgba(0,0,0,.13)!important; }
+        .pcard:hover .ptitle{ color:#0f3f2f!important; }
+        .pcard:hover .pimg  { transform:scale(1.05); }
+        .pimg         { transition:transform .4s ease; }
+
+        .scrollrow              { display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;scroll-behavior:smooth; }
+        .scrollrow::-webkit-scrollbar{ height:3px }
+        .scrollrow::-webkit-scrollbar-thumb{ background:rgba(200,167,90,.4);border-radius:3px }
+
+        .catpill:hover{ background:#0f3f2f!important;color:#fff!important;border-color:#0f3f2f!important; }
+        .arrowbtn:hover{ background:#0f3f2f!important;color:#fff!important;border-color:#0f3f2f!important; }
+
+        .shimbox{background:linear-gradient(90deg,#ece9e2 0%,#dedad2 50%,#ece9e2 100%);background-size:200% 100%;animation:shimmer 1.6s ease infinite;}
+      `}</style>
+
+      {/* ══════════════════════════════════════════════════════════
+          HERO
+      ══════════════════════════════════════════════════════════ */}
       <section style={{
-        position: "relative",
-        minHeight: "clamp(420px, 55vh, 620px)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        background: "linear-gradient(160deg, #08091a 0%, #0a1845 35%, #003520 100%)",
+        position:"relative", overflow:"hidden",
+        minHeight:"clamp(480px,58vh,640px)",
+        background:"linear-gradient(155deg,#04080e 0%,#081428 30%,#06200f 65%,#030b05 100%)",
+        display:"flex", flexDirection:"column",
       }}>
+        {/* grain */}
+        <div style={{position:"absolute",inset:0,zIndex:0,pointerEvents:"none",
+          backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E\")",
+          backgroundSize:"180px 180px",opacity:.7}} />
 
-        {/* Animated grain overlay */}
+        {/* orbs */}
+        <div style={{position:"absolute",top:"-8%",left:"2%",width:480,height:480,borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(200,167,90,.1) 0%,transparent 70%)",
+          animation:"float1 14s ease-in-out infinite",zIndex:0}} />
+        <div style={{position:"absolute",bottom:"-12%",right:"5%",width:600,height:600,borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(15,63,47,.28) 0%,transparent 70%)",
+          animation:"float2 18s ease-in-out infinite",zIndex:0}} />
+        <div style={{position:"absolute",top:"35%",right:"28%",width:220,height:220,borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(200,167,90,.07) 0%,transparent 70%)",
+          animation:"float3 11s ease-in-out infinite",zIndex:0}} />
+
+        {/* gold diagonal line accent */}
+        <div style={{position:"absolute",top:0,right:"38%",width:1,height:"100%",
+          background:"linear-gradient(180deg,transparent,rgba(200,167,90,.15) 30%,rgba(200,167,90,.08) 70%,transparent)",
+          zIndex:0}} />
+
+        {/* content */}
         <div style={{
-          position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none",
-          backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")",
-          backgroundSize: "200px 200px",
-          opacity: 0.6,
-        }} />
-
-        {/* Glowing orbs */}
-        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
-          <div style={{
-            position: "absolute", top: "10%", left: "5%",
-            width: "clamp(300px, 40vw, 600px)", height: "clamp(300px, 40vw, 600px)",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(0,51,160,0.35) 0%, transparent 70%)",
-            filter: "blur(40px)",
-            animation: "orbFloat1 12s ease-in-out infinite",
-          }} />
-          <div style={{
-            position: "absolute", bottom: "5%", right: "10%",
-            width: "clamp(200px, 30vw, 450px)", height: "clamp(200px, 30vw, 450px)",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(0,149,67,0.3) 0%, transparent 70%)",
-            filter: "blur(50px)",
-            animation: "orbFloat2 15s ease-in-out infinite",
-          }} />
-          <div style={{
-            position: "absolute", top: "40%", right: "20%",
-            width: "clamp(150px, 20vw, 300px)", height: "clamp(150px, 20vw, 300px)",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(212,175,55,0.2) 0%, transparent 70%)",
-            filter: "blur(30px)",
-            animation: "orbFloat3 10s ease-in-out infinite",
-          }} />
-        </div>
-
-        {/* Decorative diagonal rule */}
-        <div style={{
-          position: "absolute", top: 0, right: "38%",
-          width: 1, height: "100%",
-          background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.06) 40%, rgba(255,255,255,0.06) 60%, transparent)",
-          pointerEvents: "none",
-        }} />
-
-        {/* Main content */}
-        <div style={{
-          position: "relative", zIndex: 2,
-          flex: 1, display: "flex", alignItems: "center",
-          padding: "clamp(32px, 5vw, 56px) clamp(20px, 5vw, 80px) clamp(28px, 4vw, 48px)",
-          maxWidth: 1440, margin: "0 auto", width: "100%",
-          gap: "clamp(32px, 5vw, 80px)",
+          position:"relative",zIndex:1,flex:1,
+          maxWidth:1400,margin:"0 auto",width:"100%",
+          padding:"clamp(40px,6vw,88px) clamp(20px,4vw,60px)",
+          display:"grid",gridTemplateColumns:"auto 1fr",
+          gap:"clamp(32px,5vw,80px)",alignItems:"center",
         }}>
+          {/* LEFT: text */}
+          <div style={{maxWidth:400}}>
+            {slide && !heroLoad ? (
+              <div key={slideIdx} style={{animation:"slideUpFade .55s ease both"}}>
+                {/* badge */}
+                <div style={{display:"inline-flex",alignItems:"center",gap:8,
+                  padding:"6px 16px",borderRadius:30,marginBottom:24,
+                  background:"rgba(200,167,90,.1)",border:"1px solid rgba(200,167,90,.22)"}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:"#c8a75a",display:"block"}} />
+                  <span style={{fontSize:10,fontWeight:600,color:"#c8a75a",letterSpacing:"2.5px",
+                    textTransform:"uppercase",fontFamily:"'Jost',system-ui,sans-serif"}}>Karabo Luxury</span>
+                </div>
 
-          {/* LEFT: Copy */}
-          <div style={{ flex: "0 0 auto", maxWidth: 520, width: "100%" }}>
-            {/* Eyebrow */}
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 28,
-              padding: "6px 14px", borderRadius: 99,
-              border: "1px solid rgba(212,175,55,0.4)",
-              background: "rgba(212,175,55,0.08)",
-            }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#d4af37", boxShadow: "0 0 8px #d4af37" }} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#d4af37", letterSpacing: 2, textTransform: "uppercase", fontFamily: "system-ui, sans-serif" }}>
-                Karabo Online Store
-              </span>
-            </div>
+                {/* headline */}
+                <h1 style={{
+                  fontFamily:"'Cormorant Garamond',Georgia,serif",
+                  fontSize:"clamp(34px,5.5vw,66px)",fontWeight:600,
+                  color:"#fff",lineHeight:1.08,margin:"0 0 18px",
+                  whiteSpace:"pre-line",letterSpacing:"-0.02em",
+                }}>
+                  {slide.headline}
+                </h1>
 
-            {/* Headline — animates on slide change */}
-            <h1 style={{
-              fontSize: "clamp(38px, 6.5vw, 76px)",
-              fontWeight: 400,
-              lineHeight: 1.08,
-              marginBottom: 24,
-              color: "#ffffff",
-              letterSpacing: "-0.02em",
-              whiteSpace: "pre-line",
-              transition: "opacity 0.5s ease",
-            }}>
-              {currentSlide?.headline ?? "Discover Your\nSignature Style"}
-            </h1>
+                {/* sub */}
+                <p style={{
+                  fontFamily:"'Jost',system-ui,sans-serif",
+                  fontSize:"clamp(13px,1.6vw,16px)",color:"rgba(255,255,255,.6)",
+                  margin:"0 0 32px",lineHeight:1.7,
+                }}>
+                  {slide.sub}
+                </p>
 
-            {/* Gold rule */}
-            <div style={{ width: 48, height: 2, background: "linear-gradient(90deg, #d4af37, #f9d977)", marginBottom: 24, borderRadius: 99 }} />
+                {/* CTAs */}
+                <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:36}}>
+                  <Link href="/products" style={{
+                    padding:"13px 28px",borderRadius:50,
+                    background:"#c8a75a",color:"#08100a",
+                    fontWeight:600,fontSize:13,textDecoration:"none",
+                    fontFamily:"'Jost',system-ui,sans-serif",letterSpacing:.5,
+                    transition:"all .2s",boxShadow:"0 4px 20px rgba(200,167,90,.3)",
+                  }}>Shop Now</Link>
+                  <Link href="/products?sort=newest" style={{
+                    padding:"13px 28px",borderRadius:50,
+                    border:"1px solid rgba(255,255,255,.2)",
+                    color:"rgba(255,255,255,.85)",fontWeight:500,fontSize:13,
+                    textDecoration:"none",fontFamily:"'Jost',system-ui,sans-serif",letterSpacing:.5,
+                  }}>New Arrivals</Link>
+                </div>
 
-            <p style={{
-              fontSize: "clamp(15px, 1.8vw, 18px)",
-              lineHeight: 1.7,
-              marginBottom: 40,
-              color: "rgba(255,255,255,0.72)",
-              fontFamily: "system-ui, sans-serif",
-              fontWeight: 300,
-            }}>
-              {currentSlide?.sub ?? "Curated fashion and beauty collections crafted for elegance and confidence."}
-            </p>
-
-            {/* CTAs */}
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-              <Link href="/store" style={{
-                padding: "15px 36px", borderRadius: 50,
-                background: "linear-gradient(135deg, #d4af37, #f9d977)",
-                color: "#08091a", fontWeight: 700, fontSize: 14,
-                textDecoration: "none", fontFamily: "system-ui, sans-serif",
-                letterSpacing: 0.5, transition: "transform 0.2s, box-shadow 0.2s",
-                display: "inline-block", boxShadow: "0 4px 20px rgba(212,175,55,0.4)",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(212,175,55,0.5)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(212,175,55,0.4)"; }}
-              >
-                Shop Now
-              </Link>
-              <Link href="/store" style={{
-                padding: "15px 36px", borderRadius: 50,
-                border: "1px solid rgba(255,255,255,0.25)",
-                color: "#fff", fontWeight: 600, fontSize: 14,
-                textDecoration: "none", fontFamily: "system-ui, sans-serif",
-                letterSpacing: 0.5, transition: "all 0.2s", display: "inline-block",
-                background: "rgba(255,255,255,0.05)", backdropFilter: "blur(10px)",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.4)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)"; }}
-              >
-                View All
-              </Link>
-            </div>
-
-            {/* Slide dots + progress */}
-            {slides.length > 1 && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 48 }}>
-                {slides.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => goToSlide(i)}
-                    style={{
-                      background: "none", border: "none", padding: 0, cursor: "pointer",
-                      position: "relative",
-                    }}
-                  >
-                    <div style={{
-                      width: i === slideIndex ? 32 : 8,
-                      height: 4, borderRadius: 99,
-                      background: i === slideIndex ? "#d4af37" : "rgba(255,255,255,0.25)",
-                      transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)",
-                      overflow: "hidden",
+                {/* progress dots */}
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  {SLIDES.map((_,i) => (
+                    <button key={i} onClick={() => {
+                      if (i===slideIdx||animating) return;
+                      clearInterval(timerRef.current!); clearInterval(progressRef.current!);
+                      t0Ref.current=Date.now(); setProgress(0);
+                      advance(i>slideIdx?"next":"prev");
+                    }} style={{
+                      width: i===slideIdx ? 28 : 7, height:7,
+                      borderRadius:4, border:"none", cursor:"pointer", padding:0,
+                      transition:"all .35s ease",
+                      background: i===slideIdx ? "#c8a75a" : "rgba(255,255,255,.22)",
+                      position:"relative", overflow:"hidden",
                     }}>
-                      {i === slideIndex && (
-                        <div style={{
-                          position: "absolute", left: 0, top: 0, height: "100%",
-                          width: `${progress}%`,
-                          background: "rgba(255,255,255,0.5)",
-                          transition: "width 0.05s linear",
-                          borderRadius: 99,
+                      {i===slideIdx && (
+                        <span style={{
+                          position:"absolute",top:0,left:0,height:"100%",
+                          width:`${progress}%`,
+                          background:"rgba(255,255,255,.3)",transition:"width 40ms linear",
                         }} />
                       )}
-                    </div>
-                  </button>
-                ))}
-
-                {/* Slide counter */}
-                <span style={{ marginLeft: 8, fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "system-ui, sans-serif", letterSpacing: 1 }}>
-                  {String(slideIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
-                </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* skeleton */
+              <div>
+                <div style={{height:16,width:120,borderRadius:8,marginBottom:24}} className="shimbox" />
+                <div style={{height:56,width:"80%",borderRadius:10,marginBottom:10}} className="shimbox" />
+                <div style={{height:56,width:"60%",borderRadius:10,marginBottom:20}} className="shimbox" />
               </div>
             )}
           </div>
 
-          {/* RIGHT: Product cards grid */}
-          {!loading && currentSlide && (
-            <div style={{ flex: 1, maxWidth: 580, minWidth: 0 }}>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: "clamp(10px, 1.5vw, 18px)",
-              }}>
-                {currentSlide.products.map((product, idx) => (
-                  <HeroCard
-                    key={`${slideIndex}-${idx}`}
-                    product={product}
-                    state={cardStates[idx]}
-                    delay={idx}
-                    direction={direction}
-                    onClick={() => router.push(`/store/product/${product.id}`)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          {/* RIGHT: 2×2 product cards */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"clamp(10px,1.5vw,18px)"}}>
+            {heroLoad
+              ? Array.from({length:4}).map((_,i) => (
+                  <div key={i} style={{borderRadius:18,overflow:"hidden"}}>
+                    <div style={{paddingTop:"100%"}} className="shimbox" />
+                    <div style={{padding:12,background:"rgba(255,255,255,.04)"}}>
+                      <div style={{height:11,borderRadius:6,marginBottom:8,background:"rgba(255,255,255,.07)"}} />
+                      <div style={{height:15,width:"50%",borderRadius:6,background:"rgba(255,255,255,.05)"}} />
+                    </div>
+                  </div>
+                ))
+              : heroWindow.length >= 4
+                ? heroWindow.map((p,i) => (
+                    <HeroCard key={`${slideIdx}-${p.id}`} p={p} state={cards[i]} dir={dir}
+                      onClick={() => router.push(`/products/${p.id}`)} />
+                  ))
+                : heroProds.slice(0,4).map((p,i) => (
+                    <HeroCard key={p.id} p={p} state="idle" dir="next"
+                      onClick={() => router.push(`/products/${p.id}`)} />
+                  ))
+            }
+          </div>
         </div>
 
-        {/* Bottom chevron */}
-        <div style={{
-          position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)",
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-          animation: "bounceDown 2s ease-in-out infinite", zIndex: 2,
-        }}>
-          <div style={{ width: 1, height: 32, background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.4))" }} />
-          <div style={{ width: 10, height: 10, border: "1px solid rgba(255,255,255,0.4)", borderTop: "none", borderLeft: "none", transform: "rotate(45deg)", marginTop: -6 }} />
+        {/* bounce arrow */}
+        <div style={{position:"absolute",bottom:22,left:"50%",zIndex:2,
+          animation:"bounceY 2.2s ease-in-out infinite"}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
         </div>
       </section>
 
-      {/* ============================================================
-          MARQUEE TICKER
-      ============================================================ */}
-      <div style={{
-        background: "#d4af37",
-        overflow: "hidden",
-        whiteSpace: "nowrap",
-        padding: "10px 0",
-        position: "relative",
-        zIndex: 3,
-      }}>
-        <div style={{
-          display: "inline-flex", gap: 0,
-          animation: "marquee 30s linear infinite",
-        }}>
-          {[...Array(3)].map((_, i) => (
-            <span key={i} style={{ fontFamily: "system-ui, sans-serif", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#08091a" }}>
-              {["Free Delivery on All Orders", "New Collections Daily", "Premium Quality Products", "Secure Checkout", "Easy Returns", "Shop with Confidence"].map((t, j) => (
-                <span key={j}>&nbsp;&nbsp;◆&nbsp;&nbsp;{t}</span>
+      {/* ══════════════════════════════════════════════════════════
+          MARQUEE TRUST BAR
+      ══════════════════════════════════════════════════════════ */}
+      <div style={{background:"#0f3f2f",overflow:"hidden"}}>
+        <div style={{display:"flex",animation:"marquee 30s linear infinite",width:"300%"}}>
+          {[0,1,2].map(gi => (
+            <div key={gi} style={{display:"flex",flex:"0 0 33.333%",justifyContent:"space-around"}}>
+              {["Free Delivery on Orders over M500","100% Authentic Products","Secure & Easy Checkout",
+                "7-Day Easy Returns","Premium Gift Packaging","Lesotho's Finest Boutique"].map((t,i) => (
+                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"11px 24px",whiteSpace:"nowrap"}}>
+                  <div style={{width:4,height:4,borderRadius:"50%",background:"#c8a75a",flexShrink:0}} />
+                  <span style={{fontSize:11,fontWeight:500,color:"rgba(255,255,255,.8)",
+                    letterSpacing:.6,fontFamily:"'Jost',system-ui,sans-serif"}}>{t}</span>
+                </div>
               ))}
-            </span>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* ============================================================
-          FEATURED COLLECTION
-      ============================================================ */}
-      <section style={{ padding: "clamp(60px, 8vw, 100px) clamp(20px, 5vw, 80px)", background: "#fafaf8" }}>
-        <div style={{ maxWidth: 1440, margin: "0 auto" }}>
-          <SectionHeader label="Featured" title="Curated Picks" />
-
-          {loading ? (
-            <SkeletonGrid count={8} />
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 240px), 1fr))", gap: "clamp(14px, 2vw, 24px)" }}>
-              {featured.map((p, i) => (
-                <div key={p.id} style={{ animation: `fadeSlideUp 0.5s ease both`, animationDelay: `${i * 60}ms` }}>
-                  <ProductCard product={p} />
+      {/* ══════════════════════════════════════════════════════════
+          SECTIONS
+      ══════════════════════════════════════════════════════════ */}
+      <div style={{paddingTop:"clamp(28px,4vw,48px)",paddingBottom:"clamp(48px,6vw,80px)"}}>
+        {secLoad ? (
+          <div style={{maxWidth:1400,margin:"0 auto",padding:"0 clamp(16px,4vw,40px)"}}>
+            {[0,1,2].map(si => (
+              <div key={si} style={{marginBottom:48}}>
+                <div style={{height:22,width:200,borderRadius:8,marginBottom:8}} className="shimbox" />
+                <div style={{height:14,width:300,borderRadius:6,marginBottom:20}} className="shimbox" />
+                <div style={{display:"flex",gap:14,overflow:"hidden"}}>
+                  {Array.from({length:5}).map((_,i) => (
+                    <div key={i} style={{flexShrink:0,width:190,borderRadius:14,overflow:"hidden"}}>
+                      <div style={{paddingTop:"100%"}} className="shimbox" />
+                      <div style={{padding:12,background:"#ede9e2"}}>
+                        <div style={{height:12,borderRadius:6,marginBottom:6}} className="shimbox" />
+                        <div style={{height:16,width:"55%",borderRadius:6}} className="shimbox" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ textAlign: "center", marginTop: 48 }}>
-            <Link href="/store" style={viewAllBtn}>Browse All Products →</Link>
+              </div>
+            ))}
           </div>
-        </div>
-      </section>
-
-      {/* ============================================================
-          PROMO BANNER
-      ============================================================ */}
-      <section style={{
-        margin: "0 clamp(20px, 5vw, 80px)",
-        borderRadius: 28,
-        overflow: "hidden",
-        position: "relative",
-        background: "linear-gradient(135deg, #0a1845 0%, #0033a0 50%, #005c2e 100%)",
-        padding: "clamp(40px, 6vw, 80px) clamp(28px, 5vw, 72px)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexWrap: "wrap", gap: 32,
-        marginBottom: "clamp(60px, 8vw, 100px)",
-      }}>
-        {/* Glow */}
-        <div style={{ position: "absolute", top: -60, right: "30%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(212,175,55,0.2) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: "#d4af37", marginBottom: 12, fontFamily: "system-ui, sans-serif" }}>
-            New Season
+        ) : sections.length === 0 ? (
+          <div style={{textAlign:"center",padding:"80px 20px",color:"#9ca3af",
+            fontFamily:"'Jost',system-ui,sans-serif"}}>
+            <p>Add products to your store — sections will appear automatically.</p>
           </div>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 52px)", fontWeight: 400, color: "#fff", lineHeight: 1.15, marginBottom: 8 }}>
-            Style That Speaks
-            <br /><em style={{ fontStyle: "italic", color: "#d4af37" }}>For Itself</em>
-          </h2>
-          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 16, fontFamily: "system-ui, sans-serif", fontWeight: 300 }}>
-            Explore hundreds of new arrivals this season.
-          </p>
-        </div>
+        ) : (
+          sections.map((sec, i) => (
+            <SectionRow key={sec.key} sec={sec} delay={i * 0.04}
+              onProductClick={id => router.push(`/products/${id}`)} />
+          ))
+        )}
+      </div>
 
-        <Link href="/store" style={{
-          position: "relative", zIndex: 1,
-          padding: "16px 40px", borderRadius: 50,
-          background: "#d4af37", color: "#08091a",
-          fontWeight: 800, fontSize: 14, textDecoration: "none",
-          fontFamily: "system-ui, sans-serif", letterSpacing: 0.5,
-          display: "inline-block", flexShrink: 0,
-        }}>
-          Shop the Collection
-        </Link>
-      </section>
-
-      {/* ============================================================
-          TRENDING
-      ============================================================ */}
-      {trending.length > 0 && (
-        <section style={{ padding: "clamp(40px, 6vw, 80px) clamp(20px, 5vw, 80px)", background: "#fff" }}>
-          <div style={{ maxWidth: 1440, margin: "0 auto" }}>
-            <SectionHeader label="Trending" title="Most Popular" />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 220px), 1fr))", gap: "clamp(12px, 1.5vw, 20px)" }}>
-              {trending.map((p, i) => (
-                <div key={p.id} style={{ animation: `fadeSlideUp 0.5s ease both`, animationDelay: `${i * 50}ms` }}>
-                  <ProductCard product={p} />
-                </div>
-              ))}
-            </div>
-            <div style={{ textAlign: "center", marginTop: 48 }}>
-              <Link href="/store" style={viewAllBtn}>View All Products →</Link>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ============================================================
-          TRUST BADGES
-      ============================================================ */}
-      <section style={{ padding: "clamp(48px, 6vw, 72px) clamp(20px, 5vw, 80px)", background: "#fafaf8", borderTop: "1px solid #e8e4df" }}>
-        <div style={{ maxWidth: 1440, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 32 }}>
+      {/* ══════════════════════════════════════════════════════════
+          TRUST BLOCK
+      ══════════════════════════════════════════════════════════ */}
+      <section style={{background:"#fff",borderTop:"1px solid #e8e4dc"}}>
+        <div style={{maxWidth:1400,margin:"0 auto",
+          padding:"clamp(36px,5vw,64px) clamp(20px,4vw,60px)",
+          display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",
+          gap:"clamp(20px,3vw,40px)"}}>
           {[
-            { icon: "🚚", title: "Free Delivery", desc: "On all orders, no minimum" },
-            { icon: "🔒", title: "Secure Payment", desc: "100% protected transactions" },
-            { icon: "↩️", title: "Easy Returns", desc: "Hassle-free 30-day returns" },
-            { icon: "💎", title: "Premium Quality", desc: "Curated for excellence" },
-          ].map((b) => (
-            <div key={b.title} style={{ textAlign: "center", padding: "24px 16px" }}>
-              <div style={{ fontSize: 36, marginBottom: 14 }}>{b.icon}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "#0f172a" }}>{b.title}</div>
-              <div style={{ fontSize: 13, color: "#6b7280", fontFamily: "system-ui, sans-serif", lineHeight: 1.5 }}>{b.desc}</div>
+            { icon:<TIcon t="delivery"/>, t:"Free Delivery", d:"On all orders above M500" },
+            { icon:<TIcon t="auth"/>,     t:"100% Authentic", d:"Every product verified" },
+            { icon:<TIcon t="returns"/>,  t:"Easy Returns",   d:"7-day hassle-free returns" },
+            { icon:<TIcon t="secure"/>,   t:"Secure Payment", d:"Fully protected transactions" },
+          ].map(b => (
+            <div key={b.t} style={{textAlign:"center",padding:"20px 10px"}}>
+              <div style={{display:"flex",justifyContent:"center",marginBottom:14,color:"#0f3f2f"}}>{b.icon}</div>
+              <div style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:5,
+                fontFamily:"'Jost',system-ui,sans-serif"}}>{b.t}</div>
+              <div style={{fontSize:12,color:"#6b7280",fontFamily:"'Jost',system-ui,sans-serif",lineHeight:1.5}}>{b.d}</div>
             </div>
           ))}
         </div>
       </section>
-
-      {/* CSS KEYFRAMES */}
-      <style>{`
-        @keyframes orbFloat1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -20px) scale(1.05); }
-          66% { transform: translate(-20px, 15px) scale(0.95); }
-        }
-        @keyframes orbFloat2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          40% { transform: translate(-25px, -30px) scale(1.08); }
-          70% { transform: translate(20px, 10px) scale(0.96); }
-        }
-        @keyframes orbFloat3 {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(15px, -25px); }
-        }
-        @keyframes marquee {
-          from { transform: translateX(0); }
-          to { transform: translateX(-33.333%); }
-        }
-        @keyframes bounceDown {
-          0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.6; }
-          50% { transform: translateX(-50%) translateY(8px); opacity: 1; }
-        }
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes cardExitNext {
-          from { opacity: 1; transform: translateY(0) scale(1); }
-          to { opacity: 0; transform: translateY(-24px) scale(0.95); }
-        }
-        @keyframes cardExitPrev {
-          from { opacity: 1; transform: translateY(0) scale(1); }
-          to { opacity: 0; transform: translateY(24px) scale(0.95); }
-        }
-        @keyframes cardEnterNext {
-          from { opacity: 0; transform: translateY(24px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes cardEnterPrev {
-          from { opacity: 0; transform: translateY(-24px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
     </div>
   );
 }
 
-/* ================================================================
-   HERO CARD
-================================================================ */
-function HeroCard({ product, state, delay, direction, onClick }: {
-  product: ProductListItem;
-  state: "idle" | "exit" | "enter";
-  delay: number;
-  direction: "next" | "prev";
-  onClick: () => void;
+/* ══════════════════════════════════════════════════════════════════
+   SECTION ROW
+══════════════════════════════════════════════════════════════════ */
+function SectionRow({ sec, delay, onProductClick }: {
+  sec: Section; delay: number; onProductClick: (id:string)=>void;
 }) {
-  const animations: Record<string, string> = {
-    exit: direction === "next" ? "cardExitNext" : "cardExitPrev",
-    enter: direction === "next" ? "cardEnterNext" : "cardEnterPrev",
-    idle: "none",
+  const ref    = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const th = THEME[sec.theme] ?? THEME.forest;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold: 0.08 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const scroll = (dir: "l"|"r") => {
+    rowRef.current?.scrollBy({ left: dir==="r" ? 220 : -220, behavior:"smooth" });
   };
 
-  const discount = product.compare_price && product.compare_price > product.price
-    ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
-    : null;
-
   return (
-    <div
-      onClick={onClick}
-      style={{
-        borderRadius: 20,
-        overflow: "hidden",
-        cursor: "pointer",
-        background: "rgba(255,255,255,0.06)",
-        backdropFilter: "blur(20px)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        boxShadow: "0 16px 40px rgba(0,0,0,0.4)",
-        transition: "transform 0.3s ease, box-shadow 0.3s ease",
-        animation: `${animations[state]} 0.48s cubic-bezier(0.4,0,0.2,1) both`,
-        animationDelay: state !== "idle" ? `${delay * 80}ms` : "0ms",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-6px) scale(1.03)"; e.currentTarget.style.boxShadow = "0 24px 56px rgba(0,0,0,0.5)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0) scale(1)"; e.currentTarget.style.boxShadow = "0 16px 40px rgba(0,0,0,0.4)"; }}
-    >
-      {/* Image */}
-      <div style={{ position: "relative", paddingTop: "100%", background: "#0f1a3a" }}>
-        {product.main_image ? (
-          <img
-            src={product.main_image}
-            alt={product.title}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, opacity: 0.3 }}>📦</div>
+    <div ref={ref} style={{
+      marginBottom:"clamp(28px,4vw,48px)",
+      opacity: visible ? 1 : 0,
+      transform: visible ? "none" : "translateY(28px)",
+      transition:`opacity .55s ease ${delay}s, transform .55s ease ${delay}s`,
+    }}>
+      <div style={{maxWidth:1400,margin:"0 auto",padding:"0 clamp(16px,4vw,40px)"}}>
+
+        {/* header */}
+        <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",
+          marginBottom:14,flexWrap:"wrap",gap:8}}>
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+              <h2 style={{
+                fontFamily:"'Cormorant Garamond',Georgia,serif",
+                fontSize:"clamp(20px,2.8vw,30px)",fontWeight:600,
+                color:"#0f172a",margin:0,letterSpacing:"-0.02em",
+              }}>{sec.title}</h2>
+              {sec.badge && (
+                <span style={{
+                  fontSize:9,fontWeight:800,padding:"3px 9px",borderRadius:20,
+                  background:th.accent,color:"#fff",letterSpacing:.8,
+                  fontFamily:"'Jost',system-ui,sans-serif",
+                }}>{sec.badge}</span>
+              )}
+            </div>
+            <p style={{fontSize:11,color:"#6b7280",margin:0,fontFamily:"'Jost',system-ui,sans-serif"}}>{sec.subtitle}</p>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {(["l","r"] as const).map(d => (
+              <button key={d} className="arrowbtn" onClick={()=>scroll(d)} style={{
+                width:34,height:34,borderRadius:"50%",
+                border:"1px solid #ddd6cc",background:"#fff",
+                cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+                color:"#6b7280",transition:"all .18s",
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  {d==="l" ? <path d="M15 18l-6-6 6-6"/> : <path d="M9 18l6-6-6-6"/>}
+                </svg>
+              </button>
+            ))}
+            <Link href={sec.view_all} style={{
+              fontSize:11,fontWeight:600,color:th.accent,textDecoration:"none",
+              padding:"6px 14px",border:`1px solid ${th.accent}`,borderRadius:20,
+              fontFamily:"'Jost',system-ui,sans-serif",whiteSpace:"nowrap",transition:"all .18s",
+            }}>View all →</Link>
+          </div>
+        </div>
+
+        {/* gold gradient rule */}
+        <div style={{height:2,marginBottom:16,borderRadius:1,
+          background:`linear-gradient(90deg,${th.accent} 0%,${th.light.replace(")","").replace("rgba","rgb").replace(",0.",")")||"transparent"} 60%,transparent 100%)`}} />
+
+        {/* scrollable row */}
+        <div ref={rowRef} className="scrollrow">
+          {sec.products.map((p, i) => (
+            <ProductCard key={p.id} p={p} idx={i} theme={th} onClick={() => onProductClick(p.id)} />
+          ))}
+          {/* view-all end card */}
+          <Link href={sec.view_all} style={{
+            flexShrink:0,width:160,borderRadius:14,
+            border:"1.5px dashed #ccc6bc",display:"flex",
+            flexDirection:"column",alignItems:"center",justifyContent:"center",
+            gap:10,textDecoration:"none",color:th.accent,padding:20,
+            background:th.light,transition:"all .2s",
+          }}>
+            <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(0,0,0,.06)",
+              display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+              </svg>
+            </div>
+            <span style={{fontSize:11,fontWeight:600,textAlign:"center",
+              fontFamily:"'Jost',system-ui,sans-serif",lineHeight:1.4}}>
+              See all<br/>{sec.title}
+            </span>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PRODUCT CARD
+══════════════════════════════════════════════════════════════════ */
+function ProductCard({ p, idx, theme, onClick }: {
+  p: HP; idx: number; theme: typeof THEME[string]; onClick:()=>void;
+}) {
+  const [err, setErr] = useState(false);
+  return (
+    <div className="pcard" onClick={onClick} style={{
+      flexShrink:0, width:186, borderRadius:14, overflow:"hidden",
+      background:"#fff", border:"1px solid #eae6df",
+      cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.05)",
+      animation:`slideUpFade .4s ease ${idx*.03}s both`,
+    }}>
+      {/* image */}
+      <div style={{position:"relative",paddingTop:"100%",background:"#f5f3ef",overflow:"hidden"}}>
+        {p.main_image && !err
+          ? <img src={p.main_image} alt={p.title} onError={()=>setErr(true)}
+              className="pimg"
+              style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />
+          : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ccc5b9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+              </svg>
+            </div>
+        }
+        {p.discount_pct && p.discount_pct > 0 && (
+          <div style={{position:"absolute",top:8,left:8,background:"#e53935",
+            color:"#fff",fontSize:9,fontWeight:800,padding:"2px 8px",
+            borderRadius:20,fontFamily:"'Jost',system-ui,sans-serif",letterSpacing:.4}}>
+            -{p.discount_pct}%
+          </div>
         )}
-        {/* Gradient overlay */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "50%", background: "linear-gradient(transparent, rgba(0,0,0,0.6))" }} />
-        {discount && (
-          <div style={{ position: "absolute", top: 10, left: 10, background: "#d4af37", color: "#08091a", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 99, fontFamily: "system-ui, sans-serif", letterSpacing: 0.5 }}>
-            -{discount}%
+        {!p.in_stock && (
+          <div style={{position:"absolute",inset:0,background:"rgba(255,255,255,.65)",
+            display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <span style={{fontSize:10,fontWeight:700,color:"#6b7280",
+              background:"#fff",padding:"3px 9px",borderRadius:8,
+              fontFamily:"'Jost',system-ui,sans-serif"}}>Out of stock</span>
           </div>
         )}
       </div>
-      {/* Text */}
-      <div style={{ padding: "clamp(10px, 1.5vw, 14px)" }}>
-        <div style={{ fontSize: "clamp(11px, 1.2vw, 13px)", fontWeight: 600, color: "rgba(255,255,255,0.9)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4, fontFamily: "system-ui, sans-serif" }}>
-          {product.title}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: "clamp(13px, 1.4vw, 16px)", fontWeight: 900, color: "#d4af37" }}>
-            {formatCurrency(product.price)}
+
+      {/* info */}
+      <div style={{padding:"12px 13px 15px"}}>
+        <p className="ptitle" style={{
+          fontFamily:"'Jost',system-ui,sans-serif",
+          fontSize:12,fontWeight:500,color:"#1c1917",
+          margin:"0 0 6px",lineHeight:1.35,
+          overflow:"hidden",display:"-webkit-box",
+          WebkitLineClamp:2,WebkitBoxOrient:"vertical",
+          transition:"color .15s",
+        }}>{p.title}</p>
+
+        {/* stars */}
+        {p.rating && p.rating > 0 && (
+          <div style={{display:"flex",alignItems:"center",gap:3,marginBottom:6}}>
+            <div style={{display:"flex",gap:1}}>
+              {[1,2,3,4,5].map(s => (
+                <svg key={s} width="9" height="9" viewBox="0 0 24 24"
+                  fill={s<=Math.round(p.rating!) ? "#c8a75a" : "#e2ddd6"}>
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              ))}
+            </div>
+            {(p.rating_number ?? 0) > 0 && (
+              <span style={{fontSize:9,color:"#9ca3af",fontFamily:"'Jost',system-ui,sans-serif"}}>
+                ({p.rating_number})
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* price */}
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span style={{fontSize:15,fontWeight:800,color:"#0f3f2f",
+            fontFamily:"'Jost',system-ui,sans-serif"}}>
+            {formatCurrency(p.price)}
           </span>
-          {product.compare_price && product.compare_price > product.price && (
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textDecoration: "line-through", fontFamily: "system-ui, sans-serif" }}>
-              {formatCurrency(product.compare_price)}
+          {p.compare_price && p.compare_price > p.price && (
+            <span style={{fontSize:10,color:"#9ca3af",textDecoration:"line-through",
+              fontFamily:"'Jost',system-ui,sans-serif"}}>
+              {formatCurrency(p.compare_price)}
             </span>
           )}
         </div>
@@ -639,57 +626,76 @@ function HeroCard({ product, state, delay, direction, onClick }: {
   );
 }
 
-/* ================================================================
-   SECTION HEADER
-================================================================ */
-function SectionHeader({ label, title }: { label: string; title: string }) {
+/* ══════════════════════════════════════════════════════════════════
+   HERO CARD
+══════════════════════════════════════════════════════════════════ */
+function HeroCard({ p, state, dir, onClick }: {
+  p: ProductListItem; state:"idle"|"exit"|"enter"; dir:"next"|"prev"; onClick:()=>void;
+}) {
+  const anim = {
+    exit:  dir==="next" ? "cardExitN" : "cardExitP",
+    enter: dir==="next" ? "cardEnterN" : "cardEnterP",
+    idle:  "none",
+  }[state];
+
+  const disc = p.compare_price && p.compare_price > p.price
+    ? Math.round(((p.compare_price - p.price)/p.compare_price)*100) : null;
+
   return (
-    <div style={{ marginBottom: "clamp(28px, 4vw, 44px)", display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: "#9b7e2e", marginBottom: 8, fontFamily: "system-ui, sans-serif" }}>
-          — {label}
+    <div className="hcard" onClick={onClick} style={{
+      borderRadius:18,overflow:"hidden",cursor:"pointer",
+      background:"rgba(255,255,255,.07)",backdropFilter:"blur(18px)",
+      border:"1px solid rgba(255,255,255,.1)",
+      boxShadow:"0 16px 40px rgba(0,0,0,.4)",
+      transition:"transform .3s ease,box-shadow .3s ease",
+      animation:`${anim} .45s cubic-bezier(.4,0,.2,1) both`,
+    }}>
+      <div style={{position:"relative",paddingTop:"100%",background:"rgba(15,26,58,.8)"}}>
+        {p.main_image && (
+          <img src={p.main_image} alt={p.title}
+            style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} />
+        )}
+        <div style={{position:"absolute",bottom:0,left:0,right:0,height:"55%",
+          background:"linear-gradient(transparent,rgba(0,0,0,.65))"}} />
+        {disc && (
+          <div style={{position:"absolute",top:10,left:10,background:"#c8a75a",
+            color:"#08100a",fontSize:9,fontWeight:800,padding:"2px 8px",
+            borderRadius:99,fontFamily:"'Jost',system-ui,sans-serif",letterSpacing:.5}}>
+            -{disc}%
+          </div>
+        )}
+      </div>
+      <div style={{padding:"clamp(10px,1.4vw,14px)"}}>
+        <div style={{fontSize:"clamp(10px,1.1vw,12px)",fontWeight:500,
+          color:"rgba(255,255,255,.88)",overflow:"hidden",textOverflow:"ellipsis",
+          whiteSpace:"nowrap",marginBottom:4,fontFamily:"'Jost',system-ui,sans-serif"}}>
+          {p.title}
         </div>
-        <h2 style={{ fontSize: "clamp(26px, 4vw, 44px)", fontWeight: 400, color: "#0f172a", lineHeight: 1.1, margin: 0 }}>
-          {title}
-        </h2>
+        <div style={{display:"flex",alignItems:"center",gap:7}}>
+          <span style={{fontSize:"clamp(12px,1.4vw,16px)",fontWeight:800,color:"#c8a75a"}}>
+            {formatCurrency(p.price)}
+          </span>
+          {p.compare_price && p.compare_price > p.price && (
+            <span style={{fontSize:10,color:"rgba(255,255,255,.35)",
+              textDecoration:"line-through",fontFamily:"'Jost',system-ui,sans-serif"}}>
+              {formatCurrency(p.compare_price)}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-/* ================================================================
-   SKELETON
-================================================================ */
-function SkeletonGrid({ count }: { count: number }) {
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 240px), 1fr))", gap: 20 }}>
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} style={{ borderRadius: 16, overflow: "hidden", background: "#f1f0ee" }}>
-          <div style={{ paddingTop: "100%", background: "linear-gradient(90deg, #f1f0ee 0%, #e4e2de 50%, #f1f0ee 100%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s ease-in-out infinite", animationDelay: `${i * 80}ms` }} />
-          <div style={{ padding: 14 }}>
-            <div style={{ height: 14, borderRadius: 8, background: "#e4e2de", marginBottom: 8 }} />
-            <div style={{ height: 18, width: "50%", borderRadius: 8, background: "#e4e2de" }} />
-          </div>
-          <style>{`@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }`}</style>
-        </div>
-      ))}
-    </div>
-  );
+/* ══════════════════════════════════════════════════════════════════
+   TRUST ICONS
+══════════════════════════════════════════════════════════════════ */
+function TIcon({ t }: { t:string }) {
+  const icons: Record<string,React.ReactNode> = {
+    delivery:<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+    auth:    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>,
+    returns: <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8C5.5 4 10 2 14 2c5.5 0 10 4.5 10 10s-4.5 10-10 10c-4 0-7.5-2-9.5-5"/></svg>,
+    secure:  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+  };
+  return <>{icons[t]??null}</>;
 }
-
-/* ================================================================
-   STYLES
-================================================================ */
-const viewAllBtn: React.CSSProperties = {
-  display: "inline-block",
-  padding: "13px 32px",
-  borderRadius: 50,
-  border: "1.5px solid #0f172a",
-  color: "#0f172a",
-  fontWeight: 700,
-  fontSize: 14,
-  textDecoration: "none",
-  fontFamily: "system-ui, sans-serif",
-  letterSpacing: 0.3,
-  transition: "all 0.2s ease",
-};
