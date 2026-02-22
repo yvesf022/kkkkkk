@@ -152,15 +152,15 @@ function StatPill({ label, value, sub, accent, icon }: {
   return (
     <div style={{
       background: "white", borderRadius: "var(--radius-md)",
-      border: "1px solid var(--gray-200)", padding: "16px 20px",
-      flex: 1, minWidth: 130, boxShadow: "var(--shadow-soft)",
+      border: "1px solid var(--gray-200)", padding: "10px 14px",
+      flex: 1, minWidth: 110, boxShadow: "var(--shadow-soft)",
       borderLeft: accent ? `4px solid ${accent}` : "1px solid var(--gray-200)",
     }}>
       <div style={{ fontSize: 11, color: "var(--gray-400)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
         {icon} {label}
       </div>
-      <div style={{ fontSize: 28, fontWeight: 900, color: accent ?? "var(--gray-900)", lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: "var(--gray-400)", marginTop: 4 }}>{sub}</div>}
+      <div style={{ fontSize: 22, fontWeight: 900, color: accent ?? "var(--gray-900)", lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: "var(--gray-400)", marginTop: 3 }}>{sub}</div>}
     </div>
   );
 }
@@ -437,73 +437,114 @@ export default function AdminPricingPage() {
         @keyframes toastSlide { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
         @keyframes shimmer    { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
         @keyframes spin       { to{transform:rotate(360deg)} }
-        @keyframes fadeUp     { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pulseRing  { 0%,100%{box-shadow:0 0 0 0 rgba(200,167,90,0)} 50%{box-shadow:0 0 0 6px rgba(200,167,90,0.25)} }
+        @keyframes fadeUp     { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulseRing  { 0%,100%{box-shadow:0 0 0 0 rgba(200,167,90,0)} 50%{box-shadow:0 0 0 4px rgba(200,167,90,0.2)} }
+
+        html,body { margin:0;padding:0;height:100%;overflow:hidden; }
 
         .pm * { box-sizing:border-box; }
 
+        /* ── Full-viewport shell ── */
+        .pm {
+          height:100vh;
+          display:flex;
+          flex-direction:column;
+          overflow:hidden;
+          font-size:13px;
+        }
+        /* Fixed top header strip */
+        .pm-header {
+          flex-shrink:0;
+          padding:8px 18px 0;
+          background:var(--gray-50);
+          border-bottom:1px solid var(--gray-200);
+        }
+        /* Scrollable body below header */
+        .pm-body {
+          flex:1;
+          overflow:hidden;
+          display:flex;
+          flex-direction:column;
+          padding:8px 18px 0;
+        }
+        /* The table + footer area scrolls */
+        .pm-table-wrap {
+          flex:1;
+          overflow:auto;
+          border:1px solid var(--gray-200);
+          border-radius:var(--radius-md);
+          background:white;
+        }
+        /* Quick calc scrollable area */
+        .pm-calc-wrap {
+          flex:1;
+          overflow:auto;
+          padding-bottom:12px;
+        }
+
         .pm-inr {
-          padding:8px 10px 8px 26px !important; border-radius:8px !important;
+          padding:6px 8px 6px 22px !important; border-radius:6px !important;
           border:1.5px solid var(--gray-300) !important; background:var(--gray-50) !important;
-          color:var(--gray-900) !important; font-size:14px !important; font-weight:700 !important;
-          width:116px !important; min-height:unset !important; outline:none !important;
+          color:var(--gray-900) !important; font-size:13px !important; font-weight:700 !important;
+          width:106px !important; min-height:unset !important; outline:none !important;
           font-family:inherit !important; transition:border-color .15s,box-shadow .15s,background .15s !important;
         }
-        .pm-inr:focus { border-color:var(--accent) !important; box-shadow:0 0 0 3px rgba(200,167,90,.18) !important; background:white !important; }
+        .pm-inr:focus { border-color:var(--accent) !important; box-shadow:0 0 0 2px rgba(200,167,90,.18) !important; background:white !important; }
         .pm-inr::placeholder { color:var(--gray-300) !important; font-weight:400 !important; }
         .pm-inr:disabled { opacity:.4 !important; cursor:not-allowed !important; }
         .pm-inr[data-f="1"] { border-color:var(--accent) !important; background:rgba(200,167,90,.05) !important; }
 
-        .pm-si { padding:9px 13px !important; border-radius:8px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-900) !important; font-size:13px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; transition:border-color .15s !important; }
-        .pm-si:focus { border-color:var(--primary) !important; box-shadow:0 0 0 3px rgba(15,63,47,.1) !important; }
+        .pm-si { padding:7px 11px !important; border-radius:6px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-900) !important; font-size:12px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; transition:border-color .15s !important; }
+        .pm-si:focus { border-color:var(--primary) !important; box-shadow:0 0 0 2px rgba(15,63,47,.1) !important; }
         .pm-si::placeholder { color:var(--gray-300) !important; }
-        .pm-sel { padding:9px 28px 9px 12px !important; border-radius:8px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-700) !important; font-size:13px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; appearance:none !important; cursor:pointer !important; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important; background-repeat:no-repeat !important; background-position:right 9px center !important; }
+        .pm-sel { padding:7px 24px 7px 10px !important; border-radius:6px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-700) !important; font-size:12px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; appearance:none !important; cursor:pointer !important; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important; background-repeat:no-repeat !important; background-position:right 7px center !important; }
         .pm-sel:focus { border-color:var(--primary) !important; }
 
-        .pm-b { display:inline-flex !important; align-items:center !important; gap:6px !important; padding:9px 18px !important; border-radius:8px !important; font-size:13px !important; font-weight:700 !important; border:none !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; white-space:nowrap !important; transition:all .15s ease !important; }
+        .pm-b { display:inline-flex !important; align-items:center !important; gap:5px !important; padding:7px 14px !important; border-radius:6px !important; font-size:12px !important; font-weight:700 !important; border:none !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; white-space:nowrap !important; transition:all .15s ease !important; }
         .pm-b:active:not(:disabled) { transform:scale(.97) !important; }
-        .pm-bg { background:var(--primary) !important; color:white !important; box-shadow:0 2px 6px rgba(15,63,47,.2) !important; }
-        .pm-bg:hover:not(:disabled) { background:var(--primary-light) !important; box-shadow:0 4px 14px rgba(15,63,47,.3) !important; transform:translateY(-1px) !important; }
+        .pm-bg { background:var(--primary) !important; color:white !important; box-shadow:0 2px 5px rgba(15,63,47,.2) !important; }
+        .pm-bg:hover:not(:disabled) { background:var(--primary-light) !important; box-shadow:0 3px 10px rgba(15,63,47,.3) !important; transform:translateY(-1px) !important; }
         .pm-bg:disabled { background:var(--gray-200) !important; color:var(--gray-400) !important; box-shadow:none !important; cursor:not-allowed !important; }
-        .pm-ba { background:var(--accent) !important; color:white !important; box-shadow:0 2px 6px rgba(200,167,90,.3) !important; }
+        .pm-ba { background:var(--accent) !important; color:white !important; box-shadow:0 2px 5px rgba(200,167,90,.3) !important; }
         .pm-ba:hover:not(:disabled) { background:var(--accent-light) !important; transform:translateY(-1px) !important; }
         .pm-ba:disabled { opacity:.5 !important; cursor:not-allowed !important; }
         .pm-bgh { background:white !important; color:var(--gray-700) !important; border:1.5px solid var(--gray-200) !important; }
         .pm-bgh:hover:not(:disabled) { border-color:var(--primary) !important; color:var(--primary) !important; background:rgba(15,63,47,.04) !important; }
-        .pm-bbl { background:#2563eb !important; color:white !important; box-shadow:0 2px 6px rgba(37,99,235,.25) !important; }
+        .pm-bbl { background:#2563eb !important; color:white !important; box-shadow:0 2px 5px rgba(37,99,235,.25) !important; }
         .pm-bbl:hover:not(:disabled) { background:#1d4ed8 !important; transform:translateY(-1px) !important; }
         .pm-bbl:disabled { opacity:.45 !important; cursor:not-allowed !important; }
-        /* Mark priced / unpriced action buttons */
-        .pm-bmk { background:#f0fdf4 !important; color:#14532d !important; border:1.5px solid #bbf7d0 !important; font-size:11px !important; padding:5px 11px !important; }
+        .pm-bmk { background:#f0fdf4 !important; color:#14532d !important; border:1.5px solid #bbf7d0 !important; font-size:10px !important; padding:4px 9px !important; }
         .pm-bmk:hover:not(:disabled) { background:#dcfce7 !important; border-color:#86efac !important; }
-        .pm-bum { background:#fff7ed !important; color:#92400e !important; border:1.5px solid #fed7aa !important; font-size:11px !important; padding:5px 11px !important; }
+        .pm-bum { background:#fff7ed !important; color:#92400e !important; border:1.5px solid #fed7aa !important; font-size:10px !important; padding:4px 9px !important; }
         .pm-bum:hover:not(:disabled) { background:#ffedd5 !important; border-color:#fdba74 !important; }
 
-        .pm-tab { display:inline-flex !important; align-items:center !important; gap:8px !important; padding:10px 22px !important; border-radius:var(--radius-sm) !important; font-size:14px !important; font-weight:700 !important; border:2px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .18s !important; }
-        .pm-ta { background:var(--primary) !important; color:white !important; border-color:var(--primary) !important; box-shadow:0 4px 14px rgba(15,63,47,.25) !important; }
+        .pm-tab { display:inline-flex !important; align-items:center !important; gap:6px !important; padding:7px 16px !important; border-radius:var(--radius-sm) !important; font-size:12px !important; font-weight:700 !important; border:2px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .18s !important; }
+        .pm-ta { background:var(--primary) !important; color:white !important; border-color:var(--primary) !important; box-shadow:0 3px 10px rgba(15,63,47,.2) !important; }
         .pm-ti { background:white !important; color:var(--gray-600) !important; border-color:var(--gray-200) !important; }
         .pm-ti:hover { border-color:var(--primary) !important; color:var(--primary) !important; }
-        .pm-ft { display:inline-flex !important; align-items:center !important; gap:6px !important; padding:7px 18px !important; border-radius:20px !important; font-size:12px !important; font-weight:700 !important; border:1.5px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .15s !important; }
+        .pm-ft { display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 14px !important; border-radius:20px !important; font-size:11px !important; font-weight:700 !important; border:1.5px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .15s !important; }
 
         .pm-row { transition:background .18s ease; }
         .pm-row:hover > td { background-color: rgba(0,0,0,0.012) !important; }
         .pm-sk { background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-50) 50%,var(--gray-100) 75%); background-size:600px 100%; animation:shimmer 1.6s infinite; border-radius:6px; }
         .pm-spin { animation:spin .8s linear infinite; display:inline-block; }
-        .pm-mt { width:38px; height:5px; border-radius:3px; background:var(--gray-200); overflow:hidden; margin-top:3px; }
+        .pm-mt { width:34px; height:4px; border-radius:3px; background:var(--gray-200); overflow:hidden; margin-top:2px; }
         .pm-mf { height:100%; border-radius:3px; transition:width .4s ease; }
-        .pm-up { animation:fadeUp .4s cubic-bezier(.22,.9,.34,1) both; }
-        .pm-sf { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:9900; animation:fadeUp .3s cubic-bezier(.22,.9,.34,1); }
+        .pm-up { animation:fadeUp .35s cubic-bezier(.22,.9,.34,1) both; }
+        .pm-sf { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9900; animation:fadeUp .3s cubic-bezier(.22,.9,.34,1); }
 
-        /* Unpriced row notice */
         .pm-unp-notice {
-          display:inline-flex; align-items:center; gap:5px;
-          font-size:11px; color:#92400e; font-weight:600;
+          display:inline-flex; align-items:center; gap:4px;
+          font-size:10px; color:#92400e; font-weight:600;
           background:#fffbeb; border:1px solid #fde68a;
-          padding:2px 8px; border-radius:4px;
+          padding:1px 6px; border-radius:3px;
         }
+
+        /* Compact card used inside the content area */
+        .pm .card { border-radius:var(--radius-md); border:1px solid var(--gray-200); background:white; }
       `}</style>
 
-      <div className="pm" style={{ maxWidth: 1380 }}>
+      <div className="pm">
 
         {/* Toast */}
         {toast && (
@@ -522,140 +563,93 @@ export default function AdminPricingPage() {
         )}
 
         {/* ══ PAGE HEADER ══ */}
-        <div style={{ marginBottom: 28 }}>
-          {/* Breadcrumb */}
-          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
-            <Link href="/admin" style={{ fontSize: 12, color: "var(--gray-400)", textDecoration: "none", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
-              Dashboard
-            </Link>
-            <span style={{ color: "var(--gray-200)" }}>›</span>
-            <span style={{ fontSize: 12, color: "var(--gray-600)", fontWeight: 700 }}>Pricing Manager</span>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 20 }}>
-            {/* Title */}
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: "linear-gradient(135deg,var(--primary),var(--primary-light))", display: "grid", placeItems: "center", boxShadow: "0 6px 16px rgba(15,63,47,0.3)", flexShrink: 0 }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                </svg>
-              </div>
-              <div>
-                <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "var(--gray-900)", letterSpacing: -1, lineHeight: 1.1 }}>Pricing Manager</h1>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--gray-400)" }}>
-                  INR → Maloti (M) · Products are <strong style={{ color: "#d97706" }}>Unpriced</strong> until you explicitly price or mark them here
-                </p>
+        <div className="pm-header">
+          {/* Breadcrumb + Title row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", paddingBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Link href="/admin" style={{ fontSize: 11, color: "var(--gray-400)", textDecoration: "none", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
+                Dashboard
+              </Link>
+              <span style={{ color: "var(--gray-200)", fontSize: 11 }}>›</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,var(--primary),var(--primary-light))", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                  </svg>
+                </div>
+                <div>
+                  <span style={{ fontSize: 15, fontWeight: 900, color: "var(--gray-900)", letterSpacing: -0.5 }}>Pricing Manager</span>
+                  <span style={{ fontSize: 11, color: "var(--gray-400)", marginLeft: 8 }}>INR → Maloti (M)</span>
+                </div>
               </div>
             </div>
 
-            {/* Exchange rate widget */}
-            <div style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-md)", padding: "14px 18px", boxShadow: "var(--shadow-card)", minWidth: 290 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 12 }}>
+            {/* Exchange rate widget — compact inline */}
+            <div style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-sm)", padding: "6px 12px", boxShadow: "var(--shadow-soft)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
                 <span style={{
-                  width: 9, height: 9, borderRadius: "50%", flexShrink: 0,
+                  width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
                   background: rateLoading ? "var(--gray-300)" : rateSrc === "live" ? "#16a34a" : "#d97706",
-                  boxShadow: !rateLoading && rateSrc === "live" ? "0 0 0 3px rgba(22,163,74,0.2)" : "none",
-                  animation: !rateLoading && rateSrc === "live" ? "pulseRing 2.5s infinite" : "none",
                 }} />
                 <span style={{ fontWeight: 700, color: rateLoading ? "var(--gray-400)" : rateSrc === "live" ? "#16a34a" : "#d97706" }}>
-                  {rateLoading ? "Fetching rate…" : rateSrc === "live" ? "Live Rate" : "Fallback Rate"}
+                  {rateLoading ? "Fetching…" : rateSrc === "live" ? "Live" : "Fallback"}
                 </span>
                 {!rateLoading && <span style={{ color: "var(--gray-700)", fontWeight: 600 }}>1 ₹ = M {effectiveRate.toFixed(5)}</span>}
-                {rateOverride && <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 800, background: "rgba(200,167,90,0.12)", color: "var(--accent)", padding: "2px 8px", borderRadius: 20 }}>OVERRIDE</span>}
+                {rateOverride && <span style={{ fontSize: 9, fontWeight: 800, background: "rgba(200,167,90,0.12)", color: "var(--accent)", padding: "1px 6px", borderRadius: 10 }}>OVERRIDE</span>}
               </div>
-              <div style={{ display: "flex", gap: 7 }}>
-                <input type="number" placeholder="Override rate…" value={rateOverride} onChange={e => setOverride(e.target.value)} step="0.0001" className="pm-si" style={{ flex: 1 }} />
-                {rateOverride && <button onClick={() => setOverride("")} className="pm-b pm-bgh" style={{ padding: "7px 12px !important", fontSize: 11 }}>Reset</button>}
+              <div style={{ display: "flex", gap: 5 }}>
+                <input type="number" placeholder="Override rate…" value={rateOverride} onChange={e => setOverride(e.target.value)} step="0.0001" className="pm-si" style={{ width: 130 }} />
+                {rateOverride && <button onClick={() => setOverride("")} className="pm-b pm-bgh" style={{ padding: "5px 10px !important", fontSize: 10 }}>Reset</button>}
               </div>
             </div>
           </div>
 
-          {/* Info banner — explains the unpriced policy */}
-          <div style={{ marginTop: 16, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "var(--radius-sm)", padding: "11px 18px", display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+          {/* Info banner — single compact line */}
+          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "var(--radius-sm)", padding: "5px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 11, marginBottom: 6 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <div>
-              <span style={{ fontWeight: 800, color: "#92400e" }}>Pricing Policy: </span>
-              <span style={{ color: "#78350f" }}>
-                All products load as <strong>Unpriced</strong> regardless of their current DB price.
-                A product is only marked <strong style={{ color: "var(--primary)" }}>Priced</strong> after you
-                calculate &amp; save its price here, or manually mark it as priced below.
-                This ensures you always review prices intentionally.
-              </span>
+            <span style={{ fontWeight: 800, color: "#92400e" }}>Policy: </span>
+            <span style={{ color: "#78350f" }}>
+              All products load as <strong>Unpriced</strong>. Only marked <strong style={{ color: "var(--primary)" }}>Priced</strong> after you calculate &amp; save or manually mark here.
+            </span>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--gray-500)", flexShrink: 0 }}>
+              <span style={{ fontWeight: 700, color: "var(--primary)" }}>Formula:</span>
+              {([
+                ["(Market ₹", "var(--gray-900)", true],
+                ["+₹700 ship", "var(--gray-500)", false],
+                ["+₹500 profit)", "var(--gray-500)", false],
+                [`×M${effectiveRate.toFixed(4)}`, "var(--primary)", true],
+                ["= Final M", "var(--primary)", true],
+              ] as const).map(([t, c, b], i) => (
+                <span key={i} style={{ color: c as string, fontWeight: b ? 700 : 500 }}>
+                  {i > 0 && <span style={{ color: "var(--gray-200)", margin: "0 2px" }}>·</span>}
+                  {t}
+                </span>
+              ))}
             </div>
           </div>
 
-          {/* Formula banner */}
-          <div style={{ marginTop: 10, background: "linear-gradient(100deg,rgba(15,63,47,0.05),rgba(200,167,90,0.07))", border: "1px solid rgba(15,63,47,0.1)", borderRadius: "var(--radius-sm)", padding: "11px 18px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, fontSize: 13 }}>
-            <span style={{ fontWeight: 800, color: "var(--primary)" }}>Formula:</span>
+          {/* Main tabs */}
+          <div style={{ display: "flex", gap: 6, paddingBottom: 6 }}>
             {([
-              ["(Market ₹", "var(--gray-900)", true],
-              ["+₹700 shipping", "var(--gray-500)", false],
-              ["+₹500 profit)", "var(--gray-500)", false],
-              [`×M${effectiveRate.toFixed(4)}`, "var(--primary)", true],
-              ["= Final Maloti", "var(--primary)", true],
-            ] as const).map(([t, c, b], i) => (
-              <span key={i} style={{ color: c as string, fontWeight: b ? 800 : 500 }}>
-                {i > 0 && <span style={{ color: "var(--gray-200)", margin: "0 3px" }}>·</span>}
-                {t}
-              </span>
+              { id: "batch", icon: "⚡", label: `Batch Pricing${rows.length ? ` (${rows.length})` : ""}` },
+              { id: "calc",  icon: "🧮", label: "Quick Calculator" },
+            ] as const).map(t => (
+              <button key={t.id} onClick={() => setMainTab(t.id as MainTab)}
+                className={`pm-b pm-tab ${mainTab === t.id ? "pm-ta" : "pm-ti"}`}>
+                {t.icon} {t.label}
+              </button>
             ))}
-            <button onClick={() => setShowFormula(f => !f)} style={{ marginLeft: "auto", fontSize: 11, color: "var(--gray-400)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", minHeight: "unset", fontWeight: 700 }}>
-              {showFormula ? "Hide ↑" : "Details ↓"}
-            </button>
           </div>
-
-          {showFormula && (
-            <div style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-md)", padding: "20px 24px", marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, fontSize: 13, boxShadow: "var(--shadow-soft)", animation: "fadeUp 0.2s ease" }}>
-              <div>
-                <div style={{ fontWeight: 800, color: "var(--gray-900)", marginBottom: 12 }}>Calculation Steps</div>
-                {([
-                  ["Market Price (₹)", "What the product costs in India"],
-                  ["+ ₹700 Shipping",  "Fixed international shipping"],
-                  ["+ ₹500 Profit",    "Fixed company margin"],
-                  [`× M${effectiveRate.toFixed(5)}`, "Live INR → LSL rate"],
-                ] as const).map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--gray-100)" }}>
-                    <span style={{ fontWeight: 700, color: "var(--gray-900)" }}>{k}</span>
-                    <span style={{ color: "var(--gray-400)" }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <div style={{ fontWeight: 800, color: "var(--gray-900)", marginBottom: 12 }}>Compare Price &amp; Margin</div>
-                <div style={{ color: "var(--gray-600)", lineHeight: 1.75, marginBottom: 10 }}>
-                  <strong>Compare = (Market + ₹700) × rate × 1.05</strong><br />Customers always see a real discount.
-                </div>
-                {([["< 8%", "#dc2626", "Too low — raise price"], ["8–15%", "#d97706", "Acceptable"], ["> 15%", "var(--primary)", "Healthy ✓"]] as const).map(([range, color, note]) => (
-                  <div key={range} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
-                    <span style={{ width: 9, height: 9, borderRadius: "50%", background: color as string, flexShrink: 0 }} />
-                    <span style={{ fontWeight: 700, color: color as string, fontSize: 12 }}>{range}</span>
-                    <span style={{ color: "var(--gray-400)", fontSize: 12 }}>{note}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ══ MAIN TABS ══ */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-          {([
-            { id: "batch", icon: "⚡", label: `Batch Pricing${rows.length ? ` (${rows.length})` : ""}` },
-            { id: "calc",  icon: "🧮", label: "Quick Calculator" },
-          ] as const).map(t => (
-            <button key={t.id} onClick={() => setMainTab(t.id as MainTab)}
-              className={`pm-b pm-tab ${mainTab === t.id ? "pm-ta" : "pm-ti"}`}>
-              {t.icon} {t.label}
-            </button>
-          ))}
         </div>
 
         {/* ══ QUICK CALCULATOR ══ */}
         {mainTab === "calc" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 860 }}>
+          <div className="pm-body">
+            <div className="pm-calc-wrap">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 800 }}>
             {/* Input card */}
             <div className="card pm-up" style={{ padding: 28 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
@@ -738,28 +732,30 @@ export default function AdminPricingPage() {
                 </div>
               )}
             </div>
+            </div>
+            </div>
           </div>
         )}
 
         {/* ══ BATCH PRICING ══ */}
         {mainTab === "batch" && (
-          <div>
+          <div className="pm-body">
             {/* ── Dashboard ── */}
             {rows.length > 0 && (
-              <div style={{ marginBottom: 24, animation: "fadeUp 0.4s ease" }}>
-                {/* Progress panel */}
-                <div className="card" style={{ padding: "20px 24px", marginBottom: 14 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+              <div style={{ marginBottom: 8, animation: "fadeUp 0.3s ease", flexShrink: 0 }}>
+                {/* Progress + stats in one compact row */}
+                <div className="card" style={{ padding: "10px 16px", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                     <ProgressArc pct={stats.pctDone} />
-                    <div style={{ flex: 1, minWidth: 260 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
                         <span style={{ fontWeight: 800 }}>Pricing Progress</span>
                         <span style={{ fontWeight: 700, color: "var(--gray-700)" }}>{stats.priced} / {stats.total} priced</span>
                       </div>
-                      <div style={{ background: "var(--gray-100)", borderRadius: 20, height: 12, overflow: "hidden" }}>
+                      <div style={{ background: "var(--gray-100)", borderRadius: 20, height: 8, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${stats.pctDone}%`, background: stats.pctDone === 100 ? "linear-gradient(90deg,var(--primary),#16a34a)" : stats.pctDone > 60 ? "linear-gradient(90deg,var(--primary),var(--accent))" : "linear-gradient(90deg,#d97706,var(--accent))", borderRadius: 20, transition: "width 0.8s cubic-bezier(.4,0,.2,1)" }} />
                       </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 10, fontSize: 12 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 6, fontSize: 11 }}>
                         {[
                           { label: `${stats.unpriced} unpriced`, color: "#d97706", show: true },
                           { label: `${stats.priced} priced`,     color: "var(--primary)", show: true },
@@ -782,63 +778,63 @@ export default function AdminPricingPage() {
                     )}
                   </div>
                 </div>
-                {/* Stat pills */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <StatPill label="Total" value={stats.total} icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>} />
+                {/* Stat pills — compact inline */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <StatPill label="Total" value={stats.total} icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>} />
                   <StatPill label="Unpriced" value={stats.unpriced} accent={stats.unpriced > 0 ? "#d97706" : "var(--gray-300)"} sub={stats.unpriced > 0 ? "Needs pricing" : "All priced!"}
-                    icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>} />
-                  <StatPill label="Priced" value={stats.priced} accent="var(--primary)" sub="Priced via this tool"
-                    icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>} />
-                  <StatPill label="Ready to Save" value={stats.readyToSave} accent={stats.readyToSave > 0 ? "#2563eb" : "var(--gray-300)"} sub={stats.readyToSave > 0 ? "Hit Save All →" : "Nothing pending"}
-                    icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>} />
+                    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>} />
+                  <StatPill label="Priced" value={stats.priced} accent="var(--primary)" sub="Via this tool"
+                    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>} />
+                  <StatPill label="Ready to Save" value={stats.readyToSave} accent={stats.readyToSave > 0 ? "#2563eb" : "var(--gray-300)"} sub={stats.readyToSave > 0 ? "Save All →" : "Nothing pending"}
+                    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>} />
                   {stats.errors > 0 && <StatPill label="Errors" value={stats.errors} accent="#dc2626" sub="Click to retry"
-                    icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>} />}
+                    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>} />}
                 </div>
               </div>
             )}
 
             {/* ── Toolbar ── */}
-            <div className="card" style={{ padding: "16px 18px", marginBottom: 14, boxShadow: "var(--shadow-soft)" }}>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: rows.length > 0 ? 14 : 0 }}>
-                <div style={{ position: "relative", flex: 1, maxWidth: 300 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2"
-                    style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+            <div className="card" style={{ padding: "10px 14px", marginBottom: 8, boxShadow: "var(--shadow-soft)", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: rows.length > 0 ? 10 : 0 }}>
+                <div style={{ position: "relative", flex: 1, maxWidth: 260 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2"
+                    style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
                     <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
                   </svg>
-                  <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} onKeyDown={e => e.key === "Enter" && loadProducts()} placeholder="Search products…" className="pm-si" style={{ width: "100%", paddingLeft: "34px !important" }} />
+                  <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} onKeyDown={e => e.key === "Enter" && loadProducts()} placeholder="Search products…" className="pm-si" style={{ width: "100%", paddingLeft: "30px !important" }} />
                 </div>
-                <select value={catFilter} onChange={e => setCat(e.target.value)} className="pm-sel" style={{ minWidth: 160 }}>
+                <select value={catFilter} onChange={e => setCat(e.target.value)} className="pm-sel" style={{ minWidth: 140 }}>
                   <option value="">All Categories</option>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <select value={brandFilter} onChange={e => setBrand(e.target.value)} className="pm-sel" style={{ minWidth: 150 }}>
+                <select value={brandFilter} onChange={e => setBrand(e.target.value)} className="pm-sel" style={{ minWidth: 130 }}>
                   <option value="">All Brands</option>
                   {brands.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
-                <button onClick={() => loadProducts()} disabled={batchLoading} className="pm-b pm-bg" style={{ minWidth: 148 }}>
+                <button onClick={() => loadProducts()} disabled={batchLoading} className="pm-b pm-bg" style={{ minWidth: 130 }}>
                   {batchLoading
-                    ? <><span className="pm-spin" style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Loading…</>
+                    ? <><span className="pm-spin" style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Loading…</>
                     : rows.length > 0 ? "🔄 Reload" : "⚡ Load Products"}
                 </button>
               </div>
 
               {rows.length > 0 && (
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", paddingTop: 14, borderTop: "1px solid var(--gray-100)" }}>
-                  {/* Quick fill — only applies to unpriced */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingTop: 10, borderTop: "1px solid var(--gray-100)" }}>
+                  {/* Quick fill */}
                   {stats.unpriced > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(200,167,90,0.07)", border: "1.5px solid rgba(200,167,90,0.3)", borderRadius: 10, padding: "7px 12px" }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(200,167,90,0.07)", border: "1.5px solid rgba(200,167,90,0.3)", borderRadius: 8, padding: "5px 10px" }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                       </svg>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#92400e", whiteSpace: "nowrap" }}>
-                        Quick Fill ({stats.unpriced} unpriced):
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#92400e", whiteSpace: "nowrap" }}>
+                        Quick Fill ({stats.unpriced}):
                       </span>
                       <div style={{ position: "relative" }}>
-                        <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
-                        <input type="number" value={quickFillInr} onChange={e => setFill(e.target.value)} onKeyDown={e => e.key === "Enter" && applyQuickFill()} placeholder="price" className="pm-inr" data-f={quickFillInr !== "" ? "1" : undefined} style={{ width: "95px !important", paddingLeft: "22px !important" }} />
+                        <span style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", fontSize: 12, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
+                        <input type="number" value={quickFillInr} onChange={e => setFill(e.target.value)} onKeyDown={e => e.key === "Enter" && applyQuickFill()} placeholder="price" className="pm-inr" data-f={quickFillInr !== "" ? "1" : undefined} style={{ width: "88px !important", paddingLeft: "18px !important" }} />
                       </div>
-                      <button onClick={applyQuickFill} disabled={!quickFillInr} className="pm-b pm-ba" style={{ padding: "7px 14px !important", fontSize: 12 }}>
-                        Apply to All
+                      <button onClick={applyQuickFill} disabled={!quickFillInr} className="pm-b pm-ba" style={{ padding: "5px 12px !important", fontSize: 11 }}>
+                        Apply
                       </button>
                     </div>
                   )}
@@ -851,20 +847,20 @@ export default function AdminPricingPage() {
                     <option value="price_desc">Price ↓</option>
                   </select>
 
-                  <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600, color: "var(--gray-600)", cursor: "pointer", userSelect: "none", minHeight: "unset" }}>
-                    <input type="checkbox" checked={highlightUnpriced} onChange={e => setHL(e.target.checked)} style={{ accentColor: "var(--primary)", width: 14, height: 14, cursor: "pointer", minHeight: "unset" }} />
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--gray-600)", cursor: "pointer", userSelect: "none", minHeight: "unset" }}>
+                    <input type="checkbox" checked={highlightUnpriced} onChange={e => setHL(e.target.checked)} style={{ accentColor: "var(--primary)", width: 13, height: 13, cursor: "pointer", minHeight: "unset" }} />
                     Highlight unpriced
                   </label>
 
-                  <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                  <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                     {stats.selectedReady > 0 && (
                       <button onClick={() => saveAll(true)} disabled={bulkSaving} className="pm-b pm-bbl">
                         💾 Save Selected ({stats.selectedReady})
                       </button>
                     )}
-                    <button onClick={() => saveAll(false)} disabled={bulkSaving || stats.readyToSave === 0} className="pm-b pm-bg" style={{ minWidth: 168 }}>
+                    <button onClick={() => saveAll(false)} disabled={bulkSaving || stats.readyToSave === 0} className="pm-b pm-bg" style={{ minWidth: 148 }}>
                       {bulkSaving
-                        ? <><span className="pm-spin" style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Saving…</>
+                        ? <><span className="pm-spin" style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Saving…</>
                         : `💾 Save All (${stats.readyToSave})`}
                     </button>
                   </div>
@@ -874,7 +870,7 @@ export default function AdminPricingPage() {
 
             {/* ── Filter tabs ── */}
             {rows.length > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap", flexShrink: 0 }}>
                 {([
                   { id: "all",      label: "All",        count: rows.length,    bg: "var(--gray-900)", fg: "white" },
                   { id: "unpriced", label: "⚠ Unpriced", count: stats.unpriced + stats.modified + stats.errors, bg: "#d97706", fg: "white" },
@@ -885,46 +881,46 @@ export default function AdminPricingPage() {
                     <button key={t.id} onClick={() => setFilterTab(t.id)} className="pm-ft"
                       style={{ background: active ? t.bg : "white", color: active ? t.fg : "var(--gray-600)", border: `1.5px solid ${active ? "transparent" : "var(--gray-200)"}`, boxShadow: active ? "var(--shadow-card)" : "none" }}>
                       {t.label}
-                      <span style={{ background: active ? "rgba(255,255,255,0.2)" : "var(--gray-100)", color: active ? "white" : "var(--gray-500)", padding: "1px 8px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
+                      <span style={{ background: active ? "rgba(255,255,255,0.2)" : "var(--gray-100)", color: active ? "white" : "var(--gray-500)", padding: "1px 7px", borderRadius: 20, fontSize: 10, fontWeight: 800 }}>
                         {t.count}
                       </span>
                     </button>
                   );
                 })}
-                <span style={{ fontSize: 12, color: "var(--gray-400)", marginLeft: 4 }}>{displayRows.length} shown</span>
-                <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--gray-300)" }}>⌨ Tab / Enter to jump between price inputs</span>
+                <span style={{ fontSize: 11, color: "var(--gray-400)", marginLeft: 4 }}>{displayRows.length} shown</span>
+                <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--gray-300)" }}>⌨ Tab / Enter to jump between price inputs</span>
               </div>
             )}
 
             {/* ── Empty state ── */}
             {rows.length === 0 && !batchLoading && (
-              <div style={{ background: "white", border: "2px dashed var(--gray-200)", borderRadius: "var(--radius-lg)", padding: "72px 40px", textAlign: "center", boxShadow: "var(--shadow-soft)" }}>
-                <div style={{ width: 68, height: 68, borderRadius: 20, margin: "0 auto 18px", background: "linear-gradient(135deg,rgba(15,63,47,0.08),rgba(200,167,90,0.1))", display: "grid", placeItems: "center" }}>
-                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round">
+              <div className="pm-table-wrap" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, textAlign: "center" }}>
+                <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg,rgba(15,63,47,0.08),rgba(200,167,90,0.1))", display: "grid", placeItems: "center" }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round">
                     <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
                     <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
                   </svg>
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: "var(--gray-900)", marginBottom: 10 }}>Ready to price your catalog</div>
-                <p style={{ fontSize: 14, color: "var(--gray-400)", maxWidth: 420, margin: "0 auto 24px" }}>
-                  All products load as <strong>Unpriced</strong>. Use the tool to calculate and save prices, or manually mark products as priced.
+                <div style={{ fontSize: 18, fontWeight: 900, color: "var(--gray-900)" }}>Ready to price your catalog</div>
+                <p style={{ fontSize: 13, color: "var(--gray-400)", maxWidth: 380, margin: 0 }}>
+                  All products load as <strong>Unpriced</strong>. Use the tool to calculate and save prices.
                 </p>
-                <button onClick={() => loadProducts()} className="pm-b pm-bg" style={{ padding: "12px 32px !important", fontSize: 14 }}>⚡ Load Products</button>
+                <button onClick={() => loadProducts()} className="pm-b pm-bg" style={{ padding: "10px 28px !important", fontSize: 13 }}>⚡ Load Products</button>
               </div>
             )}
 
             {/* ── Skeleton ── */}
             {batchLoading && rows.length === 0 && (
-              <div style={{ background: "white", borderRadius: "var(--radius-lg)", border: "1px solid var(--gray-200)", overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
-                {[...Array(7)].map((_, i) => (
-                  <div key={i} style={{ padding: "18px 24px", display: "flex", gap: 16, alignItems: "center", borderBottom: "1px solid var(--gray-100)", opacity: 1 - i * 0.1 }}>
-                    <div className="pm-sk" style={{ width: 56, height: 56, flexShrink: 0 }} />
+              <div className="pm-table-wrap" style={{ overflow: "hidden" }}>
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} style={{ padding: "14px 18px", display: "flex", gap: 12, alignItems: "center", borderBottom: "1px solid var(--gray-100)", opacity: 1 - i * 0.1 }}>
+                    <div className="pm-sk" style={{ width: 44, height: 44, flexShrink: 0 }} />
                     <div style={{ flex: 1 }}>
-                      <div className="pm-sk" style={{ width: `${50 + i * 6}%`, height: 13, marginBottom: 8 }} />
-                      <div className="pm-sk" style={{ width: "25%", height: 10 }} />
+                      <div className="pm-sk" style={{ width: `${50 + i * 6}%`, height: 11, marginBottom: 7 }} />
+                      <div className="pm-sk" style={{ width: "22%", height: 9 }} />
                     </div>
-                    <div className="pm-sk" style={{ width: 116, height: 36, flexShrink: 0 }} />
-                    <div className="pm-sk" style={{ width: 70, height: 36, flexShrink: 0 }} />
+                    <div className="pm-sk" style={{ width: 106, height: 32, flexShrink: 0 }} />
+                    <div className="pm-sk" style={{ width: 64, height: 32, flexShrink: 0 }} />
                   </div>
                 ))}
               </div>
@@ -932,25 +928,24 @@ export default function AdminPricingPage() {
 
             {/* ══ THE TABLE ══ */}
             {displayRows.length > 0 && (
-              <div style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-lg)", overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
-                    <thead>
+              <div className="pm-table-wrap">
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1060 }}>
+                    <thead style={{ position: "sticky", top: 0, zIndex: 10 }}>
                       <tr style={{ background: "var(--gray-50)", borderBottom: "2px solid var(--gray-200)" }}>
-                        <th style={{ ...TH, width: 36, paddingLeft: 18 }}>
-                          <input type="checkbox" checked={selectAll} onChange={toggleSelectAll} style={{ accentColor: "var(--primary)", width: 14, height: 14, cursor: "pointer", minHeight: "unset" }} />
+                        <th style={{ ...TH, width: 32, paddingLeft: 14 }}>
+                          <input type="checkbox" checked={selectAll} onChange={toggleSelectAll} style={{ accentColor: "var(--primary)", width: 13, height: 13, cursor: "pointer", minHeight: "unset" }} />
                         </th>
                         <th style={{ ...TH, width: 4, padding: 0 }} />
-                        <th style={{ ...TH, textAlign: "left", minWidth: 280 }}>Product</th>
+                        <th style={{ ...TH, textAlign: "left", minWidth: 240 }}>Product</th>
                         <th style={TH}>Status</th>
                         <th style={{ ...TH, textAlign: "right" }}>DB Price</th>
-                        <th style={{ ...TH, textAlign: "center", minWidth: 130 }}>Market Price (₹)</th>
+                        <th style={{ ...TH, textAlign: "center", minWidth: 120 }}>Market (₹)</th>
                         <th style={{ ...TH, textAlign: "right" }}>Cost (₹)</th>
-                        <th style={{ ...TH, textAlign: "right", minWidth: 130, color: "var(--primary)" }}>→ Final (M)</th>
+                        <th style={{ ...TH, textAlign: "right", minWidth: 120, color: "var(--primary)" }}>→ Final (M)</th>
                         <th style={{ ...TH, textAlign: "right" }}>Compare (M)</th>
                         <th style={{ ...TH, textAlign: "center" }}>Margin</th>
                         <th style={{ ...TH, textAlign: "center" }}>Disc%</th>
-                        <th style={{ ...TH, textAlign: "center", minWidth: 150 }}>Action</th>
+                        <th style={{ ...TH, textAlign: "center", minWidth: 140 }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -994,25 +989,25 @@ export default function AdminPricingPage() {
                             </td>
 
                             {/* Product info */}
-                            <td style={{ ...TD, background: rowBg, minWidth: 260 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <div style={{ width: 54, height: 54, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid var(--gray-200)", background: "var(--gray-50)", display: "grid", placeItems: "center", boxShadow: "var(--shadow-soft)" }}>
+                            <td style={{ ...TD, background: rowBg, minWidth: 240 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--gray-200)", background: "var(--gray-50)", display: "grid", placeItems: "center" }}>
                                   {(row.product as any).main_image && !row.imgErr ? (
                                     <img src={(row.product as any).main_image} alt={row.product.title} onError={() => setImgErr(row.product.id)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                   ) : (
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" strokeWidth="1.5">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" strokeWidth="1.5">
                                       <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
                                     </svg>
                                   )}
                                 </div>
                                 <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontWeight: 700, fontSize: 13, color: "var(--gray-900)", maxWidth: 220, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.35 }}>
+                                  <div style={{ fontWeight: 700, fontSize: 12, color: "var(--gray-900)", maxWidth: 200, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.3 }}>
                                     {row.product.title}
                                   </div>
-                                  <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 3 }}>
+                                  <div style={{ fontSize: 10, color: "var(--gray-400)", marginTop: 2 }}>
                                     {[row.product.brand, row.product.category].filter(Boolean).join(" · ") || "—"}
                                   </div>
-                                  {row.product.sku && <div style={{ fontSize: 10, color: "var(--gray-300)", marginTop: 1, fontFamily: "monospace" }}>SKU: {row.product.sku}</div>}
+                                  {row.product.sku && <div style={{ fontSize: 9, color: "var(--gray-300)", marginTop: 1, fontFamily: "monospace" }}>SKU: {row.product.sku}</div>}
                                 </div>
                               </div>
                             </td>
@@ -1163,14 +1158,13 @@ export default function AdminPricingPage() {
                       })}
                     </tbody>
                   </table>
-                </div>
 
                 {/* Table footer */}
-                <div style={{ padding: "12px 24px", borderTop: "1px solid var(--gray-100)", background: "var(--gray-50)", display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center", fontSize: 12, color: "var(--gray-400)" }}>
+                <div style={{ padding: "8px 16px", borderTop: "1px solid var(--gray-100)", background: "var(--gray-50)", display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", fontSize: 11, color: "var(--gray-400)", flexShrink: 0 }}>
                   <span>📦 {rows.length} loaded</span>
                   <span>✏️ {stats.withResult} calculated</span>
                   <span style={{ color: "#d97706", fontWeight: 700 }}>⚠ {stats.unpriced} unpriced</span>
-                  <span style={{ color: "var(--primary)", fontWeight: 700 }}>✓ {stats.priced} priced via tool</span>
+                  <span style={{ color: "var(--primary)", fontWeight: 700 }}>✓ {stats.priced} priced</span>
                   {stats.errors > 0 && <span style={{ color: "#dc2626", fontWeight: 700 }}>✗ {stats.errors} errors</span>}
                   {stats.readyToSave > 0 && (
                     <span style={{ marginLeft: "auto", color: "#2563eb", fontWeight: 800 }}>⏳ {stats.readyToSave} unsaved — click Save All</span>
@@ -1187,30 +1181,24 @@ export default function AdminPricingPage() {
             <div style={{
               background: "white",
               border: "1.5px solid var(--gray-200)",
-              borderRadius: "var(--radius-lg)",
-              padding: "16px 28px",
-              display: "flex", alignItems: "center", gap: 22,
-              boxShadow: "0 16px 48px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.08)",
-              minWidth: 460,
+              borderRadius: "var(--radius-md)",
+              padding: "12px 20px",
+              display: "flex", alignItems: "center", gap: 16,
+              boxShadow: "0 12px 40px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.08)",
+              minWidth: 400,
             }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--accent)", flexShrink: 0, animation: "pulseRing 2.5s infinite" }} />
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent)", flexShrink: 0, animation: "pulseRing 2.5s infinite" }} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "var(--gray-900)" }}>{stats.readyToSave} price{stats.readyToSave !== 1 ? "s" : ""} ready to save</div>
-                <div style={{ fontSize: 12, color: "var(--gray-400)", marginTop: 2 }}>Changes won&apos;t appear in your store until saved</div>
+                <div style={{ fontWeight: 800, fontSize: 13, color: "var(--gray-900)" }}>{stats.readyToSave} price{stats.readyToSave !== 1 ? "s" : ""} ready to save</div>
+                <div style={{ fontSize: 11, color: "var(--gray-400)" }}>Changes won&apos;t appear in your store until saved</div>
               </div>
               <button
                 onClick={() => saveAll(false)}
                 disabled={bulkSaving}
-                style={{
-                  padding: "12px 28px", borderRadius: "var(--radius-sm)",
-                  background: "var(--primary)", color: "white",
-                  border: "none", cursor: bulkSaving ? "not-allowed" : "pointer",
-                  fontWeight: 800, fontSize: 14, fontFamily: "inherit",
-                  boxShadow: "0 4px 16px rgba(15,63,47,0.25)",
-                  minHeight: "unset", transition: "all 0.15s", whiteSpace: "nowrap",
-                }}>
+                className="pm-b pm-bg"
+                style={{ padding: "10px 22px !important", fontSize: 13, whiteSpace: "nowrap" }}>
                 {bulkSaving
-                  ? <><span className="pm-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", marginRight: 8 }} />Saving…</>
+                  ? <><span className="pm-spin" style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", marginRight: 6 }} />Saving…</>
                   : `💾 Save All (${stats.readyToSave})`}
               </button>
             </div>
@@ -1225,11 +1213,11 @@ export default function AdminPricingPage() {
    STYLE CONSTANTS
 ═══════════════════════════════════════════════════ */
 const TH: React.CSSProperties = {
-  padding: "12px 14px", fontSize: 11, fontWeight: 700,
+  padding: "9px 11px", fontSize: 10, fontWeight: 700,
   color: "var(--gray-400)", textTransform: "uppercase",
-  letterSpacing: "0.7px", whiteSpace: "nowrap", textAlign: "center",
+  letterSpacing: "0.6px", whiteSpace: "nowrap", textAlign: "center",
 };
 
 const TD: React.CSSProperties = {
-  padding: "13px 14px", fontSize: 13, verticalAlign: "middle",
+  padding: "10px 11px", fontSize: 12, verticalAlign: "middle",
 };
