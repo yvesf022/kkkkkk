@@ -441,16 +441,38 @@ export default function AdminPricingPage() {
         @keyframes pulseRing  { 0%,100%{box-shadow:0 0 0 0 rgba(200,167,90,0)} 50%{box-shadow:0 0 0 6px rgba(200,167,90,0.25)} }
 
         .pm * { box-sizing:border-box; }
+        /* Full-viewport fixed layout — outer shell never scrolls */
         .pm {
-          padding: 14px 18px 80px;
+          height: 100dvh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
           font-family: var(--font-sans, system-ui, sans-serif);
+          background: var(--gray-50, #f9fafb);
+        }
+        /* Top chrome: header + toolbar — fixed height, never scrolls */
+        .pm-chrome {
+          flex-shrink: 0;
+          padding: 6px 14px 0;
+          background: white;
+          border-bottom: 1px solid var(--gray-200);
+        }
+        /* The only scrolling region — grows to fill remaining height */
+        .pm-body {
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+          min-height: 0;
+        }
+        .pm-body-inner {
+          padding: 10px 14px 20px;
         }
 
         .pm-inr {
-          padding:7px 8px 7px 22px !important; border-radius:6px !important;
+          padding:5px 7px 5px 20px !important; border-radius:6px !important;
           border:1.5px solid var(--gray-300) !important; background:var(--gray-50) !important;
-          color:var(--gray-900) !important; font-size:13px !important; font-weight:700 !important;
-          width:100px !important; min-height:unset !important; outline:none !important;
+          color:var(--gray-900) !important; font-size:12px !important; font-weight:700 !important;
+          width:92px !important; min-height:unset !important; outline:none !important;
           font-family:inherit !important; transition:border-color .15s,box-shadow .15s,background .15s !important;
         }
         .pm-inr:focus { border-color:var(--accent) !important; box-shadow:0 0 0 3px rgba(200,167,90,.18) !important; background:white !important; }
@@ -458,204 +480,247 @@ export default function AdminPricingPage() {
         .pm-inr:disabled { opacity:.4 !important; cursor:not-allowed !important; }
         .pm-inr[data-f="1"] { border-color:var(--accent) !important; background:rgba(200,167,90,.05) !important; }
 
-        .pm-si { padding:9px 13px !important; border-radius:8px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-900) !important; font-size:13px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; transition:border-color .15s !important; }
+        .pm-si { padding:6px 10px !important; border-radius:6px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-900) !important; font-size:12px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; transition:border-color .15s !important; }
         .pm-si:focus { border-color:var(--primary) !important; box-shadow:0 0 0 3px rgba(15,63,47,.1) !important; }
         .pm-si::placeholder { color:var(--gray-300) !important; }
-        .pm-sel { padding:9px 28px 9px 12px !important; border-radius:8px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-700) !important; font-size:13px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; appearance:none !important; cursor:pointer !important; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important; background-repeat:no-repeat !important; background-position:right 9px center !important; }
+        .pm-sel { padding:6px 24px 6px 9px !important; border-radius:6px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-700) !important; font-size:12px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; appearance:none !important; cursor:pointer !important; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important; background-repeat:no-repeat !important; background-position:right 7px center !important; }
         .pm-sel:focus { border-color:var(--primary) !important; }
 
-        .pm-b { display:inline-flex !important; align-items:center !important; gap:5px !important; padding:7px 14px !important; border-radius:6px !important; font-size:12px !important; font-weight:700 !important; border:none !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; white-space:nowrap !important; transition:all .15s ease !important; }
+        .pm-b { display:inline-flex !important; align-items:center !important; gap:4px !important; padding:5px 11px !important; border-radius:6px !important; font-size:11px !important; font-weight:700 !important; border:none !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; white-space:nowrap !important; transition:all .15s ease !important; }
         .pm-b:active:not(:disabled) { transform:scale(.97) !important; }
         .pm-bg { background:var(--primary) !important; color:white !important; box-shadow:0 2px 6px rgba(15,63,47,.2) !important; }
-        .pm-bg:hover:not(:disabled) { background:var(--primary-light) !important; box-shadow:0 4px 14px rgba(15,63,47,.3) !important; transform:translateY(-1px) !important; }
+        .pm-bg:hover:not(:disabled) { background:var(--primary-light) !important; box-shadow:0 4px 14px rgba(15,63,47,.3) !important; }
         .pm-bg:disabled { background:var(--gray-200) !important; color:var(--gray-400) !important; box-shadow:none !important; cursor:not-allowed !important; }
         .pm-ba { background:var(--accent) !important; color:white !important; box-shadow:0 2px 6px rgba(200,167,90,.3) !important; }
-        .pm-ba:hover:not(:disabled) { background:var(--accent-light) !important; transform:translateY(-1px) !important; }
+        .pm-ba:hover:not(:disabled) { background:var(--accent-light) !important; }
         .pm-ba:disabled { opacity:.5 !important; cursor:not-allowed !important; }
         .pm-bgh { background:white !important; color:var(--gray-700) !important; border:1.5px solid var(--gray-200) !important; }
-        .pm-bgh:hover:not(:disabled) { border-color:var(--primary) !important; color:var(--primary) !important; background:rgba(15,63,47,.04) !important; }
-        .pm-bbl { background:#2563eb !important; color:white !important; box-shadow:0 2px 6px rgba(37,99,235,.25) !important; }
-        .pm-bbl:hover:not(:disabled) { background:#1d4ed8 !important; transform:translateY(-1px) !important; }
+        .pm-bgh:hover:not(:disabled) { border-color:var(--primary) !important; color:var(--primary) !important; }
+        .pm-bbl { background:#2563eb !important; color:white !important; }
         .pm-bbl:disabled { opacity:.45 !important; cursor:not-allowed !important; }
-        /* Mark priced / unpriced action buttons */
-        .pm-bmk { background:#f0fdf4 !important; color:#14532d !important; border:1.5px solid #bbf7d0 !important; font-size:11px !important; padding:5px 11px !important; }
-        .pm-bmk:hover:not(:disabled) { background:#dcfce7 !important; border-color:#86efac !important; }
-        .pm-bum { background:#fff7ed !important; color:#92400e !important; border:1.5px solid #fed7aa !important; font-size:11px !important; padding:5px 11px !important; }
-        .pm-bum:hover:not(:disabled) { background:#ffedd5 !important; border-color:#fdba74 !important; }
+        .pm-bmk { background:#f0fdf4 !important; color:#14532d !important; border:1.5px solid #bbf7d0 !important; font-size:10px !important; padding:3px 8px !important; }
+        .pm-bmk:hover:not(:disabled) { background:#dcfce7 !important; }
+        .pm-bum { background:#fff7ed !important; color:#92400e !important; border:1.5px solid #fed7aa !important; font-size:10px !important; padding:3px 8px !important; }
+        .pm-bum:hover:not(:disabled) { background:#ffedd5 !important; }
 
-        .pm-tab { display:inline-flex !important; align-items:center !important; gap:6px !important; padding:7px 16px !important; border-radius:var(--radius-sm) !important; font-size:13px !important; font-weight:700 !important; border:2px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .18s !important; }
-        .pm-ta { background:var(--primary) !important; color:white !important; border-color:var(--primary) !important; box-shadow:0 4px 14px rgba(15,63,47,.25) !important; }
+        .pm-tab { display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 13px !important; border-radius:var(--radius-sm) !important; font-size:12px !important; font-weight:700 !important; border:1.5px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .18s !important; }
+        .pm-ta { background:var(--primary) !important; color:white !important; border-color:var(--primary) !important; }
         .pm-ti { background:white !important; color:var(--gray-600) !important; border-color:var(--gray-200) !important; }
         .pm-ti:hover { border-color:var(--primary) !important; color:var(--primary) !important; }
-        .pm-ft { display:inline-flex !important; align-items:center !important; gap:6px !important; padding:7px 18px !important; border-radius:20px !important; font-size:12px !important; font-weight:700 !important; border:1.5px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .15s !important; }
+        .pm-ft { display:inline-flex !important; align-items:center !important; gap:5px !important; padding:4px 12px !important; border-radius:20px !important; font-size:11px !important; font-weight:700 !important; border:1.5px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .15s !important; }
 
         .pm-row { transition:background .18s ease; }
         .pm-row:hover > td { background-color: rgba(0,0,0,0.012) !important; }
         .pm-sk { background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-50) 50%,var(--gray-100) 75%); background-size:600px 100%; animation:shimmer 1.6s infinite; border-radius:6px; }
         .pm-spin { animation:spin .8s linear infinite; display:inline-block; }
-        .pm-mt { width:38px; height:5px; border-radius:3px; background:var(--gray-200); overflow:hidden; margin-top:3px; }
+        .pm-mt { width:32px; height:4px; border-radius:3px; background:var(--gray-200); overflow:hidden; margin-top:2px; }
         .pm-mf { height:100%; border-radius:3px; transition:width .4s ease; }
         .pm-up { animation:fadeUp .4s cubic-bezier(.22,.9,.34,1) both; }
-        .pm-sf { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:9900; animation:fadeUp .3s cubic-bezier(.22,.9,.34,1); }
+        .pm-sf { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:9900; animation:fadeUp .3s cubic-bezier(.22,.9,.34,1); }
 
-        /* Unpriced row notice */
         .pm-unp-notice {
-          display:inline-flex; align-items:center; gap:5px;
-          font-size:11px; color:#92400e; font-weight:600;
+          display:inline-flex; align-items:center; gap:4px;
+          font-size:10px; color:#92400e; font-weight:600;
           background:#fffbeb; border:1px solid #fde68a;
-          padding:2px 8px; border-radius:4px;
+          padding:1px 6px; border-radius:4px;
+        }
+
+        /* Table fills its container, thead sticky */
+        .pm-table-wrap {
+          background: white;
+          border: 1px solid var(--gray-200);
+          border-radius: var(--radius-lg);
+          overflow: hidden;
+        }
+        .pm-table-scroll {
+          overflow-x: auto;
+          overflow-y: auto;
+          max-height: calc(100dvh - 180px);
+        }
+        .pm-table-scroll thead th {
+          position: sticky;
+          top: 0;
+          z-index: 2;
         }
       `}</style>
 
-      <div className="pm" style={{ maxWidth: 1440 }}>
+      <div className="pm">
 
         {/* Toast */}
         {toast && (
           <div style={{
-            position: "fixed", top: 22, right: 22, zIndex: 99999,
+            position: "fixed", top: 16, right: 16, zIndex: 99999,
             background: toast.ok ? "var(--primary)" : "#dc2626", color: "white",
-            padding: "13px 22px", borderRadius: "var(--radius-md)", fontWeight: 700, fontSize: 14,
-            boxShadow: "var(--shadow-strong)", display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 18px", borderRadius: "var(--radius-md)", fontWeight: 700, fontSize: 13,
+            boxShadow: "var(--shadow-strong)", display: "flex", alignItems: "center", gap: 8,
             animation: "toastSlide 0.3s ease",
           }}>
-            <span style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", fontSize: 13, flexShrink: 0 }}>
+            <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", fontSize: 11, flexShrink: 0 }}>
               {toast.ok ? "✓" : "✗"}
             </span>
             {toast.msg}
           </div>
         )}
 
-        {/* ══ PAGE HEADER ══ */}
-        <div style={{ marginBottom: 12 }}>
-          {/* Breadcrumb */}
-          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-            <Link href="/admin" style={{ fontSize: 11, color: "var(--gray-400)", textDecoration: "none", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
-              Dashboard
+        {/* ══ CHROME: fixed top bar ══ */}
+        <div className="pm-chrome">
+
+          {/* Row 1: title + rate + tabs all inline */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 6, borderBottom: "1px solid var(--gray-100)", flexWrap: "wrap" }}>
+            {/* Back + title */}
+            <Link href="/admin" style={{ fontSize: 11, color: "var(--gray-400)", textDecoration: "none", fontWeight: 600, display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
             </Link>
-            <span style={{ color: "var(--gray-200)" }}>›</span>
-            <span style={{ fontSize: 11, color: "var(--gray-600)", fontWeight: 700 }}>Pricing Manager</span>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-            {/* Title */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,var(--primary),var(--primary-light))", display: "grid", placeItems: "center", boxShadow: "0 4px 10px rgba(15,63,47,0.25)", flexShrink: 0 }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                </svg>
-              </div>
-              <div>
-                <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: "var(--gray-900)", letterSpacing: -0.5, lineHeight: 1.1 }}>Pricing Manager</h1>
-                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--gray-400)" }}>
-                  INR → Maloti (M) · Products are <strong style={{ color: "#d97706" }}>Unpriced</strong> until you explicitly price or mark them here
-                </p>
-              </div>
+            <span style={{ color: "var(--gray-200)", fontSize: 11 }}>›</span>
+            <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,var(--primary),var(--primary-light))", display: "grid", placeItems: "center", flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
             </div>
+            <span style={{ fontWeight: 900, fontSize: 15, color: "var(--gray-900)", letterSpacing: -0.3 }}>Pricing Manager</span>
 
-            {/* Exchange rate widget */}
-            <div style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-md)", padding: "10px 14px", boxShadow: "var(--shadow-card)", minWidth: 260 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, fontSize: 11 }}>
-                <span style={{
-                  width: 9, height: 9, borderRadius: "50%", flexShrink: 0,
-                  background: rateLoading ? "var(--gray-300)" : rateSrc === "live" ? "#16a34a" : "#d97706",
-                  boxShadow: !rateLoading && rateSrc === "live" ? "0 0 0 3px rgba(22,163,74,0.2)" : "none",
-                  animation: !rateLoading && rateSrc === "live" ? "pulseRing 2.5s infinite" : "none",
-                }} />
-                <span style={{ fontWeight: 700, color: rateLoading ? "var(--gray-400)" : rateSrc === "live" ? "#16a34a" : "#d97706" }}>
-                  {rateLoading ? "Fetching rate…" : rateSrc === "live" ? "Live Rate" : "Fallback Rate"}
-                </span>
-                {!rateLoading && <span style={{ color: "var(--gray-700)", fontWeight: 600 }}>1 ₹ = M {effectiveRate.toFixed(5)}</span>}
-                {rateOverride && <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 800, background: "rgba(200,167,90,0.12)", color: "var(--accent)", padding: "2px 8px", borderRadius: 20 }}>OVERRIDE</span>}
-              </div>
-              <div style={{ display: "flex", gap: 7 }}>
-                <input type="number" placeholder="Override rate…" value={rateOverride} onChange={e => setOverride(e.target.value)} step="0.0001" className="pm-si" style={{ flex: 1 }} />
-                {rateOverride && <button onClick={() => setOverride("")} className="pm-b pm-bgh" style={{ padding: "7px 12px !important", fontSize: 11 }}>Reset</button>}
-              </div>
-            </div>
-          </div>
+            {/* Divider */}
+            <div style={{ width: 1, height: 20, background: "var(--gray-200)", margin: "0 4px", flexShrink: 0 }} />
 
-          {/* Info banner */}
-          <div style={{ marginTop: 10, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "var(--radius-sm)", padding: "8px 14px", display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <div>
-              <span style={{ fontWeight: 800, color: "#92400e" }}>Pricing Policy: </span>
-              <span style={{ color: "#78350f" }}>
-                All products load as <strong>Unpriced</strong> regardless of their current DB price.
-                A product is only marked <strong style={{ color: "var(--primary)" }}>Priced</strong> after you
-                calculate &amp; save its price here, or manually mark it as priced below.
-                This ensures you always review prices intentionally.
-              </span>
-            </div>
-          </div>
-
-          {/* Formula banner */}
-          <div style={{ marginTop: 6, background: "linear-gradient(100deg,rgba(15,63,47,0.05),rgba(200,167,90,0.07))", border: "1px solid rgba(15,63,47,0.1)", borderRadius: "var(--radius-sm)", padding: "8px 14px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, fontSize: 12 }}>
-            <span style={{ fontWeight: 800, color: "var(--primary)" }}>Formula:</span>
+            {/* Tabs */}
             {([
-              ["(Market ₹", "var(--gray-900)", true],
-              ["+₹700 shipping", "var(--gray-500)", false],
-              ["+₹500 profit)", "var(--gray-500)", false],
-              [`×M${effectiveRate.toFixed(4)}`, "var(--primary)", true],
-              ["= Final Maloti", "var(--primary)", true],
-            ] as const).map(([t, c, b], i) => (
-              <span key={i} style={{ color: c as string, fontWeight: b ? 800 : 500 }}>
-                {i > 0 && <span style={{ color: "var(--gray-200)", margin: "0 3px" }}>·</span>}
-                {t}
-              </span>
+              { id: "batch", icon: "⚡", label: `Batch${rows.length ? ` (${rows.length})` : ""}` },
+              { id: "calc",  icon: "🧮", label: "Calculator" },
+            ] as const).map(t => (
+              <button key={t.id} onClick={() => setMainTab(t.id as MainTab)}
+                className={`pm-b pm-tab ${mainTab === t.id ? "pm-ta" : "pm-ti"}`}>
+                {t.icon} {t.label}
+              </button>
             ))}
-            <button onClick={() => setShowFormula(f => !f)} style={{ marginLeft: "auto", fontSize: 11, color: "var(--gray-400)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", minHeight: "unset", fontWeight: 700 }}>
-              {showFormula ? "Hide ↑" : "Details ↓"}
-            </button>
+
+            {/* Spacer */}
+            <div style={{ flex: 1 }} />
+
+            {/* Exchange rate — compact inline */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                background: rateLoading ? "var(--gray-300)" : rateSrc === "live" ? "#16a34a" : "#d97706",
+              }} />
+              <span style={{ fontWeight: 600, color: "var(--gray-500)" }}>
+                {rateLoading ? "…" : `1₹ = M${effectiveRate.toFixed(4)}`}
+              </span>
+              {rateOverride && <span style={{ fontSize: 9, fontWeight: 800, background: "rgba(200,167,90,0.15)", color: "var(--accent)", padding: "1px 5px", borderRadius: 20 }}>OVERRIDE</span>}
+              <input type="number" placeholder="Override…" value={rateOverride} onChange={e => setOverride(e.target.value)} step="0.0001"
+                className="pm-si" style={{ width: 90 }} />
+              {rateOverride && <button onClick={() => setOverride("")} className="pm-b pm-bgh" style={{ padding: "3px 8px !important", fontSize: 10 }}>✕</button>}
+            </div>
           </div>
 
-          {showFormula && (
-            <div style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-md)", padding: "14px 18px", marginTop: 6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, fontSize: 12, boxShadow: "var(--shadow-soft)", animation: "fadeUp 0.2s ease" }}>
-              <div>
-                <div style={{ fontWeight: 800, color: "var(--gray-900)", marginBottom: 12 }}>Calculation Steps</div>
+          {/* Row 2 (batch mode only): search + filters + save bar + progress — all in one row */}
+          {mainTab === "batch" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", flexWrap: "wrap" }}>
+
+              {/* Search */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2"
+                  style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                </svg>
+                <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} onKeyDown={e => e.key === "Enter" && loadProducts()}
+                  placeholder="Search…" className="pm-si" style={{ paddingLeft: "26px !important", width: 160 }} />
+              </div>
+
+              <select value={catFilter} onChange={e => setCat(e.target.value)} className="pm-sel" style={{ maxWidth: 130 }}>
+                <option value="">All Categories</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select value={brandFilter} onChange={e => setBrand(e.target.value)} className="pm-sel" style={{ maxWidth: 120 }}>
+                <option value="">All Brands</option>
+                {brands.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+
+              <button onClick={() => loadProducts()} disabled={batchLoading} className="pm-b pm-bg">
+                {batchLoading
+                  ? <><span className="pm-spin" style={{ width: 11, height: 11, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /></>
+                  : rows.length > 0 ? "🔄" : "⚡ Load"}
+              </button>
+
+              {/* Filter tabs */}
+              {rows.length > 0 && <>
+                <div style={{ width: 1, height: 18, background: "var(--gray-200)", flexShrink: 0 }} />
                 {([
-                  ["Market Price (₹)", "What the product costs in India"],
-                  ["+ ₹700 Shipping",  "Fixed international shipping"],
-                  ["+ ₹500 Profit",    "Fixed company margin"],
-                  [`× M${effectiveRate.toFixed(5)}`, "Live INR → LSL rate"],
-                ] as const).map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--gray-100)" }}>
-                    <span style={{ fontWeight: 700, color: "var(--gray-900)" }}>{k}</span>
-                    <span style={{ color: "var(--gray-400)" }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <div style={{ fontWeight: 800, color: "var(--gray-900)", marginBottom: 12 }}>Compare Price &amp; Margin</div>
-                <div style={{ color: "var(--gray-600)", lineHeight: 1.75, marginBottom: 10 }}>
-                  <strong>Compare = (Market + ₹700) × rate × 1.05</strong><br />Customers always see a real discount.
+                  { id: "all",      label: "All",      count: rows.length,    bg: "var(--gray-900)", fg: "white" },
+                  { id: "unpriced", label: "⚠ Unpriced", count: stats.unpriced + stats.modified + stats.errors, bg: "#d97706", fg: "white" },
+                  { id: "priced",   label: "✓ Priced", count: stats.priced,   bg: "var(--primary)",  fg: "white" },
+                ] as const).map(t => {
+                  const active = filterTab === t.id;
+                  return (
+                    <button key={t.id} onClick={() => setFilterTab(t.id)} className="pm-ft"
+                      style={{ background: active ? t.bg : "white", color: active ? t.fg : "var(--gray-600)", border: `1.5px solid ${active ? "transparent" : "var(--gray-200)"}` }}>
+                      {t.label}
+                      <span style={{ background: active ? "rgba(255,255,255,0.2)" : "var(--gray-100)", color: active ? "white" : "var(--gray-500)", padding: "0px 6px", borderRadius: 20, fontSize: 10, fontWeight: 800 }}>{t.count}</span>
+                    </button>
+                  );
+                })}
+              </>}
+
+              {/* Sort */}
+              {rows.length > 0 && <select value={sortKey} onChange={e => setSort(e.target.value as SortKey)} className="pm-sel">
+                <option value="unpriced_first">⚠ First</option>
+                <option value="default">Default</option>
+                <option value="name">A–Z</option>
+                <option value="price_asc">Price ↑</option>
+                <option value="price_desc">Price ↓</option>
+              </select>}
+
+              {/* Highlight checkbox */}
+              {rows.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--gray-600)", cursor: "pointer", userSelect: "none", flexShrink: 0 }}>
+                <input type="checkbox" checked={highlightUnpriced} onChange={e => setHL(e.target.checked)} style={{ accentColor: "var(--primary)", width: 12, height: 12, cursor: "pointer", minHeight: "unset" }} />
+                Highlight
+              </label>}
+
+              {/* Quick fill */}
+              {rows.length > 0 && stats.unpriced > 0 && <>
+                <div style={{ width: 1, height: 18, background: "var(--gray-200)", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#92400e", flexShrink: 0 }}>Quick Fill:</span>
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <span style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", fontSize: 11, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
+                  <input type="number" value={quickFillInr} onChange={e => setFill(e.target.value)} onKeyDown={e => e.key === "Enter" && applyQuickFill()}
+                    placeholder="price" className="pm-inr" data-f={quickFillInr !== "" ? "1" : undefined} style={{ width: "80px !important", paddingLeft: "18px !important" }} />
                 </div>
-                {([["< 8%", "#dc2626", "Too low — raise price"], ["8–15%", "#d97706", "Acceptable"], ["> 15%", "var(--primary)", "Healthy ✓"]] as const).map(([range, color, note]) => (
-                  <div key={range} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
-                    <span style={{ width: 9, height: 9, borderRadius: "50%", background: color as string, flexShrink: 0 }} />
-                    <span style={{ fontWeight: 700, color: color as string, fontSize: 12 }}>{range}</span>
-                    <span style={{ color: "var(--gray-400)", fontSize: 12 }}>{note}</span>
-                  </div>
-                ))}
-              </div>
+                <button onClick={applyQuickFill} disabled={!quickFillInr} className="pm-b pm-ba" style={{ padding: "4px 10px !important" }}>Apply</button>
+              </>}
+
+              {/* Spacer */}
+              <div style={{ flex: 1 }} />
+
+              {/* Progress inline */}
+              {rows.length > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, flexShrink: 0 }}>
+                <div style={{ background: "var(--gray-100)", borderRadius: 20, height: 6, width: 80, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${stats.pctDone}%`, background: stats.pctDone === 100 ? "var(--primary)" : "#d97706", borderRadius: 20, transition: "width 0.6s" }} />
+                </div>
+                <span style={{ fontWeight: 700, color: "var(--gray-500)" }}>{stats.pctDone}%</span>
+                <span style={{ color: "var(--gray-300)" }}>|</span>
+                <span style={{ color: "#d97706", fontWeight: 700 }}>{stats.unpriced} left</span>
+                <span style={{ color: "var(--gray-300)" }}>|</span>
+                <span style={{ color: "var(--primary)", fontWeight: 700 }}>{stats.priced} done</span>
+              </div>}
+
+              {/* Save buttons */}
+              {rows.length > 0 && <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                {stats.selectedReady > 0 && (
+                  <button onClick={() => saveAll(true)} disabled={bulkSaving} className="pm-b pm-bbl">
+                    💾 Selected ({stats.selectedReady})
+                  </button>
+                )}
+                <button onClick={() => saveAll(false)} disabled={bulkSaving || stats.readyToSave === 0} className="pm-b pm-bg">
+                  {bulkSaving
+                    ? <><span className="pm-spin" style={{ width: 11, height: 11, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Saving…</>
+                    : `💾 Save All (${stats.readyToSave})`}
+                </button>
+              </div>}
             </div>
           )}
         </div>
+        {/* ══ END CHROME ══ */}
 
-        {/* ══ MAIN TABS ══ */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          {([
-            { id: "batch", icon: "⚡", label: `Batch Pricing${rows.length ? ` (${rows.length})` : ""}` },
-            { id: "calc",  icon: "🧮", label: "Quick Calculator" },
-          ] as const).map(t => (
-            <button key={t.id} onClick={() => setMainTab(t.id as MainTab)}
-              className={`pm-b pm-tab ${mainTab === t.id ? "pm-ta" : "pm-ti"}`}>
-              {t.icon} {t.label}
-            </button>
-          ))}
-        </div>
+        {/* ══ SCROLLABLE BODY ══ */}
+        <div className="pm-body">
+          <div className="pm-body-inner">
 
         {/* ══ QUICK CALCULATOR ══ */}
         {mainTab === "calc" && (
@@ -747,157 +812,6 @@ export default function AdminPricingPage() {
         {/* ══ BATCH PRICING ══ */}
         {mainTab === "batch" && (
           <div>
-            {/* ── Dashboard ── */}
-            {rows.length > 0 && (
-              <div style={{ marginBottom: 12, animation: "fadeUp 0.4s ease" }}>
-                {/* Progress panel */}
-                <div className="card" style={{ padding: "14px 18px", marginBottom: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-                    <ProgressArc pct={stats.pctDone} />
-                    <div style={{ flex: 1, minWidth: 260 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12 }}>
-                        <span style={{ fontWeight: 800 }}>Pricing Progress</span>
-                        <span style={{ fontWeight: 700, color: "var(--gray-700)" }}>{stats.priced} / {stats.total} priced</span>
-                      </div>
-                      <div style={{ background: "var(--gray-100)", borderRadius: 20, height: 8, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${stats.pctDone}%`, background: stats.pctDone === 100 ? "linear-gradient(90deg,var(--primary),#16a34a)" : stats.pctDone > 60 ? "linear-gradient(90deg,var(--primary),var(--accent))" : "linear-gradient(90deg,#d97706,var(--accent))", borderRadius: 20, transition: "width 0.8s cubic-bezier(.4,0,.2,1)" }} />
-                      </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 10, fontSize: 12 }}>
-                        {[
-                          { label: `${stats.unpriced} unpriced`, color: "#d97706", show: true },
-                          { label: `${stats.priced} priced`,     color: "var(--primary)", show: true },
-                          { label: `${stats.modified} modified`, color: "#2563eb", show: stats.modified > 0 },
-                          { label: `${stats.errors} errors`,     color: "#dc2626", show: stats.errors > 0 },
-                        ].filter(x => x.show).map(x => (
-                          <span key={x.label} style={{ color: x.color, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-                            <span style={{ width: 7, height: 7, borderRadius: 2, background: x.color, display: "inline-block" }} />{x.label}
-                          </span>
-                        ))}
-                        {totalCount > rows.length && <span style={{ marginLeft: "auto", color: "var(--gray-400)" }}>Showing {rows.length} of {totalCount}</span>}
-                      </div>
-                    </div>
-                    {stats.estRevenue > 0 && (
-                      <div style={{ borderLeft: "1px solid var(--gray-200)", paddingLeft: 18, textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 10, color: "var(--gray-400)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 2 }}>Priced Inventory Est.</div>
-                        <div style={{ fontSize: 20, fontWeight: 900, color: "var(--primary)" }}>M {stats.estRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                        <div style={{ fontSize: 10, color: "var(--gray-400)", marginTop: 1 }}>across {stats.withResult} products</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* Stat pills */}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <StatPill label="Total" value={stats.total} icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>} />
-                  <StatPill label="Unpriced" value={stats.unpriced} accent={stats.unpriced > 0 ? "#d97706" : "var(--gray-300)"} sub={stats.unpriced > 0 ? "Needs pricing" : "All priced!"}
-                    icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>} />
-                  <StatPill label="Priced" value={stats.priced} accent="var(--primary)" sub="Priced via this tool"
-                    icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>} />
-                  <StatPill label="Ready to Save" value={stats.readyToSave} accent={stats.readyToSave > 0 ? "#2563eb" : "var(--gray-300)"} sub={stats.readyToSave > 0 ? "Hit Save All →" : "Nothing pending"}
-                    icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>} />
-                  {stats.errors > 0 && <StatPill label="Errors" value={stats.errors} accent="#dc2626" sub="Click to retry"
-                    icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>} />}
-                </div>
-              </div>
-            )}
-
-            {/* ── Toolbar ── */}
-            <div className="card" style={{ padding: "12px 14px", marginBottom: 10, boxShadow: "var(--shadow-soft)" }}>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: rows.length > 0 ? 14 : 0 }}>
-                <div style={{ position: "relative", flex: 1, maxWidth: 300 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2"
-                    style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
-                    <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-                  </svg>
-                  <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} onKeyDown={e => e.key === "Enter" && loadProducts()} placeholder="Search products…" className="pm-si" style={{ width: "100%", paddingLeft: "34px !important" }} />
-                </div>
-                <select value={catFilter} onChange={e => setCat(e.target.value)} className="pm-sel" style={{ minWidth: 160 }}>
-                  <option value="">All Categories</option>
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select value={brandFilter} onChange={e => setBrand(e.target.value)} className="pm-sel" style={{ minWidth: 150 }}>
-                  <option value="">All Brands</option>
-                  {brands.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-                <button onClick={() => loadProducts()} disabled={batchLoading} className="pm-b pm-bg" style={{ minWidth: 148 }}>
-                  {batchLoading
-                    ? <><span className="pm-spin" style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Loading…</>
-                    : rows.length > 0 ? "🔄 Reload" : "⚡ Load Products"}
-                </button>
-              </div>
-
-              {rows.length > 0 && (
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", paddingTop: 14, borderTop: "1px solid var(--gray-100)" }}>
-                  {/* Quick fill — only applies to unpriced */}
-                  {stats.unpriced > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(200,167,90,0.07)", border: "1.5px solid rgba(200,167,90,0.3)", borderRadius: 10, padding: "7px 12px" }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                      </svg>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#92400e", whiteSpace: "nowrap" }}>
-                        Quick Fill ({stats.unpriced} unpriced):
-                      </span>
-                      <div style={{ position: "relative" }}>
-                        <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
-                        <input type="number" value={quickFillInr} onChange={e => setFill(e.target.value)} onKeyDown={e => e.key === "Enter" && applyQuickFill()} placeholder="price" className="pm-inr" data-f={quickFillInr !== "" ? "1" : undefined} style={{ width: "95px !important", paddingLeft: "22px !important" }} />
-                      </div>
-                      <button onClick={applyQuickFill} disabled={!quickFillInr} className="pm-b pm-ba" style={{ padding: "7px 14px !important", fontSize: 12 }}>
-                        Apply to All
-                      </button>
-                    </div>
-                  )}
-
-                  <select value={sortKey} onChange={e => setSort(e.target.value as SortKey)} className="pm-sel">
-                    <option value="unpriced_first">⚠ Unpriced First</option>
-                    <option value="default">Default Order</option>
-                    <option value="name">Name A–Z</option>
-                    <option value="price_asc">Price ↑</option>
-                    <option value="price_desc">Price ↓</option>
-                  </select>
-
-                  <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600, color: "var(--gray-600)", cursor: "pointer", userSelect: "none", minHeight: "unset" }}>
-                    <input type="checkbox" checked={highlightUnpriced} onChange={e => setHL(e.target.checked)} style={{ accentColor: "var(--primary)", width: 14, height: 14, cursor: "pointer", minHeight: "unset" }} />
-                    Highlight unpriced
-                  </label>
-
-                  <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                    {stats.selectedReady > 0 && (
-                      <button onClick={() => saveAll(true)} disabled={bulkSaving} className="pm-b pm-bbl">
-                        💾 Save Selected ({stats.selectedReady})
-                      </button>
-                    )}
-                    <button onClick={() => saveAll(false)} disabled={bulkSaving || stats.readyToSave === 0} className="pm-b pm-bg" style={{ minWidth: 168 }}>
-                      {bulkSaving
-                        ? <><span className="pm-spin" style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Saving…</>
-                        : `💾 Save All (${stats.readyToSave})`}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ── Filter tabs ── */}
-            {rows.length > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-                {([
-                  { id: "all",      label: "All",        count: rows.length,    bg: "var(--gray-900)", fg: "white" },
-                  { id: "unpriced", label: "⚠ Unpriced", count: stats.unpriced + stats.modified + stats.errors, bg: "#d97706", fg: "white" },
-                  { id: "priced",   label: "✓ Priced",   count: stats.priced,   bg: "var(--primary)",  fg: "white" },
-                ] as const).map(t => {
-                  const active = filterTab === t.id;
-                  return (
-                    <button key={t.id} onClick={() => setFilterTab(t.id)} className="pm-ft"
-                      style={{ background: active ? t.bg : "white", color: active ? t.fg : "var(--gray-600)", border: `1.5px solid ${active ? "transparent" : "var(--gray-200)"}`, boxShadow: active ? "var(--shadow-card)" : "none" }}>
-                      {t.label}
-                      <span style={{ background: active ? "rgba(255,255,255,0.2)" : "var(--gray-100)", color: active ? "white" : "var(--gray-500)", padding: "1px 8px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
-                        {t.count}
-                      </span>
-                    </button>
-                  );
-                })}
-                <span style={{ fontSize: 12, color: "var(--gray-400)", marginLeft: 4 }}>{displayRows.length} shown</span>
-                <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--gray-300)" }}>⌨ Tab / Enter to jump between price inputs</span>
-              </div>
-            )}
 
             {/* ── Empty state ── */}
             {rows.length === 0 && !batchLoading && (
@@ -935,9 +849,9 @@ export default function AdminPricingPage() {
 
             {/* ══ THE TABLE ══ */}
             {displayRows.length > 0 && (
-              <div style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: "var(--radius-lg)", overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
+              <div className="pm-table-wrap">
+                <div className="pm-table-scroll">
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
                     <thead>
                       <tr style={{ background: "var(--gray-50)", borderBottom: "2px solid var(--gray-200)" }}>
                         <th style={{ ...TH, width: 36, paddingLeft: 18 }}>
@@ -993,13 +907,13 @@ export default function AdminPricingPage() {
 
                             {/* State bar */}
                             <td style={{ padding: 0, width: 4, background: rowBg }}>
-                              <div style={{ width: 4, minHeight: 50, background: barC, transition: "background 0.25s" }} />
+                              <div style={{ width: 3, minHeight: 38, background: barC, transition: "background 0.25s" }} />
                             </td>
 
                             {/* Product info */}
                             <td style={{ ...TD, background: rowBg, minWidth: 260 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <div style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--gray-200)", background: "var(--gray-50)", display: "grid", placeItems: "center", boxShadow: "var(--shadow-soft)" }}>
+                                <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 6, overflow: "hidden", border: "1px solid var(--gray-200)", background: "var(--gray-50)", display: "grid", placeItems: "center" }}>
                                   {(row.product as any).main_image && !row.imgErr ? (
                                     <img src={(row.product as any).main_image} alt={row.product.title} onError={() => setImgErr(row.product.id)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                   ) : (
@@ -1009,7 +923,7 @@ export default function AdminPricingPage() {
                                   )}
                                 </div>
                                 <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontWeight: 700, fontSize: 12, color: "var(--gray-900)", maxWidth: 200, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.3 }}>
+                                  <div style={{ fontWeight: 700, fontSize: 11, color: "var(--gray-900)", maxWidth: 180, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.25 }}>
                                     {row.product.title}
                                   </div>
                                   <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 3 }}>
@@ -1169,20 +1083,21 @@ export default function AdminPricingPage() {
                 </div>
 
                 {/* Table footer */}
-                <div style={{ padding: "10px 16px", borderTop: "1px solid var(--gray-100)", background: "var(--gray-50)", display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", fontSize: 11, color: "var(--gray-400)" }}>
+                <div style={{ padding: "7px 14px", borderTop: "1px solid var(--gray-100)", background: "var(--gray-50)", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", fontSize: 10, color: "var(--gray-400)" }}>
                   <span>📦 {rows.length} loaded</span>
                   <span>✏️ {stats.withResult} calculated</span>
                   <span style={{ color: "#d97706", fontWeight: 700 }}>⚠ {stats.unpriced} unpriced</span>
-                  <span style={{ color: "var(--primary)", fontWeight: 700 }}>✓ {stats.priced} priced via tool</span>
+                  <span style={{ color: "var(--primary)", fontWeight: 700 }}>✓ {stats.priced} priced</span>
                   {stats.errors > 0 && <span style={{ color: "#dc2626", fontWeight: 700 }}>✗ {stats.errors} errors</span>}
-                  {stats.readyToSave > 0 && (
-                    <span style={{ marginLeft: "auto", color: "#2563eb", fontWeight: 800 }}>⏳ {stats.readyToSave} unsaved — click Save All</span>
-                  )}
+                  {totalCount > rows.length && <span style={{ marginLeft: "auto" }}>Showing {rows.length} of {totalCount}</span>}
                 </div>
               </div>
             )}
           </div>
         )}
+
+          </div>{/* end pm-body-inner */}
+        </div>{/* end pm-body */}
 
         {/* ══ STICKY SAVE BAR ══ */}
         {stats.readyToSave > 0 && (
@@ -1228,11 +1143,12 @@ export default function AdminPricingPage() {
    STYLE CONSTANTS
 ═══════════════════════════════════════════════════ */
 const TH: React.CSSProperties = {
-  padding: "9px 10px", fontSize: 10, fontWeight: 700,
+  padding: "7px 8px", fontSize: 9, fontWeight: 700,
   color: "var(--gray-400)", textTransform: "uppercase",
-  letterSpacing: "0.6px", whiteSpace: "nowrap", textAlign: "center",
+  letterSpacing: "0.5px", whiteSpace: "nowrap", textAlign: "center",
+  background: "var(--gray-50)",
 };
 
 const TD: React.CSSProperties = {
-  padding: "9px 10px", fontSize: 12, verticalAlign: "middle",
+  padding: "6px 8px", fontSize: 11, verticalAlign: "middle",
 };
