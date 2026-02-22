@@ -74,9 +74,16 @@ html {
 
 /* Paint the page dark INSTANTLY before any JS runs.
    This matches the PWA manifest background_color so the OS launch
-   screen and our page background are the same colour — no K-on-white flash. */
+   screen and our page background are the same colour — no K-on-white flash.
+   NOTE: body overrides this to --gray-50 once loaded. */
 html {
   background: #050e08;
+}
+
+/* Once the app hydrates, the html background is irrelevant — body covers it.
+   This rule ensures body always wins over any html bleed-through. */
+body {
+  isolation: isolate;
 }
 
 /* ======================================================
@@ -589,3 +596,31 @@ p {
    Zoom is disabled in layout.tsx viewport meta.
    touch-action on html blocks OS-level pinch-zoom.
 ====================================================== */
+
+/* ======================================================
+   BACKGROUND CONSISTENCY — prevents dark bleed from
+   html splash color into page content areas.
+   Add .pageBg to any page wrapper that needs the
+   standard light background.
+====================================================== */
+
+/* Ensure the page content area always uses the light bg */
+.pageContentWrap,
+.appShell {
+  background: var(--gray-50);
+}
+
+/* Utility: force light background on any section */
+.pageBg {
+  background: var(--gray-50) !important;
+}
+
+/* Utility: white card-style sections */
+.pageBgWhite {
+  background: #ffffff !important;
+}
+
+/* Any direct children of appShell should not inherit dark html bg */
+.appShell > * {
+  background: var(--gray-50);
+}

@@ -174,7 +174,8 @@ export default function AccountDashboardPage() {
   const initials = user?.full_name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() ?? "?";
 
   return (
-    <div style={{ fontFamily: FF, maxWidth: 900, paddingBottom: 60 }}>
+    <div style={{ background: "#F8FAFC", minHeight: "100vh", padding: "clamp(24px, 4vw, 48px) clamp(16px, 4vw, 40px)" }}>
+    <div style={{ fontFamily: FF, maxWidth: 900, margin: "0 auto", paddingBottom: 60 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
         @keyframes kfadeup { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
@@ -289,6 +290,7 @@ export default function AccountDashboardPage() {
           </Link>
         ))}
       </div>
+    </div>
     </div>
   );
 }
