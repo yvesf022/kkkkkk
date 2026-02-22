@@ -48,7 +48,7 @@ function shuffle<T>(arr: T[]): T[] {
 const THEME: Record<string, { accent: string; light: string; dark: string }> = {
   red:    { accent: "#e53935", light: "rgba(229,57,53,0.08)",   dark: "#b71c1c" },
   green:  { accent: "#2e7d32", light: "rgba(46,125,50,0.08)",   dark: "#1b5e20" },
-  gold:   { accent: "#f57c00", light: "rgba(245,124,0,0.08)",   dark: "#e65100" },
+  gold:   { accent: "#c8a75a", light: "rgba(245,124,0,0.08)",   dark: "#e65100" },
   forest: { accent: "#1b5e4a", light: "rgba(27,94,74,0.08)",    dark: "#0d3326" },
   navy:   { accent: "#1565c0", light: "rgba(21,101,192,0.08)",  dark: "#0d47a1" },
   plum:   { accent: "#6a1b9a", light: "rgba(106,27,154,0.08)",  dark: "#4a148c" },
@@ -163,19 +163,69 @@ function StoreCard({ p, idx, theme, onClick }: {
 /* ══════════════════════════════════════════════════════════════════
    PAGE
 ══════════════════════════════════════════════════════════════════ */
+
+const ROTATE_MS = 4500; // swap displayed hero products every 4.5 s
+
 export default function HomePage() {
   const router = useRouter();
 
-  const [heroProds, setHeroProds] = useState<ProductListItem[]>([]);
-  const [sections, setSections]   = useState<Section[]>([]);
-  const [heroLoad, setHeroLoad]   = useState(true);
-  const [secLoad, setSecLoad]     = useState(true);
+  /* Large shuffled pool drawn from multiple pages & sorts */
+  const [pool, setPool]         = useState<HP[]>([]);
+  const [offset, setOffset]     = useState(0);
+  const [fading, setFading]     = useState(false);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [heroLoad, setHeroLoad] = useState(true);
+  const [secLoad, setSecLoad]   = useState(true);
+  const rotateRef               = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  /* Fetch from multiple random pages + sorts to guarantee variety */
   useEffect(() => {
-    productsApi.list({ page: 1, per_page: 60, sort_by: "sales", sort_order: "desc" })
-      .then(r => { setHeroProds(shuffle((r as any)?.results ?? []) as ProductListItem[]); })
-      .finally(() => setHeroLoad(false));
+    async function fetchPool() {
+      try {
+        const randomPg = () => Math.floor(Math.random() * 6) + 1;
+        const reqs = [
+          productsApi.list({ page: randomPg(), per_page: 40 }),
+          productsApi.list({ page: randomPg(), per_page: 40, sort_by: "rating",     sort_order: "desc" }),
+          productsApi.list({ page: randomPg(), per_page: 40, sort_by: "created_at", sort_order: "desc" }),
+          productsApi.list({ page: randomPg(), per_page: 40, sort_by: "sales",      sort_order: "desc" }),
+          productsApi.list({ page: randomPg(), per_page: 40, sort_by: "price",      sort_order: "asc"  }),
+        ];
+        const settled = await Promise.allSettled(reqs);
+        const all: HP[] = [];
+        const seen = new Set<string>();
+        settled.forEach(r => {
+          if (r.status !== "fulfilled") return;
+          ((r.value as any)?.results ?? []).forEach((p: HP) => {
+            const img = p.main_image ?? (p as any).image_url ?? null;
+            if (!seen.has(p.id) && img) {
+              seen.add(p.id);
+              all.push({ ...p, main_image: img });
+            }
+          });
+        });
+        setPool(shuffle(all));
+      } finally {
+        setHeroLoad(false);
+      }
+    }
+    fetchPool();
   }, []);
+
+  /* Auto-rotate: every ROTATE_MS fade out → advance by 5 → fade in */
+  useEffect(() => {
+    if (pool.length < 5) return;
+    rotateRef.current = setInterval(() => {
+      setFading(true);
+      setTimeout(() => {
+        setOffset(prev => {
+          const next = prev + 5;
+          return next + 5 > pool.length ? 0 : next;
+        });
+        setFading(false);
+      }, 380);
+    }, ROTATE_MS);
+    return () => { if (rotateRef.current) clearInterval(rotateRef.current); };
+  }, [pool.length]);
 
   useEffect(() => {
     fetch(`${API}/api/homepage/sections`)
@@ -185,9 +235,10 @@ export default function HomePage() {
       .finally(() => setSecLoad(false));
   }, []);
 
-  /* Pick the 5 hero products */
-  const heroBig   = heroProds[0] as HP | undefined;
-  const heroSmall = heroProds.slice(1, 5) as HP[];
+  /* Current 5 products shown in hero */
+  const visible   = pool.length >= 5 ? pool.slice(offset, offset + 5) : [];
+  const heroBig   = visible[0] as HP | undefined;
+  const heroSmall = visible.slice(1, 5) as HP[];
 
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#f2f2f2", minHeight: "100vh" }}>
@@ -195,7 +246,7 @@ export default function HomePage() {
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
         ::-webkit-scrollbar{width:4px;height:4px}
-        ::-webkit-scrollbar-thumb{background:#d4792a;border-radius:4px}
+        ::-webkit-scrollbar-thumb{background:#0f3f2f;border-radius:4px}
 
         @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
@@ -207,18 +258,18 @@ export default function HomePage() {
 
         /* HERO */
         .hero-section{background:#fff;padding:0}
-        .hero-welcome{background:linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%);
+        .hero-welcome{background:linear-gradient(135deg,#0f3f2f 0%,#0a2a1f 50%,#0a2a1f 100%);
           padding:12px 20px;display:flex;align-items:center;justify-content:space-between;
           gap:16px;flex-wrap:wrap;}
         .hero-welcome-text{color:#fff;font-size:13px;font-weight:400;opacity:.92;line-height:1.4;}
         .hero-welcome-text strong{font-weight:700;font-size:15px;display:block;}
-        .hero-welcome-cta{background:#fff;color:#ea580c;border:none;padding:8px 20px;
+        .hero-welcome-cta{background:#fff;color:#0f3f2f;border:none;padding:8px 20px;
           border-radius:50px;font-weight:700;font-size:12px;cursor:pointer;
           white-space:nowrap;letter-spacing:.4px;text-decoration:none;
           transition:all .2s ease;flex-shrink:0;}
-        .hero-welcome-cta:hover{background:#fff7f0;transform:scale(1.03);}
+        .hero-welcome-cta:hover{background:#f5f4f1;transform:scale(1.03);}
 
-        .hero-grid{display:grid;gap:3px;background:#f2f2f2;
+        .hero-grid{display:grid;gap:3px;background:#fafaf9;
           grid-template-columns:1fr 1fr 1fr 1fr 1fr;
           grid-template-rows:380px;}
         @media(max-width:1024px){.hero-grid{grid-template-columns:1fr 1fr 1fr;grid-template-rows:320px 320px;}}
@@ -250,13 +301,13 @@ export default function HomePage() {
           margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
         .hcard-large .hcard-title{font-size:17px;}
         .hcard-price-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-        .hcard-price{font-size:16px;font-weight:800;color:#ffa000;}
+        .hcard-price{font-size:16px;font-weight:800;color:#c8a75a;}
         .hcard-large .hcard-price{font-size:20px;}
         .hcard-old{font-size:11px;color:rgba(255,255,255,.4);text-decoration:line-through;}
-        .hcard-rating{font-size:11px;color:#ffd54f;margin-left:auto;}
+        .hcard-rating{font-size:11px;color:#e8d48a;margin-left:auto;}
 
         /* MARQUEE */
-        .marquee-bar{background:#f97316;overflow:hidden;padding:0;}
+        .marquee-bar{background:linear-gradient(90deg,#0f3f2f,#1b5e4a);overflow:hidden;padding:0;}
         .marquee-inner{display:flex;animation:marquee 30s linear infinite;width:300%;}
         .marquee-item{display:flex;align-items:center;gap:8px;padding:9px 20px;white-space:nowrap;}
         .marquee-dot{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.6);flex-shrink:0;}
@@ -272,7 +323,7 @@ export default function HomePage() {
           border-radius:50px;border:1.5px solid #e0e0e0;background:#fff;
           font-size:12px;font-weight:500;color:#333;cursor:pointer;
           text-decoration:none;transition:all .18s ease;flex-shrink:0;}
-        .cat-chip:hover{border-color:#f97316;color:#f97316;background:#fff7f0;}
+        .cat-chip:hover{border-color:#0f3f2f;color:#0f3f2f;background:#f5f4f1;}
         .cat-chip-icon{font-size:15px;}
 
         /* SECTIONS */
@@ -286,30 +337,30 @@ export default function HomePage() {
         .section-title{font-size:18px;font-weight:700;color:#1a1a1a;letter-spacing:-.3px;}
         .section-sub{font-size:11px;color:#999;margin-top:2px;}
         .viewall-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;
-          font-weight:600;color:#f97316;text-decoration:none;padding:7px 16px;
-          border:1.5px solid #f97316;border-radius:50px;transition:all .18s ease;white-space:nowrap;}
-        .viewall-btn:hover{background:#f97316;color:#fff;}
+          font-weight:600;color:#0f3f2f;text-decoration:none;padding:7px 16px;
+          border:1.5px solid #0f3f2f;border-radius:50px;transition:all .18s ease;white-space:nowrap;}
+        .viewall-btn:hover{background:#0f3f2f;color:#fff;}
         .viewall-btn svg{transition:transform .18s ease;}
         .viewall-btn:hover svg{transform:translateX(3px);}
 
         .scroll-row-wrap{position:relative;}
         .scroll-row{display:flex;gap:2px;overflow-x:auto;padding:2px 0;scroll-behavior:smooth;
-          background:#f2f2f2;}
+          background:var(--gray-100,#f5f5f4);}
         .scroll-row::-webkit-scrollbar{height:2px;}
-        .scroll-row::-webkit-scrollbar-thumb{background:#f97316;border-radius:2px;}
+        .scroll-row::-webkit-scrollbar-thumb{background:#0f3f2f;border-radius:2px;}
         .scroll-nav{position:absolute;top:50%;transform:translateY(-50%);
           width:32px;height:48px;background:#fff;border:1px solid #e8e8e8;
           box-shadow:0 2px 12px rgba(0,0,0,.12);border-radius:4px;
           display:flex;align-items:center;justify-content:center;cursor:pointer;
           z-index:10;color:#333;transition:all .18s ease;}
-        .scroll-nav:hover{background:#f97316;color:#fff;border-color:#f97316;}
+        .scroll-nav:hover{background:#0f3f2f;color:#fff;border-color:#0f3f2f;}
         .scroll-nav-l{left:0;}
         .scroll-nav-r{right:0;}
 
         /* STORE CARDS — Jumia style */
         .scard{width:185px;flex-shrink:0;background:#fff;cursor:pointer;
           border:1px solid transparent;transition:all .2s ease;animation:scaleIn .4s ease both;}
-        .scard:hover{border-color:#f97316;box-shadow:0 4px 20px rgba(249,115,22,.15);z-index:2;}
+        .scard:hover{border-color:#0f3f2f;box-shadow:0 4px 20px rgba(15,63,47,0.10);z-index:2;}
         .scard-img-wrap{position:relative;height:185px;background:#f8f8f8;overflow:hidden;}
         .scard-img{width:100%;height:100%;object-fit:cover;display:block;
           transition:transform .4s ease;}
@@ -323,12 +374,12 @@ export default function HomePage() {
         .ssold{background:rgba(0,0,0,.55);color:#fff;font-size:9px;font-weight:600;
           padding:2px 7px;border-radius:3px;}
         .scard-quick{position:absolute;bottom:8px;left:50%;transform:translateX(-50%) translateY(8px);
-          background:#f97316;color:#fff;border:none;padding:6px 14px;border-radius:50px;
+          background:#0f3f2f;color:#fff;border:none;padding:6px 14px;border-radius:50px;
           font-size:10px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;
           opacity:0;transition:all .2s ease;white-space:nowrap;z-index:3;}
         .scard:hover .scard-quick{opacity:1;transform:translateX(-50%) translateY(0);}
         .scard-info{padding:10px 10px 14px;}
-        .scard-brand{font-size:10px;color:#f97316;font-weight:600;text-transform:uppercase;
+        .scard-brand{font-size:10px;color:#0f3f2f;font-weight:600;text-transform:uppercase;
           letter-spacing:.5px;margin-bottom:3px;}
         .scard-title{font-size:12px;color:#1a1a1a;line-height:1.4;margin-bottom:8px;
           display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
@@ -337,16 +388,16 @@ export default function HomePage() {
         .scard-prices{display:flex;flex-direction:column;gap:1px;}
         .scard-price{font-size:15px;font-weight:800;color:#1a1a1a;}
         .scard-compare{font-size:10px;color:#aaa;text-decoration:line-through;}
-        .scard-stars{font-size:10px;color:#f57c00;display:flex;align-items:center;gap:2px;}
+        .scard-stars{font-size:10px;color:#c8a75a;display:flex;align-items:center;gap:2px;}
         .scard-rcount{color:#aaa;font-size:9px;}
 
         /* END CARD */
         .end-card{width:140px;flex-shrink:0;background:#fff;border:2px dashed #e8e8e8;
           display:flex;flex-direction:column;align-items:center;justify-content:center;
-          gap:10px;text-decoration:none;color:#f97316;padding:20px 16px;
+          gap:10px;text-decoration:none;color:#0f3f2f;padding:20px 16px;
           transition:all .2s ease;cursor:pointer;}
-        .end-card:hover{border-color:#f97316;background:#fff7f0;}
-        .end-card-icon{width:40px;height:40px;border-radius:50%;border:2px solid #f97316;
+        .end-card:hover{border-color:#0f3f2f;background:#f5f4f1;}
+        .end-card-icon{width:40px;height:40px;border-radius:50%;border:2px solid #0f3f2f;
           display:flex;align-items:center;justify-content:center;}
         .end-card-text{font-size:11px;font-weight:600;text-align:center;line-height:1.5;
           text-transform:uppercase;letter-spacing:.5px;}
@@ -360,7 +411,7 @@ export default function HomePage() {
         .trust-item{display:flex;align-items:center;gap:12px;padding:20px 24px;
           border-right:1px solid #f0f0f0;cursor:default;}
         .trust-item:last-child{border-right:none;}
-        .trust-icon{color:#f97316;flex-shrink:0;}
+        .trust-icon{color:#0f3f2f;flex-shrink:0;}
         .trust-text-title{font-size:12px;font-weight:700;color:#1a1a1a;}
         .trust-text-sub{font-size:11px;color:#999;}
       `}</style>
@@ -376,17 +427,17 @@ export default function HomePage() {
           <Link href="/store" className="hero-welcome-cta">Shop All Products</Link>
         </div>
 
-        {/* 5-product image grid */}
-        <div className="hero-grid">
+        {/* 5-product image grid — fades and rotates automatically */}
+        <div className="hero-grid" style={{ opacity: fading ? 0 : 1, transition: "opacity 0.38s ease" }}>
           {heroLoad ? (
             Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className={`shimbox${i === 0 ? " hcard-large" : ""}`}
+              <div key={i} className="shimbox"
                 style={{ gridColumn: i === 0 ? "span 2" : undefined }} />
             ))
           ) : (
             <>
               {heroBig && (
-                <HeroCard p={heroBig as HP} size="large"
+                <HeroCard p={heroBig} size="large"
                   onClick={() => router.push(`/store/product/${heroBig.id}`)} />
               )}
               {heroSmall.map((p) => (
@@ -396,6 +447,31 @@ export default function HomePage() {
             </>
           )}
         </div>
+
+        {/* Rotation progress dots */}
+        {!heroLoad && pool.length >= 5 && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 6, padding: "8px 0", background: "#fff",
+          }}>
+            {Array.from({ length: Math.min(Math.ceil(pool.length / 5), 10) }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => { setFading(true); setTimeout(() => { setOffset(i * 5); setFading(false); }, 200); }}
+                style={{
+                  width: i === Math.floor(offset / 5) ? 20 : 6,
+                  height: 6, borderRadius: 3, border: "none", cursor: "pointer", padding: 0,
+                  background: i === Math.floor(offset / 5) ? "#0f3f2f" : "#d6d3d1",
+                  transition: "all 0.3s ease",
+                }}
+                aria-label={`Show products ${i + 1}`}
+              />
+            ))}
+            <span style={{ fontSize: 10, color: "#a8a29e", marginLeft: 8, fontWeight: 500 }}>
+              Auto-rotating
+            </span>
+          </div>
+        )}
       </section>
 
       {/* ══ MARQUEE ══ */}
