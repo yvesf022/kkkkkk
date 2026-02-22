@@ -29,7 +29,7 @@ const SORT_MAP: Record<SortOption, Record<string, string>> = {
   price_desc: { sort_by: "price",      sort_order: "desc" },
   rating:     { sort_by: "rating",     sort_order: "desc" },
   popular:    { sort_by: "sales",      sort_order: "desc" },
-  discount:   { sort_by: "discount",   sort_order: "desc" },
+  discount:   { sort: "discount" },
 };
 
 const PAGE_SIZE = 40;
@@ -176,7 +176,12 @@ export default function StoreClient() {
   const loadProducts = useCallback(async (pg = 1, append = false) => {
     if (pg === 1) setLoading(true); else setLoadingMore(true);
     try {
-      const params: Record<string, any> = { page: pg, per_page: PAGE_SIZE, ...SORT_MAP[sort] };
+      // Build params — SORT_MAP entries either spread as sort_by/sort_order or as a single sort key
+      const sortEntry = SORT_MAP[sort];
+      const sortParams = "sort_by" in sortEntry
+        ? { sort_by: sortEntry.sort_by, sort_order: sortEntry.sort_order }
+        : { sort: sortEntry.sort };
+      const params: Record<string, any> = { page: pg, per_page: PAGE_SIZE, ...sortParams };
       if (selectedCategory) params.category  = selectedCategory;
       if (selectedBrand)    params.brand      = selectedBrand;
       if (priceMin)         params.min_price  = Number(priceMin);
@@ -357,9 +362,9 @@ export default function StoreClient() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
-        :root{--orange:#f97316;--orange-dark:#ea580c;--text:#1a1a1a;--text-muted:#666;--border:#e8e8e8;--bg:#f2f2f2;}
+        :root{--primary:#0f3f2f;--primary-dark:#0a2a1f;--primary-light:#1b5e4a;--accent:#c8a75a;--accent-light:#d4b976;--text:#1a1a1a;--text-muted:#57534e;--border:#e7e5e4;--bg:#fafaf9;}
         ::-webkit-scrollbar{width:4px;height:4px;}
-        ::-webkit-scrollbar-thumb{background:var(--orange);border-radius:4px;}
+        ::-webkit-scrollbar-thumb{background:var(--primary);border-radius:4px;}
 
         @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -368,7 +373,7 @@ export default function StoreClient() {
         .shimbox{background:linear-gradient(90deg,#ebebeb 0%,#d6d6d6 50%,#ebebeb 100%);
           background-size:200% 100%;animation:shimmer 1.5s ease-in-out infinite;}
 
-        .store-root{min-height:100vh;background:var(--bg);font-family:'DM Sans',system-ui,sans-serif;color:var(--text);}
+        .store-root{min-height:100vh;background:#fafaf9;font-family:'DM Sans',system-ui,sans-serif;color:var(--text);}
 
         /* TOP BAR */
         .store-topbar{background:#fff;border-bottom:1px solid var(--border);
@@ -377,31 +382,31 @@ export default function StoreClient() {
         .back-home{display:flex;align-items:center;gap:6px;text-decoration:none;
           font-size:13px;font-weight:600;color:var(--text-muted);padding:7px 14px;
           border-radius:50px;border:1.5px solid var(--border);transition:all .18s;white-space:nowrap;}
-        .back-home:hover{border-color:var(--orange);color:var(--orange);}
+        .back-home:hover{border-color:var(--primary);color:var(--primary);}
         .store-breadcrumb{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;}
-        .store-breadcrumb a{color:var(--orange);text-decoration:none;font-weight:600;}
+        .store-breadcrumb a{color:var(--primary);text-decoration:none;font-weight:600;}
         .store-breadcrumb a:hover{text-decoration:underline;}
 
         /* SEARCH BAR */
         .search-wrap{flex:1;min-width:200px;max-width:520px;position:relative;}
         .search-input-wrap{display:flex;align-items:center;background:#f5f5f5;border:2px solid transparent;
           border-radius:8px;overflow:hidden;transition:border-color .2s;}
-        .search-input-wrap:focus-within{border-color:var(--orange);background:#fff;}
+        .search-input-wrap:focus-within{border-color:var(--primary);background:#fff;}
         .search-icon{padding:0 12px;color:#aaa;flex-shrink:0;display:flex;}
         .search-input{flex:1;border:none;background:transparent;padding:10px 0;font-size:14px;
           color:var(--text);outline:none;min-width:0;}
         .search-input::placeholder{color:#bbb;}
         .search-clear{padding:0 12px;background:none;border:none;color:#aaa;cursor:pointer;font-size:18px;display:flex;}
-        .search-btn{background:var(--orange);color:#fff;border:none;padding:0 18px;
+        .search-btn{background:#0f3f2f;color:#fff;border:none;padding:0 18px;
           height:100%;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;
           transition:background .18s;}
-        .search-btn:hover{background:var(--orange-dark);}
+        .search-btn:hover{background:#0a2a1f;}
         .search-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;
           background:#fff;border:1px solid var(--border);border-radius:8px;
           box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:200;overflow:hidden;}
         .suggestion-item{display:flex;align-items:center;gap:10px;padding:11px 16px;
           cursor:pointer;font-size:14px;color:var(--text);transition:background .12s;}
-        .suggestion-item:hover{background:#fff7f0;}
+        .suggestion-item:hover{background:#f5f4f1;}
 
         /* QUICK CATEGORY STRIP */
         .quick-cats{background:#fff;border-bottom:2px solid var(--border);
@@ -412,7 +417,7 @@ export default function StoreClient() {
           border-radius:50px;border:1.5px solid transparent;background:#f5f5f5;
           font-size:12px;font-weight:500;color:#444;cursor:pointer;
           transition:all .15s;flex-shrink:0;}
-        .quick-cat:hover,.quick-cat.active{background:var(--orange);color:#fff;border-color:var(--orange);}
+        .quick-cat:hover,.quick-cat.active{background:#0f3f2f;color:#fff;border-color:#0f3f2f;}
         .quick-cat-icon{font-size:14px;}
 
         /* LAYOUT */
@@ -426,7 +431,7 @@ export default function StoreClient() {
           max-height:calc(100vh - 64px);overflow-y:auto;}
         @media(max-width:900px){.store-sidebar{display:none;}}
         .sidebar-title{font-size:14px;font-weight:800;color:var(--text);
-          padding-bottom:12px;border-bottom:2px solid var(--orange);margin-bottom:16px;
+          padding-bottom:12px;border-bottom:2px solid var(--primary);margin-bottom:16px;
           letter-spacing:.3px;text-transform:uppercase;}
 
         /* FILTER PANEL */
@@ -439,31 +444,31 @@ export default function StoreClient() {
         .filter-radio{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;
           cursor:pointer;font-size:13px;color:var(--text-muted);transition:all .12s;
           user-select:none;}
-        .filter-radio:hover{background:#fff7f0;color:var(--orange);}
-        .filter-radio.active{color:var(--orange);font-weight:600;}
+        .filter-radio:hover{background:#f5f4f1;color:var(--primary);}
+        .filter-radio.active{color:var(--primary);font-weight:600;}
         .filter-radio-dot{width:14px;height:14px;border-radius:50%;border:2px solid #ddd;
           flex-shrink:0;transition:all .15s;}
-        .filter-radio.active .filter-radio-dot{border-color:var(--orange);background:var(--orange);}
+        .filter-radio.active .filter-radio-dot{border-color:var(--primary);background:var(--primary);}
         .filter-radio-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .filter-count{font-size:10px;color:#bbb;margin-left:auto;flex-shrink:0;}
         .filter-price-inputs{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
         .filter-dash{color:#bbb;flex-shrink:0;}
         .filter-input{flex:1;min-width:0;padding:7px 10px;border:1.5px solid var(--border);
           border-radius:6px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;}
-        .filter-input:focus{border-color:var(--orange);}
+        .filter-input:focus{border-color:var(--primary);}
         .filter-price-presets{display:flex;flex-direction:column;gap:4px;}
         .price-preset{padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;
           background:#fff;font-size:12px;color:var(--text-muted);cursor:pointer;
           text-align:left;transition:all .12s;}
-        .price-preset:hover,.price-preset.active{border-color:var(--orange);color:var(--orange);background:#fff7f0;}
+        .price-preset:hover,.price-preset.active{border-color:var(--primary);color:var(--primary);background:#f5f4f1;}
         .filter-select{width:100%;padding:8px 10px;border:1.5px solid var(--border);
           border-radius:6px;font-size:13px;color:var(--text);outline:none;
           background:#fff;cursor:pointer;}
-        .filter-select:focus{border-color:var(--orange);}
+        .filter-select:focus{border-color:var(--primary);}
         .filter-toggle-row{display:flex;align-items:center;gap:10px;cursor:pointer;}
         .toggle-switch{width:40px;height:22px;border-radius:99px;background:#ddd;
           position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
-        .toggle-switch.on{background:var(--orange);}
+        .toggle-switch.on{background:var(--primary);}
         .toggle-knob{position:absolute;top:3px;left:3px;width:16px;height:16px;
           border-radius:50%;background:#fff;transition:left .2s;
           box-shadow:0 1px 4px rgba(0,0,0,.2);}
@@ -500,14 +505,14 @@ export default function StoreClient() {
         .sort-select{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;
           background:#fff;font-size:13px;color:var(--text);font-weight:600;
           outline:none;cursor:pointer;transition:border-color .15s;}
-        .sort-select:focus{border-color:var(--orange);}
+        .sort-select:focus{border-color:var(--primary);}
 
         /* ACTIVE FILTER CHIPS */
         .active-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
         .filter-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
-          border-radius:50px;background:#fff7f0;border:1px solid rgba(249,115,22,.3);
-          font-size:12px;font-weight:600;color:var(--orange);}
-        .filter-chip-remove{background:none;border:none;cursor:pointer;color:var(--orange);
+          border-radius:50px;background:#f5f4f1;border:1px solid rgba(200,167,90,0.35);
+          font-size:12px;font-weight:600;color:var(--primary);}
+        .filter-chip-remove{background:none;border:none;cursor:pointer;color:var(--primary);
           font-size:14px;line-height:1;padding:0;margin-left:2px;}
 
         /* PRODUCT GRID */
@@ -518,7 +523,7 @@ export default function StoreClient() {
         /* PRODUCT CARD */
         .pcard{background:#fff;cursor:pointer;border:1px solid transparent;
           transition:all .18s ease;animation:fadeUp .35s ease both;}
-        .pcard:hover{border-color:var(--orange);box-shadow:0 4px 20px rgba(249,115,22,.12);z-index:2;position:relative;}
+        .pcard:hover{border-color:#c8a75a;box-shadow:0 4px 20px rgba(15,63,47,0.08);z-index:2;position:relative;}
         .pcard-img-wrap{position:relative;padding-top:100%;background:#f8f8f8;overflow:hidden;}
         .pcard-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
           transition:transform .4s ease;}
@@ -535,12 +540,12 @@ export default function StoreClient() {
           box-shadow:0 2px 8px rgba(0,0,0,.12);
           opacity:0;transition:opacity .2s;}
         .pcard:hover .pcard-wish{opacity:1;}
-        .pcard-quick-cta{position:absolute;bottom:0;left:0;right:0;background:var(--orange);
+        .pcard-quick-cta{position:absolute;bottom:0;left:0;right:0;background:#0f3f2f;
           color:#fff;text-align:center;font-size:12px;font-weight:600;padding:8px;
           transform:translateY(100%);transition:transform .25s ease;z-index:3;}
         .pcard:hover .pcard-quick-cta{transform:translateY(0);}
         .pcard-info{padding:10px 10px 14px;}
-        .pcard-brand{font-size:10px;color:var(--orange);font-weight:700;
+        .pcard-brand{font-size:10px;color:#c8a75a;font-weight:700;
           text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
         .pcard-title{font-size:12px;color:var(--text);line-height:1.45;
           display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
@@ -549,7 +554,7 @@ export default function StoreClient() {
         .pcard-price{font-size:16px;font-weight:800;color:var(--text);}
         .pcard-compare{font-size:11px;color:#bbb;text-decoration:line-through;}
         .pcard-rating{display:flex;align-items:center;gap:4px;margin-bottom:5px;}
-        .pcard-stars{color:#f57c00;font-size:11px;}
+        .pcard-stars{color:#c8a75a;font-size:11px;}
         .pcard-rcount{font-size:10px;color:#bbb;}
         .pcard-stock{display:flex;align-items:center;gap:5px;}
         .pcard-stock-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
@@ -562,9 +567,9 @@ export default function StoreClient() {
         .empty-icon{font-size:64px;margin-bottom:20px;}
         .empty-title{font-size:20px;font-weight:700;margin-bottom:8px;}
         .empty-sub{font-size:14px;color:var(--text-muted);margin-bottom:24px;}
-        .empty-btn{padding:12px 28px;border-radius:50px;background:var(--orange);color:#fff;
+        .empty-btn{padding:12px 28px;border-radius:50px;background:var(--primary);color:#fff;
           border:none;font-weight:700;font-size:14px;cursor:pointer;transition:background .18s;}
-        .empty-btn:hover{background:var(--orange-dark);}
+        .empty-btn:hover{background:var(--primary-dark);}
 
         /* LOAD MORE */
         .load-more-wrap{text-align:center;padding:32px 0;display:flex;flex-direction:column;
@@ -573,13 +578,13 @@ export default function StoreClient() {
         .load-more-btn{padding:13px 48px;border-radius:50px;border:2px solid var(--text);
           background:#fff;color:var(--text);font-weight:800;font-size:14px;cursor:pointer;
           transition:all .18s;}
-        .load-more-btn:hover:not(:disabled){background:var(--text);color:#fff;}
+        .load-more-btn:hover:not(:disabled){background:#0f3f2f;color:#fff;border-color:#0f3f2f;}
         .load-more-btn:disabled{opacity:.6;}
         .page-btns{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;}
         .page-btn{width:36px;height:36px;border-radius:6px;border:1.5px solid var(--border);
           background:#fff;color:var(--text);font-weight:700;font-size:13px;cursor:pointer;
           transition:all .12s;}
-        .page-btn.active,.page-btn:hover{background:var(--orange);color:#fff;border-color:var(--orange);}
+        .page-btn.active,.page-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
       `}</style>
 
       {/* ── TOP BAR ── */}
@@ -659,7 +664,7 @@ export default function StoreClient() {
           <div className="store-controls">
             <button className="mobile-filter-btn" onClick={() => setShowMobileFilter(true)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-              Filters {hasFilters && <span style={{ background: "#f97316", color: "#fff", borderRadius: "99px", padding: "1px 6px", fontSize: "11px" }}>!</span>}
+              Filters {hasFilters && <span style={{ background: "#0f3f2f", color: "#fff", borderRadius: "99px", padding: "1px 6px", fontSize: "11px" }}>!</span>}
             </button>
             <div className="results-info">
               {loading ? "Loading..." : (
@@ -744,7 +749,7 @@ export default function StoreClient() {
           </div>
           <FilterPanel />
           <button style={{ width: "100%", marginTop: 16, padding: "13px", borderRadius: 8,
-            background: "#f97316", color: "#fff", border: "none", fontWeight: 700, fontSize: 14,
+            background: "#0f3f2f", color: "#fff", border: "none", fontWeight: 700, fontSize: 14,
             cursor: "pointer" }}
             onClick={() => setShowMobileFilter(false)}>
             Show {total.toLocaleString()} Results

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { productsApi } from "@/lib/api";
+// productsApi used in fallback path inside fetchPool via raw fetch
 import type { ProductListItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/currency";
 
@@ -178,32 +178,26 @@ export default function HomePage() {
   const [secLoad, setSecLoad]   = useState(true);
   const rotateRef               = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* Fetch from multiple random pages + sorts to guarantee variety */
+  /* Single clean fetch from the dedicated /api/products/random endpoint.
+     The backend uses PostgreSQL ORDER BY RANDOM() — true catalogue-wide
+     shuffle, always different on every page load. */
   useEffect(() => {
     async function fetchPool() {
       try {
-        const randomPg = () => Math.floor(Math.random() * 6) + 1;
-        const reqs = [
-          productsApi.list({ page: randomPg(), per_page: 40 }),
-          productsApi.list({ page: randomPg(), per_page: 40, sort_by: "rating",     sort_order: "desc" }),
-          productsApi.list({ page: randomPg(), per_page: 40, sort_by: "created_at", sort_order: "desc" }),
-          productsApi.list({ page: randomPg(), per_page: 40, sort_by: "sales",      sort_order: "desc" }),
-          productsApi.list({ page: randomPg(), per_page: 40, sort_by: "price",      sort_order: "asc"  }),
-        ];
-        const settled = await Promise.allSettled(reqs);
-        const all: HP[] = [];
-        const seen = new Set<string>();
-        settled.forEach(r => {
-          if (r.status !== "fulfilled") return;
-          ((r.value as any)?.results ?? []).forEach((p: HP) => {
-            const img = p.main_image ?? (p as any).image_url ?? null;
-            if (!seen.has(p.id) && img) {
-              seen.add(p.id);
-              all.push({ ...p, main_image: img });
-            }
-          });
-        });
-        setPool(shuffle(all));
+        const res = await fetch(`${API}/api/products/random?count=100&with_images=true`);
+        if (!res.ok) throw new Error("random fetch failed");
+        const data = await res.json();
+        // data.products is already shuffled by the DB — no client shuffle needed
+        const products: HP[] = (data.products ?? []);
+        setPool(products);
+      } catch {
+        // Fallback: use existing productsApi with random sort
+        try {
+          const res = await fetch(`${API}/api/products?sort=random&per_page=100&in_stock=true`);
+          const data = await res.json();
+          const products: HP[] = (data.results ?? []).filter((p: HP) => p.main_image);
+          setPool(shuffle(products));
+        } catch { /* silent fail — hero stays empty */ }
       } finally {
         setHeroLoad(false);
       }
