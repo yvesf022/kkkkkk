@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-// productsApi used in fallback path inside fetchPool via raw fetch
 import type { ProductListItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/currency";
 
@@ -21,15 +20,16 @@ interface Section {
   view_all: string; products: HP[];
 }
 
-/* Safe "view all" — always routes to /store with proper params */
 function safeViewAll(raw: string): string {
   try {
     const url = new URL(raw, "http://x");
     const search = url.searchParams.get("search");
     const category = url.searchParams.get("category");
+    const q = url.searchParams.get("q");
     const sort = url.searchParams.get("sort");
     const params = new URLSearchParams();
     if (search) params.set("q", search);
+    if (q) params.set("q", q);
     if (category) params.set("category", category);
     if (sort) params.set("sort", sort);
     return `/store${params.toString() ? "?" + params.toString() : ""}`;
@@ -45,103 +45,167 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const THEME: Record<string, { accent: string; light: string; dark: string }> = {
-  red:    { accent: "#e53935", light: "rgba(229,57,53,0.08)",   dark: "#b71c1c" },
-  green:  { accent: "#2e7d32", light: "rgba(46,125,50,0.08)",   dark: "#1b5e20" },
-  gold:   { accent: "#c8a75a", light: "rgba(245,124,0,0.08)",   dark: "#e65100" },
-  forest: { accent: "#1b5e4a", light: "rgba(27,94,74,0.08)",    dark: "#0d3326" },
-  navy:   { accent: "#1565c0", light: "rgba(21,101,192,0.08)",  dark: "#0d47a1" },
-  plum:   { accent: "#6a1b9a", light: "rgba(106,27,154,0.08)",  dark: "#4a148c" },
-  teal:   { accent: "#00695c", light: "rgba(0,105,92,0.08)",    dark: "#004d40" },
-  rust:   { accent: "#bf360c", light: "rgba(191,54,12,0.08)",   dark: "#8d1f00" },
-  slate:  { accent: "#37474f", light: "rgba(55,71,79,0.08)",    dark: "#263238" },
-  olive:  { accent: "#558b2f", light: "rgba(85,139,47,0.08)",   dark: "#33691e" },
-  rose:   { accent: "#c2185b", light: "rgba(194,24,91,0.08)",   dark: "#880e4f" },
-  indigo: { accent: "#283593", light: "rgba(40,53,147,0.08)",   dark: "#1a237e" },
-  amber:  { accent: "#e65100", light: "rgba(230,81,0,0.08)",    dark: "#bf360c" },
-  sage:   { accent: "#33691e", light: "rgba(51,105,30,0.08)",   dark: "#1b5e20" },
-  stone:  { accent: "#4e342e", light: "rgba(78,52,46,0.08)",    dark: "#3e2723" },
+const THEME_MAP: Record<string, { primary: string; glow: string }> = {
+  red:    { primary: "#c0392b", glow: "rgba(192,57,43,0.15)" },
+  green:  { primary: "#0f3f2f", glow: "rgba(15,63,47,0.15)" },
+  gold:   { primary: "#b8860b", glow: "rgba(184,134,11,0.15)" },
+  forest: { primary: "#1b5e4a", glow: "rgba(27,94,74,0.15)" },
+  navy:   { primary: "#1a3a6b", glow: "rgba(26,58,107,0.15)" },
+  plum:   { primary: "#6b1f7c", glow: "rgba(107,31,124,0.15)" },
+  teal:   { primary: "#00695c", glow: "rgba(0,105,92,0.15)" },
+  rust:   { primary: "#a0390f", glow: "rgba(160,57,15,0.15)" },
+  slate:  { primary: "#2c3e50", glow: "rgba(44,62,80,0.15)" },
+  olive:  { primary: "#4a6741", glow: "rgba(74,103,65,0.15)" },
+  rose:   { primary: "#8e1a4a", glow: "rgba(142,26,74,0.15)" },
+  indigo: { primary: "#2d3561", glow: "rgba(45,53,97,0.15)" },
+  amber:  { primary: "#9a4400", glow: "rgba(154,68,0,0.15)" },
+  sage:   { primary: "#3d6b52", glow: "rgba(61,107,82,0.15)" },
+  stone:  { primary: "#4a3728", glow: "rgba(74,55,40,0.15)" },
 };
 
-/* ══════════════════════════════════════════════════════════════════
-   HERO PRODUCT CARD — big featured card style
-══════════════════════════════════════════════════════════════════ */
-function HeroCard({ p, size = "normal", onClick }: { p: HP; size?: "large" | "normal"; onClick: () => void }) {
+/* ══════════════════════════════════════════════
+   HERO CARD — contained, no overflow
+══════════════════════════════════════════════ */
+function HeroCard({ p, size = "normal", onClick, index = 0, visible: isVisible }: {
+  p: HP; size?: "large" | "normal"; onClick: () => void; index?: number; visible?: boolean;
+}) {
   const [err, setErr] = useState(false);
-  const disc = p.discount_pct && p.discount_pct > 0 ? p.discount_pct
-    : (p.compare_price && p.compare_price > p.price
-        ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
+  const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price
+    ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
 
   return (
-    <div className={`hcard hcard-${size}`} onClick={onClick}>
-      <div className="hcard-img-wrap">
-        {p.main_image && !err
-          ? <img src={p.main_image} alt={p.title} className="hcard-img" onError={() => setErr(true)} />
-          : <div className="hcard-img-placeholder">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-            </div>
-        }
-        <div className="hcard-badges">
-          {disc && disc > 0 && <span className="badge-discount">-{disc}%</span>}
-          {!p.in_stock && <span className="badge-sold">Sold Out</span>}
-        </div>
-        <div className="hcard-overlay">
-          <div className="hcard-meta">
-            {(p.category || p.brand) && (
-              <span className="hcard-cat">{p.category ?? p.brand}</span>
-            )}
-            <div className="hcard-title">{p.title}</div>
-            <div className="hcard-price-row">
-              <span className="hcard-price">{formatCurrency(p.price)}</span>
-              {p.compare_price && p.compare_price > p.price && (
-                <span className="hcard-old">{formatCurrency(p.compare_price)}</span>
-              )}
-              {p.rating && p.rating > 0 && (
-                <span className="hcard-rating">
-                  ★ {p.rating.toFixed(1)}
-                </span>
-              )}
-            </div>
+    <div
+      className={`hcard hcard-${size}`}
+      onClick={onClick}
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? "none" : "scale(0.97)",
+        // ✅ FIX: staggered fade-in on each rotation, not just mount
+        transition: `opacity 0.55s ease ${index * 80}ms, transform 0.55s ease ${index * 80}ms`,
+      }}
+    >
+      {/* ✅ FIX: hcard-inner is position:relative with overflow:hidden to contain everything */}
+      <div className="hcard-inner">
+        {p.main_image && !err ? (
+          <img
+            src={p.main_image}
+            alt={p.title}
+            className="hcard-img"
+            onError={() => setErr(true)}
+            loading="eager"
+          />
+        ) : (
+          /* ✅ FIX: dark placeholder — never shows broken image icon, keeps grid intact */
+          <div className="hcard-empty">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
           </div>
+        )}
+
+        {/* Gradient overlay — always present so text is always legible */}
+        <div className="hcard-gradient" />
+
+        {/* Badges */}
+        {disc && disc >= 5 && (
+          <div className="hcard-badges">
+            <span className="badge-off">-{disc}%</span>
+          </div>
+        )}
+
+        {/* Bottom info — absolutely positioned inside hcard-inner */}
+        <div className="hcard-info">
+          {(p.category || p.brand) && (
+            <div className="hcard-cat">{p.brand ?? p.category}</div>
+          )}
+          <div className="hcard-title">{p.title}</div>
+          <div className="hcard-price-row">
+            <span className="hcard-price">{formatCurrency(p.price)}</span>
+            {p.compare_price && p.compare_price > p.price && (
+              <span className="hcard-old">{formatCurrency(p.compare_price)}</span>
+            )}
+            {p.rating && p.rating >= 4 && (
+              <span className="hcard-star">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="#f5c842" stroke="none">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                {p.rating.toFixed(1)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Hover CTA */}
+        <div className="hcard-cta">
+          <span>View Product</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+          </svg>
         </div>
       </div>
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   STORE CARD (section rows)
-══════════════════════════════════════════════════════════════════ */
-function StoreCard({ p, idx, theme, onClick }: {
-  p: HP; idx: number; theme: typeof THEME[string]; onClick: () => void;
+/* ══════════════════════════════════════════════
+   SECTION PRODUCT CARD
+══════════════════════════════════════════════ */
+function SectionCard({ p, idx, accentColor, onClick }: {
+  p: HP; idx: number; accentColor: string; onClick: () => void;
 }) {
   const [err, setErr] = useState(false);
-  const disc = p.discount_pct && p.discount_pct > 0 ? p.discount_pct
-    : (p.compare_price && p.compare_price > p.price
-        ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
+  const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price
+    ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
 
   return (
-    <div className="scard" onClick={onClick} style={{ animationDelay: `${idx * 0.04}s` }}>
+    <div
+      className="scard"
+      onClick={onClick}
+      style={{ animationDelay: `${idx * 50}ms` }}
+    >
       <div className="scard-img-wrap">
-        {p.main_image && !err
-          ? <img src={p.main_image} alt={p.title} className="scard-img" onError={() => setErr(true)} />
-          : <div className="scard-placeholder">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-            </div>
-        }
-        <div className="scard-top">
-          {disc && disc > 0 && <span className="sdiscount">-{disc}%</span>}
-          {!p.in_stock && <span className="ssold">Out of Stock</span>}
+        {p.main_image && !err ? (
+          <img
+            src={p.main_image}
+            alt={p.title}
+            className="scard-img"
+            onError={() => setErr(true)}
+            loading="lazy"
+          />
+        ) : (
+          <div className="scard-no-img">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+          </div>
+        )}
+        {disc && disc >= 5 && (
+          <div className="scard-badge" style={{ background: "#c0392b" }}>-{disc}%</div>
+        )}
+        {!p.in_stock && (
+          <div className="scard-soldout">Sold Out</div>
+        )}
+        <div className="scard-hover-overlay">
+          <div className="scard-view-btn" style={{ background: accentColor }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            Quick View
+          </div>
         </div>
-        <button className="scard-quick" aria-label="Quick view">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          View
-        </button>
       </div>
+
       <div className="scard-info">
-        {(p.brand || p.category) && <div className="scard-brand">{p.brand ?? p.category}</div>}
+        {(p.brand || p.category) && (
+          <div className="scard-brand" style={{ color: accentColor }}>{p.brand ?? p.category}</div>
+        )}
         <div className="scard-title">{p.title}</div>
-        <div className="scard-bottom">
+        <div className="scard-footer">
           <div className="scard-prices">
             <span className="scard-price">{formatCurrency(p.price)}</span>
             {p.compare_price && p.compare_price > p.price && (
@@ -149,9 +213,13 @@ function StoreCard({ p, idx, theme, onClick }: {
             )}
           </div>
           {p.rating && p.rating > 0 && (
-            <div className="scard-stars">
-              {"★★★★★".slice(0, Math.round(p.rating))}
-              <span className="scard-rcount">({p.rating_number ?? 0})</span>
+            <div className="scard-rating">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <svg key={i} width="9" height="9" viewBox="0 0 24 24"
+                  fill={i < Math.round(p.rating!) ? "#c8a75a" : "#e0e0e0"} stroke="none">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              ))}
             </div>
           )}
         </div>
@@ -160,44 +228,298 @@ function StoreCard({ p, idx, theme, onClick }: {
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   PAGE
-══════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   SECTION ROW
+══════════════════════════════════════════════ */
+function SectionRow({ sec, onProductClick }: {
+  sec: Section; onProductClick: (id: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const th = THEME_MAP[sec.theme] ?? THEME_MAP.forest;
+  const href = safeViewAll(sec.view_all);
 
-const ROTATE_MS = 4500; // swap displayed hero products every 4.5 s
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold: 0.04 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const scroll = (dir: "l" | "r") =>
+    rowRef.current?.scrollBy({ left: dir === "r" ? 680 : -680, behavior: "smooth" });
+
+  return (
+    <div
+      ref={ref}
+      className="section-block"
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "none" : "translateY(28px)",
+        transition: "opacity 0.55s ease, transform 0.55s ease",
+      }}
+    >
+      <div className="section-head">
+        <div className="section-head-left">
+          <div className="section-accent-bar" style={{ background: th.primary }} />
+          <div>
+            {sec.badge && (
+              <span className="section-badge" style={{ background: th.primary }}>{sec.badge}</span>
+            )}
+            <div className="section-title">{sec.title}</div>
+            <div className="section-sub">{sec.subtitle}</div>
+          </div>
+        </div>
+        <Link href={href} className="view-all-link" style={{ color: th.primary, borderColor: th.primary }}>
+          View All
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+          </svg>
+        </Link>
+      </div>
+
+      <div className="section-scroll-wrap">
+        <button className="scroll-btn scroll-btn-l" onClick={() => scroll("l")} aria-label="Scroll left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+
+        <div ref={rowRef} className="section-scroll">
+          {sec.products.map((p, i) => (
+            <SectionCard
+              key={p.id} p={p} idx={i}
+              accentColor={th.primary}
+              onClick={() => onProductClick(p.id)}
+            />
+          ))}
+          <Link href={href} className="see-more-card" style={{ borderColor: `${th.primary}40` }}>
+            <div className="see-more-circle" style={{ borderColor: th.primary, color: th.primary }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+              </svg>
+            </div>
+            <span className="see-more-label">See All<br/>{sec.title}</span>
+          </Link>
+        </div>
+
+        <button className="scroll-btn scroll-btn-r" onClick={() => scroll("r")} aria-label="Scroll right">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   SKELETON SECTION
+══════════════════════════════════════════════ */
+function SkeletonSection() {
+  return (
+    <div className="section-block">
+      <div className="section-head">
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div className="shimbox" style={{ width: 4, height: 44, borderRadius: 2 }} />
+          <div>
+            <div className="shimbox" style={{ width: 180, height: 18, borderRadius: 4, marginBottom: 6 }} />
+            <div className="shimbox" style={{ width: 120, height: 12, borderRadius: 4 }} />
+          </div>
+        </div>
+        <div className="shimbox" style={{ width: 90, height: 34, borderRadius: 50 }} />
+      </div>
+      <div style={{ display: "flex", gap: 2, padding: "12px 20px", overflow: "hidden" }}>
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="shimbox" style={{ width: 190, height: 290, flexShrink: 0, borderRadius: 0 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   HERO SKELETON — matches exact grid layout
+══════════════════════════════════════════════ */
+function HeroSkeleton() {
+  return (
+    <>
+      {/* large card */}
+      <div className="shimbox hcard hcard-large" />
+      {/* 4 small cards */}
+      <div className="shimbox hcard hcard-normal" />
+      <div className="shimbox hcard hcard-normal" />
+      <div className="shimbox hcard hcard-normal" />
+      <div className="shimbox hcard hcard-normal" />
+    </>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   CATEGORY STRIP — loaded dynamically from sections
+══════════════════════════════════════════════ */
+function CategoryStrip({ sections }: { sections: Section[] }) {
+  const cats: { label: string; href: string }[] = [
+    { label: "All Products", href: "/store" },
+    { label: "Flash Deals", href: "/store?sort=discount" },
+    { label: "New Arrivals", href: "/store?sort=newest" },
+    { label: "Best Sellers", href: "/store?sort=popular" },
+    ...sections
+      .filter(s => !["flash_deals","new_arrivals","best_sellers","top_rated"].includes(s.key))
+      .map(s => ({
+        label: s.title,
+        href: safeViewAll(s.view_all),
+      })),
+  ];
+
+  return (
+    <div className="cat-strip">
+      <div className="cat-strip-inner">
+        {cats.slice(0, 18).map((c, i) => (
+          <Link key={i} href={c.href} className="cat-pill">
+            {c.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   TRUST BAR
+══════════════════════════════════════════════ */
+function TrustBar() {
+  const items = [
+    {
+      title: "Free Delivery", sub: "Orders over M500",
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+    },
+    {
+      title: "Authentic Products", sub: "100% verified",
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>,
+    },
+    {
+      title: "Easy Returns", sub: "7-day hassle-free",
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 .7-3.6"/></svg>,
+    },
+    {
+      title: "Secure Payment", sub: "Encrypted checkout",
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+    },
+    {
+      title: "Gift Packaging", sub: "Premium wrapping",
+      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>,
+    },
+  ];
+
+  return (
+    <div className="trust-bar">
+      {items.map((item) => (
+        <div key={item.title} className="trust-item">
+          <div className="trust-icon-wrap">{item.icon}</div>
+          <div className="trust-text">
+            <div className="trust-title">{item.title}</div>
+            <div className="trust-sub">{item.sub}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   HERO BANNER
+══════════════════════════════════════════════ */
+function HeroBanner() {
+  return (
+    <div className="hero-banner">
+      <div className="hero-banner-inner">
+        <div className="hero-banner-text">
+          <div className="hero-banner-eyebrow">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#c8a75a" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Karabo Luxury Boutique
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#c8a75a" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <div className="hero-banner-headline">Discover Premium Products</div>
+          <div className="hero-banner-sub">Curated selections · Unbeatable prices · Authentic always</div>
+        </div>
+        <Link href="/store" className="hero-shop-btn">
+          Shop All Products
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+          </svg>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   MARQUEE
+══════════════════════════════════════════════ */
+function Marquee() {
+  const items = [
+    "Free Delivery on Orders over M500", "100% Authentic Products",
+    "Secure & Encrypted Checkout", "7-Day Easy Returns",
+    "Premium Gift Packaging", "Lesotho's Finest Boutique",
+    "New Collections Weekly", "Exclusive Member Rewards",
+  ];
+  return (
+    <div className="marquee-bar">
+      <div className="marquee-track">
+        {[...items, ...items, ...items].map((t, i) => (
+          <span key={i} className="marquee-item">
+            <svg width="5" height="5" viewBox="0 0 10 10" fill="#c8a75a" stroke="none">
+              <polygon points="5 0 6.12 3.38 9.51 3.45 6.97 5.56 7.94 9 5 7.02 2.06 9 3.03 5.56 0.49 3.45 3.88 3.38"/>
+            </svg>
+            {t}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   MAIN PAGE
+══════════════════════════════════════════════ */
+// ✅ FIX: 6 seconds for a luxurious, calm transition pace
+const ROTATE_MS = 6000;
 
 export default function HomePage() {
   const router = useRouter();
-
-  /* Large shuffled pool drawn from multiple pages & sorts */
   const [pool, setPool]         = useState<HP[]>([]);
   const [offset, setOffset]     = useState(0);
-  const [fading, setFading]     = useState(false);
+  // ✅ FIX: cardsVisible drives the fade — separate from fading so we can
+  //         fade out, swap products, then fade back in cleanly
+  const [cardsVisible, setCardsVisible] = useState(true);
   const [sections, setSections] = useState<Section[]>([]);
   const [heroLoad, setHeroLoad] = useState(true);
   const [secLoad, setSecLoad]   = useState(true);
   const rotateRef               = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* Single clean fetch from the dedicated /api/products/random endpoint.
-     The backend uses PostgreSQL ORDER BY RANDOM() — true catalogue-wide
-     shuffle, always different on every page load. */
+  /* ── Fetch random hero products with diverse=true so categories are mixed ── */
   useEffect(() => {
     async function fetchPool() {
       try {
-        const res = await fetch(`${API}/api/products/random?count=100&with_images=true`);
-        if (!res.ok) throw new Error("random fetch failed");
+        // ✅ FIX: diverse=true ensures hero never shows 5 phones in a row
+        const res = await fetch(`${API}/api/products/random?count=100&with_images=true&diverse=true`);
+        if (!res.ok) throw new Error();
         const data = await res.json();
-        // data.products is already shuffled by the DB — no client shuffle needed
-        const products: HP[] = (data.products ?? []);
-        setPool(products);
+        // ✅ FIX: filter client-side too — only keep products with a real image URL
+        const withImages = (data.products ?? []).filter((p: HP) => p.main_image);
+        setPool(withImages);
       } catch {
-        // Fallback: use existing productsApi with random sort
         try {
-          const res = await fetch(`${API}/api/products?sort=random&per_page=100&in_stock=true`);
+          // Fallback: standard products list, filter for images
+          const res = await fetch(`${API}/api/products?per_page=100&in_stock=true`);
           const data = await res.json();
-          const products: HP[] = (data.results ?? []).filter((p: HP) => p.main_image);
-          setPool(shuffle(products));
-        } catch { /* silent fail — hero stays empty */ }
+          setPool(shuffle((data.results ?? []).filter((p: HP) => p.main_image)));
+        } catch {}
       } finally {
         setHeroLoad(false);
       }
@@ -205,22 +527,26 @@ export default function HomePage() {
     fetchPool();
   }, []);
 
-  /* Auto-rotate: every ROTATE_MS fade out → advance by 5 → fade in */
+  /* ── Auto-rotate with clean fade transition ── */
   useEffect(() => {
     if (pool.length < 5) return;
     rotateRef.current = setInterval(() => {
-      setFading(true);
+      // Step 1: fade out
+      setCardsVisible(false);
       setTimeout(() => {
+        // Step 2: swap to next group
         setOffset(prev => {
           const next = prev + 5;
           return next + 5 > pool.length ? 0 : next;
         });
-        setFading(false);
-      }, 380);
+        // Step 3: fade in
+        setTimeout(() => setCardsVisible(true), 60);
+      }, 450); // wait for fade-out to complete
     }, ROTATE_MS);
     return () => { if (rotateRef.current) clearInterval(rotateRef.current); };
   }, [pool.length]);
 
+  /* ── Fetch sections — categories are automatic from available products ── */
   useEffect(() => {
     fetch(`${API}/api/homepage/sections`)
       .then(r => r.json())
@@ -229,403 +555,565 @@ export default function HomePage() {
       .finally(() => setSecLoad(false));
   }, []);
 
-  /* Current 5 products shown in hero */
+  // ✅ FIX: visible is always exactly 5 unique products (from diverse pool)
   const visible   = pool.length >= 5 ? pool.slice(offset, offset + 5) : [];
   const heroBig   = visible[0] as HP | undefined;
   const heroSmall = visible.slice(1, 5) as HP[];
+  const totalDots = Math.min(Math.ceil(pool.length / 5), 12);
 
   return (
-    <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#f2f2f2", minHeight: "100vh" }}>
+    <div className="page-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
-        ::-webkit-scrollbar{width:4px;height:4px}
-        ::-webkit-scrollbar-thumb{background:#0f3f2f;border-radius:4px}
+        :root{
+          --primary:#0f3f2f;--primary-dark:#0a2a1f;--primary-light:#1b5e4a;
+          --gold:#c8a75a;--gold-light:#d4b976;
+          --text:#1a1a1a;--text-muted:#64655e;--text-light:#9e9d97;
+          --border:#e5e3de;--bg:#f7f6f3;--white:#ffffff;
+          --shadow-sm:0 1px 4px rgba(0,0,0,0.07);
+          --shadow-md:0 4px 16px rgba(0,0,0,0.08);
+          --shadow-lg:0 8px 32px rgba(0,0,0,0.10);
+        }
+        ::-webkit-scrollbar{width:4px;height:3px}
+        ::-webkit-scrollbar-thumb{background:var(--primary);border-radius:4px}
+        ::-webkit-scrollbar-track{background:transparent}
 
         @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+        @keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
         @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-33.333%)}}
-        @keyframes scaleIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
 
-        .shimbox{background:linear-gradient(90deg,#e8e8e8 0%,#d5d5d5 50%,#e8e8e8 100%);
-          background-size:200% 100%;animation:shimmer 1.5s ease-in-out infinite;}
+        .shimbox{
+          background:linear-gradient(90deg,#ebebea 0%,#d9d8d5 50%,#ebebea 100%);
+          background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite;
+        }
 
-        /* HERO */
-        .hero-section{background:#fff;padding:0}
-        .hero-welcome{background:linear-gradient(135deg,#0f3f2f 0%,#0a2a1f 50%,#0a2a1f 100%);
-          padding:12px 20px;display:flex;align-items:center;justify-content:space-between;
-          gap:16px;flex-wrap:wrap;}
-        .hero-welcome-text{color:#fff;font-size:13px;font-weight:400;opacity:.92;line-height:1.4;}
-        .hero-welcome-text strong{font-weight:700;font-size:15px;display:block;}
-        .hero-welcome-cta{background:#fff;color:#0f3f2f;border:none;padding:8px 20px;
-          border-radius:50px;font-weight:700;font-size:12px;cursor:pointer;
-          white-space:nowrap;letter-spacing:.4px;text-decoration:none;
-          transition:all .2s ease;flex-shrink:0;}
-        .hero-welcome-cta:hover{background:#f5f4f1;transform:scale(1.03);}
+        .page-root{
+          min-height:100vh;
+          background:var(--bg);
+          font-family:'DM Sans',system-ui,sans-serif;
+          color:var(--text);
+        }
 
-        .hero-grid{display:grid;gap:3px;background:#fafaf9;
-          grid-template-columns:1fr 1fr 1fr 1fr 1fr;
-          grid-template-rows:380px;}
-        @media(max-width:1024px){.hero-grid{grid-template-columns:1fr 1fr 1fr;grid-template-rows:320px 320px;}}
-        @media(max-width:640px){.hero-grid{grid-template-columns:1fr 1fr;grid-template-rows:260px 260px 260px;}}
+        /* ── HERO BANNER ─────────────────── */
+        .hero-banner{
+          background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 60%,#061a10 100%);
+          position:relative;overflow:hidden;
+        }
+        .hero-banner::before{
+          content:'';position:absolute;inset:0;
+          background:radial-gradient(ellipse at 70% 50%,rgba(200,167,90,0.12) 0%,transparent 60%);
+          pointer-events:none;
+        }
+        .hero-banner-inner{
+          max-width:1500px;margin:0 auto;
+          padding:18px clamp(16px,3vw,40px);
+          display:flex;align-items:center;justify-content:space-between;
+          gap:20px;flex-wrap:wrap;position:relative;z-index:1;
+        }
+        .hero-banner-text{display:flex;flex-direction:column;gap:4px;}
+        .hero-banner-eyebrow{
+          display:flex;align-items:center;gap:7px;
+          font-size:11px;font-weight:500;color:var(--gold);
+          letter-spacing:1.5px;text-transform:uppercase;
+        }
+        .hero-banner-headline{
+          font-family:'Cormorant Garamond',serif;
+          font-size:clamp(20px,3vw,28px);font-weight:600;
+          color:#fff;letter-spacing:-0.3px;line-height:1.2;
+        }
+        .hero-banner-sub{
+          font-size:12px;color:rgba(255,255,255,0.6);
+          font-weight:400;letter-spacing:0.2px;
+        }
+        .hero-shop-btn{
+          display:inline-flex;align-items:center;gap:8px;
+          background:var(--gold);color:#fff;
+          padding:11px 24px;border-radius:4px;
+          font-size:13px;font-weight:700;
+          text-decoration:none;letter-spacing:0.3px;
+          white-space:nowrap;flex-shrink:0;
+          transition:all 0.2s ease;
+          box-shadow:0 2px 12px rgba(200,167,90,0.4);
+        }
+        .hero-shop-btn:hover{
+          background:#b8973e;transform:translateY(-1px);
+          box-shadow:0 4px 20px rgba(200,167,90,0.5);
+        }
+        .hero-shop-btn svg{transition:transform 0.2s ease;}
+        .hero-shop-btn:hover svg{transform:translateX(3px);}
 
-        /* HERO CARDS */
-        .hcard{position:relative;overflow:hidden;cursor:pointer;background:#e8e8e8;}
-        .hcard-large{grid-column:span 2;grid-row:span 1;}
-        @media(max-width:1024px){.hcard-large{grid-column:span 2;}}
-        @media(max-width:640px){.hcard-large{grid-column:span 2;}}
-        .hcard-img-wrap{position:relative;width:100%;height:100%;}
-        .hcard-img{width:100%;height:100%;object-fit:cover;display:block;
-          transition:transform .5s cubic-bezier(.2,.8,.3,1);}
+        /* ════════════════════════════════════
+           HERO GRID
+           ✅ FIX: Self-contained grid — fixed height, overflow hidden,
+           no content can escape or obstruct other elements.
+           5 cards: 1 large (spans 2 rows) + 4 small in 2×2 right panel
+        ════════════════════════════════════ */
+        .hero-grid{
+          display:grid;
+          grid-template-columns:2fr 1fr 1fr;
+          grid-template-rows:220px 180px;
+          gap:3px;
+          background:#111;
+          /* ✅ FIX: fixed height = sum of rows + gaps, nothing bleeds out */
+          height:403px;
+          overflow:hidden;
+        }
+        @media(max-width:1100px){
+          .hero-grid{
+            grid-template-columns:1fr 1fr;
+            grid-template-rows:240px 180px;
+            height:423px;
+          }
+        }
+        @media(max-width:640px){
+          .hero-grid{
+            grid-template-columns:1fr 1fr;
+            grid-template-rows:200px 160px 160px;
+            height:523px;
+          }
+        }
+
+        /* Every card fills its grid cell exactly */
+        .hcard{
+          position:relative;
+          overflow:hidden;        /* ✅ FIX: content cannot escape the cell */
+          cursor:pointer;
+          background:#1a1a1a;
+          /* no animation here — opacity handled inline for rotation */
+          width:100%;
+          height:100%;
+          display:block;
+        }
+        /* Large card spans full left column (both rows) */
+        .hcard-large{
+          grid-column:1;
+          grid-row:1 / span 2;
+        }
+        @media(max-width:1100px){
+          .hcard-large{grid-column:span 2;grid-row:1;}
+        }
+        @media(max-width:640px){
+          .hcard-large{grid-column:span 2;grid-row:1;}
+        }
+        .hcard-normal{
+          grid-column:auto;
+          grid-row:auto;
+        }
+
+        /* hcard-inner fills 100% and is the stacking context */
+        .hcard-inner{
+          position:relative;
+          width:100%;
+          height:100%;
+          overflow:hidden; /* ✅ FIX: belt-and-suspenders containment */
+        }
+        .hcard-img{
+          width:100%;height:100%;object-fit:cover;display:block;
+          transition:transform 0.7s cubic-bezier(0.2,0.8,0.3,1);
+        }
         .hcard:hover .hcard-img{transform:scale(1.07);}
-        .hcard-img-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#e0e0e0;}
-        .hcard-badges{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:5px;z-index:3;}
-        .badge-discount{background:#e53935;color:#fff;font-size:10px;font-weight:800;
-          padding:3px 9px;border-radius:4px;letter-spacing:.3px;}
-        .badge-sold{background:rgba(0,0,0,.6);color:#fff;font-size:10px;font-weight:600;
-          padding:3px 9px;border-radius:4px;}
-        .hcard-overlay{position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(0,0,0,.82) 100%);
-          display:flex;align-items:flex-end;z-index:2;
-          opacity:0;transition:opacity .3s ease;}
-        .hcard:hover .hcard-overlay{opacity:1;}
-        .hcard-meta{padding:16px 14px;width:100%;}
-        .hcard-cat{font-size:9px;font-weight:600;color:rgba(255,255,255,.55);
-          text-transform:uppercase;letter-spacing:1.5px;display:block;margin-bottom:4px;}
-        .hcard-title{font-size:14px;font-weight:600;color:#fff;line-height:1.35;
-          margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-        .hcard-large .hcard-title{font-size:17px;}
-        .hcard-price-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-        .hcard-price{font-size:16px;font-weight:800;color:#c8a75a;}
-        .hcard-large .hcard-price{font-size:20px;}
-        .hcard-old{font-size:11px;color:rgba(255,255,255,.4);text-decoration:line-through;}
-        .hcard-rating{font-size:11px;color:#e8d48a;margin-left:auto;}
+        .hcard-empty{
+          width:100%;height:100%;
+          display:flex;align-items:center;justify-content:center;
+          background:#1e1e1e;
+        }
+        .hcard-gradient{
+          position:absolute;inset:0;
+          background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.18) 55%,transparent 100%);
+          z-index:2;
+          pointer-events:none;
+        }
+        .hcard-badges{
+          position:absolute;top:10px;left:10px;z-index:4;
+        }
+        .badge-off{
+          display:inline-flex;align-items:center;gap:4px;
+          background:#c0392b;color:#fff;
+          font-size:9px;font-weight:800;
+          padding:3px 8px;border-radius:2px;
+          letter-spacing:0.3px;
+        }
+        .hcard-info{
+          position:absolute;bottom:0;left:0;right:0;
+          padding:12px 14px;z-index:3;
+        }
+        .hcard-cat{
+          font-size:9px;font-weight:600;color:rgba(255,255,255,0.45);
+          text-transform:uppercase;letter-spacing:1.5px;
+          display:block;margin-bottom:3px;
+        }
+        .hcard-title{
+          font-size:12px;font-weight:600;color:#fff;
+          line-height:1.3;margin-bottom:6px;
+          display:-webkit-box;-webkit-line-clamp:2;
+          -webkit-box-orient:vertical;overflow:hidden;
+        }
+        .hcard-large .hcard-title{
+          font-family:'Cormorant Garamond',serif;
+          font-size:clamp(14px,2vw,20px);font-weight:600;
+          -webkit-line-clamp:3;
+        }
+        .hcard-price-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+        .hcard-price{font-size:13px;font-weight:800;color:var(--gold);}
+        .hcard-large .hcard-price{font-size:16px;}
+        .hcard-old{font-size:10px;color:rgba(255,255,255,0.3);text-decoration:line-through;}
+        .hcard-star{
+          display:inline-flex;align-items:center;gap:3px;
+          font-size:10px;color:#f5c842;margin-left:auto;font-weight:600;
+        }
+        .hcard-cta{
+          position:absolute;inset:0;
+          display:flex;align-items:center;justify-content:center;gap:7px;
+          background:rgba(0,0,0,0.5);
+          color:#fff;font-size:12px;font-weight:700;
+          letter-spacing:0.5px;
+          opacity:0;transition:opacity 0.22s ease;
+          z-index:5;
+        }
+        .hcard:hover .hcard-cta{opacity:1;}
 
-        /* MARQUEE */
-        .marquee-bar{background:linear-gradient(90deg,#0f3f2f,#1b5e4a);overflow:hidden;padding:0;}
-        .marquee-inner{display:flex;animation:marquee 30s linear infinite;width:300%;}
-        .marquee-item{display:flex;align-items:center;gap:8px;padding:9px 20px;white-space:nowrap;}
-        .marquee-dot{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.6);flex-shrink:0;}
-        .marquee-text{font-size:11px;font-weight:500;color:rgba(255,255,255,.9);
-          letter-spacing:.6px;text-transform:uppercase;}
+        /* ── HERO DOTS ───────────────────── */
+        .hero-dots{
+          display:flex;align-items:center;justify-content:center;
+          gap:6px;padding:11px 0;background:var(--white);
+          border-bottom:1px solid var(--border);
+        }
+        .hero-dot{
+          border:none;cursor:pointer;border-radius:3px;
+          background:var(--border);transition:all 0.3s ease;padding:0;
+          height:4px;
+        }
+        .hero-dot.active{background:var(--primary);}
 
-        /* CATEGORY CHIPS */
-        .cat-strip{background:#fff;border-bottom:1px solid #e8e8e8;overflow-x:auto;
-          padding:0 clamp(12px,3vw,40px);}
-        .cat-strip::-webkit-scrollbar{height:0;}
-        .cat-chips{display:flex;gap:6px;padding:12px 0;white-space:nowrap;}
-        .cat-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;
-          border-radius:50px;border:1.5px solid #e0e0e0;background:#fff;
-          font-size:12px;font-weight:500;color:#333;cursor:pointer;
-          text-decoration:none;transition:all .18s ease;flex-shrink:0;}
-        .cat-chip:hover{border-color:#0f3f2f;color:#0f3f2f;background:#f5f4f1;}
-        .cat-chip-icon{font-size:15px;}
+        /* ── MARQUEE ─────────────────────── */
+        .marquee-bar{
+          background:linear-gradient(90deg,var(--primary),var(--primary-light));
+          overflow:hidden;padding:0;
+        }
+        .marquee-track{
+          display:flex;width:300%;
+          animation:marquee 36s linear infinite;
+        }
+        .marquee-item{
+          display:inline-flex;align-items:center;gap:9px;
+          padding:9px 24px;white-space:nowrap;flex-shrink:0;
+          font-size:10px;font-weight:600;letter-spacing:1px;
+          text-transform:uppercase;color:rgba(255,255,255,0.9);
+        }
 
-        /* SECTIONS */
-        .sections-wrap{padding:clamp(16px,2.5vw,32px) 0 clamp(40px,5vw,64px);}
-        .section-block{background:#fff;margin-bottom:8px;}
-        .section-head{display:flex;align-items:center;justify-content:space-between;
-          padding:16px clamp(12px,3vw,24px) 14px;border-bottom:1px solid #f0f0f0;}
-        .section-head-left{display:flex;align-items:center;gap:10px;}
-        .section-badge{font-size:9px;font-weight:800;padding:3px 10px;border-radius:4px;
-          color:#fff;letter-spacing:1px;text-transform:uppercase;}
-        .section-title{font-size:18px;font-weight:700;color:#1a1a1a;letter-spacing:-.3px;}
-        .section-sub{font-size:11px;color:#999;margin-top:2px;}
-        .viewall-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;
-          font-weight:600;color:#0f3f2f;text-decoration:none;padding:7px 16px;
-          border:1.5px solid #0f3f2f;border-radius:50px;transition:all .18s ease;white-space:nowrap;}
-        .viewall-btn:hover{background:#0f3f2f;color:#fff;}
-        .viewall-btn svg{transition:transform .18s ease;}
-        .viewall-btn:hover svg{transform:translateX(3px);}
-
-        .scroll-row-wrap{position:relative;}
-        .scroll-row{display:flex;gap:2px;overflow-x:auto;padding:2px 0;scroll-behavior:smooth;
-          background:var(--gray-100,#f5f5f4);}
-        .scroll-row::-webkit-scrollbar{height:2px;}
-        .scroll-row::-webkit-scrollbar-thumb{background:#0f3f2f;border-radius:2px;}
-        .scroll-nav{position:absolute;top:50%;transform:translateY(-50%);
-          width:32px;height:48px;background:#fff;border:1px solid #e8e8e8;
-          box-shadow:0 2px 12px rgba(0,0,0,.12);border-radius:4px;
-          display:flex;align-items:center;justify-content:center;cursor:pointer;
-          z-index:10;color:#333;transition:all .18s ease;}
-        .scroll-nav:hover{background:#0f3f2f;color:#fff;border-color:#0f3f2f;}
-        .scroll-nav-l{left:0;}
-        .scroll-nav-r{right:0;}
-
-        /* STORE CARDS — Jumia style */
-        .scard{width:185px;flex-shrink:0;background:#fff;cursor:pointer;
-          border:1px solid transparent;transition:all .2s ease;animation:scaleIn .4s ease both;}
-        .scard:hover{border-color:#0f3f2f;box-shadow:0 4px 20px rgba(15,63,47,0.10);z-index:2;}
-        .scard-img-wrap{position:relative;height:185px;background:#f8f8f8;overflow:hidden;}
-        .scard-img{width:100%;height:100%;object-fit:cover;display:block;
-          transition:transform .4s ease;}
-        .scard:hover .scard-img{transform:scale(1.06);}
-        .scard-placeholder{width:100%;height:100%;display:flex;align-items:center;
-          justify-content:center;background:#f0f0f0;}
-        .scard-top{position:absolute;top:8px;left:8px;right:8px;
-          display:flex;justify-content:space-between;align-items:flex-start;z-index:2;}
-        .sdiscount{background:#e53935;color:#fff;font-size:10px;font-weight:800;
-          padding:2px 8px;border-radius:3px;}
-        .ssold{background:rgba(0,0,0,.55);color:#fff;font-size:9px;font-weight:600;
-          padding:2px 7px;border-radius:3px;}
-        .scard-quick{position:absolute;bottom:8px;left:50%;transform:translateX(-50%) translateY(8px);
-          background:#0f3f2f;color:#fff;border:none;padding:6px 14px;border-radius:50px;
-          font-size:10px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;
-          opacity:0;transition:all .2s ease;white-space:nowrap;z-index:3;}
-        .scard:hover .scard-quick{opacity:1;transform:translateX(-50%) translateY(0);}
-        .scard-info{padding:10px 10px 14px;}
-        .scard-brand{font-size:10px;color:#0f3f2f;font-weight:600;text-transform:uppercase;
-          letter-spacing:.5px;margin-bottom:3px;}
-        .scard-title{font-size:12px;color:#1a1a1a;line-height:1.4;margin-bottom:8px;
-          display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-          font-weight:400;min-height:34px;}
-        .scard-bottom{display:flex;align-items:center;justify-content:space-between;gap:6px;}
-        .scard-prices{display:flex;flex-direction:column;gap:1px;}
-        .scard-price{font-size:15px;font-weight:800;color:#1a1a1a;}
-        .scard-compare{font-size:10px;color:#aaa;text-decoration:line-through;}
-        .scard-stars{font-size:10px;color:#c8a75a;display:flex;align-items:center;gap:2px;}
-        .scard-rcount{color:#aaa;font-size:9px;}
-
-        /* END CARD */
-        .end-card{width:140px;flex-shrink:0;background:#fff;border:2px dashed #e8e8e8;
-          display:flex;flex-direction:column;align-items:center;justify-content:center;
-          gap:10px;text-decoration:none;color:#0f3f2f;padding:20px 16px;
-          transition:all .2s ease;cursor:pointer;}
-        .end-card:hover{border-color:#0f3f2f;background:#f5f4f1;}
-        .end-card-icon{width:40px;height:40px;border-radius:50%;border:2px solid #0f3f2f;
-          display:flex;align-items:center;justify-content:center;}
-        .end-card-text{font-size:11px;font-weight:600;text-align:center;line-height:1.5;
-          text-transform:uppercase;letter-spacing:.5px;}
-
-        /* TRUST BAR */
-        .trust-bar{background:#fff;border-top:1px solid #e8e8e8;border-bottom:1px solid #e8e8e8;
-          margin-bottom:8px;}
-        .trust-inner{max-width:1440px;margin:0 auto;
-          display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-          gap:0;divide-color:#e8e8e8;}
-        .trust-item{display:flex;align-items:center;gap:12px;padding:20px 24px;
-          border-right:1px solid #f0f0f0;cursor:default;}
+        /* ── TRUST BAR ───────────────────── */
+        .trust-bar{
+          background:var(--white);
+          border-top:1px solid var(--border);
+          border-bottom:3px solid var(--border);
+          display:grid;
+          grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+        }
+        .trust-item{
+          display:flex;align-items:center;gap:12px;
+          padding:18px 20px;
+          border-right:1px solid var(--border);
+        }
         .trust-item:last-child{border-right:none;}
-        .trust-icon{color:#0f3f2f;flex-shrink:0;}
-        .trust-text-title{font-size:12px;font-weight:700;color:#1a1a1a;}
-        .trust-text-sub{font-size:11px;color:#999;}
+        .trust-icon-wrap{color:var(--primary);flex-shrink:0;}
+        .trust-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:1px;}
+        .trust-sub{font-size:11px;color:var(--text-muted);}
+
+        /* ── CATEGORY STRIP ──────────────── */
+        .cat-strip{
+          background:var(--white);
+          border-bottom:1px solid var(--border);
+          overflow-x:auto;padding:0 clamp(12px,3vw,40px);
+        }
+        .cat-strip::-webkit-scrollbar{height:0;}
+        .cat-strip-inner{
+          display:flex;gap:6px;padding:12px 0;
+          white-space:nowrap;align-items:center;
+        }
+        .cat-pill{
+          display:inline-flex;align-items:center;gap:5px;
+          padding:7px 16px;border-radius:3px;
+          border:1px solid var(--border);
+          background:var(--white);
+          font-size:12px;font-weight:500;
+          color:var(--text-muted);
+          text-decoration:none;flex-shrink:0;
+          transition:all 0.18s ease;letter-spacing:0.1px;
+        }
+        .cat-pill:hover{
+          border-color:var(--primary);
+          color:var(--primary);background:#f0f7f4;
+        }
+
+        /* ── SECTIONS ────────────────────── */
+        .sections-wrap{padding-bottom:clamp(32px,5vw,64px);}
+        .section-block{background:var(--white);margin-bottom:6px;}
+        .section-head{
+          display:flex;align-items:center;justify-content:space-between;
+          padding:18px clamp(16px,3vw,28px) 14px;
+          border-bottom:1px solid var(--border);
+        }
+        .section-head-left{display:flex;align-items:center;gap:14px;}
+        .section-accent-bar{width:4px;height:42px;border-radius:2px;flex-shrink:0;}
+        .section-badge{
+          display:inline-block;
+          font-size:8px;font-weight:800;
+          padding:3px 9px;border-radius:2px;
+          color:#fff;letter-spacing:1px;text-transform:uppercase;
+          margin-bottom:4px;
+        }
+        .section-title{
+          font-family:'Cormorant Garamond',serif;
+          font-size:clamp(18px,2.5vw,24px);font-weight:600;
+          color:var(--text);letter-spacing:-0.3px;line-height:1.2;
+        }
+        .section-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+        .view-all-link{
+          display:inline-flex;align-items:center;gap:6px;
+          font-size:12px;font-weight:700;
+          text-decoration:none;
+          padding:8px 18px;border-radius:3px;border:1.5px solid;
+          transition:all 0.18s ease;white-space:nowrap;
+          letter-spacing:0.3px;text-transform:uppercase;
+        }
+        .view-all-link:hover{color:#fff !important;background:currentColor;}
+
+        .section-scroll-wrap{position:relative;}
+        .section-scroll{
+          display:flex;gap:2px;overflow-x:auto;
+          padding:12px clamp(16px,3vw,28px);
+          scroll-behavior:smooth;
+          background:var(--bg);
+        }
+        .section-scroll::-webkit-scrollbar{height:0;}
+
+        .scroll-btn{
+          position:absolute;top:50%;transform:translateY(-50%);
+          width:32px;height:52px;
+          background:var(--white);
+          border:1px solid var(--border);
+          box-shadow:var(--shadow-md);
+          border-radius:2px;
+          display:flex;align-items:center;justify-content:center;
+          cursor:pointer;z-index:10;color:var(--text-muted);
+          transition:all 0.18s ease;
+        }
+        .scroll-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
+        .scroll-btn-l{left:0;}
+        .scroll-btn-r{right:0;}
+
+        /* ── SECTION CARDS ───────────────── */
+        .scard{
+          width:190px;flex-shrink:0;
+          background:var(--white);
+          cursor:pointer;
+          border:1px solid transparent;
+          transition:all 0.22s ease;
+          animation:scaleIn 0.45s ease both;
+          position:relative;
+        }
+        .scard:hover{
+          border-color:rgba(15,63,47,0.25);
+          box-shadow:0 6px 24px rgba(15,63,47,0.10);
+          z-index:2;transform:translateY(-2px);
+        }
+        .scard-img-wrap{
+          position:relative;height:190px;
+          background:#f4f3f0;overflow:hidden;
+        }
+        .scard-img{
+          width:100%;height:100%;object-fit:cover;display:block;
+          transition:transform 0.45s ease;
+        }
+        .scard:hover .scard-img{transform:scale(1.07);}
+        .scard-no-img{
+          width:100%;height:100%;
+          display:flex;align-items:center;justify-content:center;
+          background:#ece9e4;
+        }
+        .scard-badge{
+          position:absolute;top:8px;left:8px;
+          font-size:9px;font-weight:800;
+          color:#fff;padding:2px 8px;border-radius:2px;
+          z-index:3;letter-spacing:0.3px;
+        }
+        .scard-soldout{
+          position:absolute;top:8px;right:8px;
+          font-size:9px;font-weight:600;
+          background:rgba(0,0,0,0.6);color:#fff;
+          padding:2px 7px;border-radius:2px;z-index:3;
+        }
+        .scard-hover-overlay{
+          position:absolute;inset:0;
+          display:flex;align-items:flex-end;justify-content:center;
+          padding-bottom:12px;z-index:4;
+          opacity:0;transition:opacity 0.22s ease;
+        }
+        .scard:hover .scard-hover-overlay{opacity:1;}
+        .scard-view-btn{
+          display:inline-flex;align-items:center;gap:6px;
+          color:#fff;font-size:10px;font-weight:700;
+          padding:7px 16px;border-radius:2px;
+          letter-spacing:0.4px;text-transform:uppercase;
+          transform:translateY(6px);transition:transform 0.22s ease;
+        }
+        .scard:hover .scard-view-btn{transform:translateY(0);}
+        .scard-info{padding:10px 12px 14px;}
+        .scard-brand{
+          font-size:9px;font-weight:700;
+          text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;
+        }
+        .scard-title{
+          font-size:12px;color:var(--text);line-height:1.4;
+          margin-bottom:8px;font-weight:400;
+          display:-webkit-box;-webkit-line-clamp:2;
+          -webkit-box-orient:vertical;overflow:hidden;min-height:33px;
+        }
+        .scard-footer{
+          display:flex;align-items:flex-end;
+          justify-content:space-between;gap:6px;
+        }
+        .scard-prices{display:flex;flex-direction:column;gap:1px;}
+        .scard-price{font-size:14px;font-weight:800;color:var(--text);}
+        .scard-compare{font-size:10px;color:var(--text-light);text-decoration:line-through;}
+        .scard-rating{display:flex;gap:1px;align-items:center;}
+
+        /* ── SEE MORE CARD ───────────────── */
+        .see-more-card{
+          width:140px;flex-shrink:0;
+          background:var(--white);
+          border:2px dashed #d6d4cf;
+          display:flex;flex-direction:column;
+          align-items:center;justify-content:center;
+          gap:12px;text-decoration:none;
+          padding:24px 16px;
+          transition:all 0.2s ease;cursor:pointer;
+        }
+        .see-more-card:hover{background:var(--bg);}
+        .see-more-circle{
+          width:44px;height:44px;border-radius:50%;
+          border:2px solid;
+          display:flex;align-items:center;justify-content:center;
+        }
+        .see-more-label{
+          font-size:10px;font-weight:700;
+          text-align:center;line-height:1.5;
+          text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);
+        }
+
+        /* ── EMPTY ───────────────────────── */
+        .empty-sections{
+          text-align:center;padding:80px 20px;
+          background:var(--white);margin:6px 0;
+        }
+        .empty-sections p{
+          font-family:'Cormorant Garamond',serif;
+          font-size:20px;color:var(--text-muted);
+        }
       `}</style>
 
-      {/* ══ HERO ══ */}
-      <section className="hero-section">
-        {/* Welcome band — small, doesn't overwhelm */}
-        <div className="hero-welcome">
-          <div className="hero-welcome-text">
-            <strong>Welcome to Karabo Boutique</strong>
-            Discover premium products at unbeatable prices
-          </div>
-          <Link href="/store" className="hero-welcome-cta">Shop All Products</Link>
-        </div>
+      {/* HERO BANNER */}
+      <HeroBanner />
 
-        {/* 5-product image grid — fades and rotates automatically */}
-        <div className="hero-grid" style={{ opacity: fading ? 0 : 1, transition: "opacity 0.38s ease" }}>
-          {heroLoad ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="shimbox"
-                style={{ gridColumn: i === 0 ? "span 2" : undefined }} />
-            ))
-          ) : (
-            <>
-              {heroBig && (
-                <HeroCard p={heroBig} size="large"
-                  onClick={() => router.push(`/store/product/${heroBig.id}`)} />
-              )}
-              {heroSmall.map((p) => (
-                <HeroCard key={p.id} p={p} size="normal"
-                  onClick={() => router.push(`/store/product/${p.id}`)} />
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* Rotation progress dots */}
-        {!heroLoad && pool.length >= 5 && (
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            gap: 6, padding: "8px 0", background: "#fff",
-          }}>
-            {Array.from({ length: Math.min(Math.ceil(pool.length / 5), 10) }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => { setFading(true); setTimeout(() => { setOffset(i * 5); setFading(false); }, 200); }}
-                style={{
-                  width: i === Math.floor(offset / 5) ? 20 : 6,
-                  height: 6, borderRadius: 3, border: "none", cursor: "pointer", padding: 0,
-                  background: i === Math.floor(offset / 5) ? "#0f3f2f" : "#d6d3d1",
-                  transition: "all 0.3s ease",
-                }}
-                aria-label={`Show products ${i + 1}`}
+      {/* ✅ HERO GRID — self-contained, 5 products, no chaos */}
+      <div className="hero-grid">
+        {heroLoad ? (
+          <HeroSkeleton />
+        ) : visible.length >= 5 ? (
+          <>
+            <HeroCard
+              p={heroBig!}
+              size="large"
+              index={0}
+              visible={cardsVisible}
+              onClick={() => router.push(`/store/product/${heroBig!.id}`)}
+            />
+            {heroSmall.map((p, i) => (
+              <HeroCard
+                key={p.id}
+                p={p}
+                size="normal"
+                index={i + 1}
+                visible={cardsVisible}
+                onClick={() => router.push(`/store/product/${p.id}`)}
               />
             ))}
-            <span style={{ fontSize: 10, color: "#a8a29e", marginLeft: 8, fontWeight: 500 }}>
-              Auto-rotating
-            </span>
-          </div>
+          </>
+        ) : pool.length > 0 && pool.length < 5 ? (
+          /* Fewer than 5 products — show what we have */
+          <>
+            {pool.map((p, i) => (
+              <HeroCard
+                key={p.id}
+                p={p}
+                size={i === 0 ? "large" : "normal"}
+                index={i}
+                visible={cardsVisible}
+                onClick={() => router.push(`/store/product/${p.id}`)}
+              />
+            ))}
+          </>
+        ) : (
+          /* Pool is still loading or empty */
+          <HeroSkeleton />
         )}
-      </section>
-
-      {/* ══ MARQUEE ══ */}
-      <div className="marquee-bar">
-        <div className="marquee-inner">
-          {[0, 1, 2].map(gi => (
-            <div key={gi} style={{ display: "flex", flex: "0 0 33.333%", justifyContent: "space-around" }}>
-              {["Free Delivery on Orders over M500", "100% Authentic Products", "Secure & Easy Checkout",
-                "7-Day Easy Returns", "Premium Gift Packaging", "Lesotho's Finest Store"].map((t, i) => (
-                <div key={i} className="marquee-item">
-                  <div className="marquee-dot" />
-                  <span className="marquee-text">{t}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
       </div>
 
-      {/* ══ TRUST BAR ══ */}
-      <div className="trust-bar">
-        <div className="trust-inner">
-          {[
-            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>, t: "Free Delivery", d: "Orders over M500" },
-            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>, t: "Authentic Products", d: "100% verified" },
-            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8C5.5 4 10 2 14 2c5.5 0 10 4.5 10 10s-4.5 10-10 10c-4 0-7.5-2-9.5-5"/></svg>, t: "Easy Returns", d: "7-day hassle-free" },
-            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>, t: "Secure Payment", d: "Encrypted checkout" },
-          ].map(b => (
-            <div key={b.t} className="trust-item">
-              <div className="trust-icon">{b.icon}</div>
-              <div>
-                <div className="trust-text-title">{b.t}</div>
-                <div className="trust-text-sub">{b.d}</div>
-              </div>
-            </div>
+      {/* ROTATION DOTS */}
+      {!heroLoad && pool.length >= 5 && (
+        <div className="hero-dots">
+          {Array.from({ length: totalDots }).map((_, i) => (
+            <button
+              key={i}
+              className={`hero-dot ${i === Math.floor(offset / 5) ? "active" : ""}`}
+              style={{ width: i === Math.floor(offset / 5) ? 24 : 8 }}
+              onClick={() => {
+                setCardsVisible(false);
+                setTimeout(() => {
+                  setOffset(i * 5);
+                  setTimeout(() => setCardsVisible(true), 60);
+                }, 400);
+              }}
+              aria-label={`Group ${i + 1}`}
+            />
           ))}
         </div>
-      </div>
+      )}
 
-      {/* ══ CATEGORY CHIPS ══ */}
-      <div className="cat-strip">
-        <div className="cat-chips">
-          {[
-            { label: "All Products", href: "/store", icon: "🛍️" },
-            { label: "Flash Deals", href: "/store?sort=discount", icon: "⚡" },
-            { label: "Smartphones", href: "/store?q=smartphone", icon: "📱" },
-            { label: "Beauty", href: "/store?q=skincare", icon: "💄" },
-            { label: "Fashion", href: "/store?q=clothing", icon: "👗" },
-            { label: "Electronics", href: "/store?q=laptop", icon: "💻" },
-            { label: "Audio", href: "/store?q=headphone", icon: "🎧" },
-            { label: "Shoes", href: "/store?q=shoes", icon: "👟" },
-            { label: "Watches", href: "/store?q=watch", icon: "⌚" },
-            { label: "Hair Care", href: "/store?q=hair", icon: "💇" },
-            { label: "Bags", href: "/store?q=bag", icon: "👜" },
-            { label: "Gaming", href: "/store?q=gaming", icon: "🎮" },
-            { label: "Perfume", href: "/store?q=perfume", icon: "🌸" },
-            { label: "Best Sellers", href: "/store?sort=popular", icon: "🔥" },
-          ].map(c => (
-            <Link key={c.href} href={c.href} className="cat-chip">
-              <span className="cat-chip-icon">{c.icon}</span>
-              {c.label}
-            </Link>
-          ))}
-        </div>
-      </div>
+      {/* MARQUEE */}
+      <Marquee />
 
-      {/* ══ SECTIONS ══ */}
+      {/* TRUST BAR */}
+      <TrustBar />
+
+      {/* CATEGORY STRIP — automatic from backend sections */}
+      {!secLoad && sections.length > 0 && (
+        <CategoryStrip sections={sections} />
+      )}
+
+      {/* SECTIONS — auto-generated from available products */}
       <div className="sections-wrap">
         {secLoad ? (
-          <div style={{ padding: "0 clamp(12px,3vw,24px)" }}>
-            {[0, 1, 2].map(si => (
-              <div key={si} style={{ background: "#fff", marginBottom: 8, padding: "16px 20px" }}>
-                <div style={{ height: 22, width: 200, borderRadius: 4, marginBottom: 16 }} className="shimbox" />
-                <div style={{ display: "flex", gap: 2 }}>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} style={{ width: 185, height: 280, flexShrink: 0 }} className="shimbox" />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            <SkeletonSection />
+            <SkeletonSection />
+            <SkeletonSection />
+          </>
         ) : sections.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 20px", color: "#999", background: "#fff" }}>
-            <p style={{ fontSize: 16 }}>Add products to your store — sections will appear automatically.</p>
+          <div className="empty-sections">
+            <p>Add products to your store — sections will appear automatically.</p>
           </div>
         ) : (
-          sections.map((sec, i) => (
-            <SectionRow key={sec.key} sec={sec}
-              onProductClick={id => router.push(`/store/product/${id}`)} />
+          sections.map(sec => (
+            <SectionRow
+              key={sec.key}
+              sec={sec}
+              onProductClick={id => router.push(`/store/product/${id}`)}
+            />
           ))
         )}
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   SECTION ROW
-══════════════════════════════════════════════════════════════════ */
-function SectionRow({ sec, onProductClick }: { sec: Section; onProductClick: (id: string) => void }) {
-  const ref    = useRef<HTMLDivElement>(null);
-  const rowRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const th   = THEME[sec.theme] ?? THEME.forest;
-  const href = safeViewAll(sec.view_all);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
-    }, { threshold: 0.05 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  const scroll = (dir: "l" | "r") =>
-    rowRef.current?.scrollBy({ left: dir === "r" ? 400 : -400, behavior: "smooth" });
-
-  return (
-    <div ref={ref} className="section-block"
-      style={{ opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)",
-        transition: "opacity .5s ease, transform .5s ease" }}>
-      {/* Section header */}
-      <div className="section-head">
-        <div className="section-head-left">
-          {sec.badge && (
-            <span className="section-badge" style={{ background: th.accent }}>{sec.badge}</span>
-          )}
-          <div>
-            <div className="section-title">{sec.title}</div>
-            <div className="section-sub">{sec.subtitle}</div>
-          </div>
-        </div>
-        <Link href={href} className="viewall-btn">
-          See All
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-        </Link>
-      </div>
-
-      {/* Product scroll row */}
-      <div className="scroll-row-wrap">
-        <button className="scroll-nav scroll-nav-l" onClick={() => scroll("l")} aria-label="Scroll left">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-        <div ref={rowRef} className="scroll-row" style={{ padding: "12px 44px" }}>
-          {sec.products.map((p, i) => (
-            <StoreCard key={p.id} p={p} idx={i} theme={th}
-              onClick={() => onProductClick(p.id)} />
-          ))}
-          <Link href={href} className="end-card" style={{ marginLeft: 2 }}>
-            <div className="end-card-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-            </div>
-            <span className="end-card-text">See all {sec.title}</span>
-          </Link>
-        </div>
-        <button className="scroll-nav scroll-nav-r" onClick={() => scroll("r")} aria-label="Scroll right">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-        </button>
       </div>
     </div>
   );
