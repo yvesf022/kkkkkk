@@ -9,6 +9,8 @@ import { productsApi, searchApi, categoriesApi, brandsApi } from "@/lib/api";
 import type { ProductListItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/currency";
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";
+
 /* ================================================================
    TYPES
 ================================================================ */
@@ -16,8 +18,8 @@ type SortOption = "newest" | "price_asc" | "price_desc" | "rating" | "popular" |
 
 const SORT_LABELS: Record<SortOption, string> = {
   newest:     "Newest First",
-  price_asc:  "Price: Low to High",
-  price_desc: "Price: High to Low",
+  price_asc:  "Price: Low → High",
+  price_desc: "Price: High → Low",
   rating:     "Top Rated",
   popular:    "Most Popular",
   discount:   "Biggest Discount",
@@ -34,71 +36,79 @@ const SORT_MAP: Record<SortOption, Record<string, string>> = {
 
 const PAGE_SIZE = 40;
 
-/* Quick-access categories shown at top */
-const QUICK_CATS = [
-  { label: "All",        q: "",            icon: "🛍️" },
-  { label: "⚡ Deals",   q: "deal",        icon: "" },
-  { label: "Phones",     q: "smartphone",  icon: "📱" },
-  { label: "Laptops",    q: "laptop",      icon: "💻" },
-  { label: "Audio",      q: "headphone",   icon: "🎧" },
-  { label: "Beauty",     q: "skincare",    icon: "💄" },
-  { label: "Fashion",    q: "clothing",    icon: "👗" },
-  { label: "Shoes",      q: "shoes",       icon: "👟" },
-  { label: "Watches",    q: "watch",       icon: "⌚" },
-  { label: "Hair",       q: "hair",        icon: "💇" },
-  { label: "Bags",       q: "bag",         icon: "👜" },
-  { label: "Gaming",     q: "gaming",      icon: "🎮" },
-  { label: "Perfume",    q: "perfume",     icon: "🌸" },
-  { label: "Cameras",    q: "camera",      icon: "📷" },
-  { label: "Jewellery",  q: "jewellery",   icon: "💍" },
-  { label: "Baby",       q: "baby",        icon: "🍼" },
-];
-
 /* ================================================================
-   PRODUCT CARD — Jumia style
+   PRODUCT CARD — luxury Jumia style, SVG only
 ================================================================ */
-function ProductCard({ product, onClick }: { product: ProductListItem; onClick: () => void }) {
-  const [imgErr, setImgErr] = useState(false);
-  const [wishlist, setWishlist] = useState(false);
+function ProductCard({ product, onClick }: {
+  product: ProductListItem; onClick: () => void;
+}) {
+  const [imgErr, setImgErr]   = useState(false);
+  const [saved, setSaved]     = useState(false);
   const imageUrl = product.main_image ?? product.image_url ?? null;
   const discount = product.compare_price && product.compare_price > product.price
     ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100) : null;
-  const stars = product.rating ? Math.round(product.rating) : 0;
 
   return (
     <div className="pcard" onClick={onClick}>
-      {/* Image */}
+      {/* ── IMAGE ── */}
       <div className="pcard-img-wrap">
-        {imageUrl && !imgErr
-          ? <img src={imageUrl} alt={product.title} className="pcard-img" onError={() => setImgErr(true)} loading="lazy" />
-          : <div className="pcard-no-img">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-            </div>
-        }
+        {imageUrl && !imgErr ? (
+          <img
+            src={imageUrl}
+            alt={product.title}
+            className="pcard-img"
+            onError={() => setImgErr(true)}
+            loading="lazy"
+          />
+        ) : (
+          <div className="pcard-no-img">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c8c4bc" strokeWidth="1.2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+          </div>
+        )}
+
         {/* Badges */}
         <div className="pcard-badges">
-          {discount && discount >= 5 && <span className="pcard-discount">-{discount}%</span>}
-          {!product.in_stock && <span className="pcard-sold-out">Sold Out</span>}
+          {discount && discount >= 5 && (
+            <span className="pcard-discount">-{discount}%</span>
+          )}
+          {!product.in_stock && (
+            <span className="pcard-soldout">Sold Out</span>
+          )}
         </div>
+
         {/* Wishlist */}
-        <button className="pcard-wish" aria-label="Wishlist"
-          onClick={e => { e.stopPropagation(); setWishlist(!wishlist); }}>
-          <svg width="16" height="16" viewBox="0 0 24 24"
-            fill={wishlist ? "#e53935" : "none"}
-            stroke={wishlist ? "#e53935" : "#666"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <button
+          className="pcard-wish"
+          aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+          onClick={e => { e.stopPropagation(); setSaved(!saved); }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24"
+            fill={saved ? "#c0392b" : "none"}
+            stroke={saved ? "#c0392b" : "#aaa"}
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
         </button>
-        {/* Quick view CTA */}
-        <div className="pcard-quick-cta">View Details</div>
+
+        {/* Quick view */}
+        <div className="pcard-quick">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          View Details
+        </div>
       </div>
 
-      {/* Info */}
+      {/* ── INFO ── */}
       <div className="pcard-info">
         {product.brand && <div className="pcard-brand">{product.brand}</div>}
         <div className="pcard-title">{product.title}</div>
 
-        {/* Price */}
         <div className="pcard-price-row">
           <span className="pcard-price">{formatCurrency(product.price)}</span>
           {product.compare_price && product.compare_price > product.price && (
@@ -106,22 +116,68 @@ function ProductCard({ product, onClick }: { product: ProductListItem; onClick: 
           )}
         </div>
 
-        {/* Rating */}
-        {stars > 0 && (
+        {product.rating && product.rating > 0 && (
           <div className="pcard-rating">
-            <span className="pcard-stars">{"★".repeat(stars)}{"☆".repeat(5 - stars)}</span>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <svg key={i} width="9" height="9" viewBox="0 0 24 24"
+                fill={i < Math.round(product.rating!) ? "#c8a75a" : "#e0ddd6"}
+                stroke="none">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            ))}
             {product.rating_number && product.rating_number > 0 && (
               <span className="pcard-rcount">({product.rating_number.toLocaleString()})</span>
             )}
           </div>
         )}
 
-        {/* Stock indicator */}
         <div className="pcard-stock">
-          <span className={`pcard-stock-dot ${product.in_stock ? "in" : "out"}`} />
-          <span className="pcard-stock-label">{product.in_stock ? "In Stock" : "Out of Stock"}</span>
+          <span className={`pcard-dot ${product.in_stock ? "in" : "out"}`} />
+          <span className="pcard-stock-label">
+            {product.in_stock ? "In Stock" : "Out of Stock"}
+          </span>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   SKELETON CARD
+================================================================ */
+function SkeletonCard() {
+  return (
+    <div className="skeleton-card">
+      <div className="shimbox" style={{ height: "56%", borderRadius: 0 }} />
+      <div style={{ padding: "10px 12px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="shimbox" style={{ height: 9, width: "40%", borderRadius: 3 }} />
+        <div className="shimbox" style={{ height: 12, width: "90%", borderRadius: 3 }} />
+        <div className="shimbox" style={{ height: 12, width: "70%", borderRadius: 3 }} />
+        <div className="shimbox" style={{ height: 16, width: "50%", borderRadius: 3, marginTop: 4 }} />
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   SIDEBAR SECTION TITLE
+================================================================ */
+function SideTitle({ children }: { children: React.ReactNode }) {
+  return <div className="side-title">{children}</div>;
+}
+
+/* ================================================================
+   FILTER CHIP
+================================================================ */
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <div className="filter-chip">
+      {label}
+      <button className="chip-x" onClick={onRemove} aria-label="Remove filter">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
     </div>
   );
 }
@@ -133,7 +189,6 @@ export default function StoreClient() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  // Read URL params on mount
   const initQ    = searchParams.get("q") ?? searchParams.get("search") ?? "";
   const initCat  = searchParams.get("category") ?? "";
   const initSort = (searchParams.get("sort") as SortOption) ?? "newest";
@@ -153,18 +208,22 @@ export default function StoreClient() {
   const [priceMax, setPriceMax]               = useState("");
   const [inStockOnly, setInStockOnly]         = useState(false);
   const [minRating, setMinRating]             = useState("");
-  const [activeQuickCat, setActiveQuickCat]   = useState(initQ || "");
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
+  // Dynamic categories/brands from backend
   const [categories, setCategories] = useState<any[]>([]);
   const [brands, setBrands]         = useState<any[]>([]);
+
+  // Dynamic quick-filters built from backend sections
+  const [quickFilters, setQuickFilters] = useState<{ label: string; q: string }[]>([]);
+  const [activeQuick, setActiveQuick]   = useState(initQ || "");
 
   const [suggestions, setSuggestions]         = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRef      = useRef<HTMLDivElement>(null);
 
-  /* ---- Load filter data ---- */
+  /* ── Load filter data ── */
   useEffect(() => {
     Promise.allSettled([categoriesApi.list(), brandsApi.list()]).then(([c, b]) => {
       if (c.status === "fulfilled") setCategories((c.value as any) ?? []);
@@ -172,11 +231,36 @@ export default function StoreClient() {
     });
   }, []);
 
-  /* ---- Load products ---- */
+  /* ── Build dynamic quick-filters from backend homepage sections ── */
+  useEffect(() => {
+    fetch(`${API}/api/homepage/sections`)
+      .then(r => r.json())
+      .then(d => {
+        const sections = d.sections ?? [];
+        const staticFirst = [
+          { label: "All", q: "" },
+          { label: "Flash Deals", q: "discount" },
+          { label: "New Arrivals", q: "newest" },
+        ];
+        // Extract category names from dynamic sections
+        const dynamic = sections
+          .filter((s: any) => !["flash_deals","new_arrivals","best_sellers","top_rated"].includes(s.key))
+          .map((s: any) => ({ label: s.title.replace(" & ", " · "), q: s.title.split(" ")[0].toLowerCase() }));
+        setQuickFilters([...staticFirst, ...dynamic.slice(0, 18)]);
+      })
+      .catch(() => {
+        setQuickFilters([
+          { label: "All", q: "" },
+          { label: "Flash Deals", q: "discount" },
+          { label: "Best Sellers", q: "popular" },
+        ]);
+      });
+  }, []);
+
+  /* ── Load products ── */
   const loadProducts = useCallback(async (pg = 1, append = false) => {
     if (pg === 1) setLoading(true); else setLoadingMore(true);
     try {
-      // Build params — SORT_MAP entries either spread as sort_by/sort_order or as a single sort key
       const sortEntry = SORT_MAP[sort];
       const sortParams = "sort_by" in sortEntry
         ? { sort_by: sortEntry.sort_by, sort_order: sortEntry.sort_order }
@@ -216,7 +300,7 @@ export default function StoreClient() {
 
   useEffect(() => { loadProducts(1); }, [loadProducts]);
 
-  /* ---- Search suggestions ---- */
+  /* ── Search suggestions ── */
   function handleSearchInput(val: string) {
     setSearchInput(val);
     if (suggestTimeout.current) clearTimeout(suggestTimeout.current);
@@ -233,16 +317,22 @@ export default function StoreClient() {
   function commitSearch(val?: string) {
     const q = val ?? searchInput;
     setSearchQuery(q);
-    setActiveQuickCat(q);
+    setActiveQuick(q);
     setShowSuggestions(false);
     setPage(1);
   }
 
-  function selectQuickCat(q: string) {
-    setActiveQuickCat(q);
-    setSearchQuery(q);
-    setSearchInput(q);
-    setSelectedCategory("");
+  function selectQuick(q: string) {
+    setActiveQuick(q);
+    if (q === "discount" || q === "newest" || q === "popular") {
+      setSort(q === "discount" ? "discount" : q === "newest" ? "newest" : "popular");
+      setSearchQuery("");
+      setSearchInput("");
+    } else {
+      setSearchQuery(q);
+      setSearchInput(q);
+      setSelectedCategory("");
+    }
     setPage(1);
   }
 
@@ -264,56 +354,90 @@ export default function StoreClient() {
     setSelectedCategory(""); setSelectedBrand("");
     setPriceMin(""); setPriceMax("");
     setInStockOnly(false); setMinRating("");
-    setSort("newest"); setActiveQuickCat("");
+    setSort("newest"); setActiveQuick("");
   }
 
   /* ================================================================
-     FILTER PANEL — shared between sidebar and mobile drawer
+     FILTER PANEL — sidebar + mobile drawer
   ================================================================ */
   const FilterPanel = () => (
     <div className="filter-panel">
-      <div className="filter-section">
-        <div className="filter-section-title">Categories</div>
-        <div className="filter-options">
-          <label className={`filter-radio ${selectedCategory === "" ? "active" : ""}`}
-            onClick={() => setSelectedCategory("")}>
-            <span className="filter-radio-dot" /> All Categories
-          </label>
-          {categories.slice(0, 20).map((c: any) => (
-            <label key={c.id ?? c.slug}
-              className={`filter-radio ${selectedCategory === (c.slug ?? c.name) ? "active" : ""}`}
-              onClick={() => setSelectedCategory(selectedCategory === (c.slug ?? c.name) ? "" : (c.slug ?? c.name))}>
-              <span className="filter-radio-dot" />
-              <span className="filter-radio-label">{c.name}</span>
-              {c.product_count > 0 && <span className="filter-count">{c.product_count.toLocaleString()}</span>}
-            </label>
-          ))}
+
+      {/* Categories */}
+      <div className="filter-group">
+        <SideTitle>Category</SideTitle>
+        <div className="filter-opts">
+          {[{ id: "__all__", name: "All Categories", slug: "" }, ...categories.slice(0, 22)].map((c: any) => {
+            const val = c.slug ?? c.name ?? "";
+            const active = selectedCategory === val;
+            return (
+              <button
+                key={c.id}
+                className={`filter-opt ${active ? "active" : ""}`}
+                onClick={() => setSelectedCategory(active ? "" : val)}
+              >
+                <span className="opt-radio">
+                  {active && (
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                      <circle cx="12" cy="12" r="8"/>
+                    </svg>
+                  )}
+                </span>
+                <span className="opt-label">{c.name}</span>
+                {c.product_count > 0 && (
+                  <span className="opt-count">{c.product_count.toLocaleString()}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="filter-section">
-        <div className="filter-section-title">Price Range</div>
-        <div className="filter-price-inputs">
-          <input type="number" placeholder="Min" value={priceMin}
-            onChange={e => setPriceMin(e.target.value)} className="filter-input" />
-          <span className="filter-dash">—</span>
-          <input type="number" placeholder="Max" value={priceMax}
-            onChange={e => setPriceMax(e.target.value)} className="filter-input" />
+      {/* Price */}
+      <div className="filter-group">
+        <SideTitle>Price Range</SideTitle>
+        <div className="price-inputs">
+          <input
+            type="number" placeholder="Min"
+            value={priceMin}
+            onChange={e => setPriceMin(e.target.value)}
+            className="price-input"
+          />
+          <span className="price-sep">–</span>
+          <input
+            type="number" placeholder="Max"
+            value={priceMax}
+            onChange={e => setPriceMax(e.target.value)}
+            className="price-input"
+          />
         </div>
-        <div className="filter-price-presets">
-          {[["Under M200","0","200"],["M200–500","200","500"],["M500–1000","500","1000"],["Over M1000","1000",""]].map(([l,mn,mx]) => (
-            <button key={l} className={`price-preset ${priceMin===mn && priceMax===mx?"active":""}`}
-              onClick={() => { setPriceMin(mn); setPriceMax(mx); }}>
+        <div className="price-presets">
+          {[
+            ["Under M200","0","200"],
+            ["M200–500","200","500"],
+            ["M500–1 000","500","1000"],
+            ["Over M1 000","1000",""],
+          ].map(([l,mn,mx]) => (
+            <button
+              key={l}
+              className={`price-preset ${priceMin===mn && priceMax===mx ? "active" : ""}`}
+              onClick={() => { setPriceMin(mn); setPriceMax(mx); }}
+            >
               {l}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Brands */}
       {brands.length > 0 && (
-        <div className="filter-section">
-          <div className="filter-section-title">Brand</div>
-          <select value={selectedBrand} onChange={e => setSelectedBrand(e.target.value)} className="filter-select">
+        <div className="filter-group">
+          <SideTitle>Brand</SideTitle>
+          <select
+            value={selectedBrand}
+            onChange={e => setSelectedBrand(e.target.value)}
+            className="brand-select"
+          >
             <option value="">All Brands</option>
             {brands.map((b: any) => (
               <option key={b.id ?? b.slug} value={b.slug ?? b.name}>{b.name}</option>
@@ -322,33 +446,58 @@ export default function StoreClient() {
         </div>
       )}
 
-      <div className="filter-section">
-        <div className="filter-section-title">Minimum Rating</div>
-        <div className="filter-options">
-          {["4","3","2",""].map(r => (
-            <label key={r} className={`filter-radio ${minRating === r ? "active" : ""}`}
-              onClick={() => setMinRating(r)}>
-              <span className="filter-radio-dot" />
-              {r ? <>{"★".repeat(Number(r))} & above</> : "All ratings"}
-            </label>
+      {/* Rating */}
+      <div className="filter-group">
+        <SideTitle>Minimum Rating</SideTitle>
+        <div className="filter-opts">
+          {[{ label: "All Ratings", value: "" }, { label: "4+ Stars", value: "4" }, { label: "3+ Stars", value: "3" }].map(r => (
+            <button
+              key={r.value}
+              className={`filter-opt ${minRating === r.value ? "active" : ""}`}
+              onClick={() => setMinRating(r.value)}
+            >
+              <span className="opt-radio">
+                {minRating === r.value && (
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <circle cx="12" cy="12" r="8"/>
+                  </svg>
+                )}
+              </span>
+              <span className="opt-label">{r.label}</span>
+              {r.value && (
+                <span className="opt-stars">
+                  {Array.from({ length: Number(r.value) }).map((_, i) => (
+                    <svg key={i} width="9" height="9" viewBox="0 0 24 24" fill="#c8a75a" stroke="none">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                  ))}
+                </span>
+              )}
+            </button>
           ))}
         </div>
       </div>
 
-      <div className="filter-section">
-        <div className="filter-section-title">Availability</div>
-        <label className="filter-toggle-row">
-          <div className={`toggle-switch ${inStockOnly ? "on" : ""}`}
-            onClick={() => setInStockOnly(!inStockOnly)}>
+      {/* In Stock */}
+      <div className="filter-group">
+        <SideTitle>Availability</SideTitle>
+        <button
+          className="stock-toggle"
+          onClick={() => setInStockOnly(!inStockOnly)}
+        >
+          <div className={`toggle-track ${inStockOnly ? "on" : ""}`}>
             <div className="toggle-knob" />
           </div>
-          <span>In Stock Only</span>
-        </label>
+          <span className="toggle-label">In Stock Only</span>
+        </button>
       </div>
 
       {hasFilters && (
-        <button className="filter-clear-btn" onClick={clearAllFilters}>
-          ✕ Clear All Filters
+        <button className="clear-btn" onClick={clearAllFilters}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          Clear All Filters
         </button>
       )}
     </div>
@@ -360,264 +509,532 @@ export default function StoreClient() {
   return (
     <div className="store-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0;}
-        :root{--primary:#0f3f2f;--primary-dark:#0a2a1f;--primary-light:#1b5e4a;--accent:#c8a75a;--accent-light:#d4b976;--text:#1a1a1a;--text-muted:#57534e;--border:#e7e5e4;--bg:#fafaf9;}
-        ::-webkit-scrollbar{width:4px;height:4px;}
-        ::-webkit-scrollbar-thumb{background:var(--primary);border-radius:4px;}
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        :root{
+          --primary:#0f3f2f;--primary-dark:#0a2a1f;--primary-light:#1b5e4a;
+          --gold:#c8a75a;--gold-light:#d4b976;
+          --text:#1a1a1a;--text-muted:#64655e;--text-light:#9e9d97;
+          --border:#e5e3de;--bg:#f7f6f3;--white:#ffffff;
+          --shadow-sm:0 1px 4px rgba(0,0,0,0.07);
+          --shadow-md:0 4px 16px rgba(0,0,0,0.08);
+          --shadow-lg:0 8px 32px rgba(0,0,0,0.10);
+        }
+        ::-webkit-scrollbar{width:4px;height:3px}
+        ::-webkit-scrollbar-thumb{background:var(--primary);border-radius:4px}
+        ::-webkit-scrollbar-track{background:transparent}
 
         @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
         @keyframes slideIn{from{transform:translateX(-100%)}to{transform:translateX(0)}}
 
-        .shimbox{background:linear-gradient(90deg,#ebebeb 0%,#d6d6d6 50%,#ebebeb 100%);
-          background-size:200% 100%;animation:shimmer 1.5s ease-in-out infinite;}
+        .shimbox{
+          background:linear-gradient(90deg,#ebebea 0%,#d9d8d5 50%,#ebebea 100%);
+          background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite;
+        }
 
-        .store-root{min-height:100vh;background:#fafaf9;font-family:'DM Sans',system-ui,sans-serif;color:var(--text);}
+        .store-root{
+          min-height:100vh;background:var(--bg);
+          font-family:'DM Sans',system-ui,sans-serif;color:var(--text);
+        }
 
-        /* TOP BAR */
-        .store-topbar{background:#fff;border-bottom:1px solid var(--border);
-          padding:12px clamp(12px,3vw,32px);display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-          position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06);}
-        .back-home{display:flex;align-items:center;gap:6px;text-decoration:none;
-          font-size:13px;font-weight:600;color:var(--text-muted);padding:7px 14px;
-          border-radius:50px;border:1.5px solid var(--border);transition:all .18s;white-space:nowrap;}
-        .back-home:hover{border-color:var(--primary);color:var(--primary);}
-        .store-breadcrumb{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;}
+        /* ── TOP BAR ─────────────────────── */
+        .store-topbar{
+          background:var(--white);border-bottom:1px solid var(--border);
+          padding:12px clamp(12px,3vw,32px);
+          display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+          position:sticky;top:0;z-index:200;
+          box-shadow:0 2px 8px rgba(0,0,0,0.05);
+        }
+        .back-btn{
+          display:inline-flex;align-items:center;gap:6px;
+          font-size:12px;font-weight:600;color:var(--text-muted);
+          text-decoration:none;padding:7px 14px;
+          border:1px solid var(--border);border-radius:3px;
+          transition:all .18s;white-space:nowrap;flex-shrink:0;
+        }
+        .back-btn:hover{border-color:var(--primary);color:var(--primary);}
+        .store-breadcrumb{
+          font-size:11px;color:var(--text-muted);
+          display:flex;align-items:center;gap:5px;flex-shrink:0;
+        }
         .store-breadcrumb a{color:var(--primary);text-decoration:none;font-weight:600;}
         .store-breadcrumb a:hover{text-decoration:underline;}
+        .crumb-sep{
+          color:var(--border);
+          display:inline-block;
+          width:4px;height:4px;background:var(--text-light);
+          border-radius:50%;
+        }
 
-        /* SEARCH BAR */
-        .search-wrap{flex:1;min-width:200px;max-width:520px;position:relative;}
-        .search-input-wrap{display:flex;align-items:center;background:#f5f5f5;border:2px solid transparent;
-          border-radius:8px;overflow:hidden;transition:border-color .2s;}
-        .search-input-wrap:focus-within{border-color:var(--primary);background:#fff;}
-        .search-icon{padding:0 12px;color:#aaa;flex-shrink:0;display:flex;}
-        .search-input{flex:1;border:none;background:transparent;padding:10px 0;font-size:14px;
-          color:var(--text);outline:none;min-width:0;}
-        .search-input::placeholder{color:#bbb;}
-        .search-clear{padding:0 12px;background:none;border:none;color:#aaa;cursor:pointer;font-size:18px;display:flex;}
-        .search-btn{background:#0f3f2f;color:#fff;border:none;padding:0 18px;
-          height:100%;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;
-          transition:background .18s;}
-        .search-btn:hover{background:#0a2a1f;}
-        .search-suggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;
-          background:#fff;border:1px solid var(--border);border-radius:8px;
-          box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:200;overflow:hidden;}
-        .suggestion-item{display:flex;align-items:center;gap:10px;padding:11px 16px;
-          cursor:pointer;font-size:14px;color:var(--text);transition:background .12s;}
-        .suggestion-item:hover{background:#f5f4f1;}
+        /* ── SEARCH ──────────────────────── */
+        .search-wrap{flex:1;min-width:180px;max-width:560px;position:relative;}
+        .search-row{
+          display:flex;align-items:center;
+          background:#f4f3f0;border:1.5px solid transparent;
+          border-radius:3px;overflow:hidden;
+          transition:border-color .2s,background .2s;
+        }
+        .search-row:focus-within{background:var(--white);border-color:var(--primary);}
+        .search-icon-wrap{
+          padding:0 12px;color:var(--text-light);flex-shrink:0;
+          display:flex;align-items:center;
+        }
+        .search-input{
+          flex:1;border:none;background:transparent;
+          padding:10px 0;font-size:13px;color:var(--text);
+          outline:none;min-width:0;font-family:'DM Sans',sans-serif;
+        }
+        .search-input::placeholder{color:var(--text-light);}
+        .search-clear{
+          padding:0 10px;background:none;border:none;
+          color:var(--text-light);cursor:pointer;
+          display:flex;align-items:center;
+          transition:color .15s;
+        }
+        .search-clear:hover{color:var(--text);}
+        .search-btn{
+          background:var(--primary);color:#fff;border:none;
+          padding:0 18px;height:100%;
+          font-weight:700;font-size:12px;
+          cursor:pointer;white-space:nowrap;
+          letter-spacing:0.3px;text-transform:uppercase;
+          transition:background .18s;
+          font-family:'DM Sans',sans-serif;
+        }
+        .search-btn:hover{background:var(--primary-dark);}
+        .search-suggestions{
+          position:absolute;top:calc(100% + 4px);left:0;right:0;
+          background:var(--white);border:1px solid var(--border);
+          border-radius:4px;box-shadow:var(--shadow-lg);
+          z-index:300;overflow:hidden;
+        }
+        .suggest-item{
+          display:flex;align-items:center;gap:10px;
+          padding:10px 14px;cursor:pointer;
+          font-size:13px;color:var(--text);
+          transition:background .12s;
+        }
+        .suggest-item:hover{background:var(--bg);}
 
-        /* QUICK CATEGORY STRIP */
-        .quick-cats{background:#fff;border-bottom:2px solid var(--border);
-          overflow-x:auto;padding:0 clamp(12px,3vw,32px);}
-        .quick-cats::-webkit-scrollbar{height:0;}
-        .quick-cats-inner{display:flex;gap:4px;padding:10px 0;white-space:nowrap;}
-        .quick-cat{display:inline-flex;align-items:center;gap:5px;padding:7px 15px;
-          border-radius:50px;border:1.5px solid transparent;background:#f5f5f5;
-          font-size:12px;font-weight:500;color:#444;cursor:pointer;
-          transition:all .15s;flex-shrink:0;}
-        .quick-cat:hover,.quick-cat.active{background:#0f3f2f;color:#fff;border-color:#0f3f2f;}
-        .quick-cat-icon{font-size:14px;}
+        /* ── QUICK FILTERS ───────────────── */
+        .quick-bar{
+          background:var(--white);border-bottom:2px solid var(--border);
+          overflow-x:auto;padding:0 clamp(12px,3vw,32px);
+        }
+        .quick-bar::-webkit-scrollbar{height:0;}
+        .quick-bar-inner{
+          display:flex;gap:4px;padding:10px 0;
+          white-space:nowrap;
+        }
+        .quick-btn{
+          display:inline-flex;align-items:center;gap:5px;
+          padding:6px 14px;border-radius:2px;
+          border:1px solid var(--border);
+          background:var(--white);
+          font-size:11px;font-weight:600;
+          color:var(--text-muted);cursor:pointer;
+          transition:all .15s;flex-shrink:0;
+          letter-spacing:0.2px;
+          font-family:'DM Sans',sans-serif;
+        }
+        .quick-btn:hover{
+          border-color:var(--primary);color:var(--primary);
+          background:#f0f7f4;
+        }
+        .quick-btn.active{
+          background:var(--primary);color:#fff;
+          border-color:var(--primary);
+        }
 
-        /* LAYOUT */
-        .store-layout{display:grid;grid-template-columns:240px 1fr;gap:0;
-          max-width:1600px;margin:0 auto;min-height:calc(100vh - 120px);}
+        /* ── LAYOUT ──────────────────────── */
+        .store-layout{
+          display:grid;
+          grid-template-columns:230px 1fr;
+          gap:0;max-width:1700px;
+          margin:0 auto;
+          min-height:calc(100vh - 120px);
+        }
         @media(max-width:900px){.store-layout{grid-template-columns:1fr;}}
 
-        /* SIDEBAR */
-        .store-sidebar{background:#fff;border-right:1px solid var(--border);
-          padding:20px 16px;align-self:start;position:sticky;top:64px;
-          max-height:calc(100vh - 64px);overflow-y:auto;}
+        /* ── SIDEBAR ─────────────────────── */
+        .store-sidebar{
+          background:var(--white);border-right:1px solid var(--border);
+          padding:20px 16px;
+          align-self:start;position:sticky;top:65px;
+          max-height:calc(100vh - 65px);overflow-y:auto;
+        }
         @media(max-width:900px){.store-sidebar{display:none;}}
-        .sidebar-title{font-size:14px;font-weight:800;color:var(--text);
-          padding-bottom:12px;border-bottom:2px solid var(--primary);margin-bottom:16px;
-          letter-spacing:.3px;text-transform:uppercase;}
+        .sidebar-head{
+          font-size:11px;font-weight:800;color:var(--text);
+          padding-bottom:12px;border-bottom:2px solid var(--primary);
+          margin-bottom:16px;letter-spacing:0.8px;text-transform:uppercase;
+          display:flex;align-items:center;justify-content:space-between;
+        }
 
-        /* FILTER PANEL */
+        /* ── FILTER PANEL ────────────────── */
         .filter-panel{display:flex;flex-direction:column;gap:0;}
-        .filter-section{padding:14px 0;border-bottom:1px solid #f0f0f0;}
-        .filter-section:last-of-type{border-bottom:none;}
-        .filter-section-title{font-size:12px;font-weight:700;color:var(--text);
-          text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;}
-        .filter-options{display:flex;flex-direction:column;gap:4px;}
-        .filter-radio{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;
-          cursor:pointer;font-size:13px;color:var(--text-muted);transition:all .12s;
-          user-select:none;}
-        .filter-radio:hover{background:#f5f4f1;color:var(--primary);}
-        .filter-radio.active{color:var(--primary);font-weight:600;}
-        .filter-radio-dot{width:14px;height:14px;border-radius:50%;border:2px solid #ddd;
-          flex-shrink:0;transition:all .15s;}
-        .filter-radio.active .filter-radio-dot{border-color:var(--primary);background:var(--primary);}
-        .filter-radio-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .filter-count{font-size:10px;color:#bbb;margin-left:auto;flex-shrink:0;}
-        .filter-price-inputs{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
-        .filter-dash{color:#bbb;flex-shrink:0;}
-        .filter-input{flex:1;min-width:0;padding:7px 10px;border:1.5px solid var(--border);
-          border-radius:6px;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;}
-        .filter-input:focus{border-color:var(--primary);}
-        .filter-price-presets{display:flex;flex-direction:column;gap:4px;}
-        .price-preset{padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;
-          background:#fff;font-size:12px;color:var(--text-muted);cursor:pointer;
-          text-align:left;transition:all .12s;}
-        .price-preset:hover,.price-preset.active{border-color:var(--primary);color:var(--primary);background:#f5f4f1;}
-        .filter-select{width:100%;padding:8px 10px;border:1.5px solid var(--border);
-          border-radius:6px;font-size:13px;color:var(--text);outline:none;
-          background:#fff;cursor:pointer;}
-        .filter-select:focus{border-color:var(--primary);}
-        .filter-toggle-row{display:flex;align-items:center;gap:10px;cursor:pointer;}
-        .toggle-switch{width:40px;height:22px;border-radius:99px;background:#ddd;
-          position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
-        .toggle-switch.on{background:var(--primary);}
-        .toggle-knob{position:absolute;top:3px;left:3px;width:16px;height:16px;
-          border-radius:50%;background:#fff;transition:left .2s;
-          box-shadow:0 1px 4px rgba(0,0,0,.2);}
-        .toggle-switch.on .toggle-knob{left:21px;}
-        .filter-clear-btn{width:100%;margin-top:8px;padding:10px;border-radius:8px;
-          border:1.5px solid #fca5a5;background:#fff1f2;color:#dc2626;
-          font-weight:700;font-size:13px;cursor:pointer;transition:all .15s;}
-        .filter-clear-btn:hover{background:#fee2e2;}
+        .filter-group{padding:14px 0;border-bottom:1px solid #f0efeb;}
+        .filter-group:last-of-type{border-bottom:none;}
+        .side-title{
+          font-size:10px;font-weight:800;color:var(--text);
+          text-transform:uppercase;letter-spacing:0.8px;
+          margin-bottom:10px;
+        }
+        .filter-opts{display:flex;flex-direction:column;gap:2px;}
+        .filter-opt{
+          display:flex;align-items:center;gap:8px;
+          padding:6px 8px;border-radius:3px;
+          border:none;background:none;cursor:pointer;
+          font-size:12px;color:var(--text-muted);
+          text-align:left;transition:all .12s;
+          width:100%;font-family:'DM Sans',sans-serif;
+        }
+        .filter-opt:hover{background:#f4f3f0;color:var(--primary);}
+        .filter-opt.active{color:var(--primary);font-weight:600;}
+        .opt-radio{
+          width:14px;height:14px;border-radius:50%;
+          border:1.5px solid #d0cec8;flex-shrink:0;
+          display:flex;align-items:center;justify-content:center;
+          transition:border-color .12s;color:var(--primary);
+        }
+        .filter-opt.active .opt-radio{border-color:var(--primary);}
+        .opt-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .opt-count{font-size:10px;color:var(--text-light);}
+        .opt-stars{display:flex;gap:1px;margin-left:auto;}
 
-        /* MOBILE FILTER DRAWER */
-        .mobile-filter-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;
-          display:none;}
-        .mobile-filter-overlay.open{display:block;}
-        .mobile-filter-drawer{position:fixed;left:0;top:0;bottom:0;width:290px;
-          background:#fff;z-index:501;overflow-y:auto;padding:20px 16px;
-          animation:slideIn .25s ease;}
-        .mobile-filter-header{display:flex;align-items:center;justify-content:space-between;
-          margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border);}
-        .mobile-filter-title{font-size:16px;font-weight:700;}
-        .mobile-filter-close{background:none;border:none;font-size:22px;cursor:pointer;color:#666;}
+        .price-inputs{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+        .price-sep{color:var(--text-light);font-size:13px;}
+        .price-input{
+          flex:1;min-width:0;
+          padding:7px 9px;border:1.5px solid var(--border);
+          border-radius:3px;font-size:12px;color:var(--text);
+          outline:none;transition:border-color .15s;
+          font-family:'DM Sans',sans-serif;
+        }
+        .price-input:focus{border-color:var(--primary);}
+        .price-presets{display:flex;flex-direction:column;gap:3px;}
+        .price-preset{
+          padding:5px 9px;border:1px solid var(--border);
+          border-radius:3px;background:var(--white);
+          font-size:11px;color:var(--text-muted);
+          cursor:pointer;text-align:left;
+          transition:all .12s;font-family:'DM Sans',sans-serif;
+        }
+        .price-preset:hover,.price-preset.active{
+          border-color:var(--primary);color:var(--primary);
+          background:#f0f7f4;
+        }
+        .brand-select{
+          width:100%;padding:8px 10px;
+          border:1.5px solid var(--border);border-radius:3px;
+          font-size:12px;color:var(--text);outline:none;
+          background:var(--white);cursor:pointer;
+          font-family:'DM Sans',sans-serif;
+          transition:border-color .15s;
+        }
+        .brand-select:focus{border-color:var(--primary);}
 
-        /* CONTENT */
+        .stock-toggle{
+          display:flex;align-items:center;gap:10px;
+          background:none;border:none;cursor:pointer;padding:0;
+        }
+        .toggle-track{
+          width:38px;height:20px;border-radius:10px;
+          background:#d0cec8;position:relative;
+          transition:background .2s;flex-shrink:0;
+        }
+        .toggle-track.on{background:var(--primary);}
+        .toggle-knob{
+          position:absolute;top:2px;left:2px;
+          width:16px;height:16px;border-radius:50%;
+          background:var(--white);transition:left .2s;
+          box-shadow:0 1px 4px rgba(0,0,0,0.2);
+        }
+        .toggle-track.on .toggle-knob{left:20px;}
+        .toggle-label{font-size:12px;color:var(--text-muted);}
+
+        .clear-btn{
+          width:100%;margin-top:12px;padding:9px;
+          border-radius:3px;border:1px solid #fca5a5;
+          background:#fff8f8;color:#c0392b;
+          font-weight:700;font-size:11px;cursor:pointer;
+          letter-spacing:0.3px;text-transform:uppercase;
+          display:flex;align-items:center;justify-content:center;gap:6px;
+          transition:all .15s;font-family:'DM Sans',sans-serif;
+        }
+        .clear-btn:hover{background:#fee2e2;border-color:#e74c3c;}
+
+        /* ── MAIN CONTENT ────────────────── */
         .store-content{padding:16px clamp(12px,2vw,20px);}
-
-        /* CONTROLS */
-        .store-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-          margin-bottom:16px;}
-        .mobile-filter-btn{display:none;align-items:center;gap:6px;padding:8px 16px;
-          border:1.5px solid var(--border);border-radius:50px;background:#fff;
-          font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;}
-        @media(max-width:900px){.mobile-filter-btn{display:flex;}}
-        .results-info{font-size:13px;color:var(--text-muted);flex:1;}
-        .results-info strong{color:var(--text);}
-        .sort-select{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;
-          background:#fff;font-size:13px;color:var(--text);font-weight:600;
-          outline:none;cursor:pointer;transition:border-color .15s;}
+        .store-controls{
+          display:flex;align-items:center;gap:10px;
+          flex-wrap:wrap;margin-bottom:14px;
+        }
+        .mob-filter-btn{
+          display:none;align-items:center;gap:7px;
+          padding:8px 14px;border:1px solid var(--border);
+          border-radius:3px;background:var(--white);
+          font-weight:600;font-size:11px;cursor:pointer;
+          letter-spacing:0.2px;white-space:nowrap;
+          font-family:'DM Sans',sans-serif;color:var(--text);
+          transition:all .15s;
+        }
+        .mob-filter-btn:hover{border-color:var(--primary);color:var(--primary);}
+        @media(max-width:900px){.mob-filter-btn{display:flex;}}
+        .results-label{font-size:12px;color:var(--text-muted);flex:1;}
+        .results-label strong{color:var(--text);font-weight:700;}
+        .sort-select{
+          padding:8px 12px;border:1px solid var(--border);
+          border-radius:3px;background:var(--white);
+          font-size:12px;color:var(--text);font-weight:600;
+          outline:none;cursor:pointer;transition:border-color .15s;
+          font-family:'DM Sans',sans-serif;
+        }
         .sort-select:focus{border-color:var(--primary);}
 
-        /* ACTIVE FILTER CHIPS */
-        .active-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
-        .filter-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
-          border-radius:50px;background:#f5f4f1;border:1px solid rgba(200,167,90,0.35);
-          font-size:12px;font-weight:600;color:var(--primary);}
-        .filter-chip-remove{background:none;border:none;cursor:pointer;color:var(--primary);
-          font-size:14px;line-height:1;padding:0;margin-left:2px;}
+        /* ── ACTIVE CHIPS ────────────────── */
+        .active-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+        .filter-chip{
+          display:inline-flex;align-items:center;gap:5px;
+          padding:4px 10px;border-radius:2px;
+          background:#f0f7f4;border:1px solid rgba(15,63,47,0.2);
+          font-size:11px;font-weight:600;color:var(--primary);
+        }
+        .chip-x{
+          background:none;border:none;cursor:pointer;
+          color:var(--primary);padding:0;
+          display:flex;align-items:center;
+          opacity:0.6;transition:opacity .15s;
+        }
+        .chip-x:hover{opacity:1;}
 
-        /* PRODUCT GRID */
-        .products-grid{display:grid;
-          grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:2px;}
-        @media(max-width:480px){.products-grid{grid-template-columns:repeat(2,1fr);}}
+        /* ── PRODUCT GRID ────────────────── */
+        .products-grid{
+          display:grid;
+          grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));
+          gap:2px;
+        }
+        @media(max-width:480px){
+          .products-grid{grid-template-columns:repeat(2,1fr);}
+        }
 
-        /* PRODUCT CARD */
-        .pcard{background:#fff;cursor:pointer;border:1px solid transparent;
-          transition:all .18s ease;animation:fadeUp .35s ease both;}
-        .pcard:hover{border-color:#c8a75a;box-shadow:0 4px 20px rgba(15,63,47,0.08);z-index:2;position:relative;}
-        .pcard-img-wrap{position:relative;padding-top:100%;background:#f8f8f8;overflow:hidden;}
-        .pcard-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-          transition:transform .4s ease;}
-        .pcard:hover .pcard-img{transform:scale(1.06);}
-        .pcard-no-img{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#f0f0f0;}
-        .pcard-badges{position:absolute;top:8px;left:8px;display:flex;flex-direction:column;gap:4px;z-index:3;}
-        .pcard-discount{background:#e53935;color:#fff;font-size:10px;font-weight:800;
-          padding:2px 7px;border-radius:3px;}
-        .pcard-sold-out{background:rgba(0,0,0,.6);color:#fff;font-size:9px;font-weight:600;
-          padding:2px 7px;border-radius:3px;}
-        .pcard-wish{position:absolute;top:8px;right:8px;width:30px;height:30px;
-          border-radius:50%;background:rgba(255,255,255,.9);border:none;cursor:pointer;
-          display:flex;align-items:center;justify-content:center;z-index:3;
-          box-shadow:0 2px 8px rgba(0,0,0,.12);
-          opacity:0;transition:opacity .2s;}
+        /* ── PRODUCT CARD ────────────────── */
+        .pcard{
+          background:var(--white);cursor:pointer;
+          border:1px solid transparent;
+          transition:all .2s ease;
+          animation:fadeUp .35s ease both;
+        }
+        .pcard:hover{
+          border-color:rgba(200,167,90,0.4);
+          box-shadow:0 4px 20px rgba(15,63,47,0.08);
+          z-index:2;position:relative;
+          transform:translateY(-1px);
+        }
+        .pcard-img-wrap{
+          position:relative;padding-top:100%;
+          background:#f4f3f0;overflow:hidden;
+        }
+        .pcard-img{
+          position:absolute;inset:0;width:100%;height:100%;
+          object-fit:cover;
+          transition:transform .45s ease;
+        }
+        .pcard:hover .pcard-img{transform:scale(1.07);}
+        .pcard-no-img{
+          position:absolute;inset:0;
+          display:flex;align-items:center;justify-content:center;
+          background:#ece9e4;
+        }
+        .pcard-badges{
+          position:absolute;top:8px;left:8px;
+          display:flex;flex-direction:column;gap:4px;z-index:3;
+        }
+        .pcard-discount{
+          background:#c0392b;color:#fff;
+          font-size:9px;font-weight:800;
+          padding:2px 7px;border-radius:2px;
+          letter-spacing:0.3px;
+        }
+        .pcard-soldout{
+          background:rgba(0,0,0,0.55);color:#fff;
+          font-size:9px;font-weight:600;
+          padding:2px 7px;border-radius:2px;
+        }
+        .pcard-wish{
+          position:absolute;top:8px;right:8px;
+          width:28px;height:28px;border-radius:50%;
+          background:rgba(255,255,255,0.92);
+          border:1px solid var(--border);
+          cursor:pointer;display:flex;align-items:center;justify-content:center;
+          z-index:3;box-shadow:var(--shadow-sm);
+          opacity:0;transition:opacity .2s;
+        }
         .pcard:hover .pcard-wish{opacity:1;}
-        .pcard-quick-cta{position:absolute;bottom:0;left:0;right:0;background:#0f3f2f;
-          color:#fff;text-align:center;font-size:12px;font-weight:600;padding:8px;
-          transform:translateY(100%);transition:transform .25s ease;z-index:3;}
-        .pcard:hover .pcard-quick-cta{transform:translateY(0);}
-        .pcard-info{padding:10px 10px 14px;}
-        .pcard-brand{font-size:10px;color:#c8a75a;font-weight:700;
-          text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
-        .pcard-title{font-size:12px;color:var(--text);line-height:1.45;
-          display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-          overflow:hidden;min-height:35px;margin-bottom:7px;}
+        .pcard-quick{
+          position:absolute;bottom:0;left:0;right:0;
+          background:var(--primary);color:#fff;
+          text-align:center;font-size:11px;font-weight:700;
+          padding:8px;letter-spacing:0.3px;text-transform:uppercase;
+          transform:translateY(100%);transition:transform .22s ease;z-index:3;
+          display:flex;align-items:center;justify-content:center;gap:6px;
+        }
+        .pcard:hover .pcard-quick{transform:translateY(0);}
+
+        .pcard-info{padding:10px 12px 14px;}
+        .pcard-brand{
+          font-size:9px;color:var(--gold);font-weight:800;
+          text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;
+        }
+        .pcard-title{
+          font-size:12px;color:var(--text);line-height:1.45;
+          display:-webkit-box;-webkit-line-clamp:2;
+          -webkit-box-orient:vertical;overflow:hidden;
+          min-height:34px;margin-bottom:6px;font-weight:400;
+        }
         .pcard-price-row{display:flex;align-items:baseline;gap:7px;margin-bottom:5px;flex-wrap:wrap;}
-        .pcard-price{font-size:16px;font-weight:800;color:var(--text);}
-        .pcard-compare{font-size:11px;color:#bbb;text-decoration:line-through;}
-        .pcard-rating{display:flex;align-items:center;gap:4px;margin-bottom:5px;}
-        .pcard-stars{color:#c8a75a;font-size:11px;}
-        .pcard-rcount{font-size:10px;color:#bbb;}
+        .pcard-price{font-size:15px;font-weight:800;color:var(--text);}
+        .pcard-compare{font-size:10px;color:var(--text-light);text-decoration:line-through;}
+        .pcard-rating{display:flex;align-items:center;gap:2px;margin-bottom:5px;}
+        .pcard-rcount{font-size:9px;color:var(--text-light);margin-left:2px;}
         .pcard-stock{display:flex;align-items:center;gap:5px;}
-        .pcard-stock-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
-        .pcard-stock-dot.in{background:#16a34a;}
-        .pcard-stock-dot.out{background:#dc2626;}
+        .pcard-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+        .pcard-dot.in{background:#16a34a;}
+        .pcard-dot.out{background:#c0392b;}
         .pcard-stock-label{font-size:10px;color:var(--text-muted);}
 
-        /* EMPTY STATE */
-        .empty-state{text-align:center;padding:80px 20px;background:#fff;border-radius:8px;}
-        .empty-icon{font-size:64px;margin-bottom:20px;}
-        .empty-title{font-size:20px;font-weight:700;margin-bottom:8px;}
-        .empty-sub{font-size:14px;color:var(--text-muted);margin-bottom:24px;}
-        .empty-btn{padding:12px 28px;border-radius:50px;background:var(--primary);color:#fff;
-          border:none;font-weight:700;font-size:14px;cursor:pointer;transition:background .18s;}
-        .empty-btn:hover{background:var(--primary-dark);}
+        .skeleton-card{
+          background:var(--white);
+          height:320px;overflow:hidden;
+        }
 
-        /* LOAD MORE */
-        .load-more-wrap{text-align:center;padding:32px 0;display:flex;flex-direction:column;
-          align-items:center;gap:12px;}
-        .load-more-info{font-size:13px;color:var(--text-muted);}
-        .load-more-btn{padding:13px 48px;border-radius:50px;border:2px solid var(--text);
-          background:#fff;color:var(--text);font-weight:800;font-size:14px;cursor:pointer;
-          transition:all .18s;}
-        .load-more-btn:hover:not(:disabled){background:#0f3f2f;color:#fff;border-color:#0f3f2f;}
-        .load-more-btn:disabled{opacity:.6;}
-        .page-btns{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;}
-        .page-btn{width:36px;height:36px;border-radius:6px;border:1.5px solid var(--border);
-          background:#fff;color:var(--text);font-weight:700;font-size:13px;cursor:pointer;
-          transition:all .12s;}
-        .page-btn.active,.page-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
+        /* ── EMPTY STATE ─────────────────── */
+        .empty-state{
+          text-align:center;padding:80px 20px;
+          background:var(--white);border-radius:0;
+        }
+        .empty-icon{margin:0 auto 20px;color:var(--border);}
+        .empty-title{
+          font-family:'Cormorant Garamond',serif;
+          font-size:22px;font-weight:600;
+          margin-bottom:8px;color:var(--text);
+        }
+        .empty-sub{font-size:13px;color:var(--text-muted);margin-bottom:24px;}
+        .empty-cta{
+          padding:11px 28px;border-radius:3px;
+          background:var(--primary);color:#fff;border:none;
+          font-weight:700;font-size:12px;cursor:pointer;
+          letter-spacing:0.3px;text-transform:uppercase;
+          transition:background .18s;font-family:'DM Sans',sans-serif;
+        }
+        .empty-cta:hover{background:var(--primary-dark);}
+
+        /* ── LOAD MORE ───────────────────── */
+        .load-more-wrap{
+          text-align:center;padding:32px 0;
+          display:flex;flex-direction:column;
+          align-items:center;gap:14px;
+        }
+        .load-more-count{font-size:12px;color:var(--text-muted);}
+        .load-more-btn{
+          padding:12px 44px;border-radius:3px;
+          border:2px solid var(--text);background:var(--white);
+          color:var(--text);font-weight:800;font-size:13px;
+          cursor:pointer;transition:all .18s;letter-spacing:0.3px;
+          text-transform:uppercase;font-family:'DM Sans',sans-serif;
+        }
+        .load-more-btn:hover:not(:disabled){
+          background:var(--primary);color:#fff;border-color:var(--primary);
+        }
+        .load-more-btn:disabled{opacity:0.5;cursor:not-allowed;}
+        .page-btns{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;}
+        .page-btn{
+          width:34px;height:34px;border-radius:3px;
+          border:1px solid var(--border);background:var(--white);
+          color:var(--text);font-weight:700;font-size:12px;cursor:pointer;
+          transition:all .12s;font-family:'DM Sans',sans-serif;
+        }
+        .page-btn.active,.page-btn:hover{
+          background:var(--primary);color:#fff;border-color:var(--primary);
+        }
+
+        /* ── MOBILE FILTER DRAWER ────────── */
+        .mob-overlay{
+          position:fixed;inset:0;background:rgba(0,0,0,0.5);
+          z-index:500;display:none;
+        }
+        .mob-overlay.open{display:block;}
+        .mob-drawer{
+          position:fixed;left:0;top:0;bottom:0;width:290px;
+          background:var(--white);z-index:501;overflow-y:auto;
+          padding:20px 16px;
+          animation:slideIn .25s ease;
+        }
+        .mob-drawer-head{
+          display:flex;align-items:center;justify-content:space-between;
+          margin-bottom:20px;padding-bottom:14px;
+          border-bottom:2px solid var(--primary);
+        }
+        .mob-drawer-title{
+          font-size:14px;font-weight:800;color:var(--text);
+          letter-spacing:0.5px;text-transform:uppercase;
+        }
+        .mob-drawer-close{
+          background:none;border:none;cursor:pointer;
+          color:var(--text-muted);padding:2px;
+          display:flex;align-items:center;
+          transition:color .15s;
+        }
+        .mob-drawer-close:hover{color:var(--text);}
+        .mob-show-btn{
+          width:100%;margin-top:16px;padding:13px;
+          border-radius:3px;background:var(--primary);
+          color:#fff;border:none;font-weight:800;font-size:13px;
+          cursor:pointer;letter-spacing:0.4px;text-transform:uppercase;
+          transition:background .18s;font-family:'DM Sans',sans-serif;
+        }
+        .mob-show-btn:hover{background:var(--primary-dark);}
       `}</style>
 
       {/* ── TOP BAR ── */}
       <div className="store-topbar">
-        <Link href="/" className="back-home">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <Link href="/" className="back-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
           Home
         </Link>
 
         <div className="store-breadcrumb">
           <Link href="/">Home</Link>
-          <span>/</span>
-          <span>{selectedCategory || searchQuery || "All Products"}</span>
+          <span className="crumb-sep" />
+          <span>{selectedCategory || searchQuery || "Store"}</span>
         </div>
 
         {/* Search */}
         <div ref={searchRef} className="search-wrap">
-          <div className="search-input-wrap">
-            <span className="search-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            </span>
+          <div className="search-row">
+            <div className="search-icon-wrap">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+            </div>
             <input
-              type="text" placeholder="Search products, brands, categories..."
+              type="text"
+              placeholder="Search products, brands, categories..."
+              className="search-input"
               value={searchInput}
               onChange={e => handleSearchInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && commitSearch()}
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              className="search-input"
             />
             {searchInput && (
               <button className="search-clear"
-                onClick={() => { setSearchInput(""); setSearchQuery(""); setSuggestions([]); setActiveQuickCat(""); }}>
-                ×
+                onClick={() => { setSearchInput(""); setSearchQuery(""); setSuggestions([]); setActiveQuick(""); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
             )}
             <button className="search-btn" onClick={() => commitSearch()}>Search</button>
@@ -625,9 +1042,11 @@ export default function StoreClient() {
           {showSuggestions && suggestions.length > 0 && (
             <div className="search-suggestions">
               {suggestions.map((s, i) => (
-                <div key={i} className="suggestion-item"
+                <div key={i} className="suggest-item"
                   onClick={() => { setSearchInput(s); commitSearch(s); }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  </svg>
                   {s}
                 </div>
               ))}
@@ -636,45 +1055,79 @@ export default function StoreClient() {
         </div>
       </div>
 
-      {/* ── QUICK CATEGORIES ── */}
-      <div className="quick-cats">
-        <div className="quick-cats-inner">
-          {QUICK_CATS.map(c => (
-            <button key={c.q} className={`quick-cat ${activeQuickCat === c.q ? "active" : ""}`}
-              onClick={() => selectQuickCat(c.q)}>
-              {c.icon && <span className="quick-cat-icon">{c.icon}</span>}
+      {/* ── QUICK FILTERS — backend-driven ── */}
+      <div className="quick-bar">
+        <div className="quick-bar-inner">
+          {quickFilters.map((c, i) => (
+            <button
+              key={i}
+              className={`quick-btn ${activeQuick === c.q ? "active" : ""}`}
+              onClick={() => selectQuick(c.q)}
+            >
               {c.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── LAYOUT ── */}
+      {/* ── STORE LAYOUT ── */}
       <div className="store-layout">
 
         {/* SIDEBAR */}
         <aside className="store-sidebar">
-          <div className="sidebar-title">Filter & Refine</div>
+          <div className="sidebar-head">
+            <span>Refine</span>
+            {hasFilters && (
+              <button onClick={clearAllFilters} style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "#c0392b", fontSize: 10, fontWeight: 700,
+                letterSpacing: "0.3px", fontFamily: "'DM Sans',sans-serif",
+              }}>
+                CLEAR ALL
+              </button>
+            )}
+          </div>
           <FilterPanel />
         </aside>
 
-        {/* MAIN CONTENT */}
+        {/* MAIN */}
         <main className="store-content">
           {/* Controls */}
           <div className="store-controls">
-            <button className="mobile-filter-btn" onClick={() => setShowMobileFilter(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-              Filters {hasFilters && <span style={{ background: "#0f3f2f", color: "#fff", borderRadius: "99px", padding: "1px 6px", fontSize: "11px" }}>!</span>}
+            <button className="mob-filter-btn" onClick={() => setShowMobileFilter(true)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="6" x2="20" y2="6"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+                <line x1="11" y1="18" x2="13" y2="18"/>
+              </svg>
+              Filters
+              {hasFilters && (
+                <span style={{
+                  background: "var(--primary)", color: "#fff",
+                  borderRadius: "2px", padding: "0px 6px",
+                  fontSize: 9, fontWeight: 800, letterSpacing: "0.3px",
+                }}>
+                  ON
+                </span>
+              )}
             </button>
-            <div className="results-info">
+
+            <div className="results-label">
               {loading ? "Loading..." : (
                 <>
-                  <strong>{products.length}</strong> of <strong>{total.toLocaleString()}</strong> products
-                  {searchQuery && <> for <strong>"{searchQuery}"</strong></>}
+                  <strong>{products.length.toLocaleString()}</strong>
+                  {" "}/{" "}
+                  <strong>{total.toLocaleString()}</strong> products
+                  {searchQuery && <> — <em>"{searchQuery}"</em></>}
                 </>
               )}
             </div>
-            <select value={sort} onChange={e => setSort(e.target.value as SortOption)} className="sort-select">
+
+            <select
+              className="sort-select"
+              value={sort}
+              onChange={e => setSort(e.target.value as SortOption)}
+            >
               {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(([v, l]) => (
                 <option key={v} value={v}>{l}</option>
               ))}
@@ -684,32 +1137,49 @@ export default function StoreClient() {
           {/* Active filter chips */}
           {hasFilters && (
             <div className="active-filters">
-              {searchQuery     && <FilterChip label={`"${searchQuery}"`}  onRemove={() => { setSearchQuery(""); setSearchInput(""); setActiveQuickCat(""); }} />}
-              {selectedCategory && <FilterChip label={selectedCategory}   onRemove={() => setSelectedCategory("")} />}
-              {selectedBrand   && <FilterChip label={selectedBrand}       onRemove={() => setSelectedBrand("")} />}
+              {searchQuery      && <FilterChip label={`"${searchQuery}"`}         onRemove={() => { setSearchQuery(""); setSearchInput(""); setActiveQuick(""); }} />}
+              {selectedCategory && <FilterChip label={selectedCategory}           onRemove={() => setSelectedCategory("")} />}
+              {selectedBrand    && <FilterChip label={selectedBrand}              onRemove={() => setSelectedBrand("")} />}
               {(priceMin || priceMax) && <FilterChip label={`${priceMin||"0"} – ${priceMax||"∞"}`} onRemove={() => { setPriceMin(""); setPriceMax(""); }} />}
-              {inStockOnly     && <FilterChip label="In Stock"            onRemove={() => setInStockOnly(false)} />}
-              {minRating       && <FilterChip label={`★${minRating}+`}    onRemove={() => setMinRating("")} />}
-              <button className="filter-chip filter-chip-remove" style={{ cursor: "pointer" }} onClick={clearAllFilters}>✕ Clear all</button>
+              {inStockOnly      && <FilterChip label="In Stock"                   onRemove={() => setInStockOnly(false)} />}
+              {minRating        && <FilterChip label={`${minRating}+ Stars`}      onRemove={() => setMinRating("")} />}
             </div>
           )}
 
           {/* Grid */}
           {loading ? (
-            <SkeletonGrid count={PAGE_SIZE} />
+            <div className="products-grid">
+              {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                <div key={i} style={{ animationDelay: `${i * 20}ms` }}>
+                  <SkeletonCard />
+                </div>
+              ))}
+            </div>
           ) : products.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">🔍</div>
-              <h3 className="empty-title">{searchQuery ? `No results for "${searchQuery}"` : "No products found"}</h3>
-              <p className="empty-sub">Try adjusting your filters or search for something else.</p>
-              <button className="empty-btn" onClick={clearAllFilters}>Clear All Filters</button>
+              <div className="empty-icon">
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                  <line x1="9" y1="9" x2="13" y2="13"/>
+                  <line x1="13" y1="9" x2="9" y2="13"/>
+                </svg>
+              </div>
+              <div className="empty-title">
+                {searchQuery ? `No results for "${searchQuery}"` : "No products found"}
+              </div>
+              <p className="empty-sub">Try adjusting your filters or explore something else.</p>
+              <button className="empty-cta" onClick={clearAllFilters}>Browse All Products</button>
             </div>
           ) : (
             <>
               <div className="products-grid">
                 {products.map((p, i) => (
                   <div key={p.id} style={{ animationDelay: `${Math.min(i, 20) * 30}ms` }}>
-                    <ProductCard product={p} onClick={() => router.push(`/store/product/${p.id}`)} />
+                    <ProductCard
+                      product={p}
+                      onClick={() => router.push(`/store/product/${p.id}`)}
+                    />
                   </div>
                 ))}
               </div>
@@ -717,20 +1187,29 @@ export default function StoreClient() {
               {/* Load more */}
               {hasMore && (
                 <div className="load-more-wrap">
-                  <div className="load-more-info">
-                    Showing {products.length} of {total.toLocaleString()} products
+                  <div className="load-more-count">
+                    Showing {products.length.toLocaleString()} of {total.toLocaleString()} products
                   </div>
-                  <button className="load-more-btn" onClick={() => loadProducts(page + 1, true)} disabled={loadingMore}>
+                  <button
+                    className="load-more-btn"
+                    onClick={() => loadProducts(page + 1, true)}
+                    disabled={loadingMore}
+                  >
                     {loadingMore ? "Loading..." : "Load More Products"}
                   </button>
                   <div className="page-btns">
                     {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map(pg => (
-                      <button key={pg} className={`page-btn ${pg === page ? "active" : ""}`}
-                        onClick={() => loadProducts(pg)}>
+                      <button
+                        key={pg}
+                        className={`page-btn ${pg === page ? "active" : ""}`}
+                        onClick={() => loadProducts(pg)}
+                      >
                         {pg}
                       </button>
                     ))}
-                    {totalPages > 10 && <span style={{ color: "#999", fontSize: 14, display: "flex", alignItems: "center" }}>...</span>}
+                    {totalPages > 10 && (
+                      <span style={{ color: "#aaa", fontSize: 13, display: "flex", alignItems: "center" }}>…</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -739,45 +1218,29 @@ export default function StoreClient() {
         </main>
       </div>
 
-      {/* MOBILE FILTER DRAWER */}
-      <div className={`mobile-filter-overlay ${showMobileFilter ? "open" : ""}`}
-        onClick={() => setShowMobileFilter(false)}>
-        <div className="mobile-filter-drawer" onClick={e => e.stopPropagation()}>
-          <div className="mobile-filter-header">
-            <span className="mobile-filter-title">Filters</span>
-            <button className="mobile-filter-close" onClick={() => setShowMobileFilter(false)}>×</button>
+      {/* ── MOBILE FILTER DRAWER ── */}
+      <div
+        className={`mob-overlay ${showMobileFilter ? "open" : ""}`}
+        onClick={() => setShowMobileFilter(false)}
+      >
+        <div className="mob-drawer" onClick={e => e.stopPropagation()}>
+          <div className="mob-drawer-head">
+            <span className="mob-drawer-title">Refine Results</span>
+            <button className="mob-drawer-close" onClick={() => setShowMobileFilter(false)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
           </div>
           <FilterPanel />
-          <button style={{ width: "100%", marginTop: 16, padding: "13px", borderRadius: 8,
-            background: "#0f3f2f", color: "#fff", border: "none", fontWeight: 700, fontSize: 14,
-            cursor: "pointer" }}
-            onClick={() => setShowMobileFilter(false)}>
+          <button
+            className="mob-show-btn"
+            onClick={() => setShowMobileFilter(false)}
+          >
             Show {total.toLocaleString()} Results
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ================================================================
-   HELPERS
-================================================================ */
-function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
-  return (
-    <div className="filter-chip">
-      {label}
-      <button className="filter-chip-remove" onClick={onRemove}>×</button>
-    </div>
-  );
-}
-
-function SkeletonGrid({ count }: { count: number }) {
-  return (
-    <div className="products-grid">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="shimbox" style={{ borderRadius: 0, height: 280, animationDelay: `${i * 40}ms` }} />
-      ))}
     </div>
   );
 }
