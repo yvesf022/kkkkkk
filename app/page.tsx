@@ -732,8 +732,9 @@ export default function AdminPricingPage() {
                 </div>
               )}
             </div>
-            </div>{/* pm-calc-wrap */}
-          </div>{/* pm-body */}
+            </div>
+            </div>
+          </div>
         )}
 
         {/* ══ BATCH PRICING ══ */}
@@ -1157,7 +1158,6 @@ export default function AdminPricingPage() {
                       })}
                     </tbody>
                   </table>
-                </div>
 
                 {/* Table footer */}
                 <div style={{ padding: "8px 16px", borderTop: "1px solid var(--gray-100)", background: "var(--gray-50)", display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", fontSize: 11, color: "var(--gray-400)", flexShrink: 0 }}>
@@ -1170,9 +1170,9 @@ export default function AdminPricingPage() {
                     <span style={{ marginLeft: "auto", color: "#2563eb", fontWeight: 800 }}>⏳ {stats.readyToSave} unsaved — click Save All</span>
                   )}
                 </div>
-              </div>{/* pm-table-wrap */}
+              </div>
             )}
-          </div>{/* pm-body */}
+          </div>
         )}
 
         {/* ══ STICKY SAVE BAR ══ */}
