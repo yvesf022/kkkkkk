@@ -87,17 +87,18 @@ function HeroCard({ p, size = "normal", onClick, index = 0, visible: isVisible }
       {/* ✅ FIX: hcard-inner is position:relative with overflow:hidden to contain everything */}
       <div className="hcard-inner">
         {p.main_image && !err ? (
-          <img
-            src={p.main_image}
-            alt={p.title}
-            className="hcard-img"
-            onError={() => setErr(true)}
-            loading="eager"
-          />
+          <div className="hcard-img-box">
+            <img
+              src={p.main_image}
+              alt={p.title}
+              className="hcard-img"
+              onError={() => setErr(true)}
+              loading="eager"
+            />
+          </div>
         ) : (
-          /* ✅ FIX: dark placeholder — never shows broken image icon, keeps grid intact */
           <div className="hcard-empty">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1">
               <rect x="3" y="3" width="18" height="18" rx="2"/>
               <circle cx="8.5" cy="8.5" r="1.5"/>
               <path d="M21 15l-5-5L5 21"/>
@@ -504,21 +505,42 @@ export default function HomePage() {
 
   /* ── Fetch random hero products with diverse=true so categories are mixed ── */
   useEffect(() => {
+    // Exclude all electronics/phone categories — they have plain white bg images
+    // that look awkward in a hero grid and were specifically requested to be removed
+    const EXCLUDE_KEYWORDS = [
+      "phone","smartphone","mobile","iphone","samsung galaxy","redmi","tecno","infinix","itel","oppo","vivo","oneplus","nokia",
+      "tablet","ipad","kindle",
+      "laptop","notebook","macbook","chromebook","desktop","pc ",
+      "charger","cable","power bank","powerbank","adapter",
+      "earphone","earbuds","airpods","earpods","headphone","speaker","soundbar",
+      "smartwatch","smart watch","fitness tracker","smart band",
+      "camera","dslr","mirrorless","gopro",
+      "television","smart tv","led tv","monitor","projector",
+      "playstation","xbox","nintendo","game console","gaming",
+    ];
+    function isHeroWorthy(p: HP): boolean {
+      if (!p.main_image) return false;
+      const haystack = [p.category, p.title, (p as any).main_category]
+        .filter(Boolean).join(" ").toLowerCase();
+      return !EXCLUDE_KEYWORDS.some(kw => haystack.includes(kw));
+    }
+
     async function fetchPool() {
       try {
-        // ✅ FIX: diverse=true ensures hero never shows 5 phones in a row
-        const res = await fetch(`${API}/api/products/random?count=100&with_images=true&diverse=true`);
+        // diverse=true ensures one product per category before filling remaining slots
+        const res = await fetch(`${API}/api/products/random?count=120&with_images=true&diverse=true`);
         if (!res.ok) throw new Error();
         const data = await res.json();
-        // ✅ FIX: filter client-side too — only keep products with a real image URL
-        const withImages = (data.products ?? []).filter((p: HP) => p.main_image);
-        setPool(withImages);
+        const filtered = (data.products ?? []).filter(isHeroWorthy);
+        // If too few after filtering, relax and just require images
+        setPool(filtered.length >= 5 ? filtered : (data.products ?? []).filter((p: HP) => p.main_image));
       } catch {
         try {
-          // Fallback: standard products list, filter for images
-          const res = await fetch(`${API}/api/products?per_page=100&in_stock=true`);
+          const res = await fetch(`${API}/api/products?per_page=120&in_stock=true`);
           const data = await res.json();
-          setPool(shuffle((data.results ?? []).filter((p: HP) => p.main_image)));
+          const all = (data.results ?? []).filter((p: HP) => p.main_image);
+          const filtered = all.filter(isHeroWorthy);
+          setPool(shuffle(filtered.length >= 5 ? filtered : all));
         } catch {}
       } finally {
         setHeroLoad(false);
@@ -654,9 +676,8 @@ export default function HomePage() {
           display:grid;
           grid-template-columns:2fr 1fr 1fr;
           grid-template-rows:220px 180px;
-          gap:3px;
-          background:#111;
-          /* ✅ FIX: fixed height = sum of rows + gaps, nothing bleeds out */
+          gap:2px;
+          background:#e5e3de;
           height:403px;
           overflow:hidden;
         }
@@ -678,10 +699,9 @@ export default function HomePage() {
         /* Every card fills its grid cell exactly */
         .hcard{
           position:relative;
-          overflow:hidden;        /* ✅ FIX: content cannot escape the cell */
+          overflow:hidden;
           cursor:pointer;
-          background:#1a1a1a;
-          /* no animation here — opacity handled inline for rotation */
+          background:#ffffff;
           width:100%;
           height:100%;
           display:block;
@@ -707,21 +727,35 @@ export default function HomePage() {
           position:relative;
           width:100%;
           height:100%;
-          overflow:hidden; /* ✅ FIX: belt-and-suspenders containment */
+          overflow:hidden;
+          background:#ffffff;
         }
+        /* image wrapper — centres product in white box, no cropping ever */
+        .hcard-img-box{
+          position:absolute;
+          inset:0;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          padding:10px;
+          transition:transform 0.6s cubic-bezier(0.2,0.8,0.3,1);
+        }
+        .hcard:hover .hcard-img-box{transform:scale(1.04);}
         .hcard-img{
-          width:100%;height:100%;object-fit:cover;display:block;
-          transition:transform 0.7s cubic-bezier(0.2,0.8,0.3,1);
+          width:100%;
+          height:100%;
+          object-fit:contain;
+          object-position:center;
+          display:block;
         }
-        .hcard:hover .hcard-img{transform:scale(1.07);}
         .hcard-empty{
           width:100%;height:100%;
           display:flex;align-items:center;justify-content:center;
-          background:#1e1e1e;
+          background:#f4f3f0;
         }
         .hcard-gradient{
           position:absolute;inset:0;
-          background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.18) 55%,transparent 100%);
+          background:linear-gradient(to top,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0.35) 28%,transparent 52%);
           z-index:2;
           pointer-events:none;
         }
