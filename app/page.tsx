@@ -16,6 +16,15 @@ function resolveImg(url: string | null | undefined): string | null {
   return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
+/** Downsize Amazon CDN images for fast card loading.
+ *  _SL1500_ JPEGs are ~200KB each — _SL300_ is ~8KB for the same image. */
+function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 300): string | null {
+  if (!url) return null;
+  if (!url.includes("m.media-amazon.com")) return url;
+  return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
+}
+
+
 interface HP {
   id: string; title: string; price: number; compare_price?: number | null;
   discount_pct?: number | null; brand?: string; category?: string;
@@ -94,7 +103,7 @@ function HeroCard({ p, size = "normal", onClick, index = 0, visible: isVisible }
       <div className="hcard-inner">
         {resolveImg(p.main_image) && !err ? (
           <div className="hcard-img-box">
-            <img src={resolveImg(p.main_image)!} alt={p.title} className="hcard-img"
+            <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} className="hcard-img"
               onError={() => setErr(true)} loading="eager" />
           </div>
         ) : (
@@ -170,7 +179,7 @@ function SectionCard({ p, idx, accentColor, onClick }: {
     <div className="scard" onClick={onClick} style={{ animationDelay: `${idx * 50}ms` }}>
       <div className="scard-img-wrap">
         {resolveImg(p.main_image) && !err ? (
-          <img src={resolveImg(p.main_image)!} alt={p.title} className="scard-img"
+          <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} className="scard-img"
             onError={() => setErr(true)} loading="lazy" />
         ) : (
           <div className="scard-no-img">
@@ -465,7 +474,7 @@ function CategoryImageGrid() {
               <Link key={sub.key} href={sub.href} className="cattile cattile-beauty">
                 <div className="cattile-img-wrap">
                   {img
-                    ? <img src={img} alt={sub.label} className="cattile-img" loading="lazy" />
+                    ? <img src={optimizeImg(img)!} alt={sub.label} className="cattile-img" loading="lazy" />
                     : <div className="cattile-img-wrap" style={{ background: "#ece9e4", display:"flex", alignItems:"center", justifyContent:"center" }}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                       </div>
@@ -502,7 +511,7 @@ function CategoryImageGrid() {
               <Link key={sub.key} href={sub.href} className="cattile cattile-phone">
                 <div className="cattile-phone-img-wrap" style={{ background: `linear-gradient(135deg, ${color}18, ${color}08)` }}>
                   {img
-                    ? <img src={img} alt={sub.label} className="cattile-img" loading="lazy" />
+                    ? <img src={optimizeImg(img)!} alt={sub.label} className="cattile-img" loading="lazy" />
                     : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}>
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                       </div>

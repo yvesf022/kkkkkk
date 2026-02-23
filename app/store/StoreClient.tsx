@@ -18,6 +18,14 @@ function resolveImg(url: string | null | undefined): string | null {
   return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
+/** Downsize Amazon CDN images for fast card loading. */
+function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 300): string | null {
+  if (!url) return null;
+  if (!url.includes("m.media-amazon.com")) return url;
+  return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
+}
+
+
 /* ================================================================
    TYPES
 ================================================================ */
@@ -51,7 +59,7 @@ function ProductCard({ product, onClick }: {
 }) {
   const [imgErr, setImgErr]   = useState(false);
   const [saved, setSaved]     = useState(false);
-  const imageUrl = resolveImg(product.main_image ?? product.image_url ?? null);
+  const imageUrl = optimizeImg(resolveImg(product.main_image ?? product.image_url ?? null));
   const discount = product.compare_price && product.compare_price > product.price
     ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100) : null;
 

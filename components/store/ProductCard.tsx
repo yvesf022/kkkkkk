@@ -25,12 +25,17 @@ export default function ProductCard({
   const isOutOfStock = product.stock <= 0;
   const lowStock = product.stock > 0 && product.stock <= 5;
 
-  const imageUrl =
-    product.main_image?.startsWith("http")
-      ? product.main_image
-      : product.main_image
-      ? `${API}${product.main_image}`
-      : "";
+  function optimizeImg(url: string, size = 300): string {
+    if (!url || !url.includes("m.media-amazon.com")) return url || "";
+    return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
+  }
+
+  const rawImage = product.main_image?.startsWith("http")
+    ? product.main_image
+    : product.main_image
+    ? `${API}${product.main_image}`
+    : "";
+  const imageUrl = optimizeImg(rawImage);
 
   function animateFlyToCart() {
     const cartIcon = document.querySelector(
