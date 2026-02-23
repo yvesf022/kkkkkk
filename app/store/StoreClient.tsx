@@ -22,7 +22,7 @@ function resolveImg(url: string | null | undefined): string | null {
 function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 300): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
-  return url.replace(/_(?:AC_)?S[LYX]\d+_|_(?:AC_)?U[LX]\d+_/g, `_AC_SL${size}_`);
+  return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
 }
 
 
@@ -49,7 +49,7 @@ const SORT_MAP: Record<SortOption, Record<string, string>> = {
   discount:   { sort: "discount" },
 };
 
-const PAGE_SIZE = 40;
+const PAGE_SIZE = 20;
 
 /* ================================================================
    PRODUCT CARD — luxury Jumia style, SVG only
@@ -255,30 +255,25 @@ export default function StoreClient() {
     });
   }, []);
 
-  /* ── Build dynamic quick-filters from backend homepage sections ── */
+  /* ── Build quick-filters from categories (much lighter than /homepage/sections) ── */
   useEffect(() => {
-    fetch(`${API}/api/homepage/sections`)
+    const staticFilters = [
+      { label: "All", q: "" },
+      { label: "Flash Deals", q: "discount" },
+      { label: "New Arrivals", q: "newest" },
+    ];
+    setQuickFilters(staticFilters); // show immediately
+    // Enrich with real categories from the lightweight /api/categories endpoint
+    fetch(`${API}/api/categories`)
       .then(r => r.json())
-      .then(d => {
-        const sections = d.sections ?? [];
-        const staticFirst = [
-          { label: "All", q: "" },
-          { label: "Flash Deals", q: "discount" },
-          { label: "New Arrivals", q: "newest" },
-        ];
-        // Extract category names from dynamic sections
-        const dynamic = sections
-          .filter((s: any) => !["flash_deals","new_arrivals","best_sellers","top_rated"].includes(s.key))
-          .map((s: any) => ({ label: s.title.replace(" & ", " · "), q: s.title.split(" ")[0].toLowerCase() }));
-        setQuickFilters([...staticFirst, ...dynamic.slice(0, 18)]);
+      .then((cats: any[]) => {
+        const dynamic = (cats ?? [])
+          .filter(c => c.product_count > 0)
+          .slice(0, 18)
+          .map(c => ({ label: c.name, q: c.slug }));
+        setQuickFilters([...staticFilters, ...dynamic]);
       })
-      .catch(() => {
-        setQuickFilters([
-          { label: "All", q: "" },
-          { label: "Flash Deals", q: "discount" },
-          { label: "Best Sellers", q: "popular" },
-        ]);
-      });
+      .catch(() => {}); // keep static filters on error
   }, []);
 
   /* ── Load products ── */
