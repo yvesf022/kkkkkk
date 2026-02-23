@@ -40,13 +40,13 @@ const SORT_LABELS: Record<SortOption, string> = {
   discount:   "Biggest Discount",
 };
 
-const SORT_MAP: Record<SortOption, Record<string, string>> = {
-  newest:     { sort_by: "created_at", sort_order: "desc" },
-  price_asc:  { sort_by: "price",      sort_order: "asc"  },
-  price_desc: { sort_by: "price",      sort_order: "desc" },
-  rating:     { sort_by: "rating",     sort_order: "desc" },
-  popular:    { sort_by: "sales",      sort_order: "desc" },
-  discount:   { sort: "discount" },
+const SORT_MAP: Record<SortOption, { sort: string }> = {
+  newest:     { sort: "newest"     },
+  price_asc:  { sort: "price_asc"  },
+  price_desc: { sort: "price_desc" },
+  rating:     { sort: "rating"     },
+  popular:    { sort: "sales"      },
+  discount:   { sort: "discount"   },
 };
 
 const PAGE_SIZE = 20;
@@ -281,10 +281,8 @@ export default function StoreClient() {
     if (pg === 1) setLoading(true); else setLoadingMore(true);
     try {
       const sortEntry = SORT_MAP[sort];
-      const sortParams = "sort_by" in sortEntry
-        ? { sort_by: sortEntry.sort_by, sort_order: sortEntry.sort_order }
-        : { sort: sortEntry.sort };
-      const params: Record<string, any> = { page: pg, per_page: PAGE_SIZE, ...sortParams };
+      // ✅ FIX: backend list_products uses "sort" param, not sort_by/sort_order
+      const params: Record<string, any> = { page: pg, per_page: PAGE_SIZE, sort: sortEntry.sort };
       if (selectedCategory) params.category = selectedCategory;
       if (selectedBrand)    params.brand      = selectedBrand;
       if (priceMin)         params.min_price  = Number(priceMin);
@@ -300,8 +298,7 @@ export default function StoreClient() {
         const deptQs = new URLSearchParams({
           page: String(pg),
           per_page: String(PAGE_SIZE),
-          sort_by:    "sort_by" in sortEntry ? sortEntry.sort_by    : "rating",
-          sort_order: "sort_by" in sortEntry ? sortEntry.sort_order : "desc",
+          sort: sortEntry.sort,
         }).toString();
         const res = await fetch(`${API}/api/products/by-department/${selectedMainCat}?${deptQs}`);
         const data = await res.json();

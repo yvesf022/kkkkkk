@@ -30,11 +30,16 @@ export default function ProductCard({
     return url.replace(/_(?:AC_)?S[LYX]\d+_|_(?:AC_)?U[LX]\d+_/g, `_AC_SL${size}_`);
   }
 
-  const rawImage = product.main_image?.startsWith("http")
-    ? product.main_image
-    : product.main_image
-    ? `${API}${product.main_image}`
-    : "";
+  // ✅ FIX: proper fallback chain: main_image → images[0] → image_url → ""
+  function resolveImgLocal(url: string | null | undefined): string {
+    if (!url) return "";
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
+  }
+  const rawImage =
+    resolveImgLocal(product.main_image) ||
+    resolveImgLocal((product as any).image_url) ||
+    "";
   const imageUrl = optimizeImg(rawImage);
 
   function animateFlyToCart() {
