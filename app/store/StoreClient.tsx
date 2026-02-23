@@ -22,7 +22,10 @@ function resolveImg(url: string | null | undefined): string | null {
 function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 300): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
-  return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
+  // Handle _SL1500_, _SL500_, _AC_SL300_ etc. — normalize to requested size
+  return url
+    .replace(/_AC_SL\d+_/g, `_AC_SL${size}_`)
+    .replace(/_SL\d+_/g,    `_AC_SL${size}_`);
 }
 
 

@@ -104,12 +104,16 @@ export const useStore = create<StoreState>((set, get) => ({
   ========================== */
 
   setFilters: (newFilters) => {
+    // ✅ FIX: Update state first, then immediately fetch with reset=true.
+    // Previously callers had to manually call fetchProducts() after setFilters()
+    // which was error-prone and caused stale/empty product lists.
     set({
       filters:  { ...get().filters, ...newFilters },
       page:     1,
       products: [],
       total:    0,
     });
+    get().fetchProducts(true);
   },
 
   setPage: (page) => set({ page }),

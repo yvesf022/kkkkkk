@@ -3,7 +3,7 @@
  */
 
 import type { Admin } from "@/lib/adminAuth";
-import type { Order, ProductListItem, Product, ProductStatus, Payment } from "@/lib/types";
+import type { Order, ProductListItem, Product, ProductStatus, Payment, ProductVariant } from "@/lib/types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
@@ -84,11 +84,7 @@ export type ProductAnalytics = {
   inventory_history: Array<{ type: string; before: number; change: number; after: number; note?: string; created_at: string }>;
 };
 
-export type ProductVariant = {
-  id: string; title: string; sku?: string; attributes: Record<string, string>;
-  price: number; compare_price?: number; stock: number; in_stock: boolean;
-  image_url?: string; is_active: boolean; created_at: string;
-};
+
 
 /* ===================================================== USER AUTH ===================================================== */
 

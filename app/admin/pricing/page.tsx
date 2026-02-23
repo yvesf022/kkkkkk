@@ -17,6 +17,11 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { adminProductsApi, calculatePrice, exchangeApi, pricingApi } from "@/lib/api";
+
+// ⚠️  CRITICAL: All pricing endpoints go directly to FastAPI (not Next.js /api/ proxy).
+// Using a relative /api/... URL routes to Next.js API routes which don't exist for these
+// paths — causing 404. We must use the backend base URL from env.
+const BACKEND = process.env.NEXT_PUBLIC_API_URL ?? "";
 import type { ProductListItem } from "@/lib/types";
 
 /* ═══════════════════════════════════════════════════
@@ -235,7 +240,7 @@ export default function AdminPricingPage() {
       if (brandFilter) params.brand    = brandFilter;
 
       const qs = new URLSearchParams(params).toString();
-      const res = await fetch(`/api/products/admin/pricing/all${qs ? `?${qs}` : ""}`, {
+      const res = await fetch(`${BACKEND}/api/products/admin/pricing/all${qs ? `?${qs}` : ""}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}` },
       });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
@@ -355,7 +360,7 @@ export default function AdminPricingPage() {
     ));
     showToast("Product marked as priced");
     try {
-      await fetch(`/api/products/admin/pricing/${id}/mark`, {
+      await fetch(`${BACKEND}/api/products/admin/pricing/${id}/mark`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -373,7 +378,7 @@ export default function AdminPricingPage() {
     ));
     showToast("Product reset to unpriced", false);
     try {
-      await fetch(`/api/products/admin/pricing/${id}/mark`, {
+      await fetch(`${BACKEND}/api/products/admin/pricing/${id}/mark`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -420,7 +425,7 @@ export default function AdminPricingPage() {
         delete inputs[id];
         saveSession({ inputs });
       }
-      fetch(`/api/products/admin/pricing/${id}/mark`, {
+      fetch(`${BACKEND}/api/products/admin/pricing/${id}/mark`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -473,7 +478,7 @@ export default function AdminPricingPage() {
 
     // Bulk-mark in DB (fire and forget — cache covers it)
     if (succeededIds.length > 0) {
-      fetch("/api/products/admin/pricing/bulk-mark", {
+      fetch(`${BACKEND}/api/products/admin/pricing/bulk-mark`, {  // eslint-disable-line
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -690,8 +695,11 @@ export default function AdminPricingPage() {
         .pc-info { flex: 1; min-width: 0; }
         .pc-title {
           font-size: 13px; font-weight: 700; color: #111; line-height: 1.35;
-          display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+          /* No line-clamp: full title must be visible and copy-paste friendly */
           margin-bottom: 4px;
+          word-break: break-word;
+          user-select: text;
+          -webkit-user-select: text;
         }
         .pc-meta { font-size: 11px; color: #9ca3af; margin-bottom: 5px; }
         .pc-badge-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

@@ -3,9 +3,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { productsApi, adminProductsApi, adminApi } from "@/lib/api";
+import { productsApi, adminApi } from "@/lib/api";
 import type { Product, ProductImage } from "@/lib/types";
-import type { ProductAnalytics, ProductVariant } from "@/lib/api";
+import type { ProductVariant } from "@/lib/types";      // ✅ FIX: import from types, not api
+import type { ProductAnalytics } from "@/lib/api";      // analytics type lives in api.ts
 
 type Tab = "overview" | "variants" | "images" | "analytics" | "edit";
 
@@ -53,14 +54,10 @@ export default function AdminProductDetailPage() {
     if (!id) return;
     setLoading(true);
     try {
-      // FIX: use productsApi.getAdmin() which hits the same endpoint but is
-      // semantically correct for admin context. Also load analytics + variants
-      // in parallel for speed.
-      const [p, a, v] = await Promise.all([
-        productsApi.get(id),          // GET /api/products/{id}
-        productsApi.getAnalytics(id), // GET /api/products/admin/{id}/analytics
-        productsApi.listVariants(id), // GET /api/products/{id}/variants
-      ]);
+      // ✅ FIX: Fetch product FIRST — if this fails the page correctly shows "not found".
+      // Analytics and variants are non-critical; fetch them independently so a 404
+      // on analytics/variants never hides a valid product.
+      const p = await productsApi.get(id);
       setProduct(p);
       setEditForm({
         title:               p.title ?? "",
@@ -75,9 +72,28 @@ export default function AdminProductDetailPage() {
         store:               (p as any).store ?? "",
         low_stock_threshold: (p as any).low_stock_threshold ?? 10,
       });
-      setAnalytics(a);
-      setVariants(v ?? []);
+
+      // ✅ FIX: Load analytics + variants in parallel but independently.
+      // Failures here show a toast warning but DON'T hide the product.
+      const [analyticsResult, variantsResult] = await Promise.allSettled([
+        productsApi.getAnalytics(id),
+        productsApi.listVariants(id),
+      ]);
+
+      if (analyticsResult.status === "fulfilled") {
+        setAnalytics(analyticsResult.value);
+      } else {
+        console.warn("Analytics unavailable:", analyticsResult.reason);
+      }
+
+      if (variantsResult.status === "fulfilled") {
+        setVariants(variantsResult.value ?? []);
+      } else {
+        console.warn("Variants unavailable:", variantsResult.reason);
+      }
+
     } catch (e: any) {
+      // Only the core product fetch failure reaches here
       showToast(e?.message ?? "Failed to load product", false);
     } finally {
       setLoading(false);
@@ -129,7 +145,6 @@ export default function AdminProductDetailPage() {
       ["price", "compare_price", "stock", "low_stock_threshold"].forEach((k) => {
         if (payload[k] !== "" && payload[k] !== null) payload[k] = Number(payload[k]);
       });
-      // FIX: productsApi.update() hits PATCH /api/products/admin/{id} — correct
       await productsApi.update(id, payload);
       showToast("Product updated");
       load();
@@ -145,13 +160,10 @@ export default function AdminProductDetailPage() {
     setSaving(true);
     try {
       if (invMode === "set") {
-        // FIX: PATCH /api/products/{id}/inventory — set absolute stock value
         await productsApi.updateInventory(id, { stock: Number(invStock), note: invNote || "Manual update" });
       } else if (invMode === "adjust") {
-        // FIX: use adminApi.adjustInventory which hits POST /api/admin/inventory/adjust
         await adminApi.adjustInventory({ product_id: id, quantity: Number(invStock), note: invNote || "Manual adjustment" });
       } else {
-        // FIX: use adminApi.incomingInventory which hits POST /api/admin/inventory/incoming
         await adminApi.incomingInventory({ product_id: id, quantity: Number(invStock), note: invNote || "Incoming stock" });
       }
       setInvModal(false);
@@ -215,7 +227,7 @@ export default function AdminProductDetailPage() {
 
   async function toggleVariant(variantId: string, active: boolean) {
     try {
-      await productsApi.updateVariant(variantId, { is_active: !active });
+      await productsApi.updateVariant(variantId, { is_active: !active } as any);
       showToast(`Variant ${active ? "deactivated" : "activated"}`);
       load();
     } catch (e: any) {
@@ -559,6 +571,11 @@ export default function AdminProductDetailPage() {
               </Card>
             )}
           </div>
+        )}
+
+        {/* ANALYTICS TAB — no data yet */}
+        {tab === "analytics" && !analytics && (
+          <EmptyState icon="📊" title="Analytics unavailable" description="Analytics data could not be loaded. The product is still accessible." />
         )}
       </div>
 

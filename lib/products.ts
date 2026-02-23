@@ -36,7 +36,22 @@ export type ProductListParams = {
 export async function listProducts(
   params: ProductListParams = {},
 ): Promise<ProductListItem[]> {
-  return (await productsApi.list(params)).results;
+  // FIX: Map frontend param names to backend expected names.
+  // Backend expects q= not search_query=, and sort_by=/sort_order= not sort=
+  const { search_query, sort, ...rest } = params;
+  const apiParams: Record<string, any> = { ...rest };
+  if (search_query) apiParams.q = search_query;
+  if (sort) {
+    const sortMap: Record<string, { sort_by: string; sort_order: string }> = {
+      price_low:    { sort_by: "price",  sort_order: "asc"  },
+      price_high:   { sort_by: "price",  sort_order: "desc" },
+      rating:       { sort_by: "rating", sort_order: "desc" },
+      best_sellers: { sort_by: "sales",  sort_order: "desc" },
+    };
+    const mapped = sortMap[sort];
+    if (mapped) Object.assign(apiParams, mapped);
+  }
+  return (await productsApi.list(apiParams)).results;
 }
 
 /* =====================================================
@@ -143,4 +158,3 @@ export async function setMainProductImage(
 ): Promise<void> {
   await productsApi.setMainImage(imageId);
 }
-
