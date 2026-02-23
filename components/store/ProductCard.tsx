@@ -27,7 +27,7 @@ export default function ProductCard({
 
   function optimizeImg(url: string, size = 300): string {
     if (!url || !url.includes("m.media-amazon.com")) return url || "";
-    return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
+    return url.replace(/_(?:AC_)?S[LYX]\d+_|_(?:AC_)?U[LX]\d+_/g, `_AC_SL${size}_`);
   }
 
   const rawImage = product.main_image?.startsWith("http")
