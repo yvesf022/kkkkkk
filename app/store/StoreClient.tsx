@@ -197,7 +197,7 @@ export default function StoreClient() {
   const searchParams = useSearchParams();
 
   const initQ    = searchParams.get("q") ?? searchParams.get("search") ?? "";
-  const initCat  = searchParams.get("category") ?? "";
+  const initCat  = searchParams.get("category") ?? searchParams.get("main_category") ?? "";
   const initSort = (searchParams.get("sort") as SortOption) ?? "newest";
 
   const [products, setProducts]         = useState<ProductListItem[]>([]);

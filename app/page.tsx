@@ -406,6 +406,39 @@ function CategoryImageGrid() {
   const beauty = depts.find(d => d.key === "beauty");
   const phones = depts.find(d => d.key === "phones");
 
+  // Guaranteed fallback subcategory lists — used when API returns empty subcategories
+  // so the grid always renders tiles even before products are categorised
+  const BEAUTY_SUBS_FALLBACK: CatSubcat[] = [
+    { key:"moisturizer",       label:"Moisturisers",      href:"/store?category=moisturizer",       image:null },
+    { key:"sunscreen",         label:"Sunscreen",          href:"/store?category=sunscreen",          image:null },
+    { key:"face_wash",         label:"Face Wash",          href:"/store?category=face_wash",          image:null },
+    { key:"serum",             label:"Serums",             href:"/store?category=serum",              image:null },
+    { key:"body_lotion",       label:"Body Lotion",        href:"/store?category=body_lotion",        image:null },
+    { key:"face_mask",         label:"Face Masks",         href:"/store?category=face_mask",          image:null },
+    { key:"eye_mask",          label:"Eye Masks",          href:"/store?category=eye_mask",           image:null },
+    { key:"anti_acne",         label:"Anti-Acne",          href:"/store?category=anti_acne",          image:null },
+    { key:"skin_brightening",  label:"Skin Brightening",   href:"/store?category=skin_brightening",   image:null },
+    { key:"collagen",          label:"Collagen Care",      href:"/store?category=collagen",           image:null },
+    { key:"skin_natural_oils", label:"Natural Oils",       href:"/store?category=skin_natural_oils",  image:null },
+    { key:"herbal_oils",       label:"Herbal Oils",        href:"/store?category=herbal_oils",        image:null },
+    { key:"anti_wrinkles",     label:"Anti-Wrinkle",       href:"/store?category=anti_wrinkles",      image:null },
+    { key:"body_wash",         label:"Body Wash",          href:"/store?category=body_wash",          image:null },
+    { key:"exfoliator",        label:"Exfoliators",        href:"/store?category=exfoliator",         image:null },
+    { key:"lip_mask",          label:"Lip Masks",          href:"/store?category=lip_mask",           image:null },
+  ];
+  const PHONE_SUBS_FALLBACK: CatSubcat[] = [
+    { key:"samsung",  label:"Samsung",      href:"/store?category=samsung",  image:null },
+    { key:"apple",    label:"Apple",        href:"/store?category=apple",    image:null },
+    { key:"xiaomi",   label:"Xiaomi",       href:"/store?category=xiaomi",   image:null },
+    { key:"motorola", label:"Motorola",     href:"/store?category=motorola", image:null },
+    { key:"oneplus",  label:"OnePlus",      href:"/store?category=oneplus",  image:null },
+    { key:"google",   label:"Google Pixel", href:"/store?category=google",   image:null },
+    { key:"realme",   label:"Realme",       href:"/store?category=realme",   image:null },
+  ];
+
+  const beautySubs = (beauty?.subcategories?.length ? beauty.subcategories : BEAUTY_SUBS_FALLBACK);
+  const phoneSubs  = (phones?.subcategories?.length ? phones.subcategories  : PHONE_SUBS_FALLBACK);
+
   return (
     <div className="catgrid-wrap">
 
@@ -426,7 +459,7 @@ function CategoryImageGrid() {
         <div className="catgrid-tiles catgrid-tiles-beauty">
           {!loaded ? (
             <CatTileSkeleton count={16} />
-          ) : (beauty?.subcategories ?? []).map((sub) => {
+          ) : beautySubs.map((sub) => {
             const img = beautyImg(sub);
             return (
               <Link key={sub.key} href={sub.href} className="cattile cattile-beauty">
@@ -462,7 +495,7 @@ function CategoryImageGrid() {
         <div className="catgrid-tiles catgrid-tiles-phones">
           {!loaded ? (
             <CatTileSkeleton count={7} />
-          ) : (phones?.subcategories ?? []).map((sub) => {
+          ) : phoneSubs.map((sub) => {
             const img   = phoneImg(sub);
             const color = PHONE_BRAND_COLORS[sub.key] ?? "#0f3f2f";
             return (
