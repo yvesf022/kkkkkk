@@ -299,13 +299,24 @@ export default function StoreClient() {
       let totalCount: number;
 
       if (selectedMainCat === "beauty" || selectedMainCat === "phones") {
-        // Use the dedicated department endpoint for broad category browsing
-        const deptQs = new URLSearchParams({
-          page: String(pg),
+        // Use the dedicated department endpoint for broad category browsing.
+        // ✅ FIX Bug 3: backend now accepts the combined `sort` param directly
+        // (e.g. "newest", "price_asc"). Also forward active filter params so
+        // that in-category sorting and filtering work on department pages.
+        const deptParams: Record<string, string> = {
+          page:     String(pg),
           per_page: String(PAGE_SIZE),
-          sort: sortEntry.sort,
-        }).toString();
+          sort:     sortEntry.sort,          // e.g. "newest", "price_asc", "rating"
+        };
+        if (selectedCategory) deptParams.category  = selectedCategory;
+        if (selectedBrand)    deptParams.brand      = selectedBrand;
+        if (priceMin)         deptParams.min_price  = priceMin;
+        if (priceMax)         deptParams.max_price  = priceMax;
+        if (inStockOnly)      deptParams.in_stock   = "true";
+        if (minRating)        deptParams.min_rating = minRating;
+        const deptQs = new URLSearchParams(deptParams).toString();
         const res = await fetch(`${API}/api/products/by-department/${selectedMainCat}?${deptQs}`);
+        if (!res.ok) throw new Error(`Department API error ${res.status}`);
         const data = await res.json();
         results    = data?.results ?? [];
         totalCount = data?.total   ?? results.length;
