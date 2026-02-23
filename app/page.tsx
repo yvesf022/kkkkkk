@@ -21,7 +21,7 @@ function resolveImg(url: string | null | undefined): string | null {
 function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 300): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
-  return url.replace(/_(?:AC_)?S[LYX]\d+_|_(?:AC_)?U[LX]\d+_/g, `_AC_SL${size}_`);
+  return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
 }
 
 
@@ -623,12 +623,10 @@ export default function HomePage() {
 
   /* ── Fetch random hero products ── */
   useEffect(() => {
+    // Only exclude low-visual accessories — smartphones & beauty products make great hero cards
     const EXCLUDE_KEYWORDS = [
-      "phone","smartphone","mobile","iphone","samsung galaxy","redmi","tecno","infinix","itel","oppo","vivo","oneplus","nokia",
-      "tablet","ipad","kindle","laptop","notebook","macbook","chromebook","desktop","pc ",
-      "charger","cable","power bank","powerbank","adapter","earphone","earbuds","airpods","earpods","headphone","speaker","soundbar",
-      "smartwatch","smart watch","fitness tracker","smart band","camera","dslr","mirrorless","gopro",
-      "television","smart tv","led tv","monitor","projector","playstation","xbox","nintendo","game console","gaming",
+      "charger","cable","power bank","powerbank","adapter","case for","screen protector",
+      "sim card","sim tray","stylus","usb hub",
     ];
     function isHeroWorthy(p: HP): boolean {
       if (!resolveImg(p.main_image)) return false;
@@ -657,7 +655,7 @@ export default function HomePage() {
 
   /* ── Auto-rotate ── */
   useEffect(() => {
-    if (pool.length < 5) return;
+    if (pool.length < 2) return;
     rotateRef.current = setInterval(() => {
       setCardsVisible(false);
       setTimeout(() => {
@@ -677,7 +675,7 @@ export default function HomePage() {
       .finally(() => setSecLoad(false));
   }, []);
 
-  const visible   = pool.length >= 5 ? pool.slice(offset, offset + 5) : [];
+  const visible   = pool.length > 0 ? pool.slice(offset, Math.min(offset + 5, pool.length)) : [];
   const heroBig   = visible[0] as HP | undefined;
   const heroSmall = visible.slice(1, 5) as HP[];
   const totalDots = Math.min(Math.ceil(pool.length / 5), 12);
@@ -1297,7 +1295,7 @@ export default function HomePage() {
         <div className="hero-mosaic">
           {heroLoad ? (
             <HeroSkeleton />
-          ) : visible.length >= 5 ? (
+          ) : visible.length >= 1 ? (
             <>
               <HeroCard p={heroBig!} size="large" index={0} visible={cardsVisible}
                 onClick={() => router.push(`/store/product/${heroBig!.id}`)} />
