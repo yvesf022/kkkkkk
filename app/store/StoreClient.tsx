@@ -197,7 +197,8 @@ export default function StoreClient() {
   const searchParams = useSearchParams();
 
   const initQ    = searchParams.get("q") ?? searchParams.get("search") ?? "";
-  const initCat  = searchParams.get("category") ?? searchParams.get("main_category") ?? "";
+  const initMainCat = searchParams.get("main_cat") ?? "";
+  const initCat  = searchParams.get("category") ?? "";
   const initSort = (searchParams.get("sort") as SortOption) ?? "newest";
 
   const [products, setProducts]         = useState<ProductListItem[]>([]);
@@ -208,6 +209,14 @@ export default function StoreClient() {
 
   const [searchInput, setSearchInput]         = useState(initQ);
   const [searchQuery, setSearchQuery]         = useState(initQ);
+  // main_cat groups — maps ?main_cat=beauty/phones to a list of category slugs
+  const BEAUTY_SLUGS = ["moisturizer","sunscreen","face_wash","serum","body_lotion","face_mask",
+    "eye_mask","anti_acne","skin_brightening","collagen","skin_natural_oils","herbal_oils",
+    "anti_wrinkles","body_wash","exfoliator","lip_mask"];
+  const PHONE_SLUGS  = ["samsung","apple","xiaomi","motorola","oneplus","google","realme"];
+
+  // Expand main_cat into a selectedMainCat that the loadProducts uses
+  const [selectedMainCat, setSelectedMainCat] = useState(initMainCat);
   const [selectedCategory, setSelectedCategory] = useState(initCat);
   const [selectedBrand, setSelectedBrand]     = useState("");
   const [sort, setSort]                       = useState<SortOption>(initSort);
@@ -273,7 +282,7 @@ export default function StoreClient() {
         ? { sort_by: sortEntry.sort_by, sort_order: sortEntry.sort_order }
         : { sort: sortEntry.sort };
       const params: Record<string, any> = { page: pg, per_page: PAGE_SIZE, ...sortParams };
-      if (selectedCategory) params.category  = selectedCategory;
+      if (selectedCategory) params.category = selectedCategory;
       if (selectedBrand)    params.brand      = selectedBrand;
       if (priceMin)         params.min_price  = Number(priceMin);
       if (priceMax)         params.max_price  = Number(priceMax);
@@ -283,7 +292,19 @@ export default function StoreClient() {
       let results: ProductListItem[];
       let totalCount: number;
 
-      if (searchQuery.trim()) {
+      if (selectedMainCat === "beauty" || selectedMainCat === "phones") {
+        // Use the dedicated department endpoint for broad category browsing
+        const deptQs = new URLSearchParams({
+          page: String(pg),
+          per_page: String(PAGE_SIZE),
+          sort_by:    "sort_by" in sortEntry ? sortEntry.sort_by    : "rating",
+          sort_order: "sort_by" in sortEntry ? sortEntry.sort_order : "desc",
+        }).toString();
+        const res = await fetch(`${API}/api/products/by-department/${selectedMainCat}?${deptQs}`);
+        const data = await res.json();
+        results    = data?.results ?? [];
+        totalCount = data?.total   ?? results.length;
+      } else if (searchQuery.trim()) {
         const res  = await searchApi.search({ q: searchQuery.trim(), ...params }) as any;
         results    = res?.products ?? res?.results ?? [];
         totalCount = res?.total ?? results.length;
@@ -303,7 +324,7 @@ export default function StoreClient() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchQuery, selectedCategory, selectedBrand, sort, priceMin, priceMax, inStockOnly, minRating]);
+  }, [searchQuery, selectedMainCat, selectedCategory, selectedBrand, sort, priceMin, priceMax, inStockOnly, minRating]);
 
   useEffect(() => { loadProducts(1); }, [loadProducts]);
 
@@ -354,11 +375,11 @@ export default function StoreClient() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const hasMore    = page < totalPages;
-  const hasFilters = !!(selectedCategory || selectedBrand || priceMin || priceMax || inStockOnly || minRating || searchQuery);
+  const hasFilters = !!(selectedCategory || selectedMainCat || selectedBrand || priceMin || priceMax || inStockOnly || minRating || searchQuery);
 
   function clearAllFilters() {
     setSearchQuery(""); setSearchInput("");
-    setSelectedCategory(""); setSelectedBrand("");
+    setSelectedCategory(""); setSelectedMainCat(""); setSelectedBrand("");
     setPriceMin(""); setPriceMax("");
     setInStockOnly(false); setMinRating("");
     setSort("newest"); setActiveQuick("");
@@ -1144,6 +1165,7 @@ export default function StoreClient() {
           {/* Active filter chips */}
           {hasFilters && (
             <div className="active-filters">
+              {selectedMainCat  && <FilterChip label={selectedMainCat === "beauty" ? "Beauty & Personal Care" : "Cell Phones & Accessories"} onRemove={() => setSelectedMainCat("")} />}
               {searchQuery      && <FilterChip label={`"${searchQuery}"`}         onRemove={() => { setSearchQuery(""); setSearchInput(""); setActiveQuick(""); }} />}
               {selectedCategory && <FilterChip label={selectedCategory}           onRemove={() => setSelectedCategory("")} />}
               {selectedBrand    && <FilterChip label={selectedBrand}              onRemove={() => setSelectedBrand("")} />}

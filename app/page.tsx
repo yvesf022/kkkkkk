@@ -449,7 +449,7 @@ function CategoryImageGrid() {
             <span className="catgrid-pill">Beauty</span>
             <h2 className="catgrid-title">Beauty &amp; Personal Care</h2>
           </div>
-          <Link href="/store?main_category=Beauty+%26+Personal+Care" className="catgrid-view-all">
+          <Link href="/store?main_cat=beauty" className="catgrid-view-all">
             View all
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
@@ -485,7 +485,7 @@ function CategoryImageGrid() {
             <span className="catgrid-pill catgrid-pill-blue">Phones</span>
             <h2 className="catgrid-title">Cell Phones &amp; Accessories</h2>
           </div>
-          <Link href="/store?main_category=Cell+Phones+%26+Accessories" className="catgrid-view-all">
+          <Link href="/store?main_cat=phones" className="catgrid-view-all">
             View all
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
@@ -515,7 +515,7 @@ function CategoryImageGrid() {
           })}
           {/* Always-present "All Phones" tile */}
           {loaded && (
-            <Link href="/store?main_category=Cell+Phones+%26+Accessories" className="cattile cattile-phone">
+            <Link href="/store?main_cat=phones" className="cattile cattile-phone">
               <div className="cattile-phone-img-wrap" style={{ background: "linear-gradient(135deg,#0f3f2f18,#0f3f2f08)" }}>
                 <img src="https://m.media-amazon.com/images/I/61RyQSOaP9L._AC_SL1500_.jpg" alt="All Phones" className="cattile-img" loading="lazy" />
                 <div className="cattile-phone-accent" style={{ background: "#0f3f2f" }} />
