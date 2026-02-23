@@ -11,6 +11,13 @@ import { formatCurrency } from "@/lib/currency";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
+/** Ensure image URLs are absolute — relative paths are served from the backend. */
+function resolveImg(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 /* ================================================================
    TYPES
 ================================================================ */
@@ -44,7 +51,7 @@ function ProductCard({ product, onClick }: {
 }) {
   const [imgErr, setImgErr]   = useState(false);
   const [saved, setSaved]     = useState(false);
-  const imageUrl = product.main_image ?? product.image_url ?? null;
+  const imageUrl = resolveImg(product.main_image ?? product.image_url ?? null);
   const discount = product.compare_price && product.compare_price > product.price
     ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100) : null;
 

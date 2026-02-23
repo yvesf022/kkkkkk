@@ -9,6 +9,13 @@ import { formatCurrency } from "@/lib/currency";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
+/** Ensure image URLs are absolute — relative paths are served from the backend. */
+function resolveImg(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 interface HP {
   id: string; title: string; price: number; compare_price?: number | null;
   discount_pct?: number | null; brand?: string; category?: string;
@@ -85,9 +92,9 @@ function HeroCard({ p, size = "normal", onClick, index = 0, visible: isVisible }
       }}
     >
       <div className="hcard-inner">
-        {p.main_image && !err ? (
+        {resolveImg(p.main_image) && !err ? (
           <div className="hcard-img-box">
-            <img src={p.main_image} alt={p.title} className="hcard-img"
+            <img src={resolveImg(p.main_image)!} alt={p.title} className="hcard-img"
               onError={() => setErr(true)} loading="eager" />
           </div>
         ) : (
@@ -162,8 +169,8 @@ function SectionCard({ p, idx, accentColor, onClick }: {
   return (
     <div className="scard" onClick={onClick} style={{ animationDelay: `${idx * 50}ms` }}>
       <div className="scard-img-wrap">
-        {p.main_image && !err ? (
-          <img src={p.main_image} alt={p.title} className="scard-img"
+        {resolveImg(p.main_image) && !err ? (
+          <img src={resolveImg(p.main_image)!} alt={p.title} className="scard-img"
             onError={() => setErr(true)} loading="lazy" />
         ) : (
           <div className="scard-no-img">
@@ -582,20 +589,20 @@ export default function HomePage() {
       "television","smart tv","led tv","monitor","projector","playstation","xbox","nintendo","game console","gaming",
     ];
     function isHeroWorthy(p: HP): boolean {
-      if (!p.main_image) return false;
+      if (!resolveImg(p.main_image)) return false;
       const haystack = [p.category, p.title, (p as any).main_category].filter(Boolean).join(" ").toLowerCase();
       return !EXCLUDE_KEYWORDS.some(kw => haystack.includes(kw));
     }
     async function fetchPool() {
       try {
-        const res = await fetch(`${API}/api/products/random?count=120&with_images=true&diverse=true`);
+        const res = await fetch(`${API}/api/products/random?count=40&with_images=true&diverse=true`);
         if (!res.ok) throw new Error();
         const data = await res.json();
         const filtered = (data.products ?? []).filter(isHeroWorthy);
         setPool(filtered.length >= 5 ? filtered : (data.products ?? []).filter((p: HP) => p.main_image));
       } catch {
         try {
-          const res = await fetch(`${API}/api/products?per_page=120&in_stock=true`);
+          const res = await fetch(`${API}/api/products?per_page=40&in_stock=true`);
           const data = await res.json();
           const all = (data.results ?? []).filter((p: HP) => p.main_image);
           const filtered = all.filter(isHeroWorthy);
