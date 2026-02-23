@@ -38,10 +38,12 @@ type FilterTab = "all" | "unpriced" | "priced";
 type MainTab = "batch" | "calc";
 
 /* ═══════════════════════════════════════════════════
-   LOCAL STORAGE
+   LOCAL STORAGE — fast cache only, DB is the source of truth
+   IDs written here are synced to DB on every save/mark action.
+   On load, DB is_priced wins; localStorage is a fallback.
 ═══════════════════════════════════════════════════ */
 const STORAGE_KEY = "karabo_pricing_v1";
-function loadPricedIds(): Set<string> {
+function loadCachedIds(): Set<string> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return new Set();
@@ -49,22 +51,62 @@ function loadPricedIds(): Set<string> {
     return new Set(Array.isArray(parsed) ? parsed : []);
   } catch { return new Set(); }
 }
-function savePricedId(id: string) {
+function addToCache(id: string) {
   try {
-    const ids = loadPricedIds(); ids.add(id);
+    const ids = loadCachedIds(); ids.add(id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
   } catch {}
 }
-function removePricedId(id: string) {
+function removeFromCache(id: string) {
   try {
-    const ids = loadPricedIds(); ids.delete(id);
+    const ids = loadCachedIds(); ids.delete(id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
   } catch {}
 }
 
 /* ═══════════════════════════════════════════════════
-   HELPERS
+   SESSION PERSISTENCE
+   Saves the admin's in-progress work so they can
+   continue exactly where they left off on next visit.
+   Stores: per-product INR inputs, scroll position,
+   active tab, filter tab, sort key, rate override.
 ═══════════════════════════════════════════════════ */
+const SESSION_KEY = "karabo_pricing_session_v1";
+
+type SessionData = {
+  inputs:       Record<string, string>;   // productId → marketInr value
+  scrollTop:    number;
+  filterTab:    string;
+  sortKey:      string;
+  rateOverride: string;
+  savedAt:      number;                   // unix ms — ignore sessions > 7 days old
+};
+
+function loadSession(): SessionData | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const d: SessionData = JSON.parse(raw);
+    // Expire sessions older than 7 days
+    if (Date.now() - (d.savedAt ?? 0) > 7 * 24 * 60 * 60 * 1000) return null;
+    return d;
+  } catch { return null; }
+}
+
+function saveSession(data: Partial<SessionData>) {
+  try {
+    const prev = loadSession() ?? {} as SessionData;
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      ...prev,
+      ...data,
+      savedAt: Date.now(),
+    }));
+  } catch {}
+}
+
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch {}
+}
 const marginPct = (r: ReturnType<typeof calculatePrice>) =>
   parseFloat(((r.profit_inr * r.exchange_rate / r.final_price_lsl) * 100).toFixed(1));
 
@@ -110,8 +152,12 @@ export default function AdminPricingPage() {
 
   const [rate, setRate]               = useState(0.21);
   const [rateSrc, setRateSrc]         = useState<"live" | "fallback">("fallback");
-  const [rateOverride, setOverride]   = useState("");
   const [rateLoading, setRateLoading] = useState(true);
+
+  // ── Restore session state immediately (before first render) ──────────────
+  const _session = typeof window !== "undefined" ? loadSession() : null;
+
+  const [rateOverride, setOverride]   = useState(_session?.rateOverride ?? "");
   const effectiveRate = rateOverride ? (parseFloat(rateOverride) || rate) : rate;
 
   useEffect(() => {
@@ -126,8 +172,8 @@ export default function AdminPricingPage() {
   const [searchQ, setSearchQ]         = useState("");
   const [catFilter, setCat]           = useState("");
   const [brandFilter, setBrand]       = useState("");
-  const [sortKey, setSort]            = useState<SortKey>("unpriced_first");
-  const [filterTab, setFilterTab]     = useState<FilterTab>("all");
+  const [sortKey, setSort]            = useState<SortKey>((_session?.sortKey as SortKey) ?? "unpriced_first");
+  const [filterTab, setFilterTab]     = useState<FilterTab>((_session?.filterTab as FilterTab) ?? "all");
   const [quickFillInr, setFill]       = useState("");
   const [selectAll, setSelectAll]     = useState(false);
   const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
@@ -136,10 +182,26 @@ export default function AdminPricingPage() {
   const [qMarket, setQMarket]         = useState("");
   const [highlightUnpriced, setHL]    = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);  // flag so scroll only fires once
+
+  const scrollRef  = useRef<HTMLDivElement>(null);  // ref on the pm-body scrollable div
+  const inputRefs  = useRef<Map<string, HTMLInputElement>>(new Map());
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Persist filter/sort/rate changes to session ───────────────────────────
+  useEffect(() => { saveSession({ filterTab }); }, [filterTab]);
+  useEffect(() => { saveSession({ sortKey });   }, [sortKey]);
+  useEffect(() => { saveSession({ rateOverride }); }, [rateOverride]);
+
+  // ── Save scroll position continuously ────────────────────────────────────
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    saveSession({ scrollTop: el.scrollTop });
+  }, []);
 
   const qVal    = parseFloat(qMarket) || 0;
   const qResult = qVal > 0 ? calculatePrice({ market_price_inr: qVal, exchange_rate: effectiveRate }) : null;
-  const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   const showToast = useCallback((msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -167,27 +229,69 @@ export default function AdminPricingPage() {
   const loadProducts = useCallback(async () => {
     setBatch(true);
     try {
-      const params: Record<string, any> = { per_page: 200, page: 1 };
-      if (searchQ)     params.search_query = searchQ;
-      if (catFilter)   params.category     = catFilter;
-      if (brandFilter) params.brand        = brandFilter;
-      const res = await adminProductsApi.list(params);
-      const products = res.results ?? [];
-      setTotal(res.total ?? products.length);
-      const pricedViaToolIds = loadPricedIds();
-      setRows(products.map((p: ProductListItem) => ({
-        product: p, marketInr: "", result: null,
-        state: pricedViaToolIds.has(p.id) ? "priced" : "unpriced",
-        toolPrice: pricedViaToolIds.has(p.id) ? (p.price ?? null) : null,
-        isSelected: false,
-      })));
+      const params: Record<string, any> = {};
+      if (searchQ)     params.search   = searchQ;
+      if (catFilter)   params.category = catFilter;
+      if (brandFilter) params.brand    = brandFilter;
+
+      const qs = new URLSearchParams(params).toString();
+      const res = await fetch(`/api/products/admin/pricing/all${qs ? `?${qs}` : ""}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}` },
+      });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const data = await res.json();
+
+      const products: ProductListItem[] = data.results ?? [];
+      setTotal(data.total ?? products.length);
+
+      const cachedIds     = loadCachedIds();
+      const session       = loadSession();
+      const savedInputs   = session?.inputs ?? {};   // ← restored INR values
+
+      setRows(products.map((p: any) => {
+        const isPriced    = p.is_priced || cachedIds.has(p.id);
+        const savedInr    = savedInputs[p.id] ?? "";
+        const v           = parseFloat(savedInr);
+        const result      = (!isNaN(v) && v > 0)
+          ? calculatePrice({ market_price_inr: v, exchange_rate: effectiveRate })
+          : null;
+        // State: if DB says priced → priced; if we have a saved INR → modified; else unpriced
+        const state: PricingState = isPriced
+          ? "priced"
+          : result
+            ? "modified"
+            : "unpriced";
+        return {
+          product:    p as ProductListItem,
+          marketInr:  savedInr,
+          result,
+          state,
+          toolPrice:  isPriced ? (p.price ?? null) : null,
+          isSelected: false,
+        };
+      }));
       setSelectAll(false);
+      setSessionRestored(true);   // triggers scroll restore effect below
     } catch (e: any) {
       showToast(e?.message ?? "Failed to load products", false);
     } finally {
       setBatch(false);
     }
-  }, [searchQ, catFilter, brandFilter, showToast]);
+  }, [searchQ, catFilter, brandFilter, showToast, effectiveRate]);
+
+  // ── Restore scroll position after rows are painted ───────────────────────
+  useEffect(() => {
+    if (!sessionRestored || !scrollRef.current) return;
+    const session = loadSession();
+    if (session?.scrollTop) {
+      // Small delay so the DOM has finished rendering all cards
+      const t = setTimeout(() => {
+        scrollRef.current?.scrollTo({ top: session.scrollTop, behavior: "instant" });
+      }, 80);
+      return () => clearTimeout(t);
+    }
+    setSessionRestored(false);
+  }, [sessionRestored]);
 
   useEffect(() => {
     setRows(prev => prev.map(row => {
@@ -216,30 +320,68 @@ export default function AdminPricingPage() {
       if (row.product.id !== id) return row;
       const v = parseFloat(val);
       const result = (!isNaN(v) && v > 0) ? calculatePrice({ market_price_inr: v, exchange_rate: effectiveRate }) : null;
-      const wasToolPriced = loadPricedIds().has(id);
+      const wasToolPriced = loadCachedIds().has(id);
       const newState: PricingState = result ? "modified"
         : wasToolPriced ? "priced" : "unpriced";
       return { ...row, marketInr: val, result, state: newState };
     }));
+
+    // Debounce-save all inputs to session (100 ms after last keystroke)
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      setRows(current => {
+        const inputs: Record<string, string> = {};
+        current.forEach(r => { if (r.marketInr) inputs[r.product.id] = r.marketInr; });
+        saveSession({ inputs });
+        return current;  // no state change, just side-effect
+      });
+    }, 100);
   };
 
   const setImgErr = (id: string) =>
     setRows(prev => prev.map(r => r.product.id === id ? { ...r, imgErr: true } : r));
 
-  const markAsPriced = (id: string) => {
-    savePricedId(id);
+  const markAsPriced = async (id: string) => {
+    addToCache(id);
+    // Remove the saved INR input for this product — it's done
+    const session = loadSession();
+    if (session?.inputs?.[id]) {
+      const inputs = { ...session.inputs };
+      delete inputs[id];
+      saveSession({ inputs });
+    }
     setRows(prev => prev.map(r =>
-      r.product.id === id ? { ...r, state: "priced", toolPrice: r.product.price ?? null } : r
+      r.product.id === id ? { ...r, state: "priced", marketInr: "", result: null, toolPrice: r.product.price ?? null } : r
     ));
     showToast("Product marked as priced");
+    try {
+      await fetch(`/api/products/admin/pricing/${id}/mark`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+        },
+        body: JSON.stringify({ is_priced: true }),
+      });
+    } catch { /* cache still covers it */ }
   };
 
-  const markAsUnpriced = (id: string) => {
-    removePricedId(id);
+  const markAsUnpriced = async (id: string) => {
+    removeFromCache(id);
     setRows(prev => prev.map(r =>
       r.product.id === id ? { ...r, state: "unpriced", toolPrice: null, marketInr: "", result: null } : r
     ));
     showToast("Product reset to unpriced", false);
+    try {
+      await fetch(`/api/products/admin/pricing/${id}/mark`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+        },
+        body: JSON.stringify({ is_priced: false }),
+      });
+    } catch { /* non-critical */ }
   };
 
   const applyQuickFill = () => {
@@ -270,7 +412,22 @@ export default function AdminPricingPage() {
     setRows(prev => prev.map(r => r.product.id === id ? { ...r, state: "saving" } : r));
     try {
       await pricingApi.applyToProduct(id, row.result.final_price_lsl, row.result.compare_price_lsl);
-      savePricedId(id);
+      addToCache(id);
+      // Remove saved input for this product — it's been priced
+      const session = loadSession();
+      if (session?.inputs?.[id]) {
+        const inputs = { ...session.inputs };
+        delete inputs[id];
+        saveSession({ inputs });
+      }
+      fetch(`/api/products/admin/pricing/${id}/mark`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+        },
+        body: JSON.stringify({ is_priced: true }),
+      }).catch(() => {});
       setRows(prev => prev.map(r =>
         r.product.id === id ? { ...r, state: "saved", toolPrice: r.result?.final_price_lsl ?? r.toolPrice } : r
       ));
@@ -295,9 +452,37 @@ export default function AdminPricingPage() {
       product_id: r.product.id, price_lsl: r.result!.final_price_lsl, compare_price_lsl: r.result!.compare_price_lsl,
     }));
     const res = await pricingApi.bulkApply(items);
-    toSave.forEach(r => {
-      if (!res.errors.some((e: string) => e.startsWith(r.product.id))) savePricedId(r.product.id);
-    });
+
+    // Determine which succeeded
+    const succeededIds = toSave
+      .filter(r => !res.errors.some((e: string) => e.startsWith(r.product.id)))
+      .map(r => r.product.id);
+
+    // Update local cache
+    succeededIds.forEach(id => addToCache(id));
+
+    // Clear saved inputs for successfully priced products
+    if (succeededIds.length > 0) {
+      const session = loadSession();
+      if (session?.inputs) {
+        const inputs = { ...session.inputs };
+        succeededIds.forEach(id => delete inputs[id]);
+        saveSession({ inputs });
+      }
+    }
+
+    // Bulk-mark in DB (fire and forget — cache covers it)
+    if (succeededIds.length > 0) {
+      fetch("/api/products/admin/pricing/bulk-mark", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+        },
+        body: JSON.stringify({ product_ids: succeededIds, is_priced: true }),
+      }).catch(() => {/* non-critical */});
+    }
+
     setRows(prev => prev.map(r => {
       const wasSaving = toSave.some(t => t.product.id === r.product.id);
       if (!wasSaving) return r;
@@ -839,7 +1024,7 @@ export default function AdminPricingPage() {
         </div>
 
         {/* ─── SCROLLABLE BODY ─── */}
-        <div className="pm-body">
+        <div ref={scrollRef} onScroll={handleScroll} className="pm-body">
 
           {/* ── FILTER PANEL (collapsible) ── */}
           {mainTab === "batch" && showFilters && (
@@ -958,9 +1143,34 @@ export default function AdminPricingPage() {
                       <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
                     </svg>
                   </div>
+
+                  {/* ── Resume banner — shown when a previous session exists ── */}
+                  {(() => {
+                    const session = loadSession();
+                    const inputCount = Object.keys(session?.inputs ?? {}).length;
+                    if (!session || inputCount === 0) return null;
+                    const ago = Math.round((Date.now() - session.savedAt) / 60000);
+                    const agoStr = ago < 60 ? `${ago}m ago` : ago < 1440 ? `${Math.round(ago/60)}h ago` : `${Math.round(ago/1440)}d ago`;
+                    return (
+                      <div style={{ background: "linear-gradient(135deg,rgba(200,167,90,0.1),rgba(15,63,47,0.06))", border: "1.5px solid rgba(200,167,90,0.35)", borderRadius: 12, padding: "14px 16px", marginBottom: 20, textAlign: "left" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 18 }}>⏱</span>
+                          <span style={{ fontWeight: 800, fontSize: 14, color: "#111" }}>Resume previous session</span>
+                          <span style={{ marginLeft: "auto", fontSize: 11, color: "#9ca3af" }}>{agoStr}</span>
+                        </div>
+                        <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 12px" }}>
+                          You had <strong>{inputCount} price{inputCount !== 1 ? "s" : ""} in progress</strong>. Load products to pick up where you left off.
+                        </p>
+                        <button onClick={() => { clearSession(); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#9ca3af", textDecoration: "underline", padding: 0, fontFamily: "inherit" }}>
+                          Start fresh instead
+                        </button>
+                      </div>
+                    );
+                  })()}
+
                   <div style={{ fontSize: 18, fontWeight: 900, color: "#111", marginBottom: 8 }}>Ready to price your catalog</div>
                   <p style={{ fontSize: 13, color: "#9ca3af", maxWidth: 360, margin: "0 auto 20px" }}>
-                    All products load as <strong>Unpriced</strong>. Use this tool to calculate and save prices.
+                    All products load as <strong>Unpriced</strong>. Priced products and your in-progress inputs are remembered automatically.
                   </p>
                   <button onClick={() => loadProducts()} className="pm-btn pm-btn-primary" style={{ padding: "13px 32px", fontSize: 14 }}>⚡ Load Products</button>
                 </div>
@@ -1254,8 +1464,8 @@ export default function AdminPricingPage() {
               {/* Footer */}
               {displayRows.length > 0 && (
                 <div style={{ padding: "8px 4px", fontSize: 11, color: "#9ca3af", display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <span>📦 {rows.length} loaded</span>
-                  {totalCount > rows.length && <span>· {totalCount} total</span>}
+                  <span>📦 {rows.length} loaded (all products)</span>
+                  {totalCount > rows.length && <span>· {totalCount} in DB</span>}
                   <span>✏️ {stats.withResult} calculated</span>
                   <span style={{ color: "#d97706", fontWeight: 700 }}>⚠ {stats.unpriced} unpriced</span>
                   <span style={{ color: "#0f3f2f", fontWeight: 700 }}>✓ {stats.priced} priced</span>

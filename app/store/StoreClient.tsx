@@ -204,10 +204,12 @@ export default function StoreClient() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  const initQ    = searchParams.get("q") ?? searchParams.get("search") ?? "";
+  const initQ       = searchParams.get("q") ?? searchParams.get("search") ?? "";
   const initMainCat = searchParams.get("main_cat") ?? "";
-  const initCat  = searchParams.get("category") ?? "";
-  const initSort = (searchParams.get("sort") as SortOption) ?? "newest";
+  const initCat     = searchParams.get("category") ?? "";
+  const initSort    = (searchParams.get("sort") as SortOption) ?? "newest";
+  // ?q= from section view_all links is a search term, not a category slug.
+  // ?category= from tile/sidebar clicks is a slug → goes to selectedCategory.
 
   const [products, setProducts]         = useState<ProductListItem[]>([]);
   const [total, setTotal]               = useState(0);
@@ -352,15 +354,26 @@ export default function StoreClient() {
 
   function selectQuick(q: string) {
     setActiveQuick(q);
+    // Special sort-only tokens
     if (q === "discount" || q === "newest" || q === "popular") {
       setSort(q === "discount" ? "discount" : q === "newest" ? "newest" : "popular");
-      setSearchQuery("");
-      setSearchInput("");
-    } else {
-      setSearchQuery(q);
-      setSearchInput(q);
-      setSelectedCategory("");
+      setSearchQuery(""); setSearchInput("");
+      setSelectedCategory(""); setSelectedMainCat("");
+      setPage(1);
+      return;
     }
+    // Empty = All
+    if (!q) {
+      setSearchQuery(""); setSearchInput("");
+      setSelectedCategory(""); setSelectedMainCat("");
+      setPage(1);
+      return;
+    }
+    // Category slug — route to selectedCategory so backend uses WHERE category = slug
+    // NOT searchQuery (which triggers full-text search and finds nothing for slugs)
+    setSelectedCategory(q);
+    setSearchQuery(""); setSearchInput("");
+    setSelectedMainCat("");
     setPage(1);
   }
 
