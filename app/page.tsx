@@ -103,8 +103,8 @@ function HeroCard({ p, size = "normal", onClick, index = 0, visible: isVisible }
       <div className="hcard-inner">
         {resolveImg(p.main_image) && !err ? (
           <div className="hcard-img-box">
-            <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} className="hcard-img"
-              onError={() => setErr(true)} loading="eager" />
+          <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} className="hcard-img"
+              onError={() => setErr(true)} loading="eager" fetchPriority={size === "large" ? "high" : "auto"} />
           </div>
         ) : (
           <div className="hcard-empty">
@@ -1304,11 +1304,13 @@ export default function HomePage() {
                   onClick={() => router.push(`/store/product/${p.id}`)} />
               ))}
             </>
-          ) : pool.length > 0 && pool.length < 5 ? (
-            pool.map((p, i) => (
-              <HeroCard key={p.id} p={p} size={i === 0 ? "large" : "normal"} index={i} visible={cardsVisible}
-                onClick={() => router.push(`/store/product/${p.id}`)} />
-            ))
+          ) : !heroLoad && pool.length === 0 ? (
+            // ✅ BUG FIX: was showing HeroSkeleton forever when pool had 0 items
+            // Now shows a graceful empty state instead of an infinite loader
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+              gridColumn: "1 / -1", color: "rgba(255,255,255,0.2)", fontSize: 13 }}>
+              Add products to get started
+            </div>
           ) : (
             <HeroSkeleton />
           )}
