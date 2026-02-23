@@ -743,7 +743,7 @@ export default function HomePage() {
         /* ── BRAND PANEL ── */
         .hero-brand{
           position:relative;z-index:2;
-          padding:32px 28px 28px;
+          padding:22px 28px 20px;
           display:flex;flex-direction:column;
           justify-content:space-between;
           gap:24px;
@@ -762,7 +762,7 @@ export default function HomePage() {
         }
         .hero-monogram{
           font-family:'Cormorant Garamond',serif;
-          font-size:clamp(56px,7vw,72px);
+          font-size:clamp(44px,5.5vw,58px);
           font-weight:600;
           color:transparent;
           -webkit-text-stroke:1.5px rgba(200,167,90,0.5);
@@ -874,8 +874,7 @@ export default function HomePage() {
           position:relative;z-index:1;
           display:grid;
           grid-template-columns:1.6fr 1fr 1fr;
-          grid-template-rows:1fr 1fr;
-          min-height:460px;
+          grid-template-rows:210px 185px;
           gap:2px;
           background:#000;
           overflow:hidden;
@@ -972,7 +971,7 @@ export default function HomePage() {
           .hero-stats{display:none;}
           .hero-mosaic{
             grid-template-columns:1fr 1fr;
-            grid-template-rows:220px 170px;
+            grid-template-rows:200px 155px;
             height:auto;
           }
           .hcard-large{grid-column:span 2;grid-row:1;}
@@ -984,7 +983,7 @@ export default function HomePage() {
           .hero-brand{padding:20px 16px 16px;}
           .hero-mosaic{
             grid-template-columns:1fr 1fr;
-            grid-template-rows:190px 150px 150px;
+            grid-template-rows:175px 135px 135px;
           }
           .hero-ctas .hero-btn-ghost{display:none;}
           .hero-stats{display:none;}
