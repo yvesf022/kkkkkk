@@ -16,7 +16,7 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
-import { adminProductsApi, calculatePrice, exchangeApi, pricingApi } from "@/lib/api";
+import { adminTokenStorage, calculatePrice, exchangeApi, pricingApi } from "@/lib/api";
 
 // ⚠️  CRITICAL: All pricing endpoints go directly to FastAPI (not Next.js /api/ proxy).
 // Using a relative /api/... URL routes to Next.js API routes which don't exist for these
@@ -181,13 +181,17 @@ export default function AdminPricingPage() {
   const [filterTab, setFilterTab]     = useState<FilterTab>((_session?.filterTab as FilterTab) ?? "all");
   const [quickFillInr, setFill]       = useState("");
   const [selectAll, setSelectAll]     = useState(false);
-  const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
+  const [toast, setToast]             = useState<{ msg: string; ok: boolean; undo?: () => void } | null>(null);
   const [totalCount, setTotal]        = useState(0);
   const [mainTab, setMainTab]         = useState<MainTab>("batch");
   const [qMarket, setQMarket]         = useState("");
   const [highlightUnpriced, setHL]    = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);  // flag so scroll only fires once
+  const [copiedId, setCopiedId]       = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set()); // collapsed priced cards
+  const [loadedAt, setLoadedAt]       = useState<number | null>(null);    // stale data banner
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollRef  = useRef<HTMLDivElement>(null);  // ref on the pm-body scrollable div
   const inputRefs  = useRef<Map<string, HTMLInputElement>>(new Map());
@@ -197,6 +201,32 @@ export default function AdminPricingPage() {
   useEffect(() => { saveSession({ filterTab }); }, [filterTab]);
   useEffect(() => { saveSession({ sortKey });   }, [sortKey]);
   useEffect(() => { saveSession({ rateOverride }); }, [rateOverride]);
+
+  // ── Debounced live search (400ms) ─────────────────────────────────────────
+  useEffect(() => {
+    if (!searchQ && rows.length === 0) return;  // don't auto-fire on mount
+    const t = setTimeout(() => { if (rows.length > 0 || searchQ) loadProducts(); }, 400);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQ]);
+
+  // ── Global Ctrl+S / Cmd+S — save focused product ─────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== "s") return;
+      e.preventDefault();
+      // Find the product whose input is currently focused
+      for (const [id, el] of inputRefs.current.entries()) {
+        if (document.activeElement === el) {
+          saveRow(id);
+          break;
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   // ── Save scroll position continuously ────────────────────────────────────
   const handleScroll = useCallback(() => {
@@ -208,9 +238,10 @@ export default function AdminPricingPage() {
   const qVal    = parseFloat(qMarket) || 0;
   const qResult = qVal > 0 ? calculatePrice({ market_price_inr: qVal, exchange_rate: effectiveRate }) : null;
 
-  const showToast = useCallback((msg: string, ok = true) => {
-    setToast({ msg, ok });
-    setTimeout(() => setToast(null), 4500);
+  const showToast = useCallback((msg: string, ok = true, undo?: () => void) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ msg, ok, undo });
+    toastTimerRef.current = setTimeout(() => setToast(null), undo ? 4800 : 3500);
   }, []);
 
   const categories = useMemo(() =>
@@ -228,7 +259,12 @@ export default function AdminPricingPage() {
     const readyToSave   = rows.filter(r => r.result && r.state !== "saved" && r.state !== "saving" && r.state !== "priced").length;
     const pctDone       = total > 0 ? Math.round((priced / total) * 100) : 0;
     const selectedReady = rows.filter(r => r.isSelected && r.result && r.state !== "saved" && r.state !== "priced").length;
-    return { total, unpriced, priced, modified, errors, withResult, readyToSave, pctDone, selectedReady };
+    // Margin health for distribution bar
+    const withMargin    = rows.filter(r => r.result);
+    const marginLow     = withMargin.filter(r => marginPct(r.result!) < 8).length;
+    const marginMid     = withMargin.filter(r => { const m = marginPct(r.result!); return m >= 8 && m < 15; }).length;
+    const marginGood    = withMargin.filter(r => marginPct(r.result!) >= 15).length;
+    return { total, unpriced, priced, modified, errors, withResult, readyToSave, pctDone, selectedReady, marginLow, marginMid, marginGood, withMargin: withMargin.length };
   }, [rows]);
 
   const loadProducts = useCallback(async () => {
@@ -241,7 +277,7 @@ export default function AdminPricingPage() {
 
       const qs = new URLSearchParams(params).toString();
       const res = await fetch(`${BACKEND}/api/products/admin/pricing/all${qs ? `?${qs}` : ""}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}` },
+        headers: { Authorization: `Bearer ${adminTokenStorage.get() ?? ""}` },
       });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
@@ -275,6 +311,16 @@ export default function AdminPricingPage() {
           isSelected: false,
         };
       }));
+      // Auto-expand all non-priced cards; collapse already-priced ones
+      setExpandedIds(prev => {
+        const next = new Set(prev);
+        products.forEach((p: any) => {
+          const isPriced = p.is_priced || cachedIds.has(p.id);
+          if (!isPriced) next.add(p.id);
+        });
+        return next;
+      });
+      setLoadedAt(Date.now());
       setSelectAll(false);
       setSessionRestored(true);   // triggers scroll restore effect below
     } catch (e: any) {
@@ -346,9 +392,73 @@ export default function AdminPricingPage() {
   const setImgErr = (id: string) =>
     setRows(prev => prev.map(r => r.product.id === id ? { ...r, imgErr: true } : r));
 
+  // ── Auto-save on blur (1.2s delay) ───────────────────────────────────────
+  const autoSaveTimerRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const handleInputBlur = useCallback((id: string) => {
+    const existing = autoSaveTimerRef.current.get(id);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      setRows(current => {
+        const row = current.find(r => r.product.id === id);
+        if (row?.result && row.state === "modified") {
+          saveRow(id);
+        }
+        return current;
+      });
+    }, 1200);
+    autoSaveTimerRef.current.set(id, t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+
+  // ── Export CSV ───────────────────────────────────────────────────────────
+  const exportCsv = () => {
+    const headers = ["Title","Brand","Category","Market INR","Final M","Compare M","Margin %","Status"];
+    const csvRows = [headers.join(",")];
+    rows.forEach(r => {
+      const mPctVal = r.result ? marginPct(r.result) : "";
+      const row = [
+        `"${r.product.title.replace(/"/g, '""')}"`,
+        `"${r.product.brand ?? ""}"`,
+        `"${r.product.category ?? ""}"`,
+        r.marketInr || "",
+        r.result ? fmt(r.result.final_price_lsl) : "",
+        r.result ? fmt(r.result.compare_price_lsl) : "",
+        mPctVal,
+        r.state,
+      ];
+      csvRows.push(row.join(","));
+    });
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url;
+    a.download = `pricing-export-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${rows.length} products to CSV`);
+  };
+
+  const copyTitle = (id: string, title: string) => {
+    navigator.clipboard.writeText(title).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(prev => prev === id ? null : prev), 1800);
+    }).catch(() => {
+      // Fallback for older browsers
+      const ta = document.createElement("textarea");
+      ta.value = title;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(prev => prev === id ? null : prev), 1800);
+    });
+  };
+
   const markAsPriced = async (id: string) => {
     addToCache(id);
-    // Remove the saved INR input for this product — it's done
     const session = loadSession();
     if (session?.inputs?.[id]) {
       const inputs = { ...session.inputs };
@@ -358,13 +468,15 @@ export default function AdminPricingPage() {
     setRows(prev => prev.map(r =>
       r.product.id === id ? { ...r, state: "priced", marketInr: "", result: null, toolPrice: r.product.price ?? null } : r
     ));
-    showToast("Product marked as priced");
+    // Collapse the card when marked priced
+    setExpandedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    showToast("Marked as priced", true, () => markAsUnpriced(id));
     try {
       await fetch(`${BACKEND}/api/products/admin/pricing/${id}/mark`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+          Authorization: `Bearer ${adminTokenStorage.get() ?? ""}`,
         },
         body: JSON.stringify({ is_priced: true }),
       });
@@ -376,13 +488,14 @@ export default function AdminPricingPage() {
     setRows(prev => prev.map(r =>
       r.product.id === id ? { ...r, state: "unpriced", toolPrice: null, marketInr: "", result: null } : r
     ));
-    showToast("Product reset to unpriced", false);
+    setExpandedIds(prev => { const s = new Set(prev); s.add(id); return s; });
+    showToast("Reset to unpriced", false);
     try {
       await fetch(`${BACKEND}/api/products/admin/pricing/${id}/mark`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+          Authorization: `Bearer ${adminTokenStorage.get() ?? ""}`,
         },
         body: JSON.stringify({ is_priced: false }),
       });
@@ -393,13 +506,18 @@ export default function AdminPricingPage() {
     const v = parseFloat(quickFillInr);
     if (isNaN(v) || v <= 0) return;
     const result = calculatePrice({ market_price_inr: v, exchange_rate: effectiveRate });
+    // Only apply to unpriced rows that are visible in the current filter/category view
+    const visibleUnpricedIds = new Set(
+      displayRows.filter(r => r.state === "unpriced").map(r => r.product.id)
+    );
     let count = 0;
     setRows(prev => prev.map(row => {
-      if (row.state !== "unpriced") return row;
+      if (!visibleUnpricedIds.has(row.product.id)) return row;
       count++;
       return { ...row, marketInr: String(v), result, state: "modified" };
     }));
-    showToast(`Applied ₹${v.toLocaleString()} to ${count} unpriced products`);
+    const scope = (catFilter || brandFilter) ? " (filtered)" : "";
+    showToast(`Applied ₹${v.toLocaleString()} to ${count} unpriced products${scope}`);
     setFill("");
   };
 
@@ -418,7 +536,6 @@ export default function AdminPricingPage() {
     try {
       await pricingApi.applyToProduct(id, row.result.final_price_lsl, row.result.compare_price_lsl);
       addToCache(id);
-      // Remove saved input for this product — it's been priced
       const session = loadSession();
       if (session?.inputs?.[id]) {
         const inputs = { ...session.inputs };
@@ -429,13 +546,16 @@ export default function AdminPricingPage() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+          Authorization: `Bearer ${adminTokenStorage.get() ?? ""}`,
         },
         body: JSON.stringify({ is_priced: true }),
       }).catch(() => {});
       setRows(prev => prev.map(r =>
         r.product.id === id ? { ...r, state: "saved", toolPrice: r.result?.final_price_lsl ?? r.toolPrice } : r
       ));
+      // Collapse card after save
+      setExpandedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+      showToast(`Price saved — M ${fmt(row.result.final_price_lsl)}`, true, () => markAsUnpriced(id));
     } catch (e: any) {
       setRows(prev => prev.map(r =>
         r.product.id === id ? { ...r, state: "error", errorMsg: e?.message } : r
@@ -482,7 +602,7 @@ export default function AdminPricingPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("admin_token") ?? ""}`,
+          Authorization: `Bearer ${adminTokenStorage.get() ?? ""}`,
         },
         body: JSON.stringify({ product_ids: succeededIds, is_priced: true }),
       }).catch(() => {/* non-critical */});
@@ -693,14 +813,38 @@ export default function AdminPricingPage() {
         }
         .pc-thumb img { width: 100%; height: 100%; object-fit: cover; }
         .pc-info { flex: 1; min-width: 0; }
+        .pc-title-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 6px;
+          margin-bottom: 4px;
+        }
         .pc-title {
           font-size: 13px; font-weight: 700; color: #111; line-height: 1.35;
           /* No line-clamp: full title must be visible and copy-paste friendly */
-          margin-bottom: 4px;
           word-break: break-word;
           user-select: text;
           -webkit-user-select: text;
+          flex: 1;
         }
+        .pc-copy-btn {
+          flex-shrink: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          border-radius: 5px;
+          border: 1.5px solid #e5e7eb;
+          background: white;
+          color: #9ca3af;
+          cursor: pointer;
+          transition: all 0.15s;
+          padding: 0;
+          margin-top: 1px;
+        }
+        .pc-copy-btn:hover { border-color: #0f3f2f; color: #0f3f2f; background: rgba(15,63,47,0.05); }
+        .pc-copy-btn-done { border-color: #16a34a !important; color: #16a34a !important; background: rgba(22,163,74,0.08) !important; }
         .pc-meta { font-size: 11px; color: #9ca3af; margin-bottom: 5px; }
         .pc-badge-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .pc-dbprice {
@@ -947,14 +1091,22 @@ export default function AdminPricingPage() {
           <div style={{
             position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 99999,
             background: toast.ok ? "#0f3f2f" : "#dc2626", color: "white",
-            padding: "11px 20px", borderRadius: 10, fontWeight: 700, fontSize: 13,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 8,
-            animation: "toastSlide 0.3s ease", whiteSpace: "nowrap",
+            padding: "11px 16px", borderRadius: 10, fontWeight: 700, fontSize: 13,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 10,
+            animation: "toastSlide 0.3s ease", whiteSpace: "nowrap", maxWidth: "90vw",
           }}>
-            <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", fontSize: 11 }}>
+            <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", fontSize: 11, flexShrink: 0 }}>
               {toast.ok ? "✓" : "✗"}
             </span>
-            {toast.msg}
+            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>{toast.msg}</span>
+            {toast.undo && (
+              <button
+                onClick={() => { toast.undo!(); setToast(null); }}
+                style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0, fontFamily: "inherit" }}>
+                Undo
+              </button>
+            )}
+            <button onClick={() => setToast(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", padding: "0 2px", fontSize: 16, lineHeight: 1, flexShrink: 0 }}>✕</button>
           </div>
         )}
 
@@ -973,6 +1125,23 @@ export default function AdminPricingPage() {
             <span style={{ fontWeight: 900, fontSize: 16, color: "#111", letterSpacing: -0.3, flex: 1, minWidth: 0 }}>
               Pricing Manager
             </span>
+
+            {/* Progress ring — shown once products are loaded */}
+            {rows.length > 0 && (() => {
+              const r = 10, circ = 2 * Math.PI * r;
+              const dash = (stats.pctDone / 100) * circ;
+              return (
+                <div title={`${stats.pctDone}% priced`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, flexShrink: 0 }}>
+                  <svg width="30" height="30" viewBox="0 0 26 26">
+                    <circle cx="13" cy="13" r={r} fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                    <circle cx="13" cy="13" r={r} fill="none" stroke={stats.pctDone === 100 ? "#16a34a" : "#0f3f2f"} strokeWidth="3"
+                      strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+                      transform="rotate(-90 13 13)" style={{ transition: "stroke-dasharray 0.6s ease" }} />
+                    <text x="13" y="17" textAnchor="middle" fontSize="7" fontWeight="800" fill={stats.pctDone === 100 ? "#16a34a" : "#0f3f2f"}>{stats.pctDone}%</text>
+                  </svg>
+                </div>
+              );
+            })()}
 
             {/* Tabs */}
             {([
@@ -1019,6 +1188,13 @@ export default function AdminPricingPage() {
                     ? <><span className="pm-spin" style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /></>
                     : rows.length > 0 ? "🔄 Reload" : "⚡ Load"}
                 </button>
+
+                {rows.length > 0 && (
+                  <button onClick={exportCsv} className="pm-btn pm-btn-ghost pm-btn-sm" style={{ flexShrink: 0 }} title="Export all rows to CSV">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    CSV
+                  </button>
+                )}
 
                 <button onClick={() => setShowFilters(!showFilters)}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, border: `1.5px solid ${showFilters ? "#0f3f2f" : "#e5e7eb"}`, background: showFilters ? "rgba(15,63,47,0.06)" : "white", color: showFilters ? "#0f3f2f" : "#6b7280", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, minHeight: 38 }}>
@@ -1143,6 +1319,16 @@ export default function AdminPricingPage() {
           {/* ── BATCH TAB ── */}
           {mainTab === "batch" && (
             <>
+              {/* Stale data banner */}
+              {loadedAt && rows.length > 0 && (Date.now() - loadedAt) > 30 * 60 * 1000 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, marginBottom: 10, fontSize: 12, fontWeight: 600, color: "#92400e" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                  <span style={{ flex: 1 }}>
+                    Loaded {Math.round((Date.now() - loadedAt) / 60000)} min ago — prices may have changed
+                  </span>
+                  <button onClick={() => loadProducts()} className="pm-btn pm-btn-ghost pm-btn-sm" style={{ minHeight: 28, padding: "4px 10px" }}>Reload</button>
+                </div>
+              )}
               {/* Empty state */}
               {rows.length === 0 && !batchLoading && (
                 <div className="pm-empty">
@@ -1227,6 +1413,31 @@ export default function AdminPricingPage() {
                     )}
                   </div>
 
+                  {/* Margin distribution bar */}
+                  {stats.withMargin > 0 && (
+                    <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.6px" }}>Margin Health — {stats.withMargin} calculated</span>
+                      </div>
+                      <div style={{ display: "flex", height: 8, borderRadius: 6, overflow: "hidden", gap: 2 }}>
+                        {stats.marginLow  > 0 && <div title={`${stats.marginLow} low (<8%)`}  style={{ flex: stats.marginLow,  background: "#dc2626", borderRadius: 4, transition: "flex 0.5s" }} />}
+                        {stats.marginMid  > 0 && <div title={`${stats.marginMid} ok (8-15%)`} style={{ flex: stats.marginMid,  background: "#d97706", borderRadius: 4, transition: "flex 0.5s" }} />}
+                        {stats.marginGood > 0 && <div title={`${stats.marginGood} healthy (>15%)`} style={{ flex: stats.marginGood, background: "#16a34a", borderRadius: 4, transition: "flex 0.5s" }} />}
+                      </div>
+                      <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
+                        {[
+                          { label: "Low <8%",      val: stats.marginLow,  color: "#dc2626" },
+                          { label: "OK 8–15%",     val: stats.marginMid,  color: "#d97706" },
+                          { label: "Healthy >15%", val: stats.marginGood, color: "#16a34a" },
+                        ].filter(x => x.val > 0).map(x => (
+                          <span key={x.label} style={{ fontSize: 11, fontWeight: 700, color: x.color, display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: x.color, flexShrink: 0 }} />
+                            {x.val} {x.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {/* Progress */}
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "#6b7280", marginBottom: 5 }}>
@@ -1317,30 +1528,62 @@ export default function AdminPricingPage() {
 
                 const mColor = marginColor(row.result);
                 const mPct   = row.result ? marginPct(row.result) : 0;
+                const isExpanded = expandedIds.has(row.product.id);
+                const toggleExpand = () => setExpandedIds(prev => {
+                  const s = new Set(prev);
+                  s.has(row.product.id) ? s.delete(row.product.id) : s.add(row.product.id);
+                  return s;
+                });
+
+                // Initials fallback
+                const initials = ((row.product.brand || row.product.title || "?")
+                  .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase());
+                const initialsColor = ["#0f3f2f","#2563eb","#7c3aed","#b45309","#0891b2","#be185d"][
+                  Math.abs(row.product.title.charCodeAt(0) % 6)
+                ];
 
                 return (
                   <div key={row.product.id} className="pc" style={{ background: cardBg, animationDelay: `${Math.min(i, 15) * 25}ms` }}>
                     {/* State bar */}
                     <div className="pc-state-bar" style={{ background: barColor }} />
 
-                    {/* Product header */}
-                    <div className="pc-header">
-                      <input type="checkbox" checked={row.isSelected} onChange={() => toggleRow(row.product.id)}
+                    {/* Product header — always visible */}
+                    <div className="pc-header" style={{ cursor: "pointer" }} onClick={toggleExpand}>
+                      <input type="checkbox" checked={row.isSelected}
+                        onClick={e => e.stopPropagation()}
+                        onChange={() => toggleRow(row.product.id)}
                         className="pc-sel-check" />
 
                       <div className="pc-thumb">
                         {(row.product as any).main_image && !row.imgErr ? (
                           <img src={(row.product as any).main_image} alt={row.product.title}
+                            loading="lazy" decoding="async"
                             onError={() => setImgErr(row.product.id)} />
                         ) : (
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
-                            <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
-                          </svg>
+                          <div style={{
+                            width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+                            background: `${initialsColor}18`, color: initialsColor,
+                            fontWeight: 900, fontSize: 15, borderRadius: 8, userSelect: "none",
+                          }}>
+                            {initials}
+                          </div>
                         )}
                       </div>
 
-                      <div className="pc-info">
-                        <div className="pc-title">{row.product.title}</div>
+                      <div className="pc-info" style={{ minWidth: 0 }}>
+                        <div className="pc-title-row">
+                          <div className="pc-title">{row.product.title}</div>
+                          <button
+                            className={`pc-copy-btn${copiedId === row.product.id ? " pc-copy-btn-done" : ""}`}
+                            onClick={e => { e.stopPropagation(); copyTitle(row.product.id, row.product.title); }}
+                            title="Copy product name">
+                            {copiedId === row.product.id ? (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                            )}
+                          </button>
+                        </div>
                         <div className="pc-meta">
                           {[row.product.brand, row.product.category].filter(Boolean).join(" · ") || "No category"}
                           {row.product.sku && <span style={{ marginLeft: 4, fontFamily: "monospace", fontSize: 10, color: "#d1d5db" }}>· {row.product.sku}</span>}
@@ -1355,11 +1598,27 @@ export default function AdminPricingPage() {
                           )}
                         </div>
                       </div>
+
+                      {/* Collapse chevron */}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5"
+                        style={{ flexShrink: 0, transition: "transform 0.2s", transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)" }}>
+                        <path d="M6 9l6 6 6-6"/>
+                      </svg>
                     </div>
 
+                    {/* Collapsible body */}
+                    {isExpanded && (
+                      <>
                     {/* INR input */}
                     <div className="pc-input-section">
-                      <div className="pc-input-label">Market Price (₹)</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+                        <div className="pc-input-label" style={{ marginBottom: 0 }}>Market Price (₹)</div>
+                        {row.result && (
+                          <span style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600 }}>
+                            Ctrl+S to save
+                          </span>
+                        )}
+                      </div>
                       <div className="pc-inr-wrap">
                         <span className="pc-rupee">₹</span>
                         <input
@@ -1368,6 +1627,7 @@ export default function AdminPricingPage() {
                           value={row.marketInr}
                           onChange={e => updateRow(row.product.id, e.target.value)}
                           onKeyDown={e => handleKeyDown(e, row.product.id)}
+                          onBlur={() => handleInputBlur(row.product.id)}
                           placeholder="e.g. 2499"
                           disabled={isSav}
                           className={`pc-inr ${row.marketInr !== "" ? "pc-inr-active" : ""}`}
@@ -1465,6 +1725,8 @@ export default function AdminPricingPage() {
                         </button>
                       )}
                     </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
