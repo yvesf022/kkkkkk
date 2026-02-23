@@ -720,10 +720,10 @@ export default function HomePage() {
         .hero-section{
           display:grid;
           grid-template-columns:340px 1fr;
+          align-items:stretch;
           background:linear-gradient(155deg,#040d07 0%,#0b2a1f 35%,#071c12 100%);
           position:relative;
           overflow:hidden;
-          min-height:460px;
         }
         /* Subtle texture overlay */
         .hero-section::before{
@@ -874,7 +874,8 @@ export default function HomePage() {
           position:relative;z-index:1;
           display:grid;
           grid-template-columns:1.6fr 1fr 1fr;
-          grid-template-rows:240px 220px;
+          grid-template-rows:1fr 1fr;
+          min-height:460px;
           gap:2px;
           background:#000;
           overflow:hidden;
