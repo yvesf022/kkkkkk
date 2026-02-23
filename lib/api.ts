@@ -280,8 +280,22 @@ export const searchApi = {
 /* ===================================================== CATEGORIES & BRANDS ===================================================== */
 
 export const categoriesApi = {
-  list: () => request("/api/categories"),
+  list: async (): Promise<Array<{ id: string; name: string; slug: string; product_count: number }>> => {
+    const data: any = await request("/api/categories");
+    const raw: any[] = Array.isArray(data) ? data : data?.results ?? data?.categories ?? [];
+    return raw.map((c: any) => ({
+      id:            String(c.id ?? c.slug ?? c.name ?? ""),
+      name:          String(c.name ?? c.label ?? ""),
+      slug:          String(c.slug ?? c.key ?? (c.name ?? "").toLowerCase().replace(/\s+/g, "_")),
+      product_count: Number(c.product_count ?? c.count ?? 0),
+    }));
+  },
+
   get: (categoryId: string) => request(`/api/categories/${categoryId}`),
+
+  /** Full department tree with subcategories + real product images from DB.
+   *  GET /api/categories/departments — used by CategoryImageGrid on homepage. */
+  departments: () => request("/api/categories/departments"),
 };
 
 export const brandsApi = { list: () => request("/api/brands") };

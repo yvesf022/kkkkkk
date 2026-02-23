@@ -2,16 +2,16 @@
 
 /**
  * FILE: app/admin/pricing/page.tsx
- * 🔥 BEAST MODE — Karabo Pricing Manager
+ * 🔥 MOBILE-FIRST REBUILD — Karabo Pricing Manager
  *
- * RULES:
- *  ✦ A product is only "Priced" if the admin has priced it through THIS tool,
- *    OR if the admin manually marks it as priced.
- *  ✦ Products with existing DB prices are still treated as "Unpriced" in this
- *    tool until the admin takes action here — the tool never assumes.
+ * LAYOUT: Card-based list replaces the wide table.
+ *         Works on Android phones without horizontal scrolling.
+ *         All business logic is identical to the previous version.
+ *
+ * RULES (unchanged):
+ *  ✦ A product is "Priced" only if priced through THIS tool OR manually marked.
+ *  ✦ Products with existing DB prices are still "Unpriced" until admin acts here.
  *  ✦ Priced state is stored in localStorage per session (key: karabo_pricing_v1)
- *    so refreshing doesn't lose track of what was priced this session.
- *  ✦ Admin can manually mark any product as "Priced" without re-entering a price.
  */
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
@@ -22,41 +22,25 @@ import type { ProductListItem } from "@/lib/types";
 /* ═══════════════════════════════════════════════════
    TYPES
 ═══════════════════════════════════════════════════ */
-
-/**
- * PricingState rules:
- * - "unpriced"  → product has NOT been priced through this tool (default for ALL products)
- * - "priced"    → priced via this tool OR manually marked by admin
- * - "modified"  → has a calculated result not yet saved
- * - "saving"    → API call in progress
- * - "saved"     → successfully saved this session (transitions to "priced")
- * - "error"     → save failed
- */
 type PricingState = "unpriced" | "priced" | "modified" | "saving" | "saved" | "error";
-
 type BatchRow = {
   product: ProductListItem;
   marketInr: string;
   result: ReturnType<typeof calculatePrice> | null;
   state: PricingState;
-  /** The price that was set through THIS tool (null if never priced here) */
   toolPrice: number | null;
   isSelected: boolean;
   errorMsg?: string;
   imgErr?: boolean;
 };
-
 type SortKey = "default" | "name" | "price_asc" | "price_desc" | "unpriced_first";
 type FilterTab = "all" | "unpriced" | "priced";
 type MainTab = "batch" | "calc";
 
 /* ═══════════════════════════════════════════════════
-   LOCAL STORAGE — track which products were priced
-   through this tool (persists across page refreshes)
+   LOCAL STORAGE
 ═══════════════════════════════════════════════════ */
-
 const STORAGE_KEY = "karabo_pricing_v1";
-
 function loadPricedIds(): Set<string> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -65,19 +49,15 @@ function loadPricedIds(): Set<string> {
     return new Set(Array.isArray(parsed) ? parsed : []);
   } catch { return new Set(); }
 }
-
 function savePricedId(id: string) {
   try {
-    const ids = loadPricedIds();
-    ids.add(id);
+    const ids = loadPricedIds(); ids.add(id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
   } catch {}
 }
-
 function removePricedId(id: string) {
   try {
-    const ids = loadPricedIds();
-    ids.delete(id);
+    const ids = loadPricedIds(); ids.delete(id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
   } catch {}
 }
@@ -85,39 +65,37 @@ function removePricedId(id: string) {
 /* ═══════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════ */
-
 const marginPct = (r: ReturnType<typeof calculatePrice>) =>
   parseFloat(((r.profit_inr * r.exchange_rate / r.final_price_lsl) * 100).toFixed(1));
 
 const marginColor = (r: ReturnType<typeof calculatePrice> | null): string => {
-  if (!r) return "var(--gray-300)";
+  if (!r) return "#d1d5db";
   const m = marginPct(r);
   if (m < 8) return "#dc2626";
   if (m < 15) return "#d97706";
-  return "var(--primary)";
+  return "#0f3f2f";
 };
 
 const fmt = (n: number, dec = 2) => n.toFixed(dec);
 
 /* ═══════════════════════════════════════════════════
-   SMALL COMPONENTS
+   BADGE COMPONENT
 ═══════════════════════════════════════════════════ */
-
 function PricingBadge({ state }: { state: PricingState }) {
   const map: Record<PricingState, { label: string; bg: string; color: string; dot: string }> = {
-    unpriced: { label: "Unpriced",  bg: "#fef3c7", color: "#92400e",           dot: "#d97706" },
-    priced:   { label: "Priced",    bg: "#dcfce7", color: "#14532d",           dot: "var(--primary)" },
-    modified: { label: "Modified",  bg: "#dbeafe", color: "#1e3a8a",           dot: "#2563eb" },
-    saving:   { label: "Saving…",   bg: "var(--gray-100)", color: "var(--gray-600)", dot: "var(--gray-400)" },
-    saved:    { label: "✓ Saved",   bg: "#dcfce7", color: "#14532d",           dot: "var(--primary)" },
-    error:    { label: "Error",     bg: "#fee2e2", color: "#991b1b",           dot: "#dc2626" },
+    unpriced: { label: "Unpriced",  bg: "#fef3c7", color: "#92400e", dot: "#d97706" },
+    priced:   { label: "Priced",    bg: "#dcfce7", color: "#14532d", dot: "#0f3f2f" },
+    modified: { label: "Modified",  bg: "#dbeafe", color: "#1e3a8a", dot: "#2563eb" },
+    saving:   { label: "Saving…",   bg: "#f3f4f6", color: "#6b7280", dot: "#9ca3af" },
+    saved:    { label: "✓ Saved",   bg: "#dcfce7", color: "#14532d", dot: "#0f3f2f" },
+    error:    { label: "Error",     bg: "#fee2e2", color: "#991b1b", dot: "#dc2626" },
   };
   const s = map[state];
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
-      background: s.bg, color: s.color,
+      padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+      background: s.bg, color: s.color, whiteSpace: "nowrap",
     }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dot, flexShrink: 0 }} />
       {s.label}
@@ -125,53 +103,11 @@ function PricingBadge({ state }: { state: PricingState }) {
   );
 }
 
-function ProgressArc({ pct }: { pct: number }) {
-  const size = 60, r = 22;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (pct / 100) * circ;
-  const color = pct === 100 ? "var(--primary)" : pct > 60 ? "var(--accent)" : "#d97706";
-  return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--gray-200)" strokeWidth={5} />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={5}
-          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1)" }} />
-      </svg>
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 13, fontWeight: 900, color: "var(--gray-900)", lineHeight: 1 }}>{pct}%</span>
-        <span style={{ fontSize: 8, color: "var(--gray-400)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>done</span>
-      </div>
-    </div>
-  );
-}
-
-function StatPill({ label, value, sub, accent, icon }: {
-  label: string; value: string | number; sub?: string; accent?: string; icon?: React.ReactNode;
-}) {
-  return (
-    <div style={{
-      background: "white", borderRadius: "var(--radius-md)",
-      border: "1px solid var(--gray-200)", padding: "10px 14px",
-      flex: 1, minWidth: 110, boxShadow: "var(--shadow-soft)",
-      borderLeft: accent ? `4px solid ${accent}` : "1px solid var(--gray-200)",
-    }}>
-      <div style={{ fontSize: 11, color: "var(--gray-400)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
-        {icon} {label}
-      </div>
-      <div style={{ fontSize: 22, fontWeight: 900, color: accent ?? "var(--gray-900)", lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 3 }}>{sub}</div>}
-    </div>
-  );
-}
-
 /* ═══════════════════════════════════════════════════
    MAIN PAGE
 ═══════════════════════════════════════════════════ */
-
 export default function AdminPricingPage() {
 
-  /* ── Exchange rate ── */
   const [rate, setRate]               = useState(0.21);
   const [rateSrc, setRateSrc]         = useState<"live" | "fallback">("fallback");
   const [rateOverride, setOverride]   = useState("");
@@ -184,7 +120,6 @@ export default function AdminPricingPage() {
       .finally(() => setRateLoading(false));
   }, []);
 
-  /* ── State ── */
   const [rows, setRows]               = useState<BatchRow[]>([]);
   const [batchLoading, setBatch]      = useState(false);
   const [bulkSaving, setBulkSaving]   = useState(false);
@@ -199,25 +134,23 @@ export default function AdminPricingPage() {
   const [totalCount, setTotal]        = useState(0);
   const [mainTab, setMainTab]         = useState<MainTab>("batch");
   const [qMarket, setQMarket]         = useState("");
-  const [showFormula, setShowFormula] = useState(false);
   const [highlightUnpriced, setHL]    = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
   const qVal    = parseFloat(qMarket) || 0;
   const qResult = qVal > 0 ? calculatePrice({ market_price_inr: qVal, exchange_rate: effectiveRate }) : null;
-  const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   const showToast = useCallback((msg: string, ok = true) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 4500);
   }, []);
 
-  /* ── Derived ── */
   const categories = useMemo(() =>
     [...new Set(rows.map(r => r.product.category).filter(Boolean))].sort() as string[], [rows]);
   const brands = useMemo(() =>
     [...new Set(rows.map(r => r.product.brand).filter(Boolean))].sort() as string[], [rows]);
 
-  /* ── Stats ── */
   const stats = useMemo(() => {
     const total         = rows.length;
     const unpriced      = rows.filter(r => r.state === "unpriced").length;
@@ -228,16 +161,9 @@ export default function AdminPricingPage() {
     const readyToSave   = rows.filter(r => r.result && r.state !== "saved" && r.state !== "saving" && r.state !== "priced").length;
     const pctDone       = total > 0 ? Math.round((priced / total) * 100) : 0;
     const selectedReady = rows.filter(r => r.isSelected && r.result && r.state !== "saved" && r.state !== "priced").length;
-    const estRevenue    = rows.filter(r => r.result).reduce((s, r) => s + (r.result?.final_price_lsl ?? 0), 0);
-    return { total, unpriced, priced, modified, errors, withResult, readyToSave, pctDone, selectedReady, estRevenue };
+    return { total, unpriced, priced, modified, errors, withResult, readyToSave, pctDone, selectedReady };
   }, [rows]);
 
-  /* ── Load products ──
-     KEY CHANGE: ALL products load as "unpriced" unless they exist
-     in our localStorage set (meaning admin priced them via this tool
-     in a previous session). DB price is displayed but never used to
-     determine pricing state.
-  ── */
   const loadProducts = useCallback(async () => {
     setBatch(true);
     try {
@@ -248,15 +174,9 @@ export default function AdminPricingPage() {
       const res = await adminProductsApi.list(params);
       const products = res.results ?? [];
       setTotal(res.total ?? products.length);
-
-      // Load the set of IDs that were priced through this tool
       const pricedViaToolIds = loadPricedIds();
-
-      setRows(products.map(p => ({
-        product: p,
-        marketInr: "",
-        result: null,
-        // Only "priced" if admin priced it via this tool (localStorage) — never assume from DB
+      setRows(products.map((p: ProductListItem) => ({
+        product: p, marketInr: "", result: null,
         state: pricedViaToolIds.has(p.id) ? "priced" : "unpriced",
         toolPrice: pricedViaToolIds.has(p.id) ? (p.price ?? null) : null,
         isSelected: false,
@@ -269,7 +189,6 @@ export default function AdminPricingPage() {
     }
   }, [searchQ, catFilter, brandFilter, showToast]);
 
-  /* ── Recalculate on rate change ── */
   useEffect(() => {
     setRows(prev => prev.map(row => {
       const v = parseFloat(row.marketInr);
@@ -280,7 +199,6 @@ export default function AdminPricingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveRate]);
 
-  /* ── Filtered + sorted display rows ── */
   const displayRows = useMemo(() => {
     let list = rows;
     if (filterTab === "unpriced") list = list.filter(r => r.state === "unpriced" || r.state === "modified" || r.state === "error");
@@ -293,17 +211,13 @@ export default function AdminPricingPage() {
     return list;
   }, [rows, filterTab, sortKey]);
 
-  /* ── Row update ── */
   const updateRow = (id: string, val: string) => {
     setRows(prev => prev.map(row => {
       if (row.product.id !== id) return row;
       const v = parseFloat(val);
       const result = (!isNaN(v) && v > 0) ? calculatePrice({ market_price_inr: v, exchange_rate: effectiveRate }) : null;
-      // Modified means "has a calculated result not yet saved"
-      // If the input is cleared and product was already priced via tool, revert to priced
       const wasToolPriced = loadPricedIds().has(id);
-      const newState: PricingState = result
-        ? "modified"
+      const newState: PricingState = result ? "modified"
         : wasToolPriced ? "priced" : "unpriced";
       return { ...row, marketInr: val, result, state: newState };
     }));
@@ -312,29 +226,22 @@ export default function AdminPricingPage() {
   const setImgErr = (id: string) =>
     setRows(prev => prev.map(r => r.product.id === id ? { ...r, imgErr: true } : r));
 
-  /* ── Manual "Mark as Priced" — admin decision, no price recalc required ── */
   const markAsPriced = (id: string) => {
     savePricedId(id);
     setRows(prev => prev.map(r =>
-      r.product.id === id
-        ? { ...r, state: "priced", toolPrice: r.product.price ?? null }
-        : r
+      r.product.id === id ? { ...r, state: "priced", toolPrice: r.product.price ?? null } : r
     ));
     showToast("Product marked as priced");
   };
 
-  /* ── Manual "Mark as Unpriced" — admin resets it ── */
   const markAsUnpriced = (id: string) => {
     removePricedId(id);
     setRows(prev => prev.map(r =>
-      r.product.id === id
-        ? { ...r, state: "unpriced", toolPrice: null, marketInr: "", result: null }
-        : r
+      r.product.id === id ? { ...r, state: "unpriced", toolPrice: null, marketInr: "", result: null } : r
     ));
     showToast("Product reset to unpriced", false);
   };
 
-  /* ── Quick fill ── */
   const applyQuickFill = () => {
     const v = parseFloat(quickFillInr);
     if (isNaN(v) || v <= 0) return;
@@ -349,7 +256,6 @@ export default function AdminPricingPage() {
     setFill("");
   };
 
-  /* ── Select ── */
   const toggleSelectAll = () => {
     const next = !selectAll;
     setSelectAll(next);
@@ -358,19 +264,15 @@ export default function AdminPricingPage() {
   const toggleRow = (id: string) =>
     setRows(prev => prev.map(r => r.product.id === id ? { ...r, isSelected: !r.isSelected } : r));
 
-  /* ── Save single ── */
   const saveRow = async (id: string) => {
     const row = rows.find(r => r.product.id === id);
     if (!row?.result) return;
     setRows(prev => prev.map(r => r.product.id === id ? { ...r, state: "saving" } : r));
     try {
       await pricingApi.applyToProduct(id, row.result.final_price_lsl, row.result.compare_price_lsl);
-      // Mark this product as priced via tool in localStorage
       savePricedId(id);
       setRows(prev => prev.map(r =>
-        r.product.id === id
-          ? { ...r, state: "saved", toolPrice: r.result?.final_price_lsl ?? r.toolPrice }
-          : r
+        r.product.id === id ? { ...r, state: "saved", toolPrice: r.result?.final_price_lsl ?? r.toolPrice } : r
       ));
     } catch (e: any) {
       setRows(prev => prev.map(r =>
@@ -379,13 +281,9 @@ export default function AdminPricingPage() {
     }
   };
 
-  /* ── Save all / selected ── */
   const saveAll = async (selectedOnly = false) => {
     const toSave = rows.filter(r =>
-      r.result &&
-      r.state !== "saved" &&
-      r.state !== "saving" &&
-      r.state !== "priced" &&
+      r.result && r.state !== "saved" && r.state !== "saving" && r.state !== "priced" &&
       (!selectedOnly || r.isSelected)
     );
     if (!toSave.length) { showToast("No calculated prices to save.", false); return; }
@@ -397,758 +295,1006 @@ export default function AdminPricingPage() {
       product_id: r.product.id, price_lsl: r.result!.final_price_lsl, compare_price_lsl: r.result!.compare_price_lsl,
     }));
     const res = await pricingApi.bulkApply(items);
-
-    // Update localStorage for successfully saved products
     toSave.forEach(r => {
-      const failed = res.errors.some((e: string) => e.startsWith(r.product.id));
-      if (!failed) savePricedId(r.product.id);
+      if (!res.errors.some((e: string) => e.startsWith(r.product.id))) savePricedId(r.product.id);
     });
-
     setRows(prev => prev.map(r => {
       const wasSaving = toSave.some(t => t.product.id === r.product.id);
       if (!wasSaving) return r;
       const failed = res.errors.some((e: string) => e.startsWith(r.product.id));
-      return {
-        ...r,
-        state: failed ? "error" : "saved",
-        toolPrice: failed ? r.toolPrice : (r.result?.final_price_lsl ?? r.toolPrice),
-      };
+      return { ...r, state: failed ? "error" : "saved", toolPrice: failed ? r.toolPrice : (r.result?.final_price_lsl ?? r.toolPrice) };
     }));
     setBulkSaving(false);
     showToast(`${res.success} prices saved${res.failed ? `, ${res.failed} failed` : ""}`, res.failed === 0);
   };
 
-  /* ── Keyboard nav ── */
   const handleKeyDown = (e: React.KeyboardEvent, currentId: string) => {
     if (e.key !== "Tab" && e.key !== "Enter") return;
     e.preventDefault();
     const ids = displayRows.map(r => r.product.id);
     const nextId = ids[ids.indexOf(currentId) + 1];
-    if (nextId) {
-      const nextIdx = rows.findIndex(r => r.product.id === nextId);
-      inputRefs.current.get(nextIdx)?.focus();
-    }
+    if (nextId) inputRefs.current.get(nextId)?.focus();
   };
 
   /* ════════════════ RENDER ════════════════ */
   return (
     <>
       <style>{`
-        @keyframes toastSlide { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
-        @keyframes shimmer    { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
-        @keyframes spin       { to{transform:rotate(360deg)} }
-        @keyframes fadeUp     { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pulseRing  { 0%,100%{box-shadow:0 0 0 0 rgba(200,167,90,0)} 50%{box-shadow:0 0 0 6px rgba(200,167,90,0.25)} }
+        @keyframes toastSlide  { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes shimmer     { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
+        @keyframes spin        { to{transform:rotate(360deg)} }
+        @keyframes fadeUp      { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes slideDown   { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
 
         .pm * { box-sizing:border-box; }
-        /* Full-viewport fixed layout — outer shell never scrolls */
         .pm {
           height: 100dvh;
           display: flex;
           flex-direction: column;
           overflow: hidden;
-          font-family: var(--font-sans, system-ui, sans-serif);
-          background: var(--gray-50, #f9fafb);
+          font-family: 'DM Sans', system-ui, sans-serif;
+          background: #f8f9fa;
+          color: #111;
         }
-        /* Top chrome: header + toolbar — fixed height, never scrolls */
+
+        /* ── CHROME (top bar) ── */
         .pm-chrome {
           flex-shrink: 0;
-          padding: 6px 14px 0;
-          background: white;
-          border-bottom: 1px solid var(--gray-200);
+          background: #fff;
+          border-bottom: 1px solid #e5e7eb;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.06);
         }
-        /* The only scrolling region — grows to fill remaining height */
+        .pm-chrome-row1 {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          flex-wrap: wrap;
+        }
+        .pm-chrome-row2 {
+          padding: 0 14px 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        /* ── SCROLLABLE BODY ── */
         .pm-body {
           flex: 1;
           overflow-y: auto;
           overflow-x: hidden;
           min-height: 0;
-        }
-        .pm-body-inner {
-          padding: 10px 14px 20px;
+          padding: 12px 12px 80px;
         }
 
-        .pm-inr {
-          padding:5px 7px 5px 20px !important; border-radius:6px !important;
-          border:1.5px solid var(--gray-300) !important; background:var(--gray-50) !important;
-          color:var(--gray-900) !important; font-size:12px !important; font-weight:700 !important;
-          width:92px !important; min-height:unset !important; outline:none !important;
-          font-family:inherit !important; transition:border-color .15s,box-shadow .15s,background .15s !important;
+        /* ── TAB BUTTON ── */
+        .pm-tab {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 7px 14px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          border: 1.5px solid transparent;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+          white-space: nowrap;
         }
-        .pm-inr:focus { border-color:var(--accent) !important; box-shadow:0 0 0 3px rgba(200,167,90,.18) !important; background:white !important; }
-        .pm-inr::placeholder { color:var(--gray-300) !important; font-weight:400 !important; }
-        .pm-inr:disabled { opacity:.4 !important; cursor:not-allowed !important; }
-        .pm-inr[data-f="1"] { border-color:var(--accent) !important; background:rgba(200,167,90,.05) !important; }
+        .pm-tab-active  { background: #0f3f2f; color: white; border-color: #0f3f2f; }
+        .pm-tab-inactive{ background: white; color: #6b7280; border-color: #e5e7eb; }
+        .pm-tab-inactive:hover { border-color: #0f3f2f; color: #0f3f2f; }
 
-        .pm-si { padding:6px 10px !important; border-radius:6px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-900) !important; font-size:12px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; transition:border-color .15s !important; }
-        .pm-si:focus { border-color:var(--primary) !important; box-shadow:0 0 0 3px rgba(15,63,47,.1) !important; }
-        .pm-si::placeholder { color:var(--gray-300) !important; }
-        .pm-sel { padding:6px 24px 6px 9px !important; border-radius:6px !important; border:1.5px solid var(--gray-200) !important; background:white !important; color:var(--gray-700) !important; font-size:12px !important; min-height:unset !important; outline:none !important; font-family:inherit !important; appearance:none !important; cursor:pointer !important; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important; background-repeat:no-repeat !important; background-position:right 7px center !important; }
-        .pm-sel:focus { border-color:var(--primary) !important; }
-
-        .pm-b { display:inline-flex !important; align-items:center !important; gap:4px !important; padding:5px 11px !important; border-radius:6px !important; font-size:11px !important; font-weight:700 !important; border:none !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; white-space:nowrap !important; transition:all .15s ease !important; }
-        .pm-b:active:not(:disabled) { transform:scale(.97) !important; }
-        .pm-bg { background:var(--primary) !important; color:white !important; box-shadow:0 2px 6px rgba(15,63,47,.2) !important; }
-        .pm-bg:hover:not(:disabled) { background:var(--primary-light) !important; box-shadow:0 4px 14px rgba(15,63,47,.3) !important; }
-        .pm-bg:disabled { background:var(--gray-200) !important; color:var(--gray-400) !important; box-shadow:none !important; cursor:not-allowed !important; }
-        .pm-ba { background:var(--accent) !important; color:white !important; box-shadow:0 2px 6px rgba(200,167,90,.3) !important; }
-        .pm-ba:hover:not(:disabled) { background:var(--accent-light) !important; }
-        .pm-ba:disabled { opacity:.5 !important; cursor:not-allowed !important; }
-        .pm-bgh { background:white !important; color:var(--gray-700) !important; border:1.5px solid var(--gray-200) !important; }
-        .pm-bgh:hover:not(:disabled) { border-color:var(--primary) !important; color:var(--primary) !important; }
-        .pm-bbl { background:#2563eb !important; color:white !important; }
-        .pm-bbl:disabled { opacity:.45 !important; cursor:not-allowed !important; }
-        .pm-bmk { background:#f0fdf4 !important; color:#14532d !important; border:1.5px solid #bbf7d0 !important; font-size:10px !important; padding:3px 8px !important; }
-        .pm-bmk:hover:not(:disabled) { background:#dcfce7 !important; }
-        .pm-bum { background:#fff7ed !important; color:#92400e !important; border:1.5px solid #fed7aa !important; font-size:10px !important; padding:3px 8px !important; }
-        .pm-bum:hover:not(:disabled) { background:#ffedd5 !important; }
-
-        .pm-tab { display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 13px !important; border-radius:var(--radius-sm) !important; font-size:12px !important; font-weight:700 !important; border:1.5px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .18s !important; }
-        .pm-ta { background:var(--primary) !important; color:white !important; border-color:var(--primary) !important; }
-        .pm-ti { background:white !important; color:var(--gray-600) !important; border-color:var(--gray-200) !important; }
-        .pm-ti:hover { border-color:var(--primary) !important; color:var(--primary) !important; }
-        .pm-ft { display:inline-flex !important; align-items:center !important; gap:5px !important; padding:4px 12px !important; border-radius:20px !important; font-size:11px !important; font-weight:700 !important; border:1.5px solid transparent !important; cursor:pointer !important; font-family:inherit !important; min-height:unset !important; transition:all .15s !important; }
-
-        .pm-row { transition:background .18s ease; }
-        .pm-row:hover > td { background-color: rgba(0,0,0,0.012) !important; }
-        .pm-sk { background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-50) 50%,var(--gray-100) 75%); background-size:600px 100%; animation:shimmer 1.6s infinite; border-radius:6px; }
-        .pm-spin { animation:spin .8s linear infinite; display:inline-block; }
-        .pm-mt { width:32px; height:4px; border-radius:3px; background:var(--gray-200); overflow:hidden; margin-top:2px; }
-        .pm-mf { height:100%; border-radius:3px; transition:width .4s ease; }
-        .pm-up { animation:fadeUp .4s cubic-bezier(.22,.9,.34,1) both; }
-        .pm-sf { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:9900; animation:fadeUp .3s cubic-bezier(.22,.9,.34,1); }
-
-        .pm-unp-notice {
-          display:inline-flex; align-items:center; gap:4px;
-          font-size:10px; color:#92400e; font-weight:600;
-          background:#fffbeb; border:1px solid #fde68a;
-          padding:1px 6px; border-radius:4px;
+        /* ── FILTER PILL ── */
+        .pm-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 5px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 700;
+          border: 1.5px solid transparent;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
         }
 
-        /* Table fills its container, thead sticky */
-        .pm-table-wrap {
+        /* ── INPUTS & SELECTS ── */
+        .pm-input {
+          padding: 9px 12px;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 8px;
+          font-size: 13px;
+          font-family: inherit;
           background: white;
-          border: 1px solid var(--gray-200);
-          border-radius: var(--radius-lg);
+          color: #111;
+          outline: none;
+          transition: border-color 0.15s, box-shadow 0.15s;
+          min-height: 40px;
+          width: 100%;
+        }
+        .pm-input:focus { border-color: #0f3f2f; box-shadow: 0 0 0 3px rgba(15,63,47,0.1); }
+        .pm-input::placeholder { color: #9ca3af; }
+        .pm-select {
+          padding: 9px 28px 9px 10px;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 8px;
+          font-size: 13px;
+          font-family: inherit;
+          background: white;
+          color: #374151;
+          outline: none;
+          appearance: none;
+          cursor: pointer;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 9px center;
+          min-height: 40px;
+          transition: border-color 0.15s;
+        }
+        .pm-select:focus { border-color: #0f3f2f; outline: none; }
+
+        /* ── BUTTONS ── */
+        .pm-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px 18px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+          white-space: nowrap;
+          min-height: 40px;
+        }
+        .pm-btn:active:not(:disabled) { transform: scale(0.97); }
+        .pm-btn-primary  { background: #0f3f2f; color: white; box-shadow: 0 2px 6px rgba(15,63,47,0.2); }
+        .pm-btn-primary:hover:not(:disabled) { background: #1b5e4a; box-shadow: 0 4px 14px rgba(15,63,47,0.3); }
+        .pm-btn-primary:disabled { background: #e5e7eb; color: #9ca3af; box-shadow: none; cursor: not-allowed; }
+        .pm-btn-gold { background: #c8a75a; color: white; box-shadow: 0 2px 6px rgba(200,167,90,0.3); }
+        .pm-btn-gold:hover:not(:disabled) { background: #b8973e; }
+        .pm-btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+        .pm-btn-ghost { background: white; color: #374151; border: 1.5px solid #e5e7eb; }
+        .pm-btn-ghost:hover:not(:disabled) { border-color: #0f3f2f; color: #0f3f2f; }
+        .pm-btn-blue { background: #2563eb; color: white; }
+        .pm-btn-blue:disabled { opacity: 0.5; cursor: not-allowed; }
+        .pm-btn-danger { background: #fee2e2; color: #991b1b; border: 1.5px solid #fca5a5; }
+        .pm-btn-sm { padding: 6px 13px; font-size: 12px; min-height: 34px; }
+        .pm-btn-xs { padding: 4px 10px; font-size: 11px; min-height: 30px; border-radius: 6px; }
+        .pm-btn-block { width: 100%; }
+
+        /* ── PRODUCT CARD ── */
+        .pc {
+          background: white;
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
           overflow: hidden;
+          margin-bottom: 10px;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+          animation: fadeUp 0.3s ease both;
+          transition: border-color 0.2s, box-shadow 0.2s;
         }
-        .pm-table-scroll {
-          overflow-x: auto;
-          overflow-y: auto;
-          max-height: calc(100dvh - 180px);
+        .pc:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+        .pc-state-bar { height: 3px; width: 100%; }
+
+        .pc-header {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          padding: 12px 14px 10px;
         }
-        .pm-table-scroll thead th {
-          position: sticky;
-          top: 0;
-          z-index: 2;
+        .pc-thumb {
+          width: 52px;
+          height: 52px;
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1px solid #f3f4f6;
+          background: #f9fafb;
+          display: grid;
+          place-items: center;
+          flex-shrink: 0;
+        }
+        .pc-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .pc-info { flex: 1; min-width: 0; }
+        .pc-title {
+          font-size: 13px; font-weight: 700; color: #111; line-height: 1.35;
+          display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+          margin-bottom: 4px;
+        }
+        .pc-meta { font-size: 11px; color: #9ca3af; margin-bottom: 5px; }
+        .pc-badge-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .pc-dbprice {
+          font-size: 12px; font-weight: 600; color: #6b7280;
+        }
+        .pc-sel-check { 
+          width: 18px; height: 18px; flex-shrink: 0; 
+          accent-color: #0f3f2f; cursor: pointer; margin-top: 2px;
+        }
+
+        /* ── INR INPUT SECTION ── */
+        .pc-input-section {
+          padding: 10px 14px;
+          border-top: 1px solid #f3f4f6;
+          background: #fafafa;
+        }
+        .pc-input-label {
+          font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase;
+          letter-spacing: 0.6px; margin-bottom: 7px;
+        }
+        .pc-inr-wrap {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        .pc-rupee {
+          position: absolute; left: 12px; font-size: 16px; font-weight: 700;
+          color: #c8a75a; pointer-events: none; z-index: 1;
+        }
+        .pc-inr {
+          width: 100%;
+          padding: 11px 12px 11px 30px;
+          border: 2px solid #e5e7eb;
+          border-radius: 8px;
+          font-size: 18px;
+          font-weight: 700;
+          color: #111;
+          background: white;
+          font-family: inherit;
+          outline: none;
+          transition: border-color 0.15s, box-shadow 0.15s;
+          min-height: 48px;
+        }
+        .pc-inr:focus { border-color: #c8a75a; box-shadow: 0 0 0 3px rgba(200,167,90,0.15); }
+        .pc-inr:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pc-inr-active { border-color: #c8a75a !important; background: rgba(200,167,90,0.03) !important; }
+        .pc-inr::placeholder { color: #d1d5db; font-weight: 400; font-size: 15px; }
+
+        /* ── RESULTS SECTION ── */
+        .pc-results {
+          padding: 10px 14px;
+          border-top: 1px solid #f3f4f6;
+          background: rgba(15,63,47,0.02);
+        }
+        .pc-final-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .pc-final-label { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
+        .pc-final-price { font-size: 22px; font-weight: 900; color: #0f3f2f; letter-spacing: -0.5px; }
+        .pc-stats-row {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .pc-stat-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 3px 9px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 700;
+          background: rgba(15,63,47,0.07);
+          color: #0f3f2f;
+        }
+        .pc-compare-chip { background: #f3f4f6; color: #9ca3af; text-decoration: line-through; }
+        .pc-margin-bar { height: 4px; border-radius: 3px; background: #e5e7eb; overflow: hidden; flex: 1; min-width: 60px; }
+        .pc-margin-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+        /* ── ACTIONS SECTION ── */
+        .pc-actions {
+          padding: 10px 14px;
+          border-top: 1px solid #f3f4f6;
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .pc-save-btn {
+          flex: 1;
+          min-width: 120px;
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 800;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          min-height: 48px;
+        }
+        .pc-save-btn:active:not(:disabled) { transform: scale(0.97); }
+        .pc-save-active { background: #0f3f2f; color: white; box-shadow: 0 4px 14px rgba(15,63,47,0.25); }
+        .pc-save-active:hover { background: #1b5e4a; }
+        .pc-save-disabled { background: #f3f4f6; color: #d1d5db; cursor: not-allowed; }
+        .pc-save-saving { background: #f3f4f6; color: #6b7280; cursor: not-allowed; }
+        .pc-save-saved  { background: #dcfce7; color: #14532d; cursor: default; }
+        .pc-save-error  { background: #fee2e2; color: #991b1b; }
+        .pc-mark-btn {
+          padding: 11px 14px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+          min-height: 48px;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          white-space: nowrap;
+        }
+        .pc-mark-priced { background: #f0fdf4; color: #14532d; border: 1.5px solid #bbf7d0; }
+        .pc-mark-priced:hover { background: #dcfce7; }
+        .pc-mark-reset  { background: #fff7ed; color: #92400e; border: 1.5px solid #fed7aa; }
+        .pc-mark-reset:hover  { background: #ffedd5; }
+
+        /* ── SKELETON ── */
+        .pc-sk {
+          background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+          background-size: 600px 100%;
+          animation: shimmer 1.6s infinite;
+          border-radius: 8px;
+        }
+
+        /* ── SPINNER ── */
+        .pm-spin { animation: spin 0.8s linear infinite; display: inline-block; }
+
+        /* ── PROGRESS BAR ── */
+        .pm-progress-wrap { background: #f3f4f6; border-radius: 20px; height: 7px; overflow: hidden; }
+        .pm-progress-fill { height: 100%; border-radius: 20px; transition: width 0.6s; }
+
+        /* ── STICKY SAVE BAR ── */
+        .pm-save-bar {
+          position: fixed;
+          bottom: 0; left: 0; right: 0;
+          background: white;
+          border-top: 1.5px solid #e5e7eb;
+          padding: 10px 14px 14px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          z-index: 9900;
+          box-shadow: 0 -4px 24px rgba(0,0,0,0.10);
+          animation: fadeUp 0.25s ease;
+        }
+        .pm-save-pulse {
+          width: 10px; height: 10px; border-radius: 50%; background: #c8a75a; flex-shrink: 0;
+          box-shadow: 0 0 0 0 rgba(200,167,90,0.3);
+          animation: pulse 2.5s infinite;
+        }
+        @keyframes pulse {
+          0%,100% { box-shadow: 0 0 0 0 rgba(200,167,90,0.3); }
+          50%      { box-shadow: 0 0 0 6px rgba(200,167,90,0); }
+        }
+
+        /* ── CALC LAYOUT ── */
+        .calc-grid { display: grid; gap: 16px; }
+        @media (min-width: 640px) { .calc-grid { grid-template-columns: 1fr 1fr; } }
+
+        /* ── STATS ROW ── */
+        .pm-stats-row {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+          margin-bottom: 12px;
+        }
+        .pm-stat-box {
+          flex: 1;
+          min-width: 80px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 10px 12px;
+          text-align: center;
+        }
+        .pm-stat-val { font-size: 20px; font-weight: 900; line-height: 1; }
+        .pm-stat-lbl { font-size: 10px; color: #9ca3af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+        /* ── FILTER DRAWER ── */
+        .pm-filter-panel {
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 14px;
+          margin-bottom: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          animation: slideDown 0.2s ease;
+        }
+        .pm-filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+        /* ── SEARCH ROW ── */
+        .pm-search-wrap { position: relative; flex: 1; min-width: 160px; }
+        .pm-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+        .pm-search-input {
+          width: 100%; padding: 10px 12px 10px 34px;
+          border: 1.5px solid #e5e7eb; border-radius: 8px;
+          font-size: 13px; font-family: inherit; background: white;
+          color: #111; outline: none; min-height: 42px;
+          transition: border-color 0.15s;
+        }
+        .pm-search-input:focus { border-color: #0f3f2f; }
+
+        /* ── EMPTY STATE ── */
+        .pm-empty {
+          background: white;
+          border: 2px dashed #e5e7eb;
+          border-radius: 14px;
+          padding: 40px 24px;
+          text-align: center;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 480px) {
+          .pc-final-price { font-size: 19px; }
+          .pm-body { padding: 10px 10px 80px; }
         }
       `}</style>
 
       <div className="pm">
 
-        {/* Toast */}
+        {/* ─── TOAST ─── */}
         {toast && (
           <div style={{
-            position: "fixed", top: 16, right: 16, zIndex: 99999,
-            background: toast.ok ? "var(--primary)" : "#dc2626", color: "white",
-            padding: "10px 18px", borderRadius: "var(--radius-md)", fontWeight: 700, fontSize: 13,
-            boxShadow: "var(--shadow-strong)", display: "flex", alignItems: "center", gap: 8,
-            animation: "toastSlide 0.3s ease",
+            position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 99999,
+            background: toast.ok ? "#0f3f2f" : "#dc2626", color: "white",
+            padding: "11px 20px", borderRadius: 10, fontWeight: 700, fontSize: 13,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 8,
+            animation: "toastSlide 0.3s ease", whiteSpace: "nowrap",
           }}>
-            <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", fontSize: 11, flexShrink: 0 }}>
+            <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "grid", placeItems: "center", fontSize: 11 }}>
               {toast.ok ? "✓" : "✗"}
             </span>
             {toast.msg}
           </div>
         )}
 
-        {/* ══ CHROME: fixed top bar ══ */}
+        {/* ─── CHROME TOP BAR ─── */}
         <div className="pm-chrome">
-
-          {/* Row 1: title + rate + tabs all inline */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 6, borderBottom: "1px solid var(--gray-100)", flexWrap: "wrap" }}>
-            {/* Back + title */}
-            <Link href="/admin" style={{ fontSize: 11, color: "var(--gray-400)", textDecoration: "none", fontWeight: 600, display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
+          <div className="pm-chrome-row1">
+            {/* Back */}
+            <Link href="/admin" style={{ display: "flex", alignItems: "center", color: "#9ca3af", textDecoration: "none" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M5 12l7 7M5 12l7-7"/></svg>
             </Link>
-            <span style={{ color: "var(--gray-200)", fontSize: 11 }}>›</span>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,var(--primary),var(--primary-light))", display: "grid", placeItems: "center", flexShrink: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            </div>
-            <span style={{ fontWeight: 900, fontSize: 15, color: "var(--gray-900)", letterSpacing: -0.3 }}>Pricing Manager</span>
 
-            {/* Divider */}
-            <div style={{ width: 1, height: 20, background: "var(--gray-200)", margin: "0 4px", flexShrink: 0 }} />
+            {/* Icon + Title */}
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#0f3f2f,#1b5e4a)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </div>
+            <span style={{ fontWeight: 900, fontSize: 16, color: "#111", letterSpacing: -0.3, flex: 1, minWidth: 0 }}>
+              Pricing Manager
+            </span>
 
             {/* Tabs */}
             {([
-              { id: "batch", icon: "⚡", label: `Batch${rows.length ? ` (${rows.length})` : ""}` },
-              { id: "calc",  icon: "🧮", label: "Calculator" },
+              { id: "batch", label: `⚡ Batch${rows.length ? ` (${rows.length})` : ""}` },
+              { id: "calc",  label: "🧮 Calc" },
             ] as const).map(t => (
               <button key={t.id} onClick={() => setMainTab(t.id as MainTab)}
-                className={`pm-b pm-tab ${mainTab === t.id ? "pm-ta" : "pm-ti"}`}>
-                {t.icon} {t.label}
+                className={`pm-tab ${mainTab === t.id ? "pm-tab-active" : "pm-tab-inactive"}`}
+                style={{ padding: "6px 12px", fontSize: 12 }}>
+                {t.label}
               </button>
             ))}
-
-            {/* Spacer */}
-            <div style={{ flex: 1 }} />
-
-            {/* Exchange rate — compact inline */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-              <span style={{
-                width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-                background: rateLoading ? "var(--gray-300)" : rateSrc === "live" ? "#16a34a" : "#d97706",
-              }} />
-              <span style={{ fontWeight: 600, color: "var(--gray-500)" }}>
-                {rateLoading ? "…" : `1₹ = M${effectiveRate.toFixed(4)}`}
-              </span>
-              {rateOverride && <span style={{ fontSize: 9, fontWeight: 800, background: "rgba(200,167,90,0.15)", color: "var(--accent)", padding: "1px 5px", borderRadius: 20 }}>OVERRIDE</span>}
-              <input type="number" placeholder="Override…" value={rateOverride} onChange={e => setOverride(e.target.value)} step="0.0001"
-                className="pm-si" style={{ width: 90 }} />
-              {rateOverride && <button onClick={() => setOverride("")} className="pm-b pm-bgh" style={{ padding: "3px 8px !important", fontSize: 10 }}>✕</button>}
-            </div>
           </div>
 
-          {/* Row 2 (batch mode only): search + filters + save bar + progress — all in one row */}
-          {mainTab === "batch" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0", flexWrap: "wrap" }}>
-
-              {/* Search */}
-              <div style={{ position: "relative", flexShrink: 0 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2"
-                  style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
-                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-                </svg>
-                <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} onKeyDown={e => e.key === "Enter" && loadProducts()}
-                  placeholder="Search…" className="pm-si" style={{ paddingLeft: "26px !important", width: 160 }} />
+          {/* Row 2: rate + filter toggle */}
+          <div className="pm-chrome-row2">
+            {/* Rate row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: rateLoading ? "#d1d5db" : rateSrc === "live" ? "#16a34a" : "#d97706", flexShrink: 0 }} />
+                {rateLoading ? "Loading rate…" : `1 ₹ = M ${effectiveRate.toFixed(4)}`}
+                {rateOverride && <span style={{ fontSize: 9, fontWeight: 800, background: "rgba(200,167,90,0.15)", color: "#c8a75a", padding: "1px 6px", borderRadius: 20 }}>OVERRIDE</span>}
               </div>
+              <input type="number" placeholder="Override rate" value={rateOverride} onChange={e => setOverride(e.target.value)} step="0.0001"
+                style={{ width: 120, padding: "5px 9px", border: "1.5px solid #e5e7eb", borderRadius: 7, fontSize: 12, fontFamily: "inherit", outline: "none", background: "white", minHeight: "unset" }} />
+              {rateOverride && <button onClick={() => setOverride("")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#9ca3af", lineHeight: 1, padding: "2px 4px" }}>✕</button>}
+            </div>
 
-              <select value={catFilter} onChange={e => setCat(e.target.value)} className="pm-sel" style={{ maxWidth: 130 }}>
-                <option value="">All Categories</option>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <select value={brandFilter} onChange={e => setBrand(e.target.value)} className="pm-sel" style={{ maxWidth: 120 }}>
-                <option value="">All Brands</option>
-                {brands.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-
-              <button onClick={() => loadProducts()} disabled={batchLoading} className="pm-b pm-bg">
-                {batchLoading
-                  ? <><span className="pm-spin" style={{ width: 11, height: 11, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /></>
-                  : rows.length > 0 ? "🔄" : "⚡ Load"}
-              </button>
-
-              {/* Filter tabs */}
-              {rows.length > 0 && <>
-                <div style={{ width: 1, height: 18, background: "var(--gray-200)", flexShrink: 0 }} />
-                {([
-                  { id: "all",      label: "All",      count: rows.length,    bg: "var(--gray-900)", fg: "white" },
-                  { id: "unpriced", label: "⚠ Unpriced", count: stats.unpriced + stats.modified + stats.errors, bg: "#d97706", fg: "white" },
-                  { id: "priced",   label: "✓ Priced", count: stats.priced,   bg: "var(--primary)",  fg: "white" },
-                ] as const).map(t => {
-                  const active = filterTab === t.id;
-                  return (
-                    <button key={t.id} onClick={() => setFilterTab(t.id)} className="pm-ft"
-                      style={{ background: active ? t.bg : "white", color: active ? t.fg : "var(--gray-600)", border: `1.5px solid ${active ? "transparent" : "var(--gray-200)"}` }}>
-                      {t.label}
-                      <span style={{ background: active ? "rgba(255,255,255,0.2)" : "var(--gray-100)", color: active ? "white" : "var(--gray-500)", padding: "0px 6px", borderRadius: 20, fontSize: 10, fontWeight: 800 }}>{t.count}</span>
-                    </button>
-                  );
-                })}
-              </>}
-
-              {/* Sort */}
-              {rows.length > 0 && <select value={sortKey} onChange={e => setSort(e.target.value as SortKey)} className="pm-sel">
-                <option value="unpriced_first">⚠ First</option>
-                <option value="default">Default</option>
-                <option value="name">A–Z</option>
-                <option value="price_asc">Price ↑</option>
-                <option value="price_desc">Price ↓</option>
-              </select>}
-
-              {/* Highlight checkbox */}
-              {rows.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--gray-600)", cursor: "pointer", userSelect: "none", flexShrink: 0 }}>
-                <input type="checkbox" checked={highlightUnpriced} onChange={e => setHL(e.target.checked)} style={{ accentColor: "var(--primary)", width: 12, height: 12, cursor: "pointer", minHeight: "unset" }} />
-                Highlight
-              </label>}
-
-              {/* Quick fill */}
-              {rows.length > 0 && stats.unpriced > 0 && <>
-                <div style={{ width: 1, height: 18, background: "var(--gray-200)", flexShrink: 0 }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#92400e", flexShrink: 0 }}>Quick Fill:</span>
-                <div style={{ position: "relative", flexShrink: 0 }}>
-                  <span style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", fontSize: 11, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
-                  <input type="number" value={quickFillInr} onChange={e => setFill(e.target.value)} onKeyDown={e => e.key === "Enter" && applyQuickFill()}
-                    placeholder="price" className="pm-inr" data-f={quickFillInr !== "" ? "1" : undefined} style={{ width: "80px !important", paddingLeft: "18px !important" }} />
+            {/* Batch-mode toolbar */}
+            {mainTab === "batch" && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                {/* Search */}
+                <div className="pm-search-wrap">
+                  <span className="pm-search-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                  </span>
+                  <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && loadProducts()}
+                    placeholder="Search products…" className="pm-search-input" />
                 </div>
-                <button onClick={applyQuickFill} disabled={!quickFillInr} className="pm-b pm-ba" style={{ padding: "4px 10px !important" }}>Apply</button>
-              </>}
 
-              {/* Spacer */}
-              <div style={{ flex: 1 }} />
-
-              {/* Progress inline */}
-              {rows.length > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, flexShrink: 0 }}>
-                <div style={{ background: "var(--gray-100)", borderRadius: 20, height: 6, width: 80, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${stats.pctDone}%`, background: stats.pctDone === 100 ? "var(--primary)" : "#d97706", borderRadius: 20, transition: "width 0.6s" }} />
-                </div>
-                <span style={{ fontWeight: 700, color: "var(--gray-500)" }}>{stats.pctDone}%</span>
-                <span style={{ color: "var(--gray-300)" }}>|</span>
-                <span style={{ color: "#d97706", fontWeight: 700 }}>{stats.unpriced} left</span>
-                <span style={{ color: "var(--gray-300)" }}>|</span>
-                <span style={{ color: "var(--primary)", fontWeight: 700 }}>{stats.priced} done</span>
-              </div>}
-
-              {/* Save buttons */}
-              {rows.length > 0 && <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-                {stats.selectedReady > 0 && (
-                  <button onClick={() => saveAll(true)} disabled={bulkSaving} className="pm-b pm-bbl">
-                    💾 Selected ({stats.selectedReady})
-                  </button>
-                )}
-                <button onClick={() => saveAll(false)} disabled={bulkSaving || stats.readyToSave === 0} className="pm-b pm-bg">
-                  {bulkSaving
-                    ? <><span className="pm-spin" style={{ width: 11, height: 11, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /> Saving…</>
-                    : `💾 Save All (${stats.readyToSave})`}
+                <button onClick={() => loadProducts()} disabled={batchLoading} className="pm-btn pm-btn-primary pm-btn-sm" style={{ flexShrink: 0 }}>
+                  {batchLoading
+                    ? <><span className="pm-spin" style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%" }} /></>
+                    : rows.length > 0 ? "🔄 Reload" : "⚡ Load"}
                 </button>
-              </div>}
-            </div>
-          )}
+
+                <button onClick={() => setShowFilters(!showFilters)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, border: `1.5px solid ${showFilters ? "#0f3f2f" : "#e5e7eb"}`, background: showFilters ? "rgba(15,63,47,0.06)" : "white", color: showFilters ? "#0f3f2f" : "#6b7280", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, minHeight: 38 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+                  Filters
+                  {(catFilter || brandFilter) && <span style={{ background: "#0f3f2f", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 9, display: "grid", placeItems: "center", fontWeight: 800 }}>!</span>}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-        {/* ══ END CHROME ══ */}
 
-        {/* ══ SCROLLABLE BODY ══ */}
+        {/* ─── SCROLLABLE BODY ─── */}
         <div className="pm-body">
-          <div className="pm-body-inner">
 
-        {/* ══ QUICK CALCULATOR ══ */}
-        {mainTab === "calc" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, maxWidth: 800 }}>
-            {/* Input card */}
-            <div className="card pm-up" style={{ padding: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(200,167,90,0.1)", display: "grid", placeItems: "center" }}>
-                  <span style={{ fontSize: 20, fontWeight: 700 }}>₹</span>
-                </div>
-                <div style={{ fontWeight: 800, fontSize: 16 }}>Indian Market Price</div>
+          {/* ── FILTER PANEL (collapsible) ── */}
+          {mainTab === "batch" && showFilters && (
+            <div className="pm-filter-panel">
+              <div className="pm-filter-row">
+                <select value={catFilter} onChange={e => setCat(e.target.value)} className="pm-select" style={{ flex: 1, minWidth: 120 }}>
+                  <option value="">All Categories</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={brandFilter} onChange={e => setBrand(e.target.value)} className="pm-select" style={{ flex: 1, minWidth: 120 }}>
+                  <option value="">All Brands</option>
+                  {brands.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
               </div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "var(--gray-400)", textTransform: "uppercase", letterSpacing: "0.7px", display: "block", marginBottom: 8 }}>
-                Market Price (₹) <span style={{ color: "#dc2626" }}>*</span>
-              </label>
-              <div style={{ position: "relative", marginBottom: 20 }}>
-                <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 22, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
-                <input type="number" value={qMarket} onChange={e => setQMarket(e.target.value)} placeholder="2499" autoFocus
-                  style={{ width: "100%", padding: "14px 16px 14px 40px", border: `2px solid ${qResult ? "var(--accent)" : "var(--gray-200)"}`, borderRadius: "var(--radius-md)", fontSize: 30, fontWeight: 900, color: "var(--gray-900)", outline: "none", fontFamily: "inherit", background: qResult ? "rgba(200,167,90,0.04)" : "white", transition: "border-color 0.2s", minHeight: "unset" }} />
-              </div>
-              <div style={{ background: "var(--gray-50)", borderRadius: "var(--radius-sm)", border: "1px solid var(--gray-200)", padding: "14px 16px" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--gray-400)", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 10 }}>Applied automatically</div>
-                {([["🚚 Shipping", "₹700 fixed"], ["💼 Profit", "₹500 fixed"], ["💱 Rate", `M ${effectiveRate.toFixed(5)}`]] as const).map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--gray-200)", fontSize: 13 }}>
-                    <span style={{ color: "var(--gray-500)" }}>{k}</span>
-                    <span style={{ fontWeight: 700 }}>{v}</span>
+              {rows.length > 0 && stats.unpriced > 0 && (
+                <div className="pm-filter-row" style={{ background: "#fffbeb", padding: "10px 12px", borderRadius: 8, border: "1px solid #fde68a" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#92400e", flexShrink: 0 }}>⚡ Quick Fill:</span>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 14, fontWeight: 700, color: "#c8a75a", pointerEvents: "none" }}>₹</span>
+                    <input type="number" value={quickFillInr} onChange={e => setFill(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && applyQuickFill()}
+                      placeholder="Price for all unpriced"
+                      style={{ width: "100%", padding: "8px 10px 8px 24px", border: "1.5px solid #fde68a", borderRadius: 7, fontSize: 14, fontWeight: 700, fontFamily: "inherit", outline: "none", background: "white", minHeight: "unset" }} />
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Result card */}
-            <div className="card pm-up" style={{ padding: 20 }}>
-              {qResult ? (
-                <>
-                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 18 }}>Price Breakdown</div>
-                  {([
-                    ["Market",     `₹ ${qVal.toLocaleString()}`,                 "var(--gray-900)"],
-                    ["+ Shipping", `₹ ${qResult.shipping_cost_inr.toLocaleString()}`, "var(--gray-500)"],
-                    ["+ Profit",   `₹ ${qResult.profit_inr.toLocaleString()}`,    "var(--gray-500)"],
-                  ] as const).map(([k, v, c]) => (
-                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--gray-100)", fontSize: 14 }}>
-                      <span style={{ color: "var(--gray-500)" }}>{k}</span>
-                      <span style={{ fontWeight: 700, color: c as string }}>{v}</span>
-                    </div>
-                  ))}
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 14px", fontSize: 14, borderBottom: "2px solid var(--gray-900)" }}>
-                    <span style={{ fontWeight: 700 }}>Total (INR)</span>
-                    <span style={{ fontWeight: 900 }}>₹ {qResult.total_cost_inr.toLocaleString()}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13, color: "var(--gray-400)" }}>
-                    <span>× Exchange Rate</span>
-                    <span style={{ fontWeight: 700 }}>× {effectiveRate.toFixed(5)}</span>
-                  </div>
-                  <div style={{ marginTop: 12, background: "linear-gradient(135deg,rgba(15,63,47,0.06),rgba(15,63,47,0.02))", border: "2px solid rgba(15,63,47,0.15)", borderRadius: "var(--radius-md)", padding: "16px 16px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-                    <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, background: "rgba(15,63,47,0.04)", borderRadius: "50%" }} />
-                    <div style={{ fontSize: 10, color: "var(--gray-400)", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 3 }}>FINAL PRICE (MALOTI)</div>
-                    <div style={{ fontSize: 36, fontWeight: 900, color: "var(--primary)", letterSpacing: -1.5, lineHeight: 1.1 }}>M {fmt(qResult.final_price_lsl)}</div>
-                    <div style={{ marginTop: 6, fontSize: 13, color: "var(--gray-300)", textDecoration: "line-through" }}>M {fmt(qResult.compare_price_lsl)}</div>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 10, background: "rgba(15,63,47,0.08)", borderRadius: 20, padding: "5px 14px", fontSize: 13, color: "var(--primary)" }}>
-                      <span style={{ fontWeight: 800 }}>{qResult.discount_pct}% off</span>
-                      <span style={{ opacity: 0.65 }}>· saves M {fmt(qResult.savings_lsl)}</span>
-                    </div>
-                    <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: marginPct(qResult) < 8 ? "#dc2626" : marginPct(qResult) < 15 ? "#d97706" : "var(--primary)" }}>
-                      Margin: {marginPct(qResult)}%{marginPct(qResult) < 8 ? " ⚠ Too low" : marginPct(qResult) < 15 ? " — Acceptable" : " ✓ Healthy"}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                    {([["Compare", fmt(qResult.compare_price_lsl), "var(--accent)"], ["Savings", fmt(qResult.savings_lsl), "var(--primary)"]] as const).map(([l, v, c]) => (
-                      <div key={l} style={{ flex: 1, textAlign: "center", padding: "10px 12px", background: `rgba(${c === "var(--accent)" ? "200,167,90" : "15,63,47"},0.06)`, borderRadius: "var(--radius-sm)", border: `1px solid rgba(${c === "var(--accent)" ? "200,167,90" : "15,63,47"},0.12)` }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--gray-400)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>{l}</div>
-                        <div style={{ fontSize: 16, fontWeight: 900, color: c as string }}>M {v}</div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div style={{ height: "100%", minHeight: 320, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, textAlign: "center" }}>
-                  <div style={{ width: 60, height: 60, borderRadius: 16, background: "var(--gray-50)", border: "1px solid var(--gray-200)", display: "grid", placeItems: "center" }}>
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                  </div>
-                  <p style={{ fontSize: 14, color: "var(--gray-400)", margin: 0, maxWidth: 240 }}>Enter a market price to calculate the Maloti selling price</p>
+                  <button onClick={applyQuickFill} disabled={!quickFillInr} className="pm-btn pm-btn-gold pm-btn-sm" style={{ flexShrink: 0 }}>Apply All</button>
                 </div>
               )}
+              {(catFilter || brandFilter) && (
+                <button onClick={() => { setCat(""); setBrand(""); }} style={{ fontSize: 12, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+                  ✕ Clear filters
+                </button>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ══ BATCH PRICING ══ */}
-        {mainTab === "batch" && (
-          <div>
-
-            {/* ── Empty state ── */}
-            {rows.length === 0 && !batchLoading && (
-              <div style={{ background: "white", border: "2px dashed var(--gray-200)", borderRadius: "var(--radius-lg)", padding: "40px 40px", textAlign: "center", boxShadow: "var(--shadow-soft)" }}>
-                <div style={{ width: 52, height: 52, borderRadius: 14, margin: "0 auto 14px", background: "linear-gradient(135deg,rgba(15,63,47,0.08),rgba(200,167,90,0.1))", display: "grid", placeItems: "center" }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/>
-                    <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
-                  </svg>
+          {/* ── CALCULATOR TAB ── */}
+          {mainTab === "calc" && (
+            <div className="calc-grid">
+              {/* Input */}
+              <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+                <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(200,167,90,0.12)", display: "grid", placeItems: "center", fontSize: 20 }}>₹</div>
+                  Market Price (INR)
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: "var(--gray-900)", marginBottom: 8 }}>Ready to price your catalog</div>
-                <p style={{ fontSize: 13, color: "var(--gray-400)", maxWidth: 420, margin: "0 auto 18px" }}>
-                  All products load as <strong>Unpriced</strong>. Use the tool to calculate and save prices, or manually mark products as priced.
-                </p>
-                <button onClick={() => loadProducts()} className="pm-b pm-bg" style={{ padding: "12px 32px !important", fontSize: 14 }}>⚡ Load Products</button>
-              </div>
-            )}
-
-            {/* ── Skeleton ── */}
-            {batchLoading && rows.length === 0 && (
-              <div style={{ background: "white", borderRadius: "var(--radius-lg)", border: "1px solid var(--gray-200)", overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
-                {[...Array(7)].map((_, i) => (
-                  <div key={i} style={{ padding: "18px 24px", display: "flex", gap: 16, alignItems: "center", borderBottom: "1px solid var(--gray-100)", opacity: 1 - i * 0.1 }}>
-                    <div className="pm-sk" style={{ width: 56, height: 56, flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div className="pm-sk" style={{ width: `${50 + i * 6}%`, height: 13, marginBottom: 8 }} />
-                      <div className="pm-sk" style={{ width: "25%", height: 10 }} />
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.7px", display: "block", marginBottom: 8 }}>
+                  Enter Price (₹) <span style={{ color: "#dc2626" }}>*</span>
+                </label>
+                <div style={{ position: "relative", marginBottom: 20 }}>
+                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 22, fontWeight: 700, color: "#c8a75a", pointerEvents: "none" }}>₹</span>
+                  <input type="number" value={qMarket} onChange={e => setQMarket(e.target.value)} placeholder="2499" autoFocus
+                    style={{ width: "100%", padding: "14px 16px 14px 42px", border: `2px solid ${qResult ? "#c8a75a" : "#e5e7eb"}`, borderRadius: 10, fontSize: 28, fontWeight: 900, color: "#111", outline: "none", fontFamily: "inherit", background: qResult ? "rgba(200,167,90,0.03)" : "white", transition: "border-color 0.2s", minHeight: "unset" }} />
+                </div>
+                <div style={{ background: "#f9fafb", borderRadius: 9, border: "1px solid #e5e7eb", padding: "14px 16px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 10 }}>Applied automatically</div>
+                  {[["🚚 Shipping", "₹700 fixed"], ["💼 Profit", "₹500 fixed"], ["💱 Exchange", `M ${effectiveRate.toFixed(5)}`]].map(([k, v]) => (
+                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #e5e7eb", fontSize: 13 }}>
+                      <span style={{ color: "#6b7280" }}>{k}</span>
+                      <span style={{ fontWeight: 700 }}>{v}</span>
                     </div>
-                    <div className="pm-sk" style={{ width: 116, height: 36, flexShrink: 0 }} />
-                    <div className="pm-sk" style={{ width: 70, height: 36, flexShrink: 0 }} />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ══ THE TABLE ══ */}
-            {displayRows.length > 0 && (
-              <div className="pm-table-wrap">
-                <div className="pm-table-scroll">
-                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
-                    <thead>
-                      <tr style={{ background: "var(--gray-50)", borderBottom: "2px solid var(--gray-200)" }}>
-                        <th style={{ ...TH, width: 36, paddingLeft: 18 }}>
-                          <input type="checkbox" checked={selectAll} onChange={toggleSelectAll} style={{ accentColor: "var(--primary)", width: 14, height: 14, cursor: "pointer", minHeight: "unset" }} />
-                        </th>
-                        <th style={{ ...TH, width: 4, padding: 0 }} />
-                        <th style={{ ...TH, textAlign: "left", minWidth: 280 }}>Product</th>
-                        <th style={TH}>Status</th>
-                        <th style={{ ...TH, textAlign: "right" }}>DB Price</th>
-                        <th style={{ ...TH, textAlign: "center", minWidth: 130 }}>Market Price (₹)</th>
-                        <th style={{ ...TH, textAlign: "right" }}>Cost (₹)</th>
-                        <th style={{ ...TH, textAlign: "right", minWidth: 130, color: "var(--primary)" }}>→ Final (M)</th>
-                        <th style={{ ...TH, textAlign: "right" }}>Compare (M)</th>
-                        <th style={{ ...TH, textAlign: "center" }}>Margin</th>
-                        <th style={{ ...TH, textAlign: "center" }}>Disc%</th>
-                        <th style={{ ...TH, textAlign: "center", minWidth: 150 }}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayRows.map(row => {
-                        const gIdx = rows.findIndex(r => r.product.id === row.product.id);
-                        const { state } = row;
-                        const isUp    = state === "unpriced";
-                        const isMod   = state === "modified";
-                        const isSaved = state === "saved";
-                        const isPriced = state === "priced";
-                        const isErr   = state === "error";
-                        const isSav   = state === "saving";
-
-                        const rowBg = isErr     ? "rgba(220,38,38,0.04)"
-                                    : isSaved   ? "rgba(22,163,74,0.04)"
-                                    : isPriced  ? "rgba(15,63,47,0.02)"
-                                    : isMod     ? "rgba(37,99,235,0.03)"
-                                    : (isUp && highlightUnpriced) ? "rgba(217,119,6,0.04)"
-                                    : "transparent";
-
-                        const barC = isErr     ? "#dc2626"
-                                   : isSaved   ? "#16a34a"
-                                   : isPriced  ? "var(--primary)"
-                                   : isMod     ? "#2563eb"
-                                   : isUp      ? "#d97706"
-                                   : "transparent";
-
-                        const mColor = marginColor(row.result);
-                        const mPct   = row.result ? marginPct(row.result) : 0;
-
-                        return (
-                          <tr key={row.product.id} className="pm-row" style={{ borderBottom: "1px solid var(--gray-100)" }}>
-                            {/* Checkbox */}
-                            <td style={{ ...TD, background: rowBg, width: 36, paddingLeft: 18 }}>
-                              <input type="checkbox" checked={row.isSelected} onChange={() => toggleRow(row.product.id)} style={{ accentColor: "var(--primary)", width: 14, height: 14, cursor: "pointer", minHeight: "unset" }} />
-                            </td>
-
-                            {/* State bar */}
-                            <td style={{ padding: 0, width: 4, background: rowBg }}>
-                              <div style={{ width: 3, minHeight: 38, background: barC, transition: "background 0.25s" }} />
-                            </td>
-
-                            {/* Product info */}
-                            <td style={{ ...TD, background: rowBg, minWidth: 260 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 6, overflow: "hidden", border: "1px solid var(--gray-200)", background: "var(--gray-50)", display: "grid", placeItems: "center" }}>
-                                  {(row.product as any).main_image && !row.imgErr ? (
-                                    <img src={(row.product as any).main_image} alt={row.product.title} onError={() => setImgErr(row.product.id)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                  ) : (
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" strokeWidth="1.5">
-                                      <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
-                                    </svg>
-                                  )}
-                                </div>
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontWeight: 700, fontSize: 11, color: "var(--gray-900)", maxWidth: 180, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.25 }}>
-                                    {row.product.title}
-                                  </div>
-                                  <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 3 }}>
-                                    {[row.product.brand, row.product.category].filter(Boolean).join(" · ") || "—"}
-                                  </div>
-                                  {row.product.sku && <div style={{ fontSize: 10, color: "var(--gray-300)", marginTop: 1, fontFamily: "monospace" }}>SKU: {row.product.sku}</div>}
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Status */}
-                            <td style={{ ...TD, background: rowBg }}><PricingBadge state={state} /></td>
-
-                            {/* DB Price — shown as info only, not used to determine pricing state */}
-                            <td style={{ ...TD, background: rowBg, textAlign: "right" }}>
-                              {row.product.price && row.product.price > 0 ? (
-                                <div>
-                                  <div style={{ fontWeight: 600, fontSize: 12, color: "var(--gray-400)" }}>
-                                    M {fmt(row.product.price)}
-                                  </div>
-                                  {(isPriced || isSaved) && row.toolPrice && (
-                                    <div style={{ fontSize: 10, fontWeight: 700, marginTop: 1, color: "var(--primary)" }}>
-                                      ✓ via tool
-                                    </div>
-                                  )}
-                                  {isUp && row.product.price > 0 && (
-                                    <div className="pm-unp-notice" style={{ marginTop: 3 }}>
-                                      not reviewed
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span style={{ fontSize: 12, color: "var(--gray-300)" }}>No price</span>
-                              )}
-                            </td>
-
-                            {/* INR input */}
-                            <td style={{ ...TD, background: rowBg, textAlign: "center" }}>
-                              <div style={{ position: "relative", display: "inline-block" }}>
-                                <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 13, fontWeight: 700, color: "var(--accent)", pointerEvents: "none" }}>₹</span>
-                                <input
-                                  ref={el => { if (el) inputRefs.current.set(gIdx, el); else inputRefs.current.delete(gIdx); }}
-                                  type="number" value={row.marketInr}
-                                  onChange={e => updateRow(row.product.id, e.target.value)}
-                                  onKeyDown={e => handleKeyDown(e, row.product.id)}
-                                  placeholder="price" disabled={isSav}
-                                  className="pm-inr" data-f={row.marketInr !== "" ? "1" : undefined}
-                                />
-                              </div>
-                            </td>
-
-                            {/* Total cost INR */}
-                            <td style={{ ...TD, background: rowBg, textAlign: "right" }}>
-                              {row.result ? <span style={{ color: "var(--gray-400)", fontSize: 12 }}>₹{row.result.total_cost_inr.toLocaleString()}</span> : <span style={{ color: "var(--gray-200)" }}>—</span>}
-                            </td>
-
-                            {/* Final price */}
-                            <td style={{ ...TD, background: rowBg, textAlign: "right" }}>
-                              {row.result ? (
-                                <span style={{ fontWeight: 900, fontSize: 14, color: "var(--primary)", background: "rgba(15,63,47,0.07)", padding: "2px 8px", borderRadius: 6, display: "inline-block" }}>
-                                  M {fmt(row.result.final_price_lsl)}
-                                </span>
-                              ) : <span style={{ color: "var(--gray-200)" }}>—</span>}
-                            </td>
-
-                            {/* Compare price */}
-                            <td style={{ ...TD, background: rowBg, textAlign: "right" }}>
-                              {row.result ? <span style={{ color: "var(--gray-300)", fontSize: 12, textDecoration: "line-through" }}>M {fmt(row.result.compare_price_lsl)}</span> : <span style={{ color: "var(--gray-200)" }}>—</span>}
-                            </td>
-
-                            {/* Margin health */}
-                            <td style={{ ...TD, background: rowBg, textAlign: "center" }}>
-                              {row.result ? (
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                  <span style={{ fontWeight: 800, fontSize: 13, color: mColor }}>{mPct}%</span>
-                                  <div className="pm-mt">
-                                    <div className="pm-mf" style={{ width: `${Math.min(mPct / 30 * 100, 100)}%`, background: mColor }} />
-                                  </div>
-                                </div>
-                              ) : <span style={{ color: "var(--gray-200)" }}>—</span>}
-                            </td>
-
-                            {/* Discount % */}
-                            <td style={{ ...TD, background: rowBg, textAlign: "center" }}>
-                              {row.result ? (
-                                <span style={{ background: "#dcfce7", color: "#14532d", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
-                                  {row.result.discount_pct}%
-                                </span>
-                              ) : <span style={{ color: "var(--gray-200)" }}>—</span>}
-                            </td>
-
-                            {/* Action column — Save + Mark as Priced/Unpriced */}
-                            <td style={{ ...TD, background: rowBg, textAlign: "center" }}>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
-                                {/* Primary action */}
-                                {isSav && (
-                                  <span className="pm-spin" style={{ width: 18, height: 18, border: "2.5px solid var(--gray-200)", borderTopColor: "var(--primary)", borderRadius: "50%" }} />
-                                )}
-                                {isErr && (
-                                  <button onClick={() => saveRow(row.product.id)} title={row.errorMsg}
-                                    className="pm-b" style={{ background: "#fee2e2 !important", color: "#991b1b !important", border: "1px solid #fca5a5 !important", fontSize: 11, padding: "5px 10px !important" }}>
-                                    Retry
-                                  </button>
-                                )}
-                                {isSaved && (
-                                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(22,163,74,0.1)", display: "grid", placeItems: "center" }}>
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
-                                    </div>
-                                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)" }}>Saved</span>
-                                  </div>
-                                )}
-                                {!isSav && !isErr && !isSaved && (
-                                  <button
-                                    onClick={() => saveRow(row.product.id)}
-                                    disabled={!row.result}
-                                    className="pm-b"
-                                    style={{
-                                      background: row.result ? "var(--primary) !important" : "var(--gray-100) !important",
-                                      color: row.result ? "white !important" : "var(--gray-300) !important",
-                                      boxShadow: row.result ? "0 2px 6px rgba(15,63,47,0.2) !important" : "none !important",
-                                      cursor: row.result ? "pointer !important" : "not-allowed !important",
-                                      padding: "6px 14px !important", fontSize: 12,
-                                    }}>
-                                    Save
-                                  </button>
-                                )}
-
-                                {/* Secondary: Mark as Priced / Unpriced */}
-                                {(isUp || isMod) && !isSav && (
-                                  <button
-                                    onClick={() => markAsPriced(row.product.id)}
-                                    className="pm-b pm-bmk"
-                                    title="Mark this product as priced without recalculating"
-                                  >
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
-                                    Mark Priced
-                                  </button>
-                                )}
-                                {(isPriced || isSaved) && !isSav && (
-                                  <button
-                                    onClick={() => markAsUnpriced(row.product.id)}
-                                    className="pm-b pm-bum"
-                                    title="Reset this product to unpriced — requires re-review"
-                                  >
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 .7-3.6"/></svg>
-                                    Reset
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  ))}
                 </div>
+              </div>
 
-                {/* Table footer */}
-                <div style={{ padding: "7px 14px", borderTop: "1px solid var(--gray-100)", background: "var(--gray-50)", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", fontSize: 10, color: "var(--gray-400)" }}>
+              {/* Result */}
+              <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+                {qResult ? (
+                  <>
+                    <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 18 }}>Price Breakdown</div>
+                    {[["Market", `₹ ${qVal.toLocaleString()}`, "#111"], ["+ Shipping", `₹ ${qResult.shipping_cost_inr}`, "#6b7280"], ["+ Profit", `₹ ${qResult.profit_inr}`, "#6b7280"]].map(([k, v, c]) => (
+                      <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f3f4f6", fontSize: 14 }}>
+                        <span style={{ color: "#6b7280" }}>{k}</span>
+                        <span style={{ fontWeight: 700, color: c as string }}>{v}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 14px", fontSize: 14, borderBottom: "2px solid #111" }}>
+                      <span style={{ fontWeight: 700 }}>Total (INR)</span>
+                      <span style={{ fontWeight: 900 }}>₹ {qResult.total_cost_inr.toLocaleString()}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13, color: "#9ca3af" }}>
+                      <span>× Exchange Rate</span>
+                      <span style={{ fontWeight: 700 }}>× {effectiveRate.toFixed(5)}</span>
+                    </div>
+                    <div style={{ marginTop: 14, background: "linear-gradient(135deg, rgba(15,63,47,0.06), rgba(15,63,47,0.02))", border: "2px solid rgba(15,63,47,0.15)", borderRadius: 12, padding: "18px 16px", textAlign: "center" }}>
+                      <div style={{ fontSize: 10, color: "#9ca3af", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>FINAL PRICE (MALOTI)</div>
+                      <div style={{ fontSize: 38, fontWeight: 900, color: "#0f3f2f", letterSpacing: -1.5, lineHeight: 1.1 }}>M {fmt(qResult.final_price_lsl)}</div>
+                      <div style={{ marginTop: 6, fontSize: 13, color: "#9ca3af", textDecoration: "line-through" }}>M {fmt(qResult.compare_price_lsl)}</div>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 10, background: "rgba(15,63,47,0.08)", borderRadius: 20, padding: "5px 14px", fontSize: 13, color: "#0f3f2f" }}>
+                        <span style={{ fontWeight: 800 }}>{qResult.discount_pct}% off</span>
+                        <span style={{ opacity: 0.65 }}>· saves M {fmt(qResult.savings_lsl)}</span>
+                      </div>
+                      <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: marginColor(qResult) }}>
+                        Margin: {marginPct(qResult)}%{marginPct(qResult) < 8 ? " ⚠ Too low" : marginPct(qResult) < 15 ? " — Acceptable" : " ✓ Healthy"}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ height: "100%", minHeight: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, textAlign: "center" }}>
+                    <div style={{ width: 60, height: 60, borderRadius: 16, background: "#f9fafb", border: "1px solid #e5e7eb", display: "grid", placeItems: "center" }}>
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    </div>
+                    <p style={{ fontSize: 14, color: "#9ca3af", margin: 0, maxWidth: 240 }}>Enter a market price to calculate the Maloti selling price</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── BATCH TAB ── */}
+          {mainTab === "batch" && (
+            <>
+              {/* Empty state */}
+              {rows.length === 0 && !batchLoading && (
+                <div className="pm-empty">
+                  <div style={{ width: 56, height: 56, borderRadius: 16, margin: "0 auto 16px", background: "linear-gradient(135deg, rgba(15,63,47,0.08), rgba(200,167,90,0.1))", display: "grid", placeItems: "center" }}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0f3f2f" strokeWidth="1.5" strokeLinecap="round">
+                      <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+                    </svg>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: "#111", marginBottom: 8 }}>Ready to price your catalog</div>
+                  <p style={{ fontSize: 13, color: "#9ca3af", maxWidth: 360, margin: "0 auto 20px" }}>
+                    All products load as <strong>Unpriced</strong>. Use this tool to calculate and save prices.
+                  </p>
+                  <button onClick={() => loadProducts()} className="pm-btn pm-btn-primary" style={{ padding: "13px 32px", fontSize: 14 }}>⚡ Load Products</button>
+                </div>
+              )}
+
+              {/* Skeleton */}
+              {batchLoading && rows.length === 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 14, opacity: 1 - i * 0.15 }}>
+                      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 14 }}>
+                        <div className="pc-sk" style={{ width: 52, height: 52, flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <div className="pc-sk" style={{ width: "70%", height: 13, marginBottom: 8 }} />
+                          <div className="pc-sk" style={{ width: "40%", height: 10 }} />
+                        </div>
+                      </div>
+                      <div className="pc-sk" style={{ width: "100%", height: 48 }} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Stats + filters row */}
+              {rows.length > 0 && (
+                <>
+                  {/* Stats */}
+                  <div className="pm-stats-row">
+                    <div className="pm-stat-box" style={{ borderLeft: "3px solid #d97706" }}>
+                      <div className="pm-stat-val" style={{ color: "#d97706" }}>{stats.unpriced}</div>
+                      <div className="pm-stat-lbl">Unpriced</div>
+                    </div>
+                    <div className="pm-stat-box" style={{ borderLeft: "3px solid #0f3f2f" }}>
+                      <div className="pm-stat-val" style={{ color: "#0f3f2f" }}>{stats.priced}</div>
+                      <div className="pm-stat-lbl">Priced</div>
+                    </div>
+                    <div className="pm-stat-box" style={{ borderLeft: "3px solid #2563eb" }}>
+                      <div className="pm-stat-val" style={{ color: "#2563eb" }}>{stats.modified}</div>
+                      <div className="pm-stat-lbl">Modified</div>
+                    </div>
+                    {stats.errors > 0 && (
+                      <div className="pm-stat-box" style={{ borderLeft: "3px solid #dc2626" }}>
+                        <div className="pm-stat-val" style={{ color: "#dc2626" }}>{stats.errors}</div>
+                        <div className="pm-stat-lbl">Errors</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Progress */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "#6b7280", marginBottom: 5 }}>
+                      <span>Pricing progress</span>
+                      <span style={{ color: stats.pctDone === 100 ? "#0f3f2f" : "#d97706" }}>{stats.pctDone}% done · {stats.priced}/{stats.total}</span>
+                    </div>
+                    <div className="pm-progress-wrap">
+                      <div className="pm-progress-fill" style={{ width: `${stats.pctDone}%`, background: stats.pctDone === 100 ? "#0f3f2f" : "#d97706" }} />
+                    </div>
+                  </div>
+
+                  {/* Filter + sort toolbar */}
+                  <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+                    {/* Filter tabs */}
+                    {([
+                      { id: "all",      label: "All",         count: rows.length,                                     bg: "#111",    fg: "white" },
+                      { id: "unpriced", label: "⚠ Unpriced",  count: stats.unpriced + stats.modified + stats.errors,  bg: "#d97706", fg: "white" },
+                      { id: "priced",   label: "✓ Priced",    count: stats.priced,                                     bg: "#0f3f2f", fg: "white" },
+                    ] as const).map(t => {
+                      const active = filterTab === t.id;
+                      return (
+                        <button key={t.id} onClick={() => setFilterTab(t.id)} className="pm-pill"
+                          style={{ background: active ? t.bg : "white", color: active ? t.fg : "#6b7280", border: `1.5px solid ${active ? "transparent" : "#e5e7eb"}` }}>
+                          {t.label}
+                          <span style={{ background: active ? "rgba(255,255,255,0.2)" : "#f3f4f6", color: active ? "white" : "#6b7280", padding: "0 5px", borderRadius: 20, fontSize: 10, fontWeight: 800 }}>{t.count}</span>
+                        </button>
+                      );
+                    })}
+
+                    {/* Divider */}
+                    <div style={{ width: 1, height: 20, background: "#e5e7eb", flexShrink: 0 }} />
+
+                    {/* Sort */}
+                    <select value={sortKey} onChange={e => setSort(e.target.value as SortKey)} className="pm-select" style={{ fontSize: 12, minHeight: 36, flex: 1, minWidth: 120 }}>
+                      <option value="unpriced_first">⚠ Unpriced first</option>
+                      <option value="default">Default order</option>
+                      <option value="name">A–Z</option>
+                      <option value="price_asc">Price: Low → High</option>
+                      <option value="price_desc">Price: High → Low</option>
+                    </select>
+
+                    {/* Select all */}
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#6b7280", cursor: "pointer", userSelect: "none", flexShrink: 0 }}>
+                      <input type="checkbox" checked={selectAll} onChange={toggleSelectAll}
+                        style={{ accentColor: "#0f3f2f", width: 15, height: 15, cursor: "pointer" }} />
+                      All
+                    </label>
+
+                    {/* Highlight toggle */}
+                    <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: "#6b7280", cursor: "pointer", userSelect: "none", flexShrink: 0 }}>
+                      <input type="checkbox" checked={highlightUnpriced} onChange={e => setHL(e.target.checked)}
+                        style={{ accentColor: "#0f3f2f", width: 15, height: 15, cursor: "pointer" }} />
+                      Highlight
+                    </label>
+
+                    {/* Save selected */}
+                    {stats.selectedReady > 0 && (
+                      <button onClick={() => saveAll(true)} disabled={bulkSaving} className="pm-btn pm-btn-blue pm-btn-sm" style={{ flexShrink: 0 }}>
+                        💾 Selected ({stats.selectedReady})
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* ── PRODUCT CARDS ── */}
+              {displayRows.length > 0 && displayRows.map((row, i) => {
+                const { state } = row;
+                const isUp     = state === "unpriced";
+                const isMod    = state === "modified";
+                const isSaved  = state === "saved";
+                const isPriced = state === "priced";
+                const isErr    = state === "error";
+                const isSav    = state === "saving";
+
+                const barColor = isErr ? "#dc2626"
+                               : isSaved ? "#16a34a"
+                               : isPriced ? "#0f3f2f"
+                               : isMod ? "#2563eb"
+                               : isUp ? "#d97706"
+                               : "#e5e7eb";
+
+                const cardBg = isErr ? "rgba(220,38,38,0.02)"
+                             : isSaved ? "rgba(22,163,74,0.02)"
+                             : isPriced ? "rgba(15,63,47,0.01)"
+                             : (isUp && highlightUnpriced) ? "rgba(217,119,6,0.02)"
+                             : "white";
+
+                const mColor = marginColor(row.result);
+                const mPct   = row.result ? marginPct(row.result) : 0;
+
+                return (
+                  <div key={row.product.id} className="pc" style={{ background: cardBg, animationDelay: `${Math.min(i, 15) * 25}ms` }}>
+                    {/* State bar */}
+                    <div className="pc-state-bar" style={{ background: barColor }} />
+
+                    {/* Product header */}
+                    <div className="pc-header">
+                      <input type="checkbox" checked={row.isSelected} onChange={() => toggleRow(row.product.id)}
+                        className="pc-sel-check" />
+
+                      <div className="pc-thumb">
+                        {(row.product as any).main_image && !row.imgErr ? (
+                          <img src={(row.product as any).main_image} alt={row.product.title}
+                            onError={() => setImgErr(row.product.id)} />
+                        ) : (
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+                          </svg>
+                        )}
+                      </div>
+
+                      <div className="pc-info">
+                        <div className="pc-title">{row.product.title}</div>
+                        <div className="pc-meta">
+                          {[row.product.brand, row.product.category].filter(Boolean).join(" · ") || "No category"}
+                          {row.product.sku && <span style={{ marginLeft: 4, fontFamily: "monospace", fontSize: 10, color: "#d1d5db" }}>· {row.product.sku}</span>}
+                        </div>
+                        <div className="pc-badge-row">
+                          <PricingBadge state={state} />
+                          {row.product.price && row.product.price > 0 && (
+                            <span className="pc-dbprice">DB: M{fmt(row.product.price)}</span>
+                          )}
+                          {(isPriced || isSaved) && row.toolPrice && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "#0f3f2f", background: "rgba(15,63,47,0.08)", padding: "2px 6px", borderRadius: 4 }}>✓ via tool</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* INR input */}
+                    <div className="pc-input-section">
+                      <div className="pc-input-label">Market Price (₹)</div>
+                      <div className="pc-inr-wrap">
+                        <span className="pc-rupee">₹</span>
+                        <input
+                          ref={el => { if (el) inputRefs.current.set(row.product.id, el); else inputRefs.current.delete(row.product.id); }}
+                          type="number"
+                          value={row.marketInr}
+                          onChange={e => updateRow(row.product.id, e.target.value)}
+                          onKeyDown={e => handleKeyDown(e, row.product.id)}
+                          placeholder="e.g. 2499"
+                          disabled={isSav}
+                          className={`pc-inr ${row.marketInr !== "" ? "pc-inr-active" : ""}`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Results */}
+                    {row.result && (
+                      <div className="pc-results">
+                        <div className="pc-final-row">
+                          <div>
+                            <div className="pc-final-label">Final Price</div>
+                            <div className="pc-final-price">M {fmt(row.result.final_price_lsl)}</div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 2 }}>Compare</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "#9ca3af", textDecoration: "line-through" }}>M {fmt(row.result.compare_price_lsl)}</div>
+                          </div>
+                        </div>
+                        <div className="pc-stats-row">
+                          <span className="pc-stat-chip" style={{ color: mColor, background: `${mColor}18` }}>
+                            {mPct}% margin
+                          </span>
+                          <span className="pc-stat-chip" style={{ background: "#dcfce7", color: "#14532d" }}>
+                            -{row.result.discount_pct}% discount
+                          </span>
+                          <span className="pc-stat-chip" style={{ background: "#f0fdf4", color: "#16a34a", fontSize: 10 }}>
+                            saves M{fmt(row.result.savings_lsl)}
+                          </span>
+                        </div>
+                        {mPct < 8 && (
+                          <div style={{ marginTop: 8, fontSize: 11, fontWeight: 700, color: "#991b1b", background: "#fee2e2", padding: "5px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 5 }}>
+                            ⚠ Margin too low — consider raising the price
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="pc-actions">
+                      {/* Saving spinner */}
+                      {isSav && (
+                        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "#f9fafb", borderRadius: 8, color: "#6b7280", fontWeight: 700, fontSize: 13 }}>
+                          <span className="pm-spin" style={{ width: 16, height: 16, border: "2.5px solid #e5e7eb", borderTopColor: "#0f3f2f", borderRadius: "50%" }} />
+                          Saving…
+                        </div>
+                      )}
+
+                      {/* Error retry */}
+                      {isErr && (
+                        <button onClick={() => saveRow(row.product.id)} className="pc-save-btn pc-save-error" style={{ flex: 1 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 .7-3.6"/></svg>
+                          {row.errorMsg ? `Retry (${row.errorMsg.substring(0, 20)}…)` : "Retry"}
+                        </button>
+                      )}
+
+                      {/* Saved state */}
+                      {isSaved && !isSav && (
+                        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "#dcfce7", borderRadius: 8, color: "#14532d", fontWeight: 800, fontSize: 14 }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                          Price Saved
+                        </div>
+                      )}
+
+                      {/* Save button */}
+                      {!isSav && !isErr && !isSaved && (
+                        <button
+                          onClick={() => saveRow(row.product.id)}
+                          disabled={!row.result}
+                          className={`pc-save-btn ${row.result ? "pc-save-active" : "pc-save-disabled"}`}
+                          style={{ flex: 1 }}>
+                          {row.result ? (
+                            <>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                              Save Price
+                            </>
+                          ) : "Enter ₹ Price Above"}
+                        </button>
+                      )}
+
+                      {/* Mark as priced */}
+                      {(isUp || isMod) && !isSav && (
+                        <button onClick={() => markAsPriced(row.product.id)} className="pc-mark-btn pc-mark-priced">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                          Mark Priced
+                        </button>
+                      )}
+
+                      {/* Reset to unpriced */}
+                      {(isPriced || isSaved) && !isSav && (
+                        <button onClick={() => markAsUnpriced(row.product.id)} className="pc-mark-btn pc-mark-reset">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 .7-3.6"/></svg>
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Footer */}
+              {displayRows.length > 0 && (
+                <div style={{ padding: "8px 4px", fontSize: 11, color: "#9ca3af", display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <span>📦 {rows.length} loaded</span>
+                  {totalCount > rows.length && <span>· {totalCount} total</span>}
                   <span>✏️ {stats.withResult} calculated</span>
                   <span style={{ color: "#d97706", fontWeight: 700 }}>⚠ {stats.unpriced} unpriced</span>
-                  <span style={{ color: "var(--primary)", fontWeight: 700 }}>✓ {stats.priced} priced</span>
+                  <span style={{ color: "#0f3f2f", fontWeight: 700 }}>✓ {stats.priced} priced</span>
                   {stats.errors > 0 && <span style={{ color: "#dc2626", fontWeight: 700 }}>✗ {stats.errors} errors</span>}
-                  {totalCount > rows.length && <span style={{ marginLeft: "auto" }}>Showing {rows.length} of {totalCount}</span>}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </div>
 
-          </div>{/* end pm-body-inner */}
-        </div>{/* end pm-body */}
-
-        {/* ══ STICKY SAVE BAR ══ */}
+        {/* ─── STICKY SAVE BAR ─── */}
         {stats.readyToSave > 0 && (
-          <div className="pm-sf">
-            <div style={{
-              background: "white",
-              border: "1.5px solid var(--gray-200)",
-              borderRadius: "var(--radius-lg)",
-              padding: "12px 20px",
-              display: "flex", alignItems: "center", gap: 16,
-              boxShadow: "0 16px 48px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.08)",
-              minWidth: 380,
-            }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--accent)", flexShrink: 0, animation: "pulseRing 2.5s infinite" }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: "var(--gray-900)" }}>{stats.readyToSave} price{stats.readyToSave !== 1 ? "s" : ""} ready to save</div>
-                <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 1 }}>Changes won&apos;t appear in your store until saved</div>
+          <div className="pm-save-bar">
+            <div className="pm-save-pulse" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: "#111" }}>
+                {stats.readyToSave} price{stats.readyToSave !== 1 ? "s" : ""} ready
               </div>
-              <button
-                onClick={() => saveAll(false)}
-                disabled={bulkSaving}
-                style={{
-                  padding: "9px 20px", borderRadius: "var(--radius-sm)",
-                  background: "var(--primary)", color: "white",
-                  border: "none", cursor: bulkSaving ? "not-allowed" : "pointer",
-                  fontWeight: 800, fontSize: 13, fontFamily: "inherit",
-                  boxShadow: "0 4px 16px rgba(15,63,47,0.25)",
-                  minHeight: "unset", transition: "all 0.15s", whiteSpace: "nowrap",
-                }}>
-                {bulkSaving
-                  ? <><span className="pm-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", marginRight: 8 }} />Saving…</>
-                  : `💾 Save All (${stats.readyToSave})`}
-              </button>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>
+                Won't appear in store until saved
+              </div>
             </div>
+            {stats.selectedReady > 0 && (
+              <button onClick={() => saveAll(true)} disabled={bulkSaving} className="pm-btn pm-btn-blue pm-btn-sm">
+                Selected ({stats.selectedReady})
+              </button>
+            )}
+            <button
+              onClick={() => saveAll(false)}
+              disabled={bulkSaving}
+              className="pm-btn pm-btn-primary"
+              style={{ minWidth: 120 }}>
+              {bulkSaving
+                ? <><span className="pm-spin" style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", marginRight: 6 }} />Saving…</>
+                : `💾 Save All (${stats.readyToSave})`}
+            </button>
           </div>
         )}
       </div>
     </>
   );
 }
-
-/* ═══════════════════════════════════════════════════
-   STYLE CONSTANTS
-═══════════════════════════════════════════════════ */
-const TH: React.CSSProperties = {
-  padding: "7px 8px", fontSize: 9, fontWeight: 700,
-  color: "var(--gray-400)", textTransform: "uppercase",
-  letterSpacing: "0.5px", whiteSpace: "nowrap", textAlign: "center",
-  background: "var(--gray-50)",
-};
-
-const TD: React.CSSProperties = {
-  padding: "6px 8px", fontSize: 11, verticalAlign: "middle",
-};
