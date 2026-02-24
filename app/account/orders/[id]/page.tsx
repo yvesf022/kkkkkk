@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ordersApi, paymentsApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/currency";
@@ -10,536 +9,369 @@ import type { Order, Payment } from "@/lib/types";
 const FF = "'Sora', 'DM Sans', -apple-system, sans-serif";
 const BRAND = "#0A0F1E";
 const ACCENT = "#2563EB";
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://karabo.onrender.com";
+const SUCCESS = "#10B981";
+const BORDER = "#E2E8F0";
 
-const ORDER_STATUS: Record<string, { label: string; color: string; bg: string; border: string; icon: string; step: number }> = {
+/* ─── Status config ─── */
+const STATUS: Record<string, { label: string; color: string; bg: string; border: string; icon: string; step: number }> = {
   pending:   { label: "Pending",   color: "#92400E", bg: "#FFFBEB", border: "#FDE68A", icon: "⏳", step: 0 },
-  paid:      { label: "Confirmed", color: "#065F46", bg: "#F0FDF4", border: "#BBF7D0", icon: "✅", step: 1 },
+  paid:      { label: "Confirmed", color: "#065F46", bg: "#ECFDF5", border: "#A7F3D0", icon: "✅", step: 1 },
   shipped:   { label: "Shipped",   color: "#1E40AF", bg: "#EFF6FF", border: "#BFDBFE", icon: "🚚", step: 2 },
   completed: { label: "Delivered", color: "#166534", bg: "#DCFCE7", border: "#86EFAC", icon: "📦", step: 3 },
   cancelled: { label: "Cancelled", color: "#991B1B", bg: "#FFF1F2", border: "#FECDD3", icon: "✕",  step: -1 },
 };
-const PAY_STATUS: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  pending:  { label: "Awaiting Payment",  color: "#92400E", bg: "#FFFBEB", dot: "#F59E0B" },
-  on_hold:  { label: "Under Review",      color: "#7C3D0A", bg: "#FFF7ED", dot: "#F97316" },
-  paid:     { label: "Payment Confirmed", color: "#065F46", bg: "#F0FDF4", dot: "#10B981" },
-  rejected: { label: "Payment Rejected",  color: "#991B1B", bg: "#FFF1F2", dot: "#F43F5E" },
+const PAY: Record<string, { label: string; dot: string; color: string; bg: string }> = {
+  pending:  { label: "Awaiting Payment",  dot: "#F59E0B", color: "#92400E", bg: "#FFFBEB" },
+  on_hold:  { label: "Under Review",      dot: "#F97316", color: "#7C3D0A", bg: "#FFF7ED" },
+  paid:     { label: "Payment Confirmed", dot: "#10B981", color: "#065F46", bg: "#ECFDF5" },
+  rejected: { label: "Payment Rejected",  dot: "#F43F5E", color: "#991B1B", bg: "#FFF1F2" },
 };
-const TRACK_STEPS = ["Order Placed", "Payment Confirmed", "Shipped", "Delivered"];
-const SHIP_STEP: Record<string, number> = { pending: 0, processing: 1, shipped: 2, delivered: 3, returned: 3 };
 
-function Thumb({ src, alt, size = 72 }: { src?: string|null; alt: string; size?: number }) {
+const STEPS = ["Placed", "Confirmed", "Shipped", "Delivered"];
+
+/* ─── Components ─── */
+function Thumb({ src, alt, size = 52 }: { src?: string | null; alt: string; size?: number }) {
   const [err, setErr] = useState(false);
   if (!src || err) return (
-    <div style={{ width: size, height: size, borderRadius: 12, background: "linear-gradient(135deg,#F1F5F9,#E2E8F0)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, flexShrink: 0 }}>📦</div>
+    <div style={{ width: size, height: size, borderRadius: 10, background: "linear-gradient(135deg,#F1F5F9,#E2E8F0)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, flexShrink: 0 }}>📦</div>
   );
-  return <img src={src} alt={alt} onError={() => setErr(true)} style={{ width: size, height: size, borderRadius: 12, objectFit: "cover", flexShrink: 0, border: "1px solid #F1F5F9" }} />;
+  return <img src={src} alt={alt} onError={() => setErr(true)} style={{ width: size, height: size, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #F1F5F9" }} />;
 }
 
-function Spinner({ size = 22 }: { size?: number }) {
+function Spinner() {
   return (
-    <svg width={size} height={size} viewBox="0 0 22 22" fill="none" style={{ animation: "kspin .7s linear infinite" }}>
-      <circle cx="11" cy="11" r="9" stroke="currentColor" strokeWidth="2" strokeOpacity=".12"/>
-      <path d="M11 2a9 9 0 019 9" stroke={ACCENT} strokeWidth="2" strokeLinecap="round"/>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: "kspin .7s linear infinite" }}>
+      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" strokeOpacity=".15"/>
+      <path d="M10 2a8 8 0 018 8" stroke={ACCENT} strokeWidth="2" strokeLinecap="round"/>
     </svg>
   );
 }
 
-export default function UserOrderDetailPage() {
-  const params  = useParams();
-  const router  = useRouter();
-  const id      = params?.id as string;
+/* Mini progress bar component */
+function OrderProgress({ status }: { status: string }) {
+  const s = STATUS[status];
+  if (!s || status === "cancelled") return null;
+  const step = s.step;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 0, width: "100%" }}>
+      {STEPS.map((label, i) => {
+        const done = step >= i;
+        const active = step === i;
+        return (
+          <div key={label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+            {i < STEPS.length - 1 && (
+              <div style={{ position: "absolute", top: 7, left: "50%", width: "100%", height: 2, background: step > i ? ACCENT : "#E2E8F0", transition: "background .4s", zIndex: 0 }} />
+            )}
+            <div style={{ width: 16, height: 16, borderRadius: "50%", background: done ? ACCENT : "#E2E8F0", zIndex: 1, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: active ? `0 0 0 4px rgba(37,99,235,.15)` : "none", transition: "all .3s" }}>
+              {done && <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4l1.5 1.5 3.5-3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </div>
+            <span style={{ fontSize: 9, color: done ? ACCENT : "#94A3B8", fontWeight: done ? 700 : 500, marginTop: 3, whiteSpace: "nowrap", letterSpacing: "0.02em" }}>{label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-  const [order,   setOrder]   = useState<Order|null>(null);
-  const [payment, setPayment] = useState<Payment|null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string|null>(null);
+export default function AccountOrdersPage() {
+  const [orders,   setOrders]   = useState<Order[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
+  const [filter,   setFilter]   = useState<string>("all");
+  const [search,   setSearch]   = useState("");
 
-  const [showCancel,  setShowCancel]  = useState(false);
-  const [cancelReason,setCancelReason]= useState("");
-  const [cancelling,  setCancelling]  = useState(false);
-  const [showReturn,  setShowReturn]  = useState(false);
-  const [returnReason,setReturnReason]= useState("");
-  const [returning,   setReturning]   = useState(false);
-  const [showRefund,  setShowRefund]  = useState(false);
-  const [refundReason,setRefundReason]= useState("");
-  const [refunding,   setRefunding]   = useState(false);
-  const [proofFile,   setProofFile]   = useState<File|null>(null);
-  const [dragOver,    setDragOver]    = useState(false);
-  const [uploading,   setUploading]   = useState(false);
-  const [showUpload,  setShowUpload]  = useState(false);
-  const [toast,       setToast]       = useState<{msg:string;type:"ok"|"err"}|null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  function flash(msg: string, type: "ok"|"err" = "ok") {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
-  }
-
-  async function load() {
-    try {
-      setLoading(true); setError(null);
-      const [ord, pmts] = await Promise.all([
-        ordersApi.getById(id),
-        paymentsApi.getMy().catch(() => [] as Payment[]),
-      ]);
-      setOrder(ord);
-      const list: Payment[] = Array.isArray(pmts) ? pmts : (pmts as any)?.results ?? (pmts as any)?.payments ?? [];
-      const match = list.find(p => p.order_id === id) ?? null;
-      setPayment(match);
-    } catch (e: any) {
-      setError(e?.message ?? "Could not load order");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { if (id) load(); }, [id]);
-
-  async function handleCancel() {
-    if (!cancelReason.trim()) { flash("Please enter a cancellation reason", "err"); return; }
-    setCancelling(true);
-    try {
-      await ordersApi.cancel(id, cancelReason);
-      flash("Order cancelled successfully");
-      setShowCancel(false);
-      await load();
-    } catch (e: any) { flash(e?.message ?? "Failed to cancel order", "err"); }
-    finally { setCancelling(false); }
-  }
-
-  async function handleReturn() {
-    if (!returnReason.trim()) { flash("Please enter a return reason", "err"); return; }
-    setReturning(true);
-    try {
-      await ordersApi.requestReturn(id, returnReason);
-      flash("Return request submitted");
-      setShowReturn(false);
-      await load();
-    } catch (e: any) { flash(e?.message ?? "Failed to submit return", "err"); }
-    finally { setReturning(false); }
-  }
-
-  async function handleRefund() {
-    if (!refundReason.trim()) { flash("Please enter a refund reason", "err"); return; }
-    setRefunding(true);
-    try {
-      await ordersApi.requestRefund(id, { reason: refundReason, amount: order!.total_amount });
-      flash("Refund request submitted");
-      setShowRefund(false);
-      await load();
-    } catch (e: any) { flash(e?.message ?? "Failed to request refund", "err"); }
-    finally { setRefunding(false); }
-  }
-
-  async function handleUploadProof() {
-    if (!proofFile || !payment) return;
-    setUploading(true);
-    try {
-      // Use direct fetch — NOT paymentsApi.uploadProof/resubmitProof — because:
-      // 1. The shared request() helper passes Content-Type which breaks multipart boundary
-      // 2. Backend param is `proof: UploadFile = File(...)` so field must be "proof" not "file"
-      // 3. There is no /resubmit-proof route; same POST /{id}/proof handles all statuses
-      const base = (process.env.NEXT_PUBLIC_API_URL ?? "https://karabo.onrender.com").replace(/\/$/, "");
-      const token = typeof window !== "undefined" ? localStorage.getItem("karabo_token") : null;
-      const form = new FormData();
-      form.append("proof", proofFile); // must match FastAPI param name
-
-      const res = await fetch(`${base}/api/payments/${payment.id}/proof`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: form,
-      });
-
-      if (!res.ok) {
-        let msg = `Upload failed (${res.status})`;
-        try {
-          const data = await res.json();
-          if (Array.isArray(data?.detail)) {
-            // FastAPI 422: detail is [{loc, msg, type}] — extract human-readable text
-            msg = (data.detail as Array<{loc: string[]; msg: string}>)
-              .map(e => `${e.loc.slice(-1)[0]}: ${e.msg}`).join("; ");
-          } else {
-            msg = (typeof data?.detail === "string" ? data.detail : null)
-               ?? data?.message ?? msg;
-          }
-        } catch {}
-        throw new Error(msg);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [ords, pmts] = await Promise.allSettled([
+          ordersApi.getMy(),
+          paymentsApi.getMy(),
+        ]);
+        if (ords.status === "fulfilled") {
+          const v: any = ords.value;
+          setOrders(Array.isArray(v) ? v : v?.orders ?? v?.results ?? []);
+        }
+        if (pmts.status === "fulfilled") {
+          const v: any = pmts.value;
+          setPayments(Array.isArray(v) ? v : v?.payments ?? v?.results ?? []);
+        }
+      } catch (e: any) {
+        setError(e?.message ?? "Could not load orders");
+      } finally {
+        setLoading(false);
       }
+    })();
+  }, []);
 
-      flash("Proof uploaded. Awaiting admin review.");
-      setProofFile(null); setShowUpload(false);
-      await load();
-    } catch (e: any) {
-      const msg = e instanceof Error ? e.message
-                : typeof e === "string" ? e
-                : "Upload failed. Please try again.";
-      flash(msg, "err");
-    }
-    finally { setUploading(false); }
-  }
+  const paymentFor = (orderId: string) => payments.find(p => p.order_id === orderId) ?? null;
 
-  if (loading) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "80px 0", fontFamily: FF, color: "#94A3B8" }}>
-      <Spinner /><p style={{ fontSize: 14 }}>Loading order details…</p>
-    </div>
-  );
+  const filteredOrders = orders.filter(o => {
+    const matchesFilter = filter === "all" || o.status === filter;
+    const q = search.toLowerCase().trim();
+    const matchesSearch = !q
+      || o.id.toLowerCase().includes(q)
+      || (o.items ?? []).some(i => (i.title ?? "").toLowerCase().includes(q))
+      || (o.tracking_number ?? "").toLowerCase().includes(q);
+    return matchesFilter && matchesSearch;
+  });
 
-  if (error || !order) return (
-    <div style={{ textAlign: "center", padding: "80px 0", fontFamily: FF }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
-      <h3 style={{ fontSize: 18, fontWeight: 700, color: BRAND, marginBottom: 8 }}>Could not load order</h3>
-      <p style={{ color: "#64748B", fontSize: 14, marginBottom: 20 }}>{error}</p>
-      <button onClick={() => load()} style={{ marginRight: 12, padding: "10px 20px", borderRadius: 10, background: ACCENT, color: "#fff", border: "none", fontWeight: 700, fontFamily: FF, cursor: "pointer" }}>Retry</button>
-      <Link href="/account/orders" style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid #E2E8F0", color: "#475569", textDecoration: "none", fontWeight: 600, fontSize: 14 }}>← Back to Orders</Link>
-    </div>
-  );
-
-  const os = ORDER_STATUS[order.status] ?? ORDER_STATUS.pending;
-  const ps = payment ? PAY_STATUS[payment.status] : null;
-  const items = order.items ?? [];
-  const step = SHIP_STEP[order.shipping_status] ?? 0;
-  const isCancelled = order.status === "cancelled";
-  const canCancel = ["pending", "paid"].includes(order.status);
-  const canReturn = order.status === "completed" && order.return_status !== "requested" && order.return_status !== "approved";
-  const canRefund = ["paid", "completed"].includes(order.status) && order.refund_status !== "requested" && order.refund_status !== "processing";
-  const canUploadProof = payment && ["pending", "on_hold", "rejected"].includes(payment.status);
-  const addr = order.shipping_address as any;
+  const tabs = ["all", "pending", "paid", "shipped", "completed", "cancelled"];
+  const counts = tabs.reduce((acc, t) => {
+    acc[t] = t === "all" ? orders.length : orders.filter(o => o.status === t).length;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
-    <div style={{ fontFamily: FF, maxWidth: 940, width: "100%", boxSizing: "border-box", paddingBottom: 60, overflowX: "hidden" }}>
+    <div style={{ fontFamily: FF, maxWidth: 900, paddingBottom: 60 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
         @keyframes kspin { to { transform: rotate(360deg); } }
-        @keyframes kfadeup { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-        .kcard { background:#fff; border:1px solid #E2E8F0; border-radius:16px; padding:22px; animation: kfadeup .3s ease both; }
-        .kbtn-ghost { background:transparent; border:1px solid #E2E8F0; color:#475569; padding:10px 18px; border-radius:10px; font-weight:600; font-size:13px; font-family:${FF}; cursor:pointer; transition: all .15s; }
-        .kbtn-ghost:hover { background:#F8FAFC; border-color:#CBD5E1; }
-        .kbtn-primary { background:${ACCENT}; color:#fff; border:none; padding:11px 20px; border-radius:10px; font-weight:700; font-size:14px; font-family:${FF}; cursor:pointer; transition: opacity .15s; }
-        .kbtn-primary:hover { opacity:.88; }
-        .kbtn-danger { background:#DC2626; color:#fff; border:none; padding:11px 20px; border-radius:10px; font-weight:700; font-size:14px; font-family:${FF}; cursor:pointer; }
-        .kbtn-full { width:100%; display:flex; align-items:center; justify-content:center; }
+        @keyframes kfade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+        .kcard { transition: box-shadow .18s, transform .18s; }
+        .kcard:hover { box-shadow: 0 8px 32px rgba(37,99,235,.12); transform: translateY(-1px); }
+        .ktab { border:none; background:none; cursor:pointer; transition:all .15s; }
+        .ktab:hover { background:#F1F5F9 !important; }
+        .ktab.active { background:#0A0F1E !important; color:#fff !important; }
+        .ksearch:focus { border-color: #2563EB; outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
       `}</style>
 
-      {/* ── Breadcrumb + header ── */}
-      <div style={{ marginBottom: 24 }}>
-        <Link href="/account/orders" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#64748B", textDecoration: "none", fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Back to orders
-        </Link>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: BRAND, letterSpacing: "-0.03em", margin: "0 0 4px" }}>
-              Order <code style={{ fontSize: 20, background: "#F1F5F9", padding: "2px 10px", borderRadius: 8, color: BRAND }}>#{order.id.slice(0, 8).toUpperCase()}</code>
-            </h1>
-            <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>Placed {new Date(order.created_at).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
-          </div>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 20, background: os.bg, border: `1px solid ${os.border}`, fontSize: 13, fontWeight: 700, color: os.color }}>
-            {os.icon} {os.label}
-          </span>
-        </div>
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 28 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Account</p>
+        <h1 style={{ fontSize: 30, fontWeight: 800, color: BRAND, letterSpacing: "-0.04em", margin: "0 0 6px" }}>My Orders</h1>
+        {!loading && (
+          <p style={{ fontSize: 14, color: "#64748B", margin: 0 }}>
+            {orders.length} order{orders.length !== 1 ? "s" : ""} total ·{" "}
+            <span style={{ color: SUCCESS, fontWeight: 600 }}>
+              {orders.filter(o => o.status === "shipped").length} in transit
+            </span>
+          </p>
+        )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 16, alignItems: "start" }}>
+      {/* ── Search ── */}
+      <div style={{ position: "relative", marginBottom: 16 }}>
+        <svg style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#94A3B8" }} width="16" height="16" viewBox="0 0 20 20" fill="none">
+          <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.8"/>
+          <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+        <input
+          className="ksearch"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by order ID, product name, or tracking number…"
+          style={{ width: "100%", padding: "11px 16px 11px 38px", borderRadius: 12, border: `1px solid ${BORDER}`, fontSize: 14, fontFamily: FF, color: BRAND, background: "#fff", boxSizing: "border-box", transition: "all .15s" }}
+        />
+        {search && (
+          <button onClick={() => setSearch("")}
+            style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94A3B8", fontSize: 16 }}>
+            ✕
+          </button>
+        )}
+      </div>
 
-        {/* ══ LEFT COLUMN ══ */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+      {/* ── Filter tabs ── */}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 24, padding: "4px", background: "#F8FAFC", borderRadius: 12, border: `1px solid ${BORDER}` }}>
+        {tabs.map(t => (
+          <button key={t} onClick={() => setFilter(t)}
+            className={`ktab${filter === t ? " active" : ""}`}
+            style={{ padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, fontFamily: FF, color: filter === t ? "#fff" : "#475569", textTransform: "capitalize" }}>
+            {t === "all" ? "All" : STATUS[t]?.label ?? t}
+            <span style={{ marginLeft: 6, padding: "1px 7px", borderRadius: 20, background: filter === t ? "rgba(255,255,255,.25)" : "#E2E8F0", fontSize: 11, fontWeight: 800 }}>
+              {counts[t]}
+            </span>
+          </button>
+        ))}
+      </div>
 
-          {/* Shipping tracker */}
-          {!isCancelled && (
-            <div className="kcard">
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: BRAND, margin: "0 0 20px", display: "flex", alignItems: "center", gap: 8 }}>
-                <span>🚚</span> Delivery Progress
-              </h3>
-              <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 6 }}>
-                {TRACK_STEPS.map((label, i) => {
-                  const done = step >= i;
-                  const active = step === i;
-                  return (
-                    <div key={label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
-                      {i < TRACK_STEPS.length - 1 && (
-                        <div style={{ position: "absolute", top: 10, left: "50%", width: "100%", height: 2, background: step > i ? ACCENT : "#E2E8F0", transition: "background .4s", zIndex: 0 }}/>
-                      )}
-                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: done ? ACCENT : "#E2E8F0", border: `3px solid ${active ? ACCENT : done ? ACCENT : "#E2E8F0"}`, zIndex: 1, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: active ? `0 0 0 4px rgba(37,99,235,.15)` : "none", transition: "all .3s" }}>
-                        {done && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+      {/* ── States ── */}
+      {loading && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "80px 0", color: "#94A3B8" }}>
+          <Spinner />
+          <p style={{ fontSize: 14 }}>Loading your orders…</p>
+        </div>
+      )}
+
+      {error && (
+        <div style={{ padding: "20px 24px", borderRadius: 14, background: "#FFF1F2", border: "1px solid #FECDD3", color: "#991B1B", fontSize: 14 }}>
+          ⚠ {error}
+        </div>
+      )}
+
+      {!loading && !error && filteredOrders.length === 0 && (
+        <div style={{ textAlign: "center", padding: "80px 0" }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>{search || filter !== "all" ? "🔍" : "📭"}</div>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: BRAND, margin: "0 0 8px" }}>
+            {search ? "No matching orders" : filter !== "all" ? `No ${STATUS[filter]?.label ?? filter} orders` : "No orders yet"}
+          </h3>
+          <p style={{ color: "#64748B", fontSize: 14, marginBottom: 24 }}>
+            {search ? "Try a different search term." : filter !== "all" ? "Try a different filter." : "When you place orders, they'll show up here."}
+          </p>
+          {!search && filter === "all" && (
+            <Link href="/store" style={{ padding: "12px 28px", borderRadius: 10, background: ACCENT, color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>
+              Browse Store →
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* ── Orders list ── */}
+      {!loading && !error && filteredOrders.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {filteredOrders.map((order, i) => {
+            const s = STATUS[order.status] ?? STATUS.pending;
+            const pmt = paymentFor(order.id);
+            const ps = pmt ? PAY[pmt.status] : null;
+            const items = order.items ?? [];
+            const hasTracking = !!(order.tracking_number || (order as any).tracking?.tracking_number);
+            const trackingNum = order.tracking_number || (order as any).tracking?.tracking_number;
+            const trackingCarrier = (order as any).tracking?.carrier;
+            const trackingUrl = (order as any).tracking?.tracking_url;
+            const estimatedDelivery = (order as any).tracking?.estimated_delivery;
+
+            return (
+              <div key={order.id} className="kcard"
+                style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 18, overflow: "hidden", animation: `kfade .3s ease ${i * 0.04}s both` }}>
+
+                {/* Status accent line */}
+                <div style={{ height: 3, background: s.bg, borderBottom: `1px solid ${s.border}` }}>
+                  {order.status === "shipped" && (
+                    <div style={{ height: "100%", background: `linear-gradient(90deg, ${ACCENT}, #60A5FA)`, animation: "none" }} />
+                  )}
+                  {order.status === "completed" && (
+                    <div style={{ height: "100%", background: `linear-gradient(90deg, ${SUCCESS}, #34D399)` }} />
+                  )}
+                </div>
+
+                <Link href={`/account/orders/${order.id}`} style={{ textDecoration: "none", display: "block", padding: "18px 22px 16px" }}>
+
+                  {/* Top row */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                        <code style={{ fontSize: 13, fontWeight: 800, color: BRAND, background: "#F1F5F9", padding: "3px 10px", borderRadius: 7, letterSpacing: "0.04em" }}>
+                          #{order.id.slice(0, 8).toUpperCase()}
+                        </code>
+                        {/* Status badge */}
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 20, background: s.bg, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 700, color: s.color }}>
+                          {s.icon} {s.label}
+                        </span>
                       </div>
-                      <p style={{ fontSize: 10, fontWeight: done ? 700 : 500, color: done ? BRAND : "#94A3B8", textAlign: "center", marginTop: 8, lineHeight: 1.3 }}>{label}</p>
+                      <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>
+                        {new Date(order.created_at).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-              {order.tracking_number && (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F8FAFC", borderRadius: 10, padding: "10px 14px", marginTop: 16 }}>
-                  <span style={{ fontSize: 12, color: "#64748B" }}>Tracking Number</span>
-                  <code style={{ fontSize: 13, fontWeight: 700, color: BRAND }}>{order.tracking_number}</code>
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* Order items */}
-          <div className="kcard">
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: BRAND, margin: "0 0 18px", display: "flex", alignItems: "center", gap: 8 }}>
-              <span>📦</span> Items Ordered ({items.length})
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {items.length === 0 && <p style={{ fontSize: 14, color: "#94A3B8", margin: 0 }}>No items found</p>}
-              {items.map((item, i) => {
-                const imgSrc = item.product?.main_image ?? (item.product?.images as any)?.[0]?.image_url ?? null;
-                return (
-                  <div key={item.id ?? i} style={{ display: "flex", gap: 14, alignItems: "center", paddingBottom: i < items.length - 1 ? 14 : 0, borderBottom: i < items.length - 1 ? "1px solid #F1F5F9" : "none" }}>
-                    <Thumb src={imgSrc} alt={item.title} size={72} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Link href={`/store/product/${item.product_id}`} style={{ fontSize: 14, fontWeight: 600, color: BRAND, textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {item.title}
-                      </Link>
-                      {item.variant && (
-                        <p style={{ fontSize: 12, color: "#64748B", margin: "2px 0 0" }}>
-                          {Object.entries(item.variant.attributes ?? {}).map(([k,v]) => `${k}: ${v}`).join(" · ")}
-                        </p>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: BRAND }}>
+                        {formatCurrency(order.total_amount)}
+                      </span>
+                      {ps && (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 10px", borderRadius: 20, background: ps.bg, border: `1px solid ${BORDER}`, fontSize: 11, fontWeight: 600, color: ps.color }}>
+                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: ps.dot }} />
+                          {ps.label}
+                        </span>
                       )}
-                      <p style={{ fontSize: 12, color: "#94A3B8", margin: "4px 0 0" }}>Qty: {item.quantity}</p>
-                    </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <p style={{ fontSize: 15, fontWeight: 700, color: BRAND, margin: 0 }}>{formatCurrency(item.subtotal)}</p>
-                      <p style={{ fontSize: 12, color: "#94A3B8", margin: "2px 0 0" }}>{formatCurrency(item.price)} each</p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Order total */}
-            <div style={{ borderTop: "1px solid #F1F5F9", marginTop: 18, paddingTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "#64748B" }}>
-                <span>Subtotal ({items.length} items)</span>
-                <span>{formatCurrency(items.reduce((s, i) => s + i.subtotal, 0))}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "#64748B" }}>
-                <span>Shipping</span><span style={{ color: "#10B981", fontWeight: 600 }}>Free</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 17, fontWeight: 800, color: BRAND, borderTop: "1px solid #E2E8F0", paddingTop: 10, marginTop: 4 }}>
-                <span>Total</span>
-                <span>{formatCurrency(order.total_amount)}</span>
-              </div>
-            </div>
-          </div>
+                  {/* Items preview */}
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
+                    {/* Stacked thumbs */}
+                    <div style={{ display: "flex", flexShrink: 0 }}>
+                      {items.slice(0, 4).map((item, idx) => (
+                        <div key={item.id} style={{ marginLeft: idx > 0 ? -10 : 0, zIndex: items.length - idx, borderRadius: 10, border: "2px solid #fff" }}>
+                          <Thumb src={item.product?.main_image ?? (item.product?.images as any)?.[0]?.image_url} alt={item.title ?? ""} size={46} />
+                        </div>
+                      ))}
+                      {items.length > 4 && (
+                        <div style={{ width: 46, height: 46, borderRadius: 10, background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#64748B", marginLeft: -10, border: "2px solid #fff" }}>
+                          +{items.length - 4}
+                        </div>
+                      )}
+                    </div>
 
-          {/* Shipping address */}
-          {addr && (
-            <div className="kcard">
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: BRAND, margin: "0 0 14px", display: "flex", alignItems: "center", gap: 8 }}>
-                <span>📍</span> Shipping Address
-              </h3>
-              <div style={{ background: "#F8FAFC", borderRadius: 12, padding: "14px 16px", fontSize: 14, lineHeight: 1.8, color: "#475569" }}>
-                {addr.full_name && <strong style={{ display: "block", color: BRAND, marginBottom: 2 }}>{addr.full_name}</strong>}
-                {addr.address_line1 && <span>{addr.address_line1}</span>}
-                {addr.address_line2 && <span>, {addr.address_line2}</span>}
-                {addr.city && <span> · {addr.city}</span>}
-                {addr.district && <span>, {addr.district}</span>}
-                {addr.postal_code && <span> {addr.postal_code}</span>}
-                {addr.phone && <span style={{ display: "block", marginTop: 4 }}>📞 {addr.phone}</span>}
-              </div>
-            </div>
-          )}
-
-          {/* Notes */}
-          {order.notes && (
-            <div className="kcard">
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: BRAND, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 8 }}>
-                <span>📝</span> Order Notes
-              </h3>
-              <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.7, margin: 0 }}>{order.notes}</p>
-            </div>
-          )}
-
-          {/* Refund / Return status cards */}
-          {order.refund_status && order.refund_status !== "none" && (
-            <div className="kcard" style={{ border: "1px solid #BFDBFE" }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <span style={{ fontSize: 28 }}>💰</span>
-                <div>
-                  <p style={{ fontWeight: 700, color: BRAND, margin: "0 0 2px", textTransform: "capitalize" }}>Refund {order.refund_status.replace(/_/g, " ")}</p>
-                  {order.refund_amount && <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>{formatCurrency(order.refund_amount)} refund requested</p>}
-                  {order.refund_reason && <p style={{ fontSize: 13, color: "#64748B", margin: "2px 0 0" }}>{order.refund_reason}</p>}
-                </div>
-              </div>
-            </div>
-          )}
-          {order.return_status && order.return_status !== "none" && (
-            <div className="kcard" style={{ border: "1px solid #BFDBFE" }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <span style={{ fontSize: 28 }}>↩️</span>
-                <div>
-                  <p style={{ fontWeight: 700, color: BRAND, margin: "0 0 2px", textTransform: "capitalize" }}>Return {order.return_status.replace(/_/g, " ")}</p>
-                  {order.return_reason && <p style={{ fontSize: 13, color: "#64748B", margin: 0 }}>{order.return_reason}</p>}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ══ RIGHT COLUMN ══ */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
-
-          {/* Payment status */}
-          {ps && payment && (
-            <div className="kcard">
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: BRAND, margin: "0 0 14px" }}>Payment</h3>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: ps.bg, borderRadius: 10, marginBottom: 14 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: ps.dot, flexShrink: 0 }}/>
-                <span style={{ fontSize: 13, fontWeight: 700, color: ps.color }}>{ps.label}</span>
-              </div>
-              <div style={{ fontSize: 13, color: "#64748B", display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Amount</span><strong style={{ color: BRAND }}>{formatCurrency(payment.amount)}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Method</span><strong style={{ color: BRAND, textTransform: "capitalize" }}>{payment.method?.replace(/_/g, " ")}</strong>
-                </div>
-                {payment.proof?.file_url && (
-                  <a href={payment.proof.file_url} target="_blank" rel="noreferrer" style={{ display: "flex", justifyContent: "space-between", color: "#10B981", fontWeight: 600, marginTop: 4, textDecoration: "none" }}>
-                    <span>📎 View proof</span><span>→</span>
-                  </a>
-                )}
-                {payment.admin_notes && (
-                  <div style={{ marginTop: 8, padding: "8px 10px", background: "#FFF1F2", borderRadius: 8, fontSize: 12, color: "#991B1B" }}>
-                    <strong>Admin note:</strong> {payment.admin_notes}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: BRAND, margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {items.length > 0 ? items.map(i => i.title).filter(Boolean).join(", ") : "Order items"}
+                      </p>
+                      <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>
+                        {items.length} item{items.length !== 1 ? "s" : ""}
+                        {order.shipping_status && order.shipping_status !== "pending" && (
+                          <> · <span style={{ color: BRAND, textTransform: "capitalize" }}>Shipping: {order.shipping_status.replace(/_/g, " ")}</span></>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                )}
+
+                  {/* Order progress tracker */}
+                  {order.status !== "cancelled" && (
+                    <div style={{ marginBottom: 14, padding: "12px 0 4px" }}>
+                      <OrderProgress status={order.status} />
+                    </div>
+                  )}
+
+                  {/* Tracking info */}
+                  {hasTracking && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#F0FDF4", border: "1px solid #A7F3D0", borderRadius: 10, marginBottom: 12 }}>
+                      <span style={{ fontSize: 16 }}>🚚</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "#065F46", margin: "0 0 1px" }}>
+                          {trackingCarrier && <>{trackingCarrier} · </>}
+                          <code style={{ fontFamily: "monospace" }}>{trackingNum}</code>
+                        </p>
+                        {estimatedDelivery && (
+                          <p style={{ fontSize: 11, color: "#6EE7B7", margin: 0, fontWeight: 600 }}>
+                            Est. delivery: {new Date(estimatedDelivery).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </p>
+                        )}
+                      </div>
+                      {trackingUrl && (
+                        <a href={trackingUrl} target="_blank" rel="noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          style={{ padding: "5px 12px", background: "#065F46", color: "#fff", borderRadius: 6, fontSize: 12, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>
+                          Track →
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Return / Refund status */}
+                  {(order.return_status && order.return_status !== "none") && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, marginBottom: 10 }}>
+                      <span>↩</span>
+                      <p style={{ fontSize: 12, color: "#92400E", margin: 0, fontWeight: 600 }}>
+                        Return <span style={{ textTransform: "capitalize" }}>{order.return_status.replace(/_/g, " ")}</span>
+                      </p>
+                    </div>
+                  )}
+                  {(order.refund_status && order.refund_status !== "none") && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 8, marginBottom: 10 }}>
+                      <span>💰</span>
+                      <p style={{ fontSize: 12, color: "#7C3AED", margin: 0, fontWeight: 600 }}>
+                        Refund <span style={{ textTransform: "capitalize" }}>{order.refund_status.replace(/_/g, " ")}</span>
+                        {order.refund_amount && <> · {formatCurrency(order.refund_amount)}</>}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Admin notes visible to customer */}
+                  {(order as any).customer_notes?.length > 0 && (
+                    <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, marginBottom: 10 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#1E40AF", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Message from us</p>
+                      <p style={{ fontSize: 12, color: "#1E40AF", margin: 0 }}>{(order as any).customer_notes[0]?.content}</p>
+                    </div>
+                  )}
+
+                  {/* Bottom row */}
+                  <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", borderTop: `1px solid #F1F5F9`, paddingTop: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}>View details →</span>
+                  </div>
+                </Link>
               </div>
-            </div>
-          )}
-
-          {/* Proof upload */}
-          {canUploadProof && (
-            <div className="kcard">
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: BRAND, margin: "0 0 12px" }}>
-                {payment?.status === "pending" ? "Upload Payment Proof" : "Resubmit Proof"}
-              </h3>
-              {!showUpload ? (
-                <button onClick={() => setShowUpload(true)} className="kbtn-primary kbtn-full">
-                  📎 {payment?.status === "pending" ? "Upload Proof of Payment" : "Resubmit Proof"}
-                </button>
-              ) : (
-                <>
-                  <div
-                    style={{ border: `2px dashed ${dragOver ? ACCENT : "#CBD5E1"}`, borderRadius: 10, padding: "20px 16px", textAlign: "center", cursor: "pointer", background: dragOver ? "#EFF6FF" : "#F8FAFC", marginBottom: 10, transition: "all .2s" }}
-                    onClick={() => fileRef.current?.click()}
-                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setProofFile(f); }}
-                  >
-                    {proofFile ? <p style={{ fontSize: 13, fontWeight: 600, color: BRAND, margin: 0 }}>📄 {proofFile.name}</p>
-                      : <p style={{ fontSize: 13, color: "#94A3B8", margin: 0 }}>Drop file or click to browse<br/><span style={{ fontSize: 11 }}>Image or PDF</span></p>}
-                  </div>
-                  <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={e => setProofFile(e.target.files?.[0] ?? null)} />
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={handleUploadProof} disabled={!proofFile || uploading} className="kbtn-primary" style={{ flex: 1, opacity: (!proofFile || uploading) ? 0.6 : 1 }}>
-                      {uploading ? "Uploading…" : "Submit Proof"}
-                    </button>
-                    <button onClick={() => setShowUpload(false)} className="kbtn-ghost">Cancel</button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Quick info */}
-          <div className="kcard">
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: BRAND, margin: "0 0 14px" }}>Order Info</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[
-                ["Order ID", `#${order.id.slice(0, 8).toUpperCase()}`],
-                ["Order Date", new Date(order.created_at).toLocaleDateString()],
-                ["Items", `${items.length} item${items.length !== 1 ? "s" : ""}`],
-                ["Shipping", order.shipping_status?.replace(/_/g, " ") ?? "Pending"],
-              ].map(([label, val]) => (
-                <div key={label} style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>{label}</span>
-                  <span style={{ fontSize: 13, color: BRAND, fontWeight: 600, textTransform: "capitalize" }}>{val}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="kcard">
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: BRAND, margin: "0 0 14px" }}>Actions</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-
-              <a href={`${API_BASE}/api/orders/${id}/invoice`} target="_blank" rel="noreferrer"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "11px 16px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#fff", color: "#475569", textDecoration: "none", fontWeight: 600, fontSize: 13 }}>
-                📄 Download Invoice
-              </a>
-
-              {canCancel && !showCancel && (
-                <button onClick={() => setShowCancel(true)} className="kbtn-danger kbtn-full">Cancel Order</button>
-              )}
-              {canCancel && showCancel && (
-                <div style={{ padding: 14, background: "#FFF1F2", borderRadius: 12, border: "1px solid #FECDD3" }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#991B1B", margin: "0 0 8px" }}>Cancel this order?</p>
-                  <textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Reason for cancellation…" rows={3}
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #FECDD3", fontSize: 13, fontFamily: FF, resize: "vertical", color: BRAND, boxSizing: "border-box" }}/>
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button onClick={handleCancel} disabled={cancelling} className="kbtn-danger" style={{ flex: 1 }}>
-                      {cancelling ? "Cancelling…" : "Confirm Cancel"}
-                    </button>
-                    <button onClick={() => setShowCancel(false)} className="kbtn-ghost">Keep</button>
-                  </div>
-                </div>
-              )}
-
-              {canReturn && !showReturn && (
-                <button onClick={() => setShowReturn(true)} className="kbtn-ghost kbtn-full">↩ Request Return</button>
-              )}
-              {canReturn && showReturn && (
-                <div style={{ padding: 14, background: "#EFF6FF", borderRadius: 12, border: "1px solid #BFDBFE" }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#1E40AF", margin: "0 0 8px" }}>Return Request</p>
-                  <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)} placeholder="Reason for return…" rows={3}
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #BFDBFE", fontSize: 13, fontFamily: FF, resize: "vertical", color: BRAND, boxSizing: "border-box" }}/>
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button onClick={handleReturn} disabled={returning} className="kbtn-primary" style={{ flex: 1 }}>
-                      {returning ? "Submitting…" : "Submit Return"}
-                    </button>
-                    <button onClick={() => setShowReturn(false)} className="kbtn-ghost">Cancel</button>
-                  </div>
-                </div>
-              )}
-
-              {canRefund && !showRefund && (
-                <button onClick={() => setShowRefund(true)} className="kbtn-ghost kbtn-full">💰 Request Refund</button>
-              )}
-              {canRefund && showRefund && (
-                <div style={{ padding: 14, background: "#F0FDF4", borderRadius: 12, border: "1px solid #BBF7D0" }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#065F46", margin: "0 0 8px" }}>Request Refund</p>
-                  <textarea value={refundReason} onChange={e => setRefundReason(e.target.value)} placeholder="Reason for refund…" rows={3}
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #BBF7D0", fontSize: 13, fontFamily: FF, resize: "vertical", color: BRAND, boxSizing: "border-box" }}/>
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button onClick={handleRefund} disabled={refunding} className="kbtn-primary" style={{ flex: 1 }}>
-                      {refunding ? "Submitting…" : "Submit Request"}
-                    </button>
-                    <button onClick={() => setShowRefund(false)} className="kbtn-ghost">Cancel</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Help */}
-          <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 14, padding: "16px 18px", textAlign: "center", fontSize: 13, color: "#64748B", lineHeight: 1.8 }}>
-            Need help with this order?<br/>
-            <a href={`https://wa.me/266?text=Hi%2C+I+need+help+with+Order+%23${order.id.slice(0,8).toUpperCase()}`} style={{ color: ACCENT, fontWeight: 600 }}>Chat on WhatsApp</a>
-            {" · "}
-            <Link href="/account/support" style={{ color: ACCENT, fontWeight: 600 }}>Open ticket</Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Toast */}
-      {toast && (
-        <div style={{ position: "fixed", bottom: 24, right: 24, padding: "12px 20px", borderRadius: 10, background: toast.type === "ok" ? "#0F172A" : "#DC2626", color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: FF, zIndex: 9999, boxShadow: "0 4px 20px rgba(0,0,0,.25)", animation: "kfadeup .3s ease" }}>
-          {toast.type === "ok" ? "✓" : "✗"} {toast.msg}
+            );
+          })}
         </div>
       )}
     </div>

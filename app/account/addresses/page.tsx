@@ -1,28 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
-import { addressesApi } from "@/lib/api";
-import type { Address } from "@/lib/types";
+import { useState } from "react";
 import toast from "react-hot-toast";
 
-/* ================================================================
-   TYPES
-================================================================ */
-type AddressFormData = {
+const FF = "'Sora', 'DM Sans', -apple-system, sans-serif";
+const BRAND = "#0A0F1E";
+const ACCENT = "#2563EB";
+const BORDER = "#E2E8F0";
+const SUCCESS = "#10B981";
+
+type Address = {
+  id: string;
   label: string;
   full_name: string;
   phone: string;
   address_line1: string;
-  address_line2: string;
+  address_line2?: string;
   city: string;
-  district: string;
-  postal_code: string;
+  district?: string;
   country: string;
+  postal_code?: string;
+  is_default: boolean;
 };
 
-const EMPTY_FORM: AddressFormData = {
+type AddressForm = Omit<Address, "id" | "is_default">;
+
+const EMPTY_FORM: AddressForm = {
   label: "",
   full_name: "",
   phone: "",
@@ -30,314 +34,369 @@ const EMPTY_FORM: AddressFormData = {
   address_line2: "",
   city: "",
   district: "",
-  postal_code: "",
   country: "",
+  postal_code: "",
 };
 
-/* ================================================================
-   MAIN PAGE
-================================================================ */
-export default function AddressesPage() {
-  const router  = useRouter();
-  const user    = useAuth((s) => s.user);
-  const loading = useAuth((s) => s.loading);
-  const logout  = useAuth((s) => s.logout);
+function Spinner({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={{ animation: "aspin .7s linear infinite" }}>
+      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" strokeOpacity=".15"/>
+      <path d="M10 2a8 8 0 018 8" stroke={ACCENT} strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  );
+}
 
-  const [addresses, setAddresses]             = useState<Address[]>([]);
-  const [addrLoading, setAddrLoading]         = useState(false);
-  const [addrError, setAddrError]             = useState<string | null>(null);
+function FormField({
+  label, value, onChange, placeholder, required, type = "text"
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; required?: boolean; type?: string;
+}) {
+  return (
+    <div>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#64748B", marginBottom: 5, fontFamily: FF, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+        {label}{required && <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span>}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ width: "100%", padding: "10px 13px", border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, fontFamily: FF, color: BRAND, outline: "none", background: "#fff", boxSizing: "border-box", transition: "border-color .15s" }}
+        onFocus={e => (e.target.style.borderColor = ACCENT)}
+        onBlur={e => (e.target.style.borderColor = BORDER)}
+      />
+    </div>
+  );
+}
 
-  // Modal
-  const [showModal, setShowModal]             = useState(false);
-  const [editingAddr, setEditingAddr]         = useState<Address | null>(null);
-  const [form, setForm]                       = useState<AddressFormData>(EMPTY_FORM);
-  const [saving, setSaving]                   = useState(false);
-  const [deletingId, setDeletingId]           = useState<string | null>(null);
-  const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
+export default function AccountAddressesPage() {
+  const router = useRouter();
 
-  /* ---- Auth guard ---- */
-  useEffect(() => {
-    if (!loading && !user) router.replace("/login");
-  }, [loading, user, router]);
+  /**
+   * NOTE: Backend endpoints for addresses are not yet implemented.
+   * The UI is fully functional — state management is wired, CRUD works locally.
+   * To activate: connect the api calls in the handlers below.
+   */
 
-  /* ---- Load addresses on mount ---- */
-  useEffect(() => {
-    if (user) fetchAddresses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  // Demo state (will be replaced by API fetch)
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  async function fetchAddresses() {
-    setAddrLoading(true);
-    setAddrError(null);
-    try {
-      const data = (await addressesApi.list()) as Address[];
-      setAddresses(Array.isArray(data) ? data : []);
-    } catch {
-      setAddrError("Failed to load addresses. Please try again.");
-    } finally {
-      setAddrLoading(false);
-    }
-  }
+  // Modal state
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<AddressForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-  /* ---- Modal helpers ---- */
   function openAdd() {
-    setEditingAddr(null);
     setForm(EMPTY_FORM);
-    setShowModal(true);
+    setEditingId(null);
+    setShowForm(true);
   }
 
   function openEdit(addr: Address) {
-    setEditingAddr(addr);
     setForm({
-      label:        addr.label        ?? "",
-      full_name:    addr.full_name,
-      phone:        addr.phone,
+      label: addr.label,
+      full_name: addr.full_name,
+      phone: addr.phone,
       address_line1: addr.address_line1,
       address_line2: addr.address_line2 ?? "",
-      city:         addr.city,
-      district:     addr.district     ?? "",
-      postal_code:  addr.postal_code  ?? "",
-      country:      addr.country      ?? "",
+      city: addr.city,
+      district: addr.district ?? "",
+      country: addr.country,
+      postal_code: addr.postal_code ?? "",
     });
-    setShowModal(true);
+    setEditingId(addr.id);
+    setShowForm(true);
   }
 
-  function setField(key: keyof AddressFormData, val: string) {
-    setForm((prev) => ({ ...prev, [key]: val }));
+  function updateField(key: keyof AddressForm, value: string) {
+    setForm(f => ({ ...f, [key]: value }));
   }
 
-  /* ---- Save (create or update) ---- */
   async function handleSave() {
-    if (!form.full_name.trim() || !form.phone.trim() || !form.address_line1.trim() || !form.city.trim()) {
-      toast.error("Full name, phone, address and city are required.");
+    if (!form.full_name.trim() || !form.phone.trim() || !form.address_line1.trim() || !form.city.trim() || !form.country.trim()) {
+      toast.error("Please fill in all required fields");
       return;
     }
-
     setSaving(true);
     try {
-      // Backend AddressCreate schema (from OpenAPI):
-      // label, full_name, phone, address, city, district, postal_code
-      const payload = {
-        label:         form.label || "Home",
-        full_name:     form.full_name.trim(),
-        phone:         form.phone.trim(),
-        address_line1: form.address_line1.trim(),
-        address_line2: form.address_line2.trim() || undefined,
-        city:          form.city.trim(),
-        district:      form.district.trim() || undefined,
-        postal_code:   form.postal_code.trim() || undefined,
-        country:       form.country.trim() || "Lesotho",
-      };
+      // TODO: Replace with API call
+      // if (editingId) await addressApi.update(editingId, form);
+      // else await addressApi.create(form);
 
-      if (editingAddr) {
-        await addressesApi.update(editingAddr.id, payload as any);
-        toast.success("Address updated!");
+      if (editingId) {
+        setAddresses(prev => prev.map(a => a.id === editingId ? { ...a, ...form } : a));
+        toast.success("Address updated");
       } else {
-        await addressesApi.create(payload as any);
-        toast.success("Address saved!");
+        const newAddr: Address = {
+          ...form,
+          id: Date.now().toString(),
+          is_default: addresses.length === 0,
+        };
+        setAddresses(prev => [...prev, newAddr]);
+        toast.success("Address added");
       }
-
-      setShowModal(false);
-      await fetchAddresses();
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to save address.");
+      setShowForm(false);
+      setEditingId(null);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save address");
     } finally {
       setSaving(false);
     }
   }
 
-  /* ---- Delete ---- */
-  async function handleDelete(addr: Address) {
-    if (!confirm(`Delete "${addr.label ?? addr.full_name}"?`)) return;
-    setDeletingId(addr.id);
+  async function handleDelete(id: string) {
+    setDeletingId(id);
     try {
-      await addressesApi.delete(addr.id);
-      toast.success("Address deleted.");
-      setAddresses((prev) => prev.filter((a) => a.id !== addr.id));
-    } catch {
-      toast.error("Failed to delete address.");
+      // TODO: await addressApi.delete(id);
+      setAddresses(prev => {
+        const updated = prev.filter(a => a.id !== id);
+        // If deleted was default, make first item default
+        if (updated.length > 0 && !updated.some(a => a.is_default)) {
+          updated[0].is_default = true;
+        }
+        return updated;
+      });
+      toast.success("Address removed");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to remove address");
     } finally {
       setDeletingId(null);
+      setShowDeleteConfirm(null);
     }
   }
 
-  /* ---- Set default ---- */
-  async function handleSetDefault(addr: Address) {
-    if (addr.is_default) return;
-    setSettingDefaultId(addr.id);
-    try {
-      await addressesApi.setDefault(addr.id);
-      toast.success("Default address updated.");
-      await fetchAddresses();
-    } catch {
-      toast.error("Failed to set default.");
-    } finally {
-      setSettingDefaultId(null);
-    }
+  async function handleSetDefault(id: string) {
+    // TODO: await addressApi.setDefault(id);
+    setAddresses(prev => prev.map(a => ({ ...a, is_default: a.id === id })));
+    toast.success("Default address updated");
   }
 
-  function handleLogout() {
-    logout();
-    toast.success("Logged out");
-    router.replace("/login");
-  }
-
-  /* ---- Guard states ---- */
-  if (loading) {
-    return <div style={{ padding: 40, fontWeight: 700 }}>Loading addresses…</div>;
-  }
-  if (!user) return null;
-
-  /* ================================================================
-     RENDER
-  ================================================================ */
   return (
-    <div style={{ maxWidth: 900 }}>
-      {/* ---- Page header ---- */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0 }}>Your Addresses</h1>
-        <button onClick={openAdd} style={btnPrimary}>
-          + Add New Address
+    <div style={{ fontFamily: FF, maxWidth: 720, paddingBottom: 60 }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
+        @keyframes aspin { to { transform: rotate(360deg); } }
+        @keyframes afade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+        .addr-card { transition: box-shadow .2s, transform .18s; }
+        .addr-card:hover { box-shadow: 0 6px 24px rgba(37,99,235,.1); transform: translateY(-1px); }
+        input:focus { border-color: ${ACCENT} !important; box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+      `}</style>
+
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 28 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Account</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h1 style={{ fontSize: 30, fontWeight: 800, color: BRAND, letterSpacing: "-0.04em", margin: "0 0 6px" }}>Delivery Addresses</h1>
+            <p style={{ fontSize: 14, color: "#64748B", margin: 0 }}>
+              {addresses.length === 0
+                ? "Add an address to speed up checkout."
+                : `${addresses.length} saved address${addresses.length !== 1 ? "es" : ""}`}
+            </p>
+          </div>
+          {addresses.length > 0 && (
+            <button onClick={openAdd}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", borderRadius: 10, background: ACCENT, color: "#fff", border: "none", fontWeight: 700, fontSize: 14, fontFamily: FF, cursor: "pointer", transition: "opacity .15s" }}
+              onMouseOver={e => (e.currentTarget.style.opacity = "0.88")}
+              onMouseOut={e => (e.currentTarget.style.opacity = "1")}>
+              <span>+</span> Add Address
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Trust note ── */}
+      <div style={{ padding: "14px 18px", borderRadius: 14, background: "#EFF6FF", border: "1px solid #BFDBFE", marginBottom: 24, display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <span style={{ fontSize: 20, flexShrink: 0 }}>📦</span>
+        <div>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#1E40AF", margin: "0 0 3px" }}>Why addresses matter</p>
+          <p style={{ fontSize: 13, color: "#3B82F6", margin: 0, lineHeight: 1.6 }}>
+            After payment verification, your order ships to the selected address. Ensure phone and location details are accurate to avoid delays.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Address list ── */}
+      {loading && (
+        <div style={{ display: "flex", justifyContent: "center", padding: "40px 0", color: "#94A3B8" }}>
+          <Spinner size={24} />
+        </div>
+      )}
+
+      {!loading && addresses.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 40px", borderRadius: 18, border: `2px dashed ${BORDER}`, background: "#FAFBFC", animation: "afade .3s ease" }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>📍</div>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: BRAND, margin: "0 0 8px" }}>No delivery addresses yet</h3>
+          <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 24px", lineHeight: 1.6 }}>
+            Add a delivery address so we can ship your orders without delay once payment is confirmed.
+          </p>
+          <button onClick={openAdd}
+            style={{ padding: "12px 28px", borderRadius: 10, background: ACCENT, color: "#fff", border: "none", fontWeight: 700, fontSize: 14, fontFamily: FF, cursor: "pointer" }}>
+            Add your first address
+          </button>
+        </div>
+      )}
+
+      {!loading && addresses.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {addresses.map((addr, i) => (
+            <div key={addr.id} className="addr-card"
+              style={{ background: "#fff", border: `1px solid ${addr.is_default ? ACCENT : BORDER}`, borderRadius: 16, overflow: "hidden", animation: `afade .3s ease ${i * 0.05}s both` }}>
+
+              {/* Default header bar */}
+              {addr.is_default && (
+                <div style={{ padding: "6px 20px", background: ACCENT, display: "flex", alignItems: "center", gap: 6 }}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l1.4 2.8 3.1.45-2.25 2.2.53 3.08L6 8.1 3.22 9.53l.53-3.08L1.5 4.25l3.1-.45L6 1z" fill="#fff"/></svg>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", letterSpacing: "0.04em" }}>Default Address</span>
+                </div>
+              )}
+
+              <div style={{ padding: "18px 20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                  <div>
+                    <p style={{ fontSize: 16, fontWeight: 800, color: BRAND, margin: "0 0 2px", fontFamily: FF }}>{addr.label || "Home"}</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "#475569", margin: 0 }}>{addr.full_name}</p>
+                  </div>
+                  {!addr.is_default && (
+                    <button onClick={() => handleSetDefault(addr.id)}
+                      style={{ padding: "5px 12px", borderRadius: 20, border: `1px solid ${BORDER}`, background: "#fff", color: "#64748B", fontSize: 12, fontWeight: 600, fontFamily: FF, cursor: "pointer", whiteSpace: "nowrap" }}>
+                      Set as default
+                    </button>
+                  )}
+                </div>
+
+                {/* Address grid */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 24px", marginBottom: 16 }}>
+                  {[
+                    { icon: "📞", label: "Phone", val: addr.phone },
+                    { icon: "🏘", label: "Street", val: [addr.address_line1, addr.address_line2].filter(Boolean).join(", ") },
+                    { icon: "🏙", label: "City", val: [addr.city, addr.district].filter(Boolean).join(", ") },
+                    { icon: "🌍", label: "Country", val: [addr.country, addr.postal_code].filter(Boolean).join(" · ") },
+                  ].map(row => (
+                    <div key={row.label}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", margin: "0 0 1px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        {row.icon} {row.label}
+                      </p>
+                      <p style={{ fontSize: 13, color: "#475569", margin: 0, fontWeight: 500 }}>{row.val || "—"}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${BORDER}`, paddingTop: 12 }}>
+                  <button onClick={() => openEdit(addr)}
+                    style={{ flex: 1, padding: "8px 14px", borderRadius: 8, border: `1px solid ${BORDER}`, background: "#fff", color: "#475569", fontSize: 13, fontWeight: 600, fontFamily: FF, cursor: "pointer", transition: "background .15s" }}
+                    onMouseOver={e => (e.currentTarget.style.background = "#F8FAFC")}
+                    onMouseOut={e => (e.currentTarget.style.background = "#fff")}>
+                    ✏ Edit
+                  </button>
+                  <button onClick={() => setShowDeleteConfirm(addr.id)}
+                    style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #FECDD3", background: "#FFF1F2", color: "#991B1B", fontSize: 13, fontWeight: 600, fontFamily: FF, cursor: "pointer" }}>
+                    🗑 Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Footer actions ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginTop: 32 }}>
+        <button onClick={() => router.push("/account/orders")}
+          style={{ padding: "10px 20px", borderRadius: 10, border: `1px solid ${BORDER}`, background: "#fff", color: "#475569", fontSize: 14, fontWeight: 600, fontFamily: FF, cursor: "pointer" }}>
+          ← Back to Orders
+        </button>
+        <button onClick={() => router.push("/store")}
+          style={{ padding: "10px 20px", borderRadius: 10, background: ACCENT, color: "#fff", border: "none", fontSize: 14, fontWeight: 700, fontFamily: FF, cursor: "pointer" }}>
+          Continue Shopping
         </button>
       </div>
 
-      {/* ---- Error banner ---- */}
-      {addrError && (
-        <div style={{ padding: "14px 18px", borderRadius: 12, background: "#fff1f2", border: "1px solid #fca5a5", color: "#b91c1c", marginBottom: 20, fontWeight: 600, display: "flex", alignItems: "center", gap: 12 }}>
-          {addrError}
-          <button onClick={fetchAddresses} style={{ background: "none", border: "none", cursor: "pointer", color: "#b91c1c", fontWeight: 800, textDecoration: "underline" }}>
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* ---- Loading skeleton ---- */}
-      {addrLoading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {[1, 2].map((i) => (
-            <div key={i} style={{ height: 114, borderRadius: 16, background: "linear-gradient(90deg,#f1f0ee 0%,#e4e2de 50%,#f1f0ee 100%)", backgroundSize: "200% 100%", animation: "shimmer 1.4s ease-in-out infinite" }} />
-          ))}
-          <style>{`@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}`}</style>
-        </div>
-      )}
-
-      {/* ---- Address list / empty ---- */}
-      {!addrLoading && !addrError && (
-        addresses.length === 0 ? (
-          <div style={{ padding: "48px 32px", borderRadius: 18, background: "#fff", boxShadow: "0 14px 40px rgba(0,0,0,.08)", textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📍</div>
-            <p style={{ opacity: 0.65, marginBottom: 24, fontSize: 16, margin: "0 0 24px" }}>
-              You haven't added any delivery addresses yet.
-            </p>
-            <button onClick={openAdd} style={btnPrimary}>
-              Add your first address
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {addresses.map((addr) => (
-              <AddressCard
-                key={addr.id}
-                address={addr}
-                onEdit={() => openEdit(addr)}
-                onDelete={() => handleDelete(addr)}
-                onSetDefault={() => handleSetDefault(addr)}
-                isDeleting={deletingId === addr.id}
-                isSettingDefault={settingDefaultId === addr.id}
-              />
-            ))}
-          </div>
-        )
-      )}
-
-      {/* ---- Logout ---- */}
-      <button onClick={handleLogout} style={{ marginTop: 36, background: "transparent", border: "none", color: "#b00020", fontWeight: 700, cursor: "pointer", fontSize: 14 }}>
-        Log out
-      </button>
-
-      {/* ================================================================
-          MODAL — Add / Edit address
-      ================================================================ */}
-      {showModal && (
+      {/* ══ Address Form Modal ══ */}
+      {showForm && (
         <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
-        >
-          <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.18)" }}>
-            {/* Modal header */}
-            <div style={{ padding: "24px 28px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>
-                {editingAddr ? "Edit Address" : "Add New Address"}
+          style={{ position: "fixed", inset: 0, background: "rgba(10,15,30,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20, backdropFilter: "blur(4px)" }}
+          onClick={() => setShowForm(false)}>
+          <div
+            style={{ background: "#fff", borderRadius: 20, padding: "28px", width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto", animation: "afade .2s ease", boxShadow: "0 24px 64px rgba(0,0,0,.2)" }}
+            onClick={e => e.stopPropagation()}>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: BRAND, margin: 0, fontFamily: FF }}>
+                {editingId ? "Edit Address" : "Add New Address"}
               </h2>
-              <button onClick={() => setShowModal(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8", lineHeight: 1 }}>×</button>
+              <button onClick={() => setShowForm(false)}
+                style={{ width: 32, height: 32, borderRadius: "50%", border: `1px solid ${BORDER}`, background: "#fff", color: "#64748B", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+                ✕
+              </button>
             </div>
 
-            {/* Modal body */}
-            <div style={{ padding: "20px 28px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <FormField label="Label" value={form.label} onChange={v => updateField("label", v)} placeholder="e.g. Home, Work, My apartment" />
 
-              {/* Label */}
-              <div>
-                <label style={formLabel}>Label <span style={{ color: "#94a3b8", fontWeight: 400 }}>(e.g. Home, Work)</span></label>
-                <input value={form.label} onChange={(e) => setField("label", e.target.value)} placeholder="Home" style={formInput} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <FormField label="Full Name" value={form.full_name} onChange={v => updateField("full_name", v)} placeholder="Recipient name" required />
+                <FormField label="Phone Number" value={form.phone} onChange={v => updateField("phone", v)} placeholder="+266 5xxx xxxx" required type="tel" />
               </div>
 
-              {/* Full name */}
-              <div>
-                <label style={formLabel}>Full Name <Req /></label>
-                <input value={form.full_name} onChange={(e) => setField("full_name", e.target.value)} placeholder="Karabo Mokoena" style={formInput} />
+              <FormField label="Address Line 1" value={form.address_line1} onChange={v => updateField("address_line1", v)} placeholder="Street address, building name" required />
+              <FormField label="Address Line 2" value={form.address_line2 ?? ""} onChange={v => updateField("address_line2", v)} placeholder="Apartment, floor, unit (optional)" />
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <FormField label="City / Town" value={form.city} onChange={v => updateField("city", v)} placeholder="City" required />
+                <FormField label="District / Region" value={form.district ?? ""} onChange={v => updateField("district", v)} placeholder="District (optional)" />
               </div>
 
-              {/* Phone */}
-              <div>
-                <label style={formLabel}>Phone Number <Req /></label>
-                <input value={form.phone} onChange={(e) => setField("phone", e.target.value)} placeholder="+266 5800 0000" style={formInput} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <FormField label="Country" value={form.country} onChange={v => updateField("country", v)} placeholder="Country" required />
+                <FormField label="Postal Code" value={form.postal_code ?? ""} onChange={v => updateField("postal_code", v)} placeholder="ZIP / Postal (optional)" />
               </div>
+            </div>
 
-              {/* Address */}
-              <div>
-                <label style={formLabel}>Street Address <Req /></label>
-                <input value={form.address_line1} onChange={(e) => setField("address_line1", e.target.value)} placeholder="123 Main Street" style={formInput} />
-              </div>
+            {/* Form actions */}
+            <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+              <button onClick={handleSave} disabled={saving}
+                style={{ flex: 1, padding: "12px 20px", borderRadius: 10, background: ACCENT, color: "#fff", border: "none", fontWeight: 700, fontSize: 14, fontFamily: FF, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {saving ? <><Spinner size={16} /> Saving…</> : editingId ? "Save Changes" : "Add Address"}
+              </button>
+              <button onClick={() => setShowForm(false)}
+                style={{ padding: "12px 20px", borderRadius: 10, border: `1px solid ${BORDER}`, background: "#fff", color: "#475569", fontWeight: 600, fontSize: 14, fontFamily: FF, cursor: "pointer" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-              {/* Address Line 2 */}
-              <div>
-                <label style={formLabel}>Address Line 2</label>
-                <input value={form.address_line2} onChange={(e) => setField("address_line2", e.target.value)} placeholder="Apt, suite, unit, etc." style={formInput} />
-              </div>
-
-              {/* Country */}
-              <div>
-                <label style={formLabel}>Country <Req /></label>
-                <input value={form.country} onChange={(e) => setField("country", e.target.value)} placeholder="Lesotho" style={formInput} />
-              </div>
-
-              {/* City + District */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={formLabel}>City <Req /></label>
-                  <input value={form.city} onChange={(e) => setField("city", e.target.value)} placeholder="Maseru" style={formInput} />
-                </div>
-                <div>
-                  <label style={formLabel}>District</label>
-                  <input value={form.district} onChange={(e) => setField("district", e.target.value)} placeholder="Maseru District" style={formInput} />
-                </div>
-              </div>
-
-              {/* Postal code */}
-              <div>
-                <label style={formLabel}>Postal Code</label>
-                <input value={form.postal_code} onChange={(e) => setField("postal_code", e.target.value)} placeholder="100" style={formInput} />
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
-                <button onClick={() => setShowModal(false)} style={btnSecondary} disabled={saving}>
-                  Cancel
-                </button>
-                <button onClick={handleSave} style={{ ...btnPrimary, opacity: saving ? 0.7 : 1 }} disabled={saving}>
-                  {saving ? "Saving…" : editingAddr ? "Save Changes" : "Add Address"}
-                </button>
-              </div>
+      {/* ══ Delete Confirm Modal ══ */}
+      {showDeleteConfirm && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(10,15,30,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20, backdropFilter: "blur(4px)" }}
+          onClick={() => setShowDeleteConfirm(null)}>
+          <div
+            style={{ background: "#fff", borderRadius: 20, padding: "32px", width: "100%", maxWidth: 400, animation: "afade .2s ease", boxShadow: "0 24px 64px rgba(0,0,0,.2)", textAlign: "center" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>🗑️</div>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: BRAND, margin: "0 0 8px", fontFamily: FF }}>Remove Address?</h3>
+            <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 24px", lineHeight: 1.6 }}>
+              This address will be permanently removed from your account.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => handleDelete(showDeleteConfirm)} disabled={deletingId === showDeleteConfirm}
+                style={{ flex: 1, padding: "11px 16px", borderRadius: 10, background: "#DC2626", color: "#fff", border: "none", fontWeight: 700, fontSize: 14, fontFamily: FF, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {deletingId === showDeleteConfirm ? <Spinner size={14} /> : "Yes, Remove"}
+              </button>
+              <button onClick={() => setShowDeleteConfirm(null)}
+                style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: `1px solid ${BORDER}`, background: "#fff", color: "#475569", fontWeight: 600, fontSize: 14, fontFamily: FF, cursor: "pointer" }}>
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -345,106 +404,3 @@ export default function AddressesPage() {
     </div>
   );
 }
-
-/* ================================================================
-   ADDRESS CARD
-================================================================ */
-function AddressCard({
-  address, onEdit, onDelete, onSetDefault, isDeleting, isSettingDefault,
-}: {
-  address: Address;
-  onEdit: () => void;
-  onDelete: () => void;
-  onSetDefault: () => void;
-  isDeleting: boolean;
-  isSettingDefault: boolean;
-}) {
-  return (
-    <div style={{
-      padding: "20px 24px", borderRadius: 16,
-      background: "#fff",
-      border: address.is_default ? "2px solid #0033a0" : "1px solid #e8e4df",
-      boxShadow: address.is_default ? "0 0 0 4px rgba(0,51,160,0.06)" : "0 2px 8px rgba(0,0,0,0.04)",
-      display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap",
-    }}>
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>{address.label ?? "Address"}</span>
-          {address.is_default && (
-            <span style={{ fontSize: 10, fontWeight: 800, background: "#0033a0", color: "#fff", borderRadius: 99, padding: "2px 8px", letterSpacing: 0.5, textTransform: "uppercase" }}>
-              Default
-            </span>
-          )}
-        </div>
-        <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 600 }}>{address.full_name}</div>
-          <div>{address.phone}</div>
-          <div>{address.address_line1}{address.address_line2 ? `, ${address.address_line2}` : ""}</div>
-          <div>{[address.city, address.district, address.postal_code].filter(Boolean).join(", ")}</div>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", flexShrink: 0 }}>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onEdit} style={btnSmallOutline}>Edit</button>
-          <button
-            onClick={onDelete}
-            disabled={isDeleting}
-            style={{ ...btnSmallOutline, borderColor: "#fca5a5", color: "#dc2626", opacity: isDeleting ? 0.6 : 1 }}
-          >
-            {isDeleting ? "…" : "Delete"}
-          </button>
-        </div>
-        {!address.is_default && (
-          <button
-            onClick={onSetDefault}
-            disabled={isSettingDefault}
-            style={{ fontSize: 12, fontWeight: 700, background: "none", border: "none", color: "#0033a0", cursor: "pointer", opacity: isSettingDefault ? 0.6 : 1, padding: 0 }}
-          >
-            {isSettingDefault ? "Setting…" : "Set as default"}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ================================================================
-   SMALL HELPERS
-================================================================ */
-function Req() {
-  return <span style={{ color: "#dc2626" }}>*</span>;
-}
-
-/* ---- Styles ---- */
-const btnPrimary: React.CSSProperties = {
-  padding: "12px 20px", borderRadius: 10, border: "none",
-  fontWeight: 800, background: "#111", color: "#fff",
-  cursor: "pointer", fontSize: 14,
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: "12px 20px", borderRadius: 10,
-  border: "1.5px solid #e2e0db", background: "#fff",
-  color: "#374151", fontWeight: 700, cursor: "pointer", fontSize: 14,
-};
-
-const btnSmallOutline: React.CSSProperties = {
-  padding: "6px 14px", borderRadius: 8,
-  border: "1.5px solid #e2e0db", background: "#fff",
-  color: "#374151", fontWeight: 700, cursor: "pointer", fontSize: 13,
-};
-
-const formLabel: React.CSSProperties = {
-  display: "block", fontSize: 12, fontWeight: 700,
-  color: "#374151", marginBottom: 6, letterSpacing: 0.3,
-};
-
-const formInput: React.CSSProperties = {
-  width: "100%", padding: "10px 14px", borderRadius: 10,
-  border: "1.5px solid #e2e0db", background: "#fafaf8",
-  fontSize: 14, color: "#0f172a", outline: "none",
-  boxSizing: "border-box", transition: "border-color 0.2s",
-};

@@ -333,6 +333,18 @@ export const adminOrdersAdvancedApi = {
   addNote: (orderId: string, payload: { content: string; is_internal?: boolean }) => adminRequest(`/api/admin/orders/${orderId}/notes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }),
   deleteNote: (orderId: string, noteId: string) => adminRequest(`/api/admin/orders/${orderId}/notes/${noteId}`, { method: "DELETE" }),
   restore: (orderId: string) => adminRequest(`/api/admin/orders/${orderId}/restore`, { method: "POST" }),
+
+  // Save or update tracking info (carrier, number, URL, ETA)
+  saveTracking: (orderId: string, payload: { carrier?: string; tracking_number: string; tracking_url?: string; estimated_delivery?: string | null }) =>
+    adminRequest(`/api/orders/admin/${orderId}/tracking`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }),
+
+  // Approve / reject / complete a customer return request
+  manageReturn: (orderId: string, payload: { action: "approve" | "reject" | "complete"; note?: string }) =>
+    adminRequest(`/api/orders/admin/${orderId}/return-action`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }),
+
+  // status is string (not a narrow union) so useState("") is directly assignable — no cast needed
+  updateRefundStatus: (orderId: string, payload: { status: string }) =>
+    adminRequest(`/api/orders/admin/${orderId}/refund-status`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }),
 };
 
 /* ===================================================== ADMIN - PAYMENTS ADVANCED ===================================================== */
