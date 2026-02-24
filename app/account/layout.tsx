@@ -21,5 +21,16 @@ export default function AccountLayout({
   if (loading) return null;
   if (!user) return null;
 
-  return <main>{children}</main>;
+  return (
+    <main
+      style={{
+        width: "100%",
+        minWidth: 0,          /* allows shrinking inside flex parent   */
+        overflowX: "hidden",  /* clips any child that bleeds out       */
+        boxSizing: "border-box",
+      }}
+    >
+      {children}
+    </main>
+  );
 }

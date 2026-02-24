@@ -113,8 +113,10 @@ body {
 
 .pageContentWrap {
   flex: 1;
-  min-width: 0;
+  min-width: 0;       /* critical: lets this flex child shrink below its content size */
   width: 100%;
+  overflow-x: hidden; /* clips any page component that bleeds past its container     */
+  box-sizing: border-box;
 }
 
 /* ======================================================
@@ -596,6 +598,23 @@ p {
    Zoom is disabled in layout.tsx viewport meta.
    touch-action on html blocks OS-level pinch-zoom.
 ====================================================== */
+
+/* ======================================================
+   PAGE CONTENT OVERFLOW SAFETY
+   Prevents any page component from creating horizontal
+   scroll by bleeding wider than its container.
+====================================================== */
+
+/* All direct children of pageContentWrap are clamped */
+.pageContentWrap > * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Grid and flex children must be able to shrink */
+.pageContentWrap * {
+  min-width: 0;
+}
 
 /* ======================================================
    BACKGROUND CONSISTENCY — prevents dark bleed from

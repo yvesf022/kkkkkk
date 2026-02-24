@@ -82,10 +82,55 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
+  async function handleLogout() {
+    try { await adminAuthApi.logout(); } catch { /* ignore errors */ }
+    router.replace("/admin/login");
+  }
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f0f2f5" }}>
       <AdminSidebar />
-      <main style={{ flex: 1, padding: "28px 32px", minWidth: 0 }}>
+      <main style={{ flex: 1, padding: "28px 32px", minWidth: 0, position: "relative" }}>
+        {/* Logout button — top-right of every admin page */}
+        <button
+          onClick={handleLogout}
+          title="Log out"
+          style={{
+            position: "absolute",
+            top: 24,
+            right: 32,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 14px",
+            borderRadius: 8,
+            border: "1px solid #e2e8f0",
+            background: "#fff",
+            color: "#64748b",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            zIndex: 10,
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2";
+            (e.currentTarget as HTMLButtonElement).style.color = "#dc2626";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "#fecaca";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+            (e.currentTarget as HTMLButtonElement).style.color = "#64748b";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "#e2e8f0";
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Log out
+        </button>
         {children}
       </main>
     </div>

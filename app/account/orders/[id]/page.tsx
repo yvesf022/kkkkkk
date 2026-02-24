@@ -207,7 +207,7 @@ export default function UserOrderDetailPage() {
   const addr = order.shipping_address as any;
 
   return (
-    <div style={{ fontFamily: FF, maxWidth: 940, paddingBottom: 60 }}>
+    <div style={{ fontFamily: FF, maxWidth: 940, width: "100%", boxSizing: "border-box", paddingBottom: 60, overflowX: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
         @keyframes kspin { to { transform: rotate(360deg); } }
@@ -240,10 +240,10 @@ export default function UserOrderDetailPage() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 16, alignItems: "start" }}>
 
         {/* ══ LEFT COLUMN ══ */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
 
           {/* Shipping tracker */}
           {!isCancelled && (
@@ -380,7 +380,7 @@ export default function UserOrderDetailPage() {
         </div>
 
         {/* ══ RIGHT COLUMN ══ */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
 
           {/* Payment status */}
           {ps && payment && (
