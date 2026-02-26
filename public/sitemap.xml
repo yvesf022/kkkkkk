@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+  <!-- Homepage -->
+  <url>
+    <loc>https://www.karabostore.com/</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Main Store -->
+  <url>
+    <loc>https://www.karabostore.com/store</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Beauty Category -->
+  <url>
+    <loc>https://www.karabostore.com/store/beauty</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Mobile & Accessories -->
+  <url>
+    <loc>https://www.karabostore.com/store/mobile</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Fashion -->
+  <url>
+    <loc>https://www.karabostore.com/store/fashion</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Sub-category: Skincare -->
+  <url>
+    <loc>https://www.karabostore.com/store?category=moisturizer</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Sub-category: Serums -->
+  <url>
+    <loc>https://www.karabostore.com/store?category=serum</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Sub-category: Body Lotion -->
+  <url>
+    <loc>https://www.karabostore.com/store?category=body_lotion</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Sub-category: Sunscreen -->
+  <url>
+    <loc>https://www.karabostore.com/store?category=sunscreen</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Sub-category: Collagen / Wellness -->
+  <url>
+    <loc>https://www.karabostore.com/store?category=collagen</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Sub-category: Phones -->
+  <url>
+    <loc>https://www.karabostore.com/store?main_cat=phones</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Sub-category: Natural Oils -->
+  <url>
+    <loc>https://www.karabostore.com/store?category=herbal_oils</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Sub-category: Face Wash -->
+  <url>
+    <loc>https://www.karabostore.com/store?category=face_wash</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Sub-category: Skin Brightening -->
+  <url>
+    <loc>https://www.karabostore.com/store?category=skin_brightening</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Sub-category: Anti-Aging -->
+  <url>
+    <loc>https://www.karabostore.com/store?category=anti_wrinkles</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Sale / Discounts -->
+  <url>
+    <loc>https://www.karabostore.com/store?sort=discount</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+</urlset>

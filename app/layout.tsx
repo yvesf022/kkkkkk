@@ -103,29 +103,65 @@ const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 ===================================================== */
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://kkkkkk-kappa.vercel.app/"),
+  // ✅ FIXED: Use real production domain, not Vercel dev URL
+  metadataBase: new URL("https://www.karabostore.com"),
 
   title: {
-    default: "Karabo's Store – Premium Boutique in Lesotho",
-    template: "%s | Karabo's Store",
+    // ✅ IMPROVED: More descriptive, includes key product categories
+    default: "Karabo's Store – Beauty, Phones & Fashion in Lesotho",
+    template: "%s | Karabo's Store Lesotho",
   },
 
+  // ✅ IMPROVED: Richer description with specific products & local signals
   description:
-    "Discover premium fashion and beauty collections at Karabo's Store. A modern Lesotho boutique crafted for elegance, confidence and lifestyle.",
+    "Shop premium skincare, beauty products, smartphones, accessories and fashion at Karabo's Store — Lesotho's finest online boutique. Free delivery on orders over M500. 100% authentic products.",
 
+  // ✅ IMPROVED: Expanded keyword list targeting Lesotho shoppers
   keywords: [
     "Karabo Store",
-    "Lesotho boutique",
-    "Lesotho fashion",
-    "Lesotho beauty products",
-    "Premium boutique Lesotho",
+    "Karabo's Store Lesotho",
+    "online shopping Lesotho",
+    "buy skincare Lesotho",
+    "beauty products Lesotho",
+    "buy phones Lesotho",
+    "smartphones Maseru",
+    "fashion store Lesotho",
+    "collagen supplements Lesotho",
+    "body lotion Lesotho",
+    "face serum Lesotho",
+    "premium boutique Lesotho",
+    "free delivery Lesotho",
+    "online store Maseru",
+    "Lesotho ecommerce",
+    "gift sets Lesotho",
+    "skincare delivery Lesotho",
+    "buy online Lesotho",
   ],
 
-  authors: [{ name: "Karabo's Store" }],
+  authors: [{ name: "Karabo's Store", url: "https://www.karabostore.com" }],
 
-  manifest: "/manifest.json",
+  // ✅ NEW: Tell Google your site is indexable
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
+  },
 
+  // ✅ NEW: Canonical URL prevents duplicate content penalties
+  alternates: {
+    canonical: "https://www.karabostore.com",
+  },
+
+  // ✅ NEW: Geo signals help Google understand you serve Lesotho
   other: {
+    "geo.region":                            "LS",
+    "geo.placename":                         "Lesotho",
     "apple-mobile-web-app-capable":          "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
     "apple-mobile-web-app-title":            "Karabo's Store",
@@ -137,9 +173,10 @@ export const metadata: Metadata = {
     "mobile-web-app-capable":                "yes",
   },
 
+  manifest: "/manifest.json",
+
   icons: {
     icon: [
-      /* ✅ Redesigned SVG favicon */
       {
         url:  "data:image/svg+xml," + encodeURIComponent(faviconSVG),
         type: "image/svg+xml",
@@ -159,27 +196,30 @@ export const metadata: Metadata = {
     shortcut: "/icons/icon-192x192.png",
   },
 
+  // ✅ FIXED: URL updated to real domain
   openGraph: {
-    title:       "Karabo's Store – Premium Boutique in Lesotho",
-    description: "Premium fashion and beauty collections curated for elegance and confidence.",
-    url:         "https://kkkkkk-kappa.vercel.app/",
+    title:       "Karabo's Store – Beauty, Phones & Fashion in Lesotho",
+    description: "Shop skincare, smartphones, fashion & wellness at Lesotho's finest online boutique. Free delivery on orders over M500.",
+    url:         "https://www.karabostore.com",
     siteName:    "Karabo's Store",
     images: [
       {
         url:    "/og-image.png",
         width:  1200,
         height: 630,
-        alt:    "Karabo's Store – Luxury Boutique in Lesotho",
+        alt:    "Karabo's Store – Premium Online Boutique in Lesotho",
       },
     ],
-    locale: "en_US",
-    type:   "website",
+    locale:   "en_LS", // ✅ FIXED: Lesotho locale, not en_US
+    type:     "website",
+    countryName: "Lesotho",
   },
 
+  // ✅ IMPROVED: More descriptive Twitter card
   twitter: {
     card:        "summary_large_image",
-    title:       "Karabo's Store – Premium Boutique",
-    description: "Premium fashion and beauty collections in Lesotho.",
+    title:       "Karabo's Store – Beauty, Phones & Fashion in Lesotho",
+    description: "Lesotho's finest online boutique. Skincare, smartphones, fashion & more. Free delivery on M500+.",
     images:      ["/og-image.png"],
   },
 };
@@ -194,8 +234,37 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en-LS">  {/* ✅ FIXED: Lesotho locale */}
       <head>
+        {/* ✅ NEW: JSON-LD — tells Google exactly what your business is */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "OnlineStore",
+              "name": "Karabo's Store",
+              "url": "https://www.karabostore.com",
+              "logo": "https://www.karabostore.com/icons/icon-512x512.png",
+              "description": "Lesotho's finest online boutique. Shop premium skincare, beauty, smartphones and fashion with free delivery on M500+.",
+              "address": {
+                "@type": "PostalAddress",
+                "addressCountry": "LS",
+                "addressRegion": "Maseru"
+              },
+              "hasOfferCatalog": {
+                "@type": "OfferCatalog",
+                "name": "Karabo's Store Products",
+                "itemListElement": [
+                  { "@type": "OfferCatalog", "name": "Beauty & Skincare" },
+                  { "@type": "OfferCatalog", "name": "Mobile & Accessories" },
+                  { "@type": "OfferCatalog", "name": "Fashion & Streetwear" },
+                  { "@type": "OfferCatalog", "name": "Health & Wellness" }
+                ]
+              }
+            })
+          }}
+        />
         {/* iPhone 14 Pro Max */}
         <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"  href="/splash/iphone14promax.png" />
         {/* iPhone 14 Pro */}

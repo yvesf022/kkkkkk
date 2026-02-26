@@ -1,0 +1,18 @@
+# robots.txt for karabostore.com
+# Allow all search engines to crawl the full site
+
+User-agent: *
+Allow: /
+
+# Block internal/private routes from indexing
+Disallow: /api/
+Disallow: /_next/
+Disallow: /admin/
+Disallow: /checkout/
+Disallow: /cart/
+Disallow: /account/
+Disallow: /sign-in/
+Disallow: /register/
+
+# Sitemap location
+Sitemap: https://www.karabostore.com/sitemap.xml
