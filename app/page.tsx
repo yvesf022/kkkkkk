@@ -5,14 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/currency";
 
-// ─────────────────────────────────────────────────────────────────
-// API BASE
-// ─────────────────────────────────────────────────────────────────
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-// ─────────────────────────────────────────────────────────────────
-// IMAGE HELPERS
-// ─────────────────────────────────────────────────────────────────
 function resolveImg(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -25,14 +19,6 @@ function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 30
   return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
 }
 
-// ─────────────────────────────────────────────────────────────────
-// TYPES — exact shapes from API responses
-// ─────────────────────────────────────────────────────────────────
-
-/**
- * GET /api/products/random  →  { count, products: HP[] }
- * GET /api/homepage/sections products array also uses this shape
- */
 interface HP {
   id: string;
   title: string;
@@ -48,28 +34,19 @@ interface HP {
   sales?: number | null;
 }
 
-/**
- * GET /api/homepage/sections  →  { sections: Section[], total_sections }
- */
 interface Section {
   key: string;
   title: string;
   subtitle: string;
   badge: string | null;
   theme: string;
-  view_all: string;      // e.g. "/store?sort=discount"  or  "/store?q=Hair+Care"
+  view_all: string;
   products: HP[];
 }
 
-/**
- * GET /api/categories/departments
- * →  [{ key, title, href, image, subcategories: SubCat[] }]
- *
- * NOTE: backend sends "label" (not "name") for subcategories — see categories_router.py
- */
 interface SubCat {
   key: string;
-  label: string;     // ← "label" from BEAUTY_SUBCATS / PHONE_SUBCATS tuples
+  label: string;
   href: string;
   image: string | null;
 }
@@ -81,11 +58,8 @@ interface DeptCategory {
   subcategories: SubCat[];
 }
 
-// ─────────────────────────────────────────────────────────────────
-// THEME MAP  (matches homepage_sections.py theme strings)
-// ─────────────────────────────────────────────────────────────────
 const THEME_MAP: Record<string, { primary: string }> = {
-  red:    { primary: "#c0392b" },
+  red:    { primary: "#e53e3e" },
   green:  { primary: "#0f3f2f" },
   gold:   { primary: "#b8860b" },
   forest: { primary: "#1b5e4a" },
@@ -102,25 +76,18 @@ const THEME_MAP: Record<string, { primary: string }> = {
   stone:  { primary: "#4a3728" },
 };
 
-// ─────────────────────────────────────────────────────────────────
-// SAFE VIEW-ALL — converts backend view_all paths to /store URLs
-// backend sends e.g. "/store?sort=discount"  or  "/store?q=Hair+Care"
-// ─────────────────────────────────────────────────────────────────
 function safeViewAll(raw: string): string {
   try {
-    const url    = new URL(raw, "http://x");
+    const url = new URL(raw, "http://x");
     const params = new URLSearchParams();
-    const q    = url.searchParams.get("q");
+    const q = url.searchParams.get("q");
     const sort = url.searchParams.get("sort");
-    if (q)    params.set("q", q);
+    if (q) params.set("q", q);
     if (sort) params.set("sort", sort);
     return `/store${params.toString() ? "?" + params.toString() : ""}`;
   } catch { return "/store"; }
 }
 
-// ─────────────────────────────────────────────────────────────────
-// COUNTDOWN TIMER HOOK
-// ─────────────────────────────────────────────────────────────────
 function useCountdown(targetHours = 6) {
   const [time, setTime] = useState({ h: targetHours, m: 0, s: 0 });
   useEffect(() => {
@@ -137,15 +104,253 @@ function useCountdown(targetHours = 6) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  SHARED — SCROLL BUTTON
+//  SVG ICON LIBRARY — replaces all emojis
+// ═══════════════════════════════════════════════════════════════
+const Icons = {
+  Skincare: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#fce7f3" />
+      <ellipse cx="24" cy="26" rx="10" ry="12" fill="#f9a8d4" />
+      <ellipse cx="24" cy="20" rx="7" ry="8" fill="#fbcfe8" />
+      <circle cx="24" cy="14" r="4" fill="#f472b6" />
+      <path d="M18 26 Q24 32 30 26" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+    </svg>
+  ),
+  Phone: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#dbeafe" />
+      <rect x="16" y="8" width="16" height="32" rx="3" fill="#3b82f6" />
+      <rect x="17.5" y="10" width="13" height="22" rx="1.5" fill="#93c5fd" />
+      <circle cx="24" cy="36" r="1.5" fill="#bfdbfe" />
+      <rect x="21" y="9" width="6" height="1.5" rx="0.75" fill="#1d4ed8" />
+    </svg>
+  ),
+  Wellness: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#d1fae5" />
+      <path d="M24 12 L26 18 L32 18 L27 22 L29 28 L24 24 L19 28 L21 22 L16 18 L22 18 Z" fill="#10b981" />
+      <circle cx="24" cy="32" r="4" fill="#34d399" />
+      <path d="M20 34 L28 34" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  BodyCare: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#fef3c7" />
+      <rect x="18" y="14" width="12" height="18" rx="6" fill="#f59e0b" />
+      <ellipse cx="24" cy="13" rx="4" ry="2.5" fill="#fbbf24" />
+      <path d="M22 22 Q24 26 26 22" stroke="#fff" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <circle cx="24" cy="34" r="2" fill="#fcd34d" />
+    </svg>
+  ),
+  Sunscreen: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#fff7ed" />
+      <circle cx="24" cy="24" r="8" fill="#fb923c" />
+      <circle cx="24" cy="24" r="5" fill="#fed7aa" />
+      {[0,45,90,135,180,225,270,315].map((deg, i) => (
+        <line key={i}
+          x1={24 + 10 * Math.cos((deg * Math.PI) / 180)}
+          y1={24 + 10 * Math.sin((deg * Math.PI) / 180)}
+          x2={24 + 13 * Math.cos((deg * Math.PI) / 180)}
+          y2={24 + 13 * Math.sin((deg * Math.PI) / 180)}
+          stroke="#fb923c" strokeWidth="2" strokeLinecap="round"
+        />
+      ))}
+    </svg>
+  ),
+  Serum: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#ede9fe" />
+      <rect x="20" y="16" width="8" height="18" rx="4" fill="#8b5cf6" />
+      <rect x="21" y="12" width="6" height="5" rx="1" fill="#7c3aed" />
+      <circle cx="24" cy="12" r="2" fill="#c4b5fd" />
+      <path d="M22 24 Q24 28 26 24" stroke="#fff" strokeWidth="1" fill="none" strokeLinecap="round"/>
+    </svg>
+  ),
+  NaturalOil: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#dcfce7" />
+      <path d="M24 12 C20 16 16 20 16 26 C16 31.5 19.5 36 24 36 C28.5 36 32 31.5 32 26 C32 20 28 16 24 12Z" fill="#16a34a" />
+      <path d="M24 18 C22 21 20 23 20 26 C20 28.8 21.8 31 24 31" stroke="#86efac" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+    </svg>
+  ),
+  Gift: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#fce7f3" />
+      <rect x="14" y="22" width="20" height="14" rx="2" fill="#ec4899" />
+      <rect x="13" y="18" width="22" height="6" rx="2" fill="#f472b6" />
+      <path d="M24 18 L24 36" stroke="#fce7f3" strokeWidth="2"/>
+      <path d="M14 21 L34 21" stroke="#fce7f3" strokeWidth="1.5"/>
+      <path d="M24 18 C24 18 20 14 22 12 C24 10 24 15 24 18Z" fill="#be185d"/>
+      <path d="M24 18 C24 18 28 14 26 12 C24 10 24 15 24 18Z" fill="#be185d"/>
+    </svg>
+  ),
+  EyeCare: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#e0f2fe" />
+      <path d="M12 24 C16 18 20 15 24 15 C28 15 32 18 36 24 C32 30 28 33 24 33 C20 33 16 30 12 24Z" fill="#38bdf8" />
+      <circle cx="24" cy="24" r="6" fill="#0284c7" />
+      <circle cx="24" cy="24" r="3" fill="#0c4a6e" />
+      <circle cx="22" cy="22" r="1.5" fill="#fff" />
+    </svg>
+  ),
+  Cleanser: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#f0fdfa" />
+      <rect x="18" y="16" width="12" height="20" rx="5" fill="#14b8a6" />
+      <rect x="19" y="12" width="10" height="5" rx="1.5" fill="#0d9488" />
+      <path d="M22 24 Q24 28 26 24" stroke="#fff" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <circle cx="28" cy="20" r="2" fill="#5eead4" />
+      <circle cx="20" cy="30" r="1.5" fill="#5eead4" />
+    </svg>
+  ),
+  Brightening: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#fefce8" />
+      <circle cx="24" cy="24" r="8" fill="#eab308" />
+      {[0,60,120,180,240,300].map((deg, i) => (
+        <line key={i}
+          x1={24 + 9.5 * Math.cos((deg * Math.PI) / 180)}
+          y1={24 + 9.5 * Math.sin((deg * Math.PI) / 180)}
+          x2={24 + 13 * Math.cos((deg * Math.PI) / 180)}
+          y2={24 + 13 * Math.sin((deg * Math.PI) / 180)}
+          stroke="#fde047" strokeWidth="2.5" strokeLinecap="round"
+        />
+      ))}
+    </svg>
+  ),
+  AntiAging: () => (
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+      <circle cx="24" cy="24" r="20" fill="#fdf4ff" />
+      <circle cx="24" cy="22" r="9" fill="#d946ef" />
+      <path d="M18 20 Q24 16 30 20" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      <path d="M20 24 Q24 28 28 24" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      <path d="M22 34 Q24 38 26 34" stroke="#c026d3" strokeWidth="2" fill="none" strokeLinecap="round"/>
+    </svg>
+  ),
+  // Trust bar icons
+  Delivery: () => (
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+      <rect x="1" y="10" width="20" height="14" rx="2" fill="#0f3f2f"/>
+      <path d="M21 14 L29 14 L31 20 L31 24 L21 24 Z" fill="#1b5e4a"/>
+      <circle cx="7" cy="25" r="3" fill="#c8a75a" stroke="#fff" strokeWidth="1"/>
+      <circle cx="25" cy="25" r="3" fill="#c8a75a" stroke="#fff" strokeWidth="1"/>
+      <path d="M1 16 L21 16" stroke="#c8a75a" strokeWidth="1" strokeDasharray="3 2"/>
+    </svg>
+  ),
+  Authentic: () => (
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+      <circle cx="16" cy="16" r="14" fill="#0f3f2f"/>
+      <circle cx="16" cy="16" r="10" fill="#1b5e4a"/>
+      <path d="M10 16 L14 20 L22 12" stroke="#c8a75a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  Returns: () => (
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+      <path d="M6 16 A10 10 0 1 1 16 26" stroke="#0f3f2f" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+      <path d="M6 10 L6 16 L12 16" stroke="#0f3f2f" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M16 10 L16 16 L20 20" stroke="#c8a75a" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  Lock: () => (
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+      <rect x="7" y="15" width="18" height="13" rx="3" fill="#0f3f2f"/>
+      <path d="M11 15 L11 10 A5 5 0 0 1 21 10 L21 15" stroke="#0f3f2f" strokeWidth="2.5" fill="none"/>
+      <circle cx="16" cy="21" r="2.5" fill="#c8a75a"/>
+      <path d="M16 21 L16 24" stroke="#c8a75a" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  GiftBox: () => (
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+      <rect x="4" y="14" width="24" height="16" rx="2" fill="#0f3f2f"/>
+      <rect x="3" y="10" width="26" height="6" rx="2" fill="#1b5e4a"/>
+      <path d="M16 10 L16 30" stroke="#c8a75a" strokeWidth="2"/>
+      <path d="M4 13 L28 13" stroke="#c8a75a" strokeWidth="1.5"/>
+      <path d="M16 10 C16 10 12 6 14 4 C16 2 16 7 16 10Z" fill="#c8a75a"/>
+      <path d="M16 10 C16 10 20 6 18 4 C16 2 16 7 16 10Z" fill="#c8a75a"/>
+    </svg>
+  ),
+  // Misc
+  Cart: () => (
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+      <path d="M6 2 L3 6 L3 20 A2 2 0 0 0 5 22 L19 22 A2 2 0 0 0 21 20 L21 6 L18 2 Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M3 6 L21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M16 10 A4 4 0 0 1 8 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  Heart: ({ filled }: { filled?: boolean }) => (
+    <svg viewBox="0 0 24 24" fill={filled ? "#e53e3e" : "none"} xmlns="http://www.w3.org/2000/svg" width="14" height="14">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+        stroke={filled ? "#e53e3e" : "#aaa"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  Star: () => (
+    <svg viewBox="0 0 24 24" fill="#f59e0b" xmlns="http://www.w3.org/2000/svg" width="10" height="10">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>
+  ),
+  Lightning: () => (
+    <svg viewBox="0 0 24 24" fill="#f59e0b" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+  ),
+  ArrowRight: () => (
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+      <path d="M5 12 L19 12 M13 6 L19 12 L13 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  ChevronLeft: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 18l-6-6 6-6"/>
+    </svg>
+  ),
+  ChevronRight: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+  ),
+  Mail: () => (
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+      <rect x="2" y="6" width="28" height="20" rx="3" fill="rgba(255,255,255,0.2)"/>
+      <path d="M2 9 L16 18 L30 9" stroke="rgba(255,255,255,0.8)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+    </svg>
+  ),
+  ProductFallback: () => (
+    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+      <rect x="10" y="20" width="60" height="50" rx="6" fill="#e7e5e4"/>
+      <rect x="24" y="8" width="32" height="20" rx="4" fill="#d6d3d1"/>
+      <circle cx="40" cy="46" r="12" fill="#a8a29e"/>
+      <path d="M33 46 L40 52 L47 46" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+};
+
+const NAV_CATS = [
+  { Icon: Icons.Skincare,    label: "Skincare",     href: "/store?category=moisturizer",    bg: "#fce7f3" },
+  { Icon: Icons.Phone,       label: "Phones",       href: "/store?main_cat=phones",          bg: "#dbeafe" },
+  { Icon: Icons.Wellness,    label: "Wellness",     href: "/store?category=collagen",        bg: "#d1fae5" },
+  { Icon: Icons.BodyCare,    label: "Body Care",    href: "/store?category=body_lotion",     bg: "#fef3c7" },
+  { Icon: Icons.Sunscreen,   label: "Sunscreen",    href: "/store?category=sunscreen",       bg: "#fff7ed" },
+  { Icon: Icons.Serum,       label: "Serums",       href: "/store?category=serum",           bg: "#ede9fe" },
+  { Icon: Icons.NaturalOil,  label: "Natural Oils", href: "/store?category=herbal_oils",     bg: "#dcfce7" },
+  { Icon: Icons.Gift,        label: "Gift Sets",    href: "/store?sort=discount",            bg: "#fce7f3" },
+  { Icon: Icons.EyeCare,     label: "Eye Care",     href: "/store?category=eye_mask",        bg: "#e0f2fe" },
+  { Icon: Icons.Cleanser,    label: "Cleansers",    href: "/store?category=face_wash",       bg: "#f0fdfa" },
+  { Icon: Icons.Brightening, label: "Brightening",  href: "/store?category=skin_brightening",bg: "#fefce8" },
+  { Icon: Icons.AntiAging,   label: "Anti-Aging",   href: "/store?category=anti_wrinkles",   bg: "#fdf4ff" },
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  SCROLL BUTTON
 // ═══════════════════════════════════════════════════════════════
 function ScrollBtn({ dir, onClick, extraStyle }: { dir: "l" | "r"; onClick: () => void; extraStyle?: React.CSSProperties }) {
   return (
-    <button onClick={onClick} aria-label={dir === "l" ? "Scroll left" : "Scroll right"} style={{ position: "absolute", [dir === "l" ? "left" : "right"]: 0, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 36, height: 36, borderRadius: "50%", background: "white", border: "1px solid var(--gray-300)", boxShadow: "var(--shadow-card)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "auto", ...extraStyle }}>
-      {dir === "l"
-        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-      }
+    <button onClick={onClick} aria-label={dir === "l" ? "Scroll left" : "Scroll right"}
+      style={{ position: "absolute", [dir === "l" ? "left" : "right"]: 0, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 38, height: 38, borderRadius: "50%", background: "white", border: "1px solid var(--gray-300)", boxShadow: "0 2px 12px rgba(0,0,0,0.12)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "auto", transition: "box-shadow 0.2s, transform 0.2s", ...extraStyle }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.18)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.12)"; }}
+    >
+      {dir === "l" ? <Icons.ChevronLeft /> : <Icons.ChevronRight />}
     </button>
   );
 }
@@ -154,46 +359,46 @@ function ScrollBtn({ dir, onClick, extraStyle }: { dir: "l" | "r"; onClick: () =
 //  ANNOUNCEMENT BAR
 // ═══════════════════════════════════════════════════════════════
 function AnnouncementBar() {
-  const msgs = ["🎉 Free delivery on orders over M500","✨ 100% authentic products — guaranteed","🔒 Secure payment & encrypted checkout","🎁 Premium gift wrapping available","📦 Easy 7-day returns & exchanges","💎 Lesotho's finest luxury boutique"];
+  const msgs = [
+    "Free delivery on orders over M500",
+    "100% authentic products — guaranteed",
+    "Secure payment & encrypted checkout",
+    "Premium gift wrapping available",
+    "Easy 7-day returns & exchanges",
+    "Lesotho's finest luxury boutique",
+  ];
   const [idx, setIdx] = useState(0);
   useEffect(() => { const id = setInterval(() => setIdx(i => (i + 1) % msgs.length), 3_500); return () => clearInterval(id); }, []);
   return (
-    <div style={{ background: "var(--primary)", color: "white", height: 36, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 500, overflow: "hidden", position: "relative" }}>
+    <div style={{ background: "linear-gradient(90deg, var(--primary-dark), var(--primary), var(--primary-light))", color: "white", height: 38, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 500, overflow: "hidden", position: "relative" }}>
       {msgs.map((m, i) => (
-        <span key={i} style={{ position: "absolute", opacity: i === idx ? 1 : 0, transform: i === idx ? "translateY(0)" : "translateY(8px)", transition: "opacity 0.5s ease, transform 0.5s ease", whiteSpace: "nowrap" }}>{m}</span>
+        <span key={i} style={{ position: "absolute", display: "flex", alignItems: "center", gap: 8, opacity: i === idx ? 1 : 0, transform: i === idx ? "translateY(0)" : "translateY(8px)", transition: "opacity 0.5s ease, transform 0.5s ease", whiteSpace: "nowrap" }}>
+          <svg width="6" height="6" viewBox="0 0 12 12" fill="#c8a75a"><circle cx="6" cy="6" r="6"/></svg>
+          {m}
+          <svg width="6" height="6" viewBox="0 0 12 12" fill="#c8a75a"><circle cx="6" cy="6" r="6"/></svg>
+        </span>
       ))}
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  CATEGORY NAV STRIP
+//  CATEGORY NAV STRIP — SVG icons, no emojis
 // ═══════════════════════════════════════════════════════════════
-const NAV_CATS = [
-  { icon: "💄", label: "Skincare",     href: "/store?category=moisturizer" },
-  { icon: "📱", label: "Phones",       href: "/store?main_cat=phones" },
-  { icon: "💊", label: "Wellness",     href: "/store?category=collagen" },
-  { icon: "🧴", label: "Body Care",    href: "/store?category=body_lotion" },
-  { icon: "☀️", label: "Sunscreen",   href: "/store?category=sunscreen" },
-  { icon: "✨", label: "Serums",       href: "/store?category=serum" },
-  { icon: "🌿", label: "Natural Oils", href: "/store?category=herbal_oils" },
-  { icon: "🎁", label: "Gift Sets",    href: "/store?sort=discount" },
-  { icon: "👁️", label: "Eye Care",    href: "/store?category=eye_mask" },
-  { icon: "🧼", label: "Cleansers",   href: "/store?category=face_wash" },
-  { icon: "💫", label: "Brightening", href: "/store?category=skin_brightening" },
-  { icon: "🔋", label: "Anti-Aging",  href: "/store?category=anti_wrinkles" },
-];
 function CategoryNav() {
   return (
-    <div style={{ background: "white", borderBottom: "1px solid var(--gray-200)", padding: "16px 0" }}>
+    <div style={{ background: "white", borderBottom: "1px solid var(--gray-200)", padding: "14px 0", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(12,1fr)", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(12,1fr)", gap: 6 }}>
           {NAV_CATS.map(c => (
-            <Link key={c.href} href={c.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 8px", borderRadius: 10, textDecoration: "none", transition: "background 0.2s" }}
-              onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.background = "var(--gray-100)")}
-              onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.background = "transparent")}
+            <Link key={c.href} href={c.href}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "10px 6px", borderRadius: 12, textDecoration: "none", transition: "background 0.2s, transform 0.2s" }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "var(--gray-50)"; el.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.transform = "none"; }}
             >
-              <div style={{ fontSize: 22, lineHeight: 1 }}>{c.icon}</div>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+                <c.Icon />
+              </div>
               <span style={{ fontSize: 10, fontWeight: 600, color: "var(--gray-700)", textAlign: "center", lineHeight: 1.2 }}>{c.label}</span>
             </Link>
           ))}
@@ -204,17 +409,17 @@ function CategoryNav() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  HERO BANNER — carousel, right pane shows real /api/products/random
+//  HERO BANNER
 // ═══════════════════════════════════════════════════════════════
 const HERO_SLIDES = [
-  { tag: "New Collection", headline: "Elevate Your\nStyle Game",      sub: "Premium fashion curated for Lesotho's finest",           cta: "Shop Fashion", ctaLink: "/store?main_cat=beauty", bg: "linear-gradient(135deg,#0f3f2f,#1b5e4a,#0d3328)", accent: "#c8a75a" },
-  { tag: "Flash Deals",    headline: "Up to 60% Off\nTop Brands",     sub: "Limited time — grab the best deals before they're gone", cta: "View Deals",   ctaLink: "/store?sort=discount",   bg: "linear-gradient(135deg,#c0392b,#e74c3c,#a93226)",  accent: "#f5c842" },
-  { tag: "Beauty Picks",   headline: "Glow Up With\nPremium Skincare",sub: "Authentic beauty products from world-class brands",       cta: "Shop Beauty",  ctaLink: "/store?main_cat=beauty", bg: "linear-gradient(135deg,#6b1f7c,#8e44ad,#5b1768)",  accent: "#f8c8e0" },
+  { tag: "New Collection", headline: "Elevate Your\nStyle Game", sub: "Premium fashion curated for Lesotho's finest", cta: "Shop Now", ctaLink: "/store?main_cat=beauty", bg: "linear-gradient(135deg,#0a2a1f 0%,#0f3f2f 45%,#1b5e4a 100%)", accent: "#c8a75a" },
+  { tag: "Flash Deals",    headline: "Up to 60% Off\nTop Brands",   sub: "Limited time — grab the best deals before they're gone", cta: "View Deals",  ctaLink: "/store?sort=discount",   bg: "linear-gradient(135deg,#7f1d1d,#b91c1c,#ef4444)", accent: "#fde68a" },
+  { tag: "Beauty Picks",   headline: "Glow Up With\nPremium Skincare", sub: "Authentic beauty products from world-class brands", cta: "Shop Beauty", ctaLink: "/store?main_cat=beauty", bg: "linear-gradient(135deg,#4a1772,#7c3aed,#a855f7)", accent: "#fce7f3" },
 ];
 
 function HeroBanner({ products }: { products: HP[] }) {
   const router = useRouter();
-  const [slide, setSlide]   = useState(0);
+  const [slide, setSlide] = useState(0);
   const [animIn, setAnimIn] = useState(true);
   const featured = products.slice(0, 4);
 
@@ -223,42 +428,53 @@ function HeroBanner({ products }: { products: HP[] }) {
     setTimeout(() => { setSlide(i); setAnimIn(true); }, 300);
   }, []);
   useEffect(() => {
-    const id = setInterval(() => goTo((slide + 1) % HERO_SLIDES.length), 5_000);
+    const id = setInterval(() => goTo((slide + 1) % HERO_SLIDES.length), 5_500);
     return () => clearInterval(id);
   }, [slide, goTo]);
 
   const s = HERO_SLIDES[slide];
   return (
-    <div style={{ position: "relative", overflow: "hidden", background: s.bg, transition: "background 0.6s ease" }}>
-      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, minHeight: 340, alignItems: "center" }}>
-        {/* Text */}
-        <div style={{ padding: "40px 0", opacity: animIn ? 1 : 0, transform: animIn ? "none" : "translateX(-20px)", transition: "opacity 0.5s, transform 0.5s" }}>
-          <div style={{ display: "inline-block", background: s.accent, color: "#1a1a1a", fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", padding: "5px 14px", borderRadius: 20, marginBottom: 16 }}>{s.tag}</div>
-          <h1 style={{ color: "white", fontSize: "clamp(28px,5vw,52px)", fontWeight: 900, lineHeight: 1.1, marginBottom: 14, letterSpacing: -1, whiteSpace: "pre-line" }}>{s.headline}</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, marginBottom: 28, lineHeight: 1.6 }}>{s.sub}</p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link href={s.ctaLink} style={{ display: "inline-flex", alignItems: "center", gap: 8, background: s.accent, color: "#1a1a1a", padding: "13px 28px", borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: "none", transition: "transform 0.2s" }}
-              onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)")}
-              onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.transform = "none")}
-            >{s.cta} →</Link>
-            <Link href="/store" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.15)", color: "white", padding: "13px 24px", borderRadius: 8, fontWeight: 600, fontSize: 14, textDecoration: "none", border: "1px solid rgba(255,255,255,0.3)" }}>Browse All</Link>
+    <div style={{ position: "relative", overflow: "hidden", background: s.bg, transition: "background 0.7s ease" }}>
+      {/* Decorative blur circles */}
+      <div style={{ position: "absolute", top: -60, right: -60, width: 300, height: 300, borderRadius: "50%", background: "rgba(200,167,90,0.08)", filter: "blur(40px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: -40, left: 100, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.04)", filter: "blur(30px)", pointerEvents: "none" }} />
+
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, minHeight: 360, alignItems: "center", position: "relative", zIndex: 1 }}>
+        {/* Left: Text */}
+        <div style={{ padding: "44px 0", opacity: animIn ? 1 : 0, transform: animIn ? "none" : "translateX(-24px)", transition: "opacity 0.5s ease, transform 0.5s ease" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)", color: s.accent, fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", padding: "5px 14px", borderRadius: 20, marginBottom: 20 }}>
+            <svg width="6" height="6" viewBox="0 0 12 12" fill={s.accent}><circle cx="6" cy="6" r="6"/></svg>
+            {s.tag}
           </div>
-          {/* Dots */}
-          <div style={{ display: "flex", gap: 8, marginTop: 32 }}>
+          <h1 style={{ color: "white", fontSize: "clamp(30px,4.5vw,54px)", fontWeight: 900, lineHeight: 1.08, marginBottom: 16, letterSpacing: -1.5, whiteSpace: "pre-line" }}>{s.headline}</h1>
+          <p style={{ color: "rgba(255,255,255,0.72)", fontSize: 14, marginBottom: 32, lineHeight: 1.7, maxWidth: 380 }}>{s.sub}</p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Link href={s.ctaLink}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, background: s.accent, color: "#1a1a1a", padding: "14px 30px", borderRadius: 9, fontWeight: 800, fontSize: 14, textDecoration: "none", letterSpacing: 0.3, boxShadow: "0 4px 20px rgba(0,0,0,0.2)", transition: "transform 0.2s, box-shadow 0.2s" }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "translateY(-2px)"; el.style.boxShadow = "0 8px 28px rgba(0,0,0,0.3)"; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "none"; el.style.boxShadow = "0 4px 20px rgba(0,0,0,0.2)"; }}
+            >{s.cta} <Icons.ArrowRight /></Link>
+            <Link href="/store" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.12)", color: "white", padding: "14px 26px", borderRadius: 9, fontWeight: 600, fontSize: 14, textDecoration: "none", border: "1px solid rgba(255,255,255,0.25)", backdropFilter: "blur(8px)", transition: "background 0.2s" }}
+              onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.2)")}
+              onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.12)")}
+            >Browse All</Link>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 36 }}>
             {HERO_SLIDES.map((_, i) => (
-              <button key={i} onClick={() => goTo(i)} style={{ height: 4, width: i === slide ? 32 : 12, borderRadius: 2, background: i === slide ? s.accent : "rgba(255,255,255,0.3)", border: "none", cursor: "pointer", transition: "all 0.3s", padding: 0, minHeight: "auto" }} />
+              <button key={i} onClick={() => goTo(i)} style={{ height: 4, width: i === slide ? 36 : 12, borderRadius: 2, background: i === slide ? s.accent : "rgba(255,255,255,0.3)", border: "none", cursor: "pointer", transition: "all 0.35s ease", padding: 0, minHeight: "auto" }} />
             ))}
           </div>
         </div>
-        {/* Product mini-grid from /api/products/random */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, padding: "20px 0", opacity: animIn ? 1 : 0, transform: animIn ? "none" : "translateX(20px)", transition: "opacity 0.5s 0.1s, transform 0.5s 0.1s" }}>
+
+        {/* Right: Real product mini-grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, padding: "24px 0", opacity: animIn ? 1 : 0, transform: animIn ? "none" : "translateX(24px)", transition: "opacity 0.5s 0.1s ease, transform 0.5s 0.1s ease" }}>
           {featured.length > 0
             ? featured.map(p => <HeroMiniCard key={p.id} p={p} onClick={() => router.push(`/store/product/${p.id}`)} />)
-            : Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimbox" style={{ height: 150, borderRadius: 12 }} />)
+            : Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimbox" style={{ height: 156, borderRadius: 14 }} />)
           }
         </div>
       </div>
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 40, background: "var(--gray-50)", clipPath: "ellipse(55% 100% at 50% 100%)" }} />
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 44, background: "var(--gray-50)", clipPath: "ellipse(55% 100% at 50% 100%)" }} />
     </div>
   );
 }
@@ -267,17 +483,20 @@ function HeroMiniCard({ p, onClick }: { p: HP; onClick: () => void }) {
   const [err, setErr] = useState(false);
   const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
   return (
-    <div onClick={onClick} style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "transform 0.25s" }}
-      onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)")}
-      onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.transform = "none")}
+    <div onClick={onClick} style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 14, overflow: "hidden", cursor: "pointer", transition: "transform 0.25s, box-shadow 0.25s", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}
+      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.transform = "translateY(-4px)"; el.style.boxShadow = "0 8px 24px rgba(0,0,0,0.25)"; }}
+      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.transform = "none"; el.style.boxShadow = "0 4px 16px rgba(0,0,0,0.15)"; }}
     >
+      {disc && disc >= 5 && (
+        <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>
+      )}
       {resolveImg(p.main_image) && !err
         ? <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} />
-        : <div style={{ aspectRatio: "1/1", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🛍️</div>
+        : <div style={{ aspectRatio: "1/1", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
       }
       <div style={{ padding: "10px 10px 12px" }}>
-        {disc && disc >= 5 && <span style={{ fontSize: 9, fontWeight: 800, color: "#f5c842", display: "block", marginBottom: 3 }}>-{disc}% OFF</span>}
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.title}</div>
+        {disc && disc >= 5 && <span style={{ fontSize: 9, fontWeight: 800, color: "#fde68a", display: "block", marginBottom: 3 }}>-{disc}% OFF</span>}
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.88)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.title}</div>
         <div style={{ fontSize: 13, fontWeight: 800, color: "white", marginTop: 6 }}>{formatCurrency(p.price)}</div>
       </div>
     </div>
@@ -285,23 +504,26 @@ function HeroMiniCard({ p, onClick }: { p: HP; onClick: () => void }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  TRUST BAR
+//  TRUST BAR — SVG icons
 // ═══════════════════════════════════════════════════════════════
 function TrustBar() {
   const items = [
-    { icon: "🚚", title: "Free Delivery",  sub: "Orders over M500" },
-    { icon: "✅", title: "100% Authentic", sub: "Verified products" },
-    { icon: "🔄", title: "Easy Returns",   sub: "7-day hassle-free" },
-    { icon: "🔒", title: "Secure Payment", sub: "Encrypted checkout" },
-    { icon: "🎁", title: "Gift Packaging", sub: "Premium wrapping" },
+    { Icon: Icons.Delivery,   title: "Free Delivery",  sub: "Orders over M500" },
+    { Icon: Icons.Authentic,  title: "100% Authentic", sub: "Verified products" },
+    { Icon: Icons.Returns,    title: "Easy Returns",   sub: "7-day hassle-free" },
+    { Icon: Icons.Lock,       title: "Secure Payment", sub: "Encrypted checkout" },
+    { Icon: Icons.GiftBox,    title: "Gift Packaging", sub: "Premium wrapping" },
   ];
   return (
     <div style={{ background: "white", borderTop: "1px solid var(--gray-200)", borderBottom: "1px solid var(--gray-200)", margin: "6px 0" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)" }}>
           {items.map((item, i) => (
-            <div key={item.title} style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 16px", borderRight: i < items.length - 1 ? "1px solid var(--gray-200)" : "none" }}>
-              <div style={{ fontSize: 24, flexShrink: 0 }}>{item.icon}</div>
+            <div key={item.title} style={{ display: "flex", alignItems: "center", gap: 12, padding: "20px 16px", borderRight: i < items.length - 1 ? "1px solid var(--gray-200)" : "none", transition: "background 0.2s" }}
+              onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.background = "var(--gray-50)")}
+              onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.background = "white")}
+            >
+              <div style={{ flexShrink: 0 }}><item.Icon /></div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gray-900)", lineHeight: 1.2 }}>{item.title}</div>
                 <div style={{ fontSize: 11, color: "var(--gray-500)", marginTop: 2 }}>{item.sub}</div>
@@ -315,29 +537,60 @@ function TrustBar() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  PROMO BANNERS
+//  PROMO BANNERS — illustrated with inline SVG patterns
 // ═══════════════════════════════════════════════════════════════
 function PromoBanners() {
   const banners = [
-    { bg: "linear-gradient(135deg,#0f3f2f,#1b5e4a)", tag: "Beauty",   title: "Skincare\nEssentials",sub: "Up to 40% off premium brands",href: "/store?main_cat=beauty",accent: "#c8a75a", emoji: "✨" },
-    { bg: "linear-gradient(135deg,#1a3a6b,#2d5a9b)", tag: "Phones",   title: "Latest\nSmartphones", sub: "Top brands at best prices",   href: "/store?main_cat=phones",accent: "#7eb8ff", emoji: "📱" },
-    { bg: "linear-gradient(135deg,#6b1f7c,#9b59b6)", tag: "Wellness", title: "Health &\nWellness",  sub: "Natural & organic products",  href: "/store?q=wellness",     accent: "#f8c8e0", emoji: "💊" },
+    {
+      bg: "linear-gradient(135deg,#064e3b,#065f46,#059669)",
+      tag: "Beauty", title: "Skincare\nEssentials", sub: "Up to 40% off premium brands",
+      href: "/store?main_cat=beauty", accent: "#c8a75a",
+      svg: <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="72" height="72" style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", opacity: 0.35 }}>
+        <ellipse cx="40" cy="44" rx="20" ry="26" fill="rgba(255,255,255,0.8)"/>
+        <ellipse cx="40" cy="34" rx="14" ry="18" fill="rgba(255,255,255,0.6)"/>
+        <circle cx="40" cy="22" r="7" fill="rgba(255,255,255,0.9)"/>
+        <path d="M28 44 Q40 52 52 44" stroke="rgba(255,255,255,0.5)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      </svg>
+    },
+    {
+      bg: "linear-gradient(135deg,#1e3a8a,#1d4ed8,#3b82f6)",
+      tag: "Phones", title: "Latest\nSmartphones", sub: "Top brands at best prices",
+      href: "/store?main_cat=phones", accent: "#93c5fd",
+      svg: <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="72" height="72" style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", opacity: 0.35 }}>
+        <rect x="22" y="6" width="36" height="68" rx="7" fill="rgba(255,255,255,0.9)"/>
+        <rect x="25" y="12" width="30" height="48" rx="3" fill="rgba(147,197,253,0.6)"/>
+        <circle cx="40" cy="68" r="4" fill="rgba(255,255,255,0.6)"/>
+        <rect x="32" y="9" width="16" height="3" rx="1.5" fill="rgba(147,197,253,0.8)"/>
+      </svg>
+    },
+    {
+      bg: "linear-gradient(135deg,#4c1d95,#6d28d9,#8b5cf6)",
+      tag: "Wellness", title: "Health &\nWellness", sub: "Natural & organic products",
+      href: "/store?q=wellness", accent: "#e9d5ff",
+      svg: <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="72" height="72" style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", opacity: 0.35 }}>
+        <path d="M40 10 C36 16 26 20 26 30 C26 42 32 50 40 54 C48 50 54 42 54 30 C54 20 44 16 40 10Z" fill="rgba(255,255,255,0.8)"/>
+        <path d="M40 22 C38 26 34 28 34 34 C34 39 36.5 43 40 45" stroke="rgba(233,213,255,0.8)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      </svg>
+    },
   ];
   return (
-    <div style={{ maxWidth: 1400, margin: "0 auto", padding: "16px clamp(16px,4vw,40px)" }}>
+    <div style={{ maxWidth: 1400, margin: "0 auto", padding: "14px clamp(16px,4vw,40px)" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
         {banners.map((b, i) => (
-          <Link key={i} href={b.href} style={{ background: b.bg, borderRadius: 14, padding: "28px 24px", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", overflow: "hidden", position: "relative", transition: "transform 0.25s, box-shadow 0.25s", boxShadow: "var(--shadow-card)" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLAnchorElement).style.boxShadow = "var(--shadow-elevated)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.transform = "none"; (e.currentTarget as HTMLAnchorElement).style.boxShadow = "var(--shadow-card)"; }}
+          <Link key={i} href={b.href}
+            style={{ background: b.bg, borderRadius: 16, padding: "28px 24px", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", overflow: "hidden", position: "relative", transition: "transform 0.25s, box-shadow 0.25s", boxShadow: "var(--shadow-card)" }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "translateY(-3px)"; el.style.boxShadow = "var(--shadow-elevated)"; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "none"; el.style.boxShadow = "var(--shadow-card)"; }}
           >
-            <div>
+            <div style={{ position: "relative", zIndex: 1 }}>
               <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: b.accent, display: "block", marginBottom: 8 }}>{b.tag}</span>
-              <h3 style={{ color: "white", fontSize: 20, fontWeight: 900, lineHeight: 1.15, margin: "0 0 8px", whiteSpace: "pre-line", letterSpacing: -0.5 }}>{b.title}</h3>
-              <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, margin: "0 0 16px", lineHeight: 1.4 }}>{b.sub}</p>
-              <span style={{ background: b.accent, color: "#1a1a1a", fontSize: 11, fontWeight: 700, padding: "7px 16px", borderRadius: 6, display: "inline-block" }}>Shop Now →</span>
+              <h3 style={{ color: "white", fontSize: 22, fontWeight: 900, lineHeight: 1.15, margin: "0 0 8px", whiteSpace: "pre-line", letterSpacing: -0.5 }}>{b.title}</h3>
+              <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, margin: "0 0 18px", lineHeight: 1.4 }}>{b.sub}</p>
+              <span style={{ background: b.accent, color: "#1a1a1a", fontSize: 11, fontWeight: 800, padding: "8px 18px", borderRadius: 7, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                Shop Now <Icons.ArrowRight />
+              </span>
             </div>
-            <div style={{ fontSize: 52, opacity: 0.4, position: "absolute", right: 20, top: "50%", transform: "translateY(-50%) rotate(10deg)" }}>{b.emoji}</div>
+            {b.svg}
           </Link>
         ))}
       </div>
@@ -347,9 +600,6 @@ function PromoBanners() {
 
 // ═══════════════════════════════════════════════════════════════
 //  FLASH DEALS
-//  Products come from heroProducts (already fetched from /api/products/random)
-//  filtered for discount_pct >= 10 or compare_price > price * 1.1
-//  View-All → /store?sort=discount   (sort=discount is valid in products.py)
 // ═══════════════════════════════════════════════════════════════
 function FlashDeals({ products }: { products: HP[] }) {
   const router    = useRouter();
@@ -358,31 +608,36 @@ function FlashDeals({ products }: { products: HP[] }) {
   const flash     = products.filter(p => (p.discount_pct ?? 0) >= 10 || (p.compare_price && p.compare_price > p.price * 1.1));
   if (flash.length === 0) return null;
   const scroll = (dir: "l" | "r") => rowRef.current?.scrollBy({ left: dir === "r" ? 700 : -700, behavior: "smooth" });
+
   return (
-    <div style={{ background: "white", margin: "6px 0", padding: "20px 0" }}>
+    <div style={{ background: "white", margin: "6px 0", padding: "20px 0 8px" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 18 }}>⚡</span>
-              <h2 style={{ fontSize: 18, fontWeight: 900, color: "#c0392b", margin: 0, letterSpacing: -0.3 }}>Flash Deals</h2>
+              <div style={{ width: 32, height: 32, background: "#fef2f2", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icons.Lightning />
+              </div>
+              <h2 style={{ fontSize: 19, fontWeight: 900, color: "#e53e3e", margin: 0, letterSpacing: -0.5 }}>Flash Deals</h2>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, color: "var(--gray-600)", fontWeight: 600 }}>Ends in</span>
+              <span style={{ fontSize: 11, color: "var(--gray-500)", fontWeight: 600 }}>Ends in</span>
               {[countdown.h, countdown.m, countdown.s].map((val, i) => (
                 <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ background: "#c0392b", color: "white", fontSize: 12, fontWeight: 800, padding: "3px 7px", borderRadius: 4, minWidth: 30, textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{String(val).padStart(2, "0")}</span>
-                  {i < 2 && <span style={{ color: "#c0392b", fontWeight: 800, fontSize: 13 }}>:</span>}
+                  <span style={{ background: "#e53e3e", color: "white", fontSize: 12, fontWeight: 800, padding: "4px 8px", borderRadius: 5, minWidth: 32, textAlign: "center", fontVariantNumeric: "tabular-nums", boxShadow: "0 2px 6px rgba(229,62,62,0.3)" }}>{String(val).padStart(2, "0")}</span>
+                  {i < 2 && <span style={{ color: "#e53e3e", fontWeight: 800, fontSize: 14 }}>:</span>}
                 </span>
               ))}
             </div>
           </div>
-          {/* sort=discount is accepted by GET /api/products */}
-          <Link href="/store?sort=discount" style={{ fontSize: 12, fontWeight: 700, color: "#c0392b", textDecoration: "none", border: "1.5px solid #c0392b", padding: "6px 16px", borderRadius: 20, display: "flex", alignItems: "center", gap: 6 }}>See All Deals →</Link>
+          <Link href="/store?sort=discount" style={{ fontSize: 12, fontWeight: 700, color: "#e53e3e", textDecoration: "none", border: "1.5px solid #e53e3e", padding: "7px 18px", borderRadius: 20, display: "flex", alignItems: "center", gap: 6, transition: "background 0.2s" }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "#e53e3e"; el.style.color = "white"; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = "#e53e3e"; }}
+          >See All Deals <Icons.ArrowRight /></Link>
         </div>
         <div style={{ position: "relative" }}>
           <ScrollBtn dir="l" onClick={() => scroll("l")} />
-          <div ref={rowRef} style={{ display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", padding: "4px 2px 8px" }}>
+          <div ref={rowRef} style={{ display: "flex", gap: 10, overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", padding: "4px 2px 12px" }}>
             {flash.slice(0, 14).map(p => <FlashCard key={p.id} p={p} onClick={() => router.push(`/store/product/${p.id}`)} />)}
           </div>
           <ScrollBtn dir="r" onClick={() => scroll("r")} />
@@ -395,27 +650,29 @@ function FlashDeals({ products }: { products: HP[] }) {
 function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
   const [err, setErr] = useState(false);
   const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
-  // stable random sold % per card
   const sold = useRef(Math.floor(Math.random() * 40 + 10)).current;
   return (
-    <div onClick={onClick} style={{ width: 165, flexShrink: 0, scrollSnapAlign: "start", background: "white", border: "1px solid var(--gray-200)", borderRadius: 10, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", position: "relative" }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-elevated)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
+    <div onClick={onClick}
+      style={{ width: 168, flexShrink: 0, scrollSnapAlign: "start", background: "white", border: "1px solid var(--gray-200)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", position: "relative" }}
+      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; }}
+      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
     >
-      {disc && disc >= 5 && <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#c0392b", color: "white", fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>}
+      {disc && disc >= 5 && (
+        <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#e53e3e", color: "white", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 5 }}>-{disc}%</div>
+      )}
       {resolveImg(p.main_image) && !err
         ? <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} />
-        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🛍️</div>
+        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
       }
       <div style={{ padding: "10px 10px 12px" }}>
         <div style={{ fontSize: 11, color: "var(--gray-700)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", marginBottom: 8, minHeight: 30 }}>{p.title}</div>
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#c0392b", marginBottom: 2 }}>{formatCurrency(p.price)}</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#e53e3e", marginBottom: 2 }}>{formatCurrency(p.price)}</div>
         {p.compare_price && p.compare_price > p.price && <div style={{ fontSize: 10, color: "var(--gray-400)", textDecoration: "line-through" }}>{formatCurrency(p.compare_price)}</div>}
         <div style={{ marginTop: 8 }}>
-          <div style={{ height: 4, background: "#fde8e8", borderRadius: 2, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${sold}%`, background: "#c0392b", borderRadius: 2 }} />
+          <div style={{ height: 5, background: "#fee2e2", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${sold}%`, background: "linear-gradient(90deg,#e53e3e,#f87171)", borderRadius: 3 }} />
           </div>
-          <span style={{ fontSize: 9, color: "#c0392b", fontWeight: 700, marginTop: 3, display: "block" }}>{sold}% claimed</span>
+          <span style={{ fontSize: 9, color: "#e53e3e", fontWeight: 700, marginTop: 3, display: "block" }}>{sold}% claimed</span>
         </div>
       </div>
     </div>
@@ -430,10 +687,10 @@ function Marquee() {
   return (
     <div style={{ background: "var(--primary)", overflow: "hidden", height: 40, display: "flex", alignItems: "center" }}>
       <style>{`@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}`}</style>
-      <div style={{ display: "flex", whiteSpace: "nowrap", animation: "marquee 28s linear infinite", willChange: "transform" }}>
+      <div style={{ display: "flex", whiteSpace: "nowrap", animation: "marquee 30s linear infinite", willChange: "transform" }}>
         {[...items, ...items, ...items, ...items].map((t, i) => (
           <span key={i} style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.8)", padding: "0 28px", display: "flex", alignItems: "center", gap: 10 }}>
-            <svg width="5" height="5" viewBox="0 0 10 10" fill="#c8a75a" stroke="none"><polygon points="5 0 6.12 3.38 9.51 3.45 6.97 5.56 7.94 9 5 7.02 2.06 9 3.03 5.56 0.49 3.45 3.88 3.38"/></svg>
+            <Icons.Star />
             {t}
           </span>
         ))}
@@ -444,12 +701,9 @@ function Marquee() {
 
 // ═══════════════════════════════════════════════════════════════
 //  CATEGORY IMAGE GRID
-//  GET /api/categories/departments
-//  Response: [{ key, title, href, image, subcategories: [{key, label, href, image}] }]
-//  IMPORTANT: subcategories use "label" field (not "name")
 // ═══════════════════════════════════════════════════════════════
 function CategoryImageGrid() {
-  const [depts, setDepts]   = useState<DeptCategory[]>([]);
+  const [depts, setDepts] = useState<DeptCategory[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -469,27 +723,32 @@ function CategoryImageGrid() {
       <div style={{ background: "white", margin: "6px 0", padding: "24px 0 20px" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ background: "var(--primary)", color: "white", fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", padding: "3px 10px", borderRadius: 20 }}>Beauty</span>
-              <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.3 }}>Beauty &amp; Personal Care</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 4, height: 36, background: "var(--primary)", borderRadius: 2 }} />
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.5, color: "var(--primary)", marginBottom: 2 }}>Featured</div>
+                <h2 style={{ fontSize: 18, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.4 }}>Beauty &amp; Personal Care</h2>
+              </div>
             </div>
-            <Link href="/store?main_cat=beauty" style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", textDecoration: "none" }}>View All →</Link>
+            <Link href="/store?main_cat=beauty" style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", textDecoration: "none", display: "flex", alignItems: "center", gap: 4, border: "1.5px solid var(--primary)", padding: "7px 16px", borderRadius: 20, transition: "background 0.2s" }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "var(--primary)"; el.style.color = "white"; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = "var(--primary)"; }}
+            >View All <Icons.ArrowRight /></Link>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: 8 }}>
             {!loaded
               ? Array.from({ length: 16 }).map((_, i) => <div key={i} className="shimbox" style={{ height: 110, borderRadius: 10 }} />)
               : (beauty?.subcategories ?? []).slice(0, 16).map(sub => (
                   <Link key={sub.key} href={sub.href} style={{ textDecoration: "none" }}>
-                    <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--gray-200)", transition: "box-shadow 0.2s, transform 0.2s", background: "white" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
+                    <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid var(--gray-200)", transition: "box-shadow 0.2s, transform 0.2s", background: "white" }}
+                      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; }}
+                      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
                     >
                       {sub.image
                         ? <img src={optimizeImg(resolveImg(sub.image))!} alt={sub.label} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} loading="lazy" />
-                        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>💄</div>
+                        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.Skincare /></div>
                       }
-                      {/* "label" field — matches backend BEAUTY_SUBCATS tuples */}
-                      <div style={{ padding: "6px 8px 8px", fontSize: 11, fontWeight: 600, color: "var(--gray-800)", textAlign: "center", lineHeight: 1.2 }}>{sub.label}</div>
+                      <div style={{ padding: "6px 8px 8px", fontSize: 10, fontWeight: 600, color: "var(--gray-800)", textAlign: "center", lineHeight: 1.2 }}>{sub.label}</div>
                     </div>
                   </Link>
                 ))
@@ -502,26 +761,32 @@ function CategoryImageGrid() {
       <div style={{ background: "#0d1b2a", margin: "6px 0", padding: "24px 0 20px" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ background: "#2563eb", color: "white", fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", padding: "3px 10px", borderRadius: 20 }}>Phones</span>
-              <h2 style={{ fontSize: 17, fontWeight: 900, color: "white", margin: 0, letterSpacing: -0.3 }}>Cell Phones &amp; Accessories</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 4, height: 36, background: "#3b82f6", borderRadius: 2 }} />
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.5, color: "#60a5fa", marginBottom: 2 }}>Electronics</div>
+                <h2 style={{ fontSize: 18, fontWeight: 900, color: "white", margin: 0, letterSpacing: -0.4 }}>Cell Phones &amp; Accessories</h2>
+              </div>
             </div>
-            <Link href="/store?main_cat=phones" style={{ fontSize: 12, fontWeight: 700, color: "#7eb8ff", textDecoration: "none" }}>View All →</Link>
+            <Link href="/store?main_cat=phones" style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", textDecoration: "none", border: "1.5px solid #3b82f6", padding: "7px 16px", borderRadius: 20, display: "flex", alignItems: "center", gap: 4, transition: "background 0.2s" }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "#3b82f6"; el.style.color = "white"; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = "#60a5fa"; }}
+            >View All <Icons.ArrowRight /></Link>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min((phones?.subcategories?.length ?? 0) + 1, 8)},1fr)`, gap: 10 }}>
             {!loaded
               ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="shimbox" style={{ height: 120, borderRadius: 10 }} />)
               : [...(phones?.subcategories ?? []), { key: "__all", label: "All Phones", href: "/store?main_cat=phones", image: null } as SubCat].map(sub => (
                   <Link key={sub.key} href={sub.href} style={{ textDecoration: "none" }}>
-                    <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", transition: "background 0.2s, transform 0.2s" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.12)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
+                    <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", transition: "background 0.2s, transform 0.2s" }}
+                      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.background = "rgba(59,130,246,0.15)"; el.style.transform = "translateY(-2px)"; }}
+                      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.background = "rgba(255,255,255,0.05)"; el.style.transform = "none"; }}
                     >
                       {sub.image
                         ? <img src={optimizeImg(resolveImg(sub.image))!} alt={sub.label} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} loading="lazy" />
-                        : <div style={{ aspectRatio: "1/1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>📱</div>
+                        : <div style={{ aspectRatio: "1/1", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.Phone /></div>
                       }
-                      <div style={{ padding: "6px 8px 8px", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 1.2 }}>{sub.label}</div>
+                      <div style={{ padding: "6px 8px 8px", fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 1.2 }}>{sub.label}</div>
                     </div>
                   </Link>
                 ))
@@ -540,15 +805,16 @@ function SectionCard({ p, accentColor, onClick }: { p: HP; accentColor: string; 
   const [err, setErr] = useState(false);
   const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
   return (
-    <div onClick={onClick} style={{ width: 168, flexShrink: 0, background: "white", border: "1px solid var(--gray-200)", borderRadius: 10, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", scrollSnapAlign: "start", position: "relative" }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-elevated)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
+    <div onClick={onClick}
+      style={{ width: 172, flexShrink: 0, background: "white", border: "1px solid var(--gray-200)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", scrollSnapAlign: "start", position: "relative" }}
+      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; }}
+      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
     >
       {disc && disc >= 5 && <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: accentColor, color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>}
-      {!p.in_stock && <div style={{ position: "absolute", top: 8, right: 8, zIndex: 2, background: "rgba(0,0,0,0.55)", color: "white", fontSize: 9, fontWeight: 600, padding: "2px 7px", borderRadius: 4 }}>Sold Out</div>}
+      {!p.in_stock && <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(255,255,255,0.6)", zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 10, fontWeight: 700, color: "var(--gray-600)", background: "white", border: "1px solid var(--gray-300)", padding: "4px 12px", borderRadius: 4 }}>Sold Out</span></div>}
       {resolveImg(p.main_image) && !err
-        ? <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", transition: "transform 0.3s" }} onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.06)")} onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
-        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🛍️</div>
+        ? <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", transition: "transform 0.35s" }} onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.06)")} onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
+        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
       }
       <div style={{ padding: "10px 10px 12px" }}>
         {(p.brand || p.category) && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, color: accentColor, marginBottom: 3 }}>{p.brand ?? p.category}</div>}
@@ -560,7 +826,7 @@ function SectionCard({ p, accentColor, onClick }: { p: HP; accentColor: string; 
           </div>
           {p.rating && p.rating >= 4 && (
             <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="#c8a75a" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <Icons.Star />
               <span style={{ fontSize: 10, fontWeight: 700, color: "var(--gray-700)" }}>{p.rating.toFixed(1)}</span>
             </div>
           )}
@@ -571,8 +837,7 @@ function SectionCard({ p, accentColor, onClick }: { p: HP; accentColor: string; 
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  SECTION ROW  — renders one Section from /api/homepage/sections
-//  view_all from backend is already a valid /store?… path
+//  SECTION ROW
 // ═══════════════════════════════════════════════════════════════
 function SectionRow({ sec, onProductClick }: { sec: Section; onProductClick: (id: string) => void }) {
   const rowRef  = useRef<HTMLDivElement>(null);
@@ -600,25 +865,26 @@ function SectionRow({ sec, onProductClick }: { sec: Section; onProductClick: (id
             <div>
               {sec.badge && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: "white", background: th.primary, padding: "2px 8px", borderRadius: 4, display: "inline-block", marginBottom: 4 }}>{sec.badge}</span>}
               <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.3 }}>{sec.title}</h2>
-              {sec.subtitle && <p style={{ fontSize: 12, color: "var(--gray-600)", margin: "2px 0 0" }}>{sec.subtitle}</p>}
+              {sec.subtitle && <p style={{ fontSize: 12, color: "var(--gray-500)", margin: "2px 0 0" }}>{sec.subtitle}</p>}
             </div>
           </div>
-          <Link href={href} style={{ fontSize: 12, fontWeight: 700, color: th.primary, textDecoration: "none", border: `1.5px solid ${th.primary}`, padding: "6px 16px", borderRadius: 20, transition: "background 0.2s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = th.primary; (e.currentTarget as HTMLAnchorElement).style.color = "white"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; (e.currentTarget as HTMLAnchorElement).style.color = th.primary; }}
-          >View All →</Link>
+          <Link href={href}
+            style={{ fontSize: 12, fontWeight: 700, color: th.primary, textDecoration: "none", border: `1.5px solid ${th.primary}`, padding: "7px 16px", borderRadius: 20, display: "flex", alignItems: "center", gap: 4, transition: "background 0.2s" }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = th.primary; el.style.color = "white"; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = th.primary; }}
+          >View All <Icons.ArrowRight /></Link>
         </div>
       </div>
       <div style={{ position: "relative", maxWidth: 1400, margin: "0 auto" }}>
         <ScrollBtn dir="l" onClick={() => scroll("l")} extraStyle={{ left: "clamp(0px,2vw,20px)" }} />
         <div ref={rowRef} style={{ display: "flex", gap: 2, overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", padding: "8px clamp(16px,4vw,40px) 20px" }}>
           {sec.products.map(p => <SectionCard key={p.id} p={p} accentColor={th.primary} onClick={() => onProductClick(p.id)} />)}
-          <Link href={href} style={{ width: 130, flexShrink: 0, background: "var(--gray-50)", border: `2px dashed ${th.primary}40`, borderRadius: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, textDecoration: "none", padding: "20px 12px", scrollSnapAlign: "start", transition: "background 0.2s" }}
+          <Link href={href} style={{ width: 136, flexShrink: 0, background: "var(--gray-50)", border: `2px dashed ${th.primary}40`, borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, textDecoration: "none", padding: "20px 12px", scrollSnapAlign: "start", transition: "background 0.2s" }}
             onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.background = "var(--gray-100)")}
             onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.background = "var(--gray-50)")}
           >
-            <div style={{ width: 44, height: 44, borderRadius: "50%", border: `2px solid ${th.primary}`, display: "flex", alignItems: "center", justifyContent: "center", color: th.primary }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+            <div style={{ width: 46, height: 46, borderRadius: "50%", border: `2px solid ${th.primary}`, display: "flex", alignItems: "center", justifyContent: "center", color: th.primary }}>
+              <Icons.ArrowRight />
             </div>
             <span style={{ fontSize: 10, fontWeight: 700, textAlign: "center", color: "var(--gray-600)", textTransform: "uppercase", letterSpacing: 0.5, lineHeight: 1.4 }}>See All<br/>{sec.title}</span>
           </Link>
@@ -640,7 +906,7 @@ function SkeletonSection() {
         <div className="shimbox" style={{ width: 80, height: 30, borderRadius: 20 }} />
       </div>
       <div style={{ display: "flex", gap: 2 }}>
-        {Array.from({ length: 8 }).map((_, i) => <div key={i} className="shimbox" style={{ width: 168, height: 250, flexShrink: 0, borderRadius: 10 }} />)}
+        {Array.from({ length: 8 }).map((_, i) => <div key={i} className="shimbox" style={{ width: 172, height: 258, flexShrink: 0, borderRadius: 12 }} />)}
       </div>
     </div>
   );
@@ -648,8 +914,6 @@ function SkeletonSection() {
 
 // ═══════════════════════════════════════════════════════════════
 //  JUST FOR YOU
-//  GET /api/products/random?count=40&with_images=true
-//  Response: { count: number, products: HP[] }
 // ═══════════════════════════════════════════════════════════════
 function JustForYou({ products }: { products: HP[] }) {
   const router  = useRouter();
@@ -669,29 +933,33 @@ function JustForYou({ products }: { products: HP[] }) {
   const display = showAll ? products : products.slice(0, 20);
 
   return (
-    <div ref={wrapRef} style={{ background: "white", margin: "6px 0", padding: "24px 0", opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s ease" }}>
+    <div ref={wrapRef} style={{ background: "white", margin: "6px 0", padding: "28px 0", opacity: visible ? 1 : 0, transform: visible ? "none" : "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s ease" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 4, height: 36, background: "var(--accent)", borderRadius: 2 }} />
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.3 }}>Just For You</h2>
-              <p style={{ fontSize: 12, color: "var(--gray-600)", margin: "2px 0 0" }}>Curated recommendations for Karabo customers</p>
+              <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.5, color: "var(--accent)", marginBottom: 2 }}>Curated For You</div>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.4 }}>Just For You</h2>
             </div>
           </div>
-          <Link href="/store" style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textDecoration: "none", border: "1.5px solid var(--accent)", padding: "6px 16px", borderRadius: 20 }}>See All →</Link>
+          <Link href="/store" style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textDecoration: "none", border: "1.5px solid var(--accent)", padding: "7px 16px", borderRadius: 20, display: "flex", alignItems: "center", gap: 4, transition: "background 0.2s" }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "var(--accent)"; el.style.color = "white"; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = "var(--accent)"; }}
+          >See All <Icons.ArrowRight /></Link>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(185px,1fr))", gap: 12 }}>
           {display.map((p, i) => {
             const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
             return <JFYCard key={p.id} p={p} disc={disc} delay={Math.min(i, 15) * 40} onClick={() => router.push(`/store/product/${p.id}`)} />;
           })}
         </div>
         {!showAll && products.length > 20 && (
-          <div style={{ textAlign: "center", marginTop: 24 }}>
-            <button onClick={() => setShowAll(true)} style={{ background: "var(--primary)", color: "white", border: "none", padding: "13px 36px", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "background 0.2s" }}
-              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.background = "var(--primary-dark)")}
-              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.background = "var(--primary)")}
+          <div style={{ textAlign: "center", marginTop: 28 }}>
+            <button onClick={() => setShowAll(true)}
+              style={{ background: "var(--primary)", color: "white", border: "none", padding: "14px 40px", borderRadius: 9, fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "background 0.2s, transform 0.2s", letterSpacing: 0.3 }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = "var(--primary-dark)"; el.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = "var(--primary)"; el.style.transform = "none"; }}
             >Load More Products</button>
           </div>
         )}
@@ -701,27 +969,31 @@ function JustForYou({ products }: { products: HP[] }) {
 }
 
 function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; delay: number; onClick: () => void }) {
-  const [err, setErr]     = useState(false);
+  const [err, setErr] = useState(false);
   const [saved, setSaved] = useState(false);
   return (
-    <div onClick={onClick} style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: 10, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", position: "relative", animationDelay: `${delay}ms` }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-elevated)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
+    <div onClick={onClick}
+      style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", position: "relative", animationDelay: `${delay}ms` }}
+      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; }}
+      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
     >
-      {disc && disc >= 5 && <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#c0392b", color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>}
+      {disc && disc >= 5 && <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>}
       {!p.in_stock && (
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(255,255,255,0.6)", zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: "var(--gray-600)", background: "white", border: "1px solid var(--gray-300)", padding: "4px 12px", borderRadius: 4 }}>Sold Out</span>
         </div>
       )}
-      <button style={{ position: "absolute", top: 8, right: 8, zIndex: 4, width: 30, height: 30, borderRadius: "50%", background: "white", border: "none", boxShadow: "var(--shadow-soft)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "auto", padding: 0 }}
+      <button
+        style={{ position: "absolute", top: 8, right: 8, zIndex: 4, width: 30, height: 30, borderRadius: "50%", background: "white", border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "auto", padding: 0, transition: "transform 0.2s" }}
         onClick={e => { e.stopPropagation(); setSaved(!saved); }} aria-label={saved ? "Remove from wishlist" : "Add to wishlist"}
+        onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1.15)")}
+        onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.transform = "scale(1)")}
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill={saved ? "#c0392b" : "none"} stroke={saved ? "#c0392b" : "#aaa"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <Icons.Heart filled={saved} />
       </button>
       {resolveImg(p.main_image) && !err
         ? <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} loading="lazy" />
-        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🛍️</div>
+        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
       }
       <div style={{ padding: "10px 12px 14px" }}>
         {p.brand && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: "var(--primary)", letterSpacing: 0.8, marginBottom: 3 }}>{p.brand}</div>}
@@ -733,7 +1005,7 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
           </div>
           {p.rating && p.rating > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="#c8a75a" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <Icons.Star />
               <span style={{ fontSize: 10, color: "var(--gray-600)", fontWeight: 600 }}>{p.rating.toFixed(1)}</span>
             </div>
           )}
@@ -744,29 +1016,41 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  NEWSLETTER
+//  NEWSLETTER — no emojis, SVG mail icon
 // ═══════════════════════════════════════════════════════════════
 function Newsletter() {
   const [email, setEmail] = useState("");
-  const [done, setDone]   = useState(false);
+  const [done, setDone] = useState(false);
   return (
-    <div style={{ background: "linear-gradient(135deg,var(--primary),var(--primary-light))", padding: "56px 0", margin: "6px 0" }}>
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)", textAlign: "center" }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>💌</div>
-        <h2 style={{ color: "white", fontSize: 26, fontWeight: 900, margin: "0 0 10px", letterSpacing: -0.5 }}>Stay in the loop</h2>
-        <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, marginBottom: 28, lineHeight: 1.6 }}>Subscribe for exclusive deals, new arrivals, and curated style tips from Karabo&apos;s Store.</p>
+    <div style={{ background: "linear-gradient(135deg,var(--primary-dark) 0%,var(--primary) 50%,var(--primary-light) 100%)", padding: "64px 0", margin: "6px 0", position: "relative", overflow: "hidden" }}>
+      {/* Decorative blobs */}
+      <div style={{ position: "absolute", top: -80, right: -80, width: 280, height: 280, borderRadius: "50%", background: "rgba(200,167,90,0.07)", filter: "blur(40px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: -60, left: -60, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.04)", filter: "blur(30px)", pointerEvents: "none" }} />
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)", textAlign: "center", position: "relative", zIndex: 1 }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icons.Mail />
+          </div>
+        </div>
+        <h2 style={{ color: "white", fontSize: 28, fontWeight: 900, margin: "0 0 10px", letterSpacing: -0.5 }}>Stay in the loop</h2>
+        <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, marginBottom: 32, lineHeight: 1.7 }}>Subscribe for exclusive deals, new arrivals, and curated style tips from Karabo&apos;s Store.</p>
         {done ? (
-          <div style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 10, padding: "16px 28px", color: "white", fontWeight: 600 }}>✅ You&apos;re subscribed! Watch your inbox for exclusive deals.</div>
+          <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, padding: "18px 28px", color: "white", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+            <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><circle cx="12" cy="12" r="10" fill="#10b981"/><path d="M7 12 L10 15 L17 9" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            You&apos;re subscribed! Watch your inbox for exclusive deals.
+          </div>
         ) : (
-          <div style={{ display: "flex", gap: 10, maxWidth: 480, margin: "0 auto" }}>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your email address" style={{ flex: 1, padding: "13px 18px", borderRadius: 8, border: "none", fontSize: 14, fontFamily: "inherit", outline: "none" }} />
-            <button onClick={() => { if (email.includes("@")) setDone(true); }} style={{ background: "var(--accent)", color: "#1a1a1a", border: "none", padding: "13px 24px", borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit", transition: "transform 0.2s" }}
-              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)")}
-              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.transform = "none")}
-            >Subscribe →</button>
+          <div style={{ display: "flex", gap: 10, maxWidth: 500, margin: "0 auto" }}>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your email address"
+              style={{ flex: 1, padding: "14px 18px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.2)", fontSize: 14, fontFamily: "inherit", outline: "none", background: "rgba(255,255,255,0.95)", color: "#1a1a1a" }} />
+            <button onClick={() => { if (email.includes("@")) setDone(true); }}
+              style={{ background: "var(--accent)", color: "#1a1a1a", border: "none", padding: "14px 26px", borderRadius: 9, fontWeight: 800, fontSize: 14, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit", transition: "transform 0.2s, box-shadow 0.2s", display: "flex", alignItems: "center", gap: 6 }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.transform = "translateY(-2px)"; el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)"; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.transform = "none"; el.style.boxShadow = "none"; }}
+            >Subscribe <Icons.ArrowRight /></button>
           </div>
         )}
-        <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 14 }}>No spam, ever. Unsubscribe anytime.</p>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 16 }}>No spam, ever. Unsubscribe anytime.</p>
       </div>
     </div>
   );
@@ -778,27 +1062,10 @@ function Newsletter() {
 export default function HomePage() {
   const router = useRouter();
 
-  /**
-   * FETCH 1 — Hero products
-   * GET /api/products/random?count=20&with_images=true&diverse=true
-   * Response shape: { count: number, products: HP[] }
-   */
   const [heroProducts, setHeroProducts] = useState<HP[]>([]);
-  const [heroLoad, setHeroLoad]         = useState(true);
-
-  /**
-   * FETCH 2 — Homepage sections
-   * GET /api/homepage/sections
-   * Response shape: { sections: Section[], total_sections: number }
-   */
+  const [heroLoad, setHeroLoad] = useState(true);
   const [sections, setSections] = useState<Section[]>([]);
-  const [secLoad, setSecLoad]   = useState(true);
-
-  /**
-   * FETCH 3 — Just For You
-   * GET /api/products/random?count=40&with_images=true
-   * Response shape: { count: number, products: HP[] }
-   */
+  const [secLoad, setSecLoad] = useState(true);
   const [jfyProducts, setJfyProducts] = useState<HP[]>([]);
 
   useEffect(() => {
@@ -837,15 +1104,10 @@ export default function HomePage() {
       <HeroBanner products={heroLoad ? [] : heroProducts} />
       <TrustBar />
       <PromoBanners />
-
-      {/* Flash Deals — filtered subset of heroProducts */}
       <FlashDeals products={heroProducts} />
       <Marquee />
-
-      {/* Category images — GET /api/categories/departments */}
       <CategoryImageGrid />
 
-      {/* Section rows — GET /api/homepage/sections */}
       {secLoad ? (
         <><SkeletonSection /><SkeletonSection /><SkeletonSection /></>
       ) : sections.length === 0 ? (
@@ -856,7 +1118,6 @@ export default function HomePage() {
         sections.map(sec => <SectionRow key={sec.key} sec={sec} onProductClick={id => router.push(`/store/product/${id}`)} />)
       )}
 
-      {/* Just For You — GET /api/products/random */}
       <JustForYou products={jfyProducts} />
       <Newsletter />
     </div>
