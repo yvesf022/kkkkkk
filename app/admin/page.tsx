@@ -94,7 +94,6 @@ function AutoPricerWidget({ rate, rateLoading }: { rate: number; rateLoading: bo
   const [jobs, setJobs]               = useState<JobRow[]>([]);
   const [currentIdx, setCurrentIdx]   = useState(0);
   const [loadingProds, setLoadingProds] = useState(false);
-  const [bulkSaving, setBulkSaving]   = useState(false);
   const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
   const [sessionWritten, setSessionWritten] = useState(false);
 
@@ -116,7 +115,6 @@ function AutoPricerWidget({ rate, rateLoading }: { rate: number; rateLoading: bo
     notFound: jobs.filter(j => j.status === "not_found").length,
     errors:   jobs.filter(j => j.status === "error").length,
     saved:    jobs.filter(j => j.status === "saved").length,
-    ready:    jobs.filter(j => j.lsl !== null && j.status === "found").length,
     progress: jobs.length > 0
       ? Math.round((jobs.filter(j => j.status !== "idle" && j.status !== "searching").length / jobs.length) * 100)
       : 0,
@@ -145,7 +143,60 @@ function AutoPricerWidget({ rate, rateLoading }: { rate: number; rateLoading: bo
       setRunState("running");
       setLoadingProds(false);
 
-      // Run search loop
+      // ── Helper: search + immediately save a single product, auto-retry on error ──
+      const searchAndSave = async (row: JobRow, attempt = 1): Promise<void> => {
+        const id = row.product.id;
+        const MAX_RETRIES = 3;
+
+        setJobs(prev => prev.map(j => j.product.id === id
+          ? { ...j, status: "searching", errorMsg: attempt > 1 ? `Retry ${attempt - 1}/${MAX_RETRIES - 1}...` : undefined }
+          : j
+        ));
+        setTimeout(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, 50);
+
+        try {
+          // 1. Find price on Google India
+          const { inr, source } = await findPriceINR(row.product.title, row.product.brand, row.product.category);
+          const result = calculatePrice({ market_price_inr: inr, exchange_rate: rate });
+
+          // 2. Show found in UI immediately
+          setJobs(prev => prev.map(j => j.product.id === id ? {
+            ...j, status: "found", inr, inrSource: source,
+            lsl: result.final_price_lsl, compareLsl: result.compare_price_lsl,
+          } : j));
+
+          // 3. Save to DB immediately — no waiting for user action
+          await pricingApi.applyToProduct(id, result.final_price_lsl, result.compare_price_lsl);
+
+          // 4. Mark as priced in DB
+          fetch(`${BACKEND}/api/products/admin/pricing/${id}/mark`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminTokenStorage.get() ?? ""}` },
+            body: JSON.stringify({ is_priced: true }),
+          }).catch(() => {});
+
+          // 5. Update UI to saved
+          setJobs(prev => prev.map(j => j.product.id === id ? { ...j, status: "saved" } : j));
+          writePricingSession({ [id]: String(inr) });
+
+        } catch (e: any) {
+          const notFound = e?.message?.includes("not found") || e?.message?.includes("Price not found");
+
+          if (!notFound && attempt < MAX_RETRIES) {
+            // Auto-retry with backoff — don't give up on network blips
+            await new Promise(r => setTimeout(r, 1500 * attempt));
+            return searchAndSave(row, attempt + 1);
+          }
+
+          setJobs(prev => prev.map(j => j.product.id === id ? {
+            ...j,
+            status: notFound ? "not_found" : "error",
+            errorMsg: e?.message,
+          } : j));
+        }
+      };
+
+      // Run products one by one
       for (let i = 0; i < rows.length; i++) {
         if (cancelRef.current) break;
         while (pauseRef.current) {
@@ -154,39 +205,17 @@ function AutoPricerWidget({ rate, rateLoading }: { rate: number; rateLoading: bo
         }
         if (cancelRef.current) break;
 
-        const id = rows[i].product.id;
         setCurrentIdx(i);
+        await searchAndSave(rows[i]);
 
-        setJobs(prev => prev.map(j => j.product.id === id ? { ...j, status: "searching" } : j));
-
-        // Scroll log to bottom
-        setTimeout(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, 50);
-
-        try {
-          const { inr, source } = await findPriceINR(rows[i].product.title, rows[i].product.brand, rows[i].product.category);
-          const result = calculatePrice({ market_price_inr: inr, exchange_rate: rate });
-          setJobs(prev => prev.map(j => j.product.id === id ? {
-            ...j, status: "found", inr, inrSource: source,
-            lsl: result.final_price_lsl, compareLsl: result.compare_price_lsl,
-          } : j));
-
-          // Write to pricing session incrementally
-          writePricingSession({ [id]: String(inr) });
-
-        } catch (e: any) {
-          setJobs(prev => prev.map(j => j.product.id === id ? {
-            ...j, status: e?.message?.includes("not found") ? "not_found" : "error",
-            errorMsg: e?.message,
-          } : j));
+        if (i < rows.length - 1 && !cancelRef.current) {
+          await new Promise(r => setTimeout(r, 1000));
         }
-
-        if (i < rows.length - 1) await new Promise(r => setTimeout(r, 1400));
       }
 
       if (!cancelRef.current) {
         setRunState("done");
         setSessionWritten(true);
-        showToast(`Found prices for ${jobs.filter(j => j.status === "found").length} products — ready to save!`);
       } else {
         setRunState("idle");
       }
@@ -198,35 +227,6 @@ function AutoPricerWidget({ rate, rateLoading }: { rate: number; rateLoading: bo
     }
   }, [rate]);
 
-  /* bulk save direct to DB */
-  const saveAll = async () => {
-    const toSave = jobs.filter(j => j.lsl !== null && j.compareLsl !== null && j.status === "found");
-    if (!toSave.length) { showToast("Nothing ready to save", false); return; }
-    setBulkSaving(true);
-    setJobs(prev => prev.map(j => j.status === "found" ? { ...j, status: "saved" as JobStatus } : j));
-    try {
-      const items = toSave.map(j => ({
-        product_id: j.product.id,
-        price_lsl: j.lsl!,
-        compare_price_lsl: j.compareLsl!,
-      }));
-      const res = await pricingApi.bulkApply(items);
-
-      // Mark priced in DB
-      fetch(`${BACKEND}/api/products/admin/pricing/bulk-mark`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminTokenStorage.get() ?? ""}` },
-        body: JSON.stringify({ product_ids: toSave.map(j => j.product.id), is_priced: true }),
-      }).catch(() => {});
-
-      showToast(`✓ ${res.success ?? toSave.length} prices saved to your store!`);
-    } catch (e: any) {
-      showToast(e?.message ?? "Save failed", false);
-      setJobs(prev => prev.map(j => j.status === "saved" ? { ...j, status: "found" as JobStatus } : j));
-    } finally {
-      setBulkSaving(false);
-    }
-  };
 
   const isRunning = runState === "running";
   const isDone    = runState === "done";
@@ -484,7 +484,7 @@ function AutoPricerWidget({ rate, rateLoading }: { rate: number; rateLoading: bo
                 )}
                 {isDone && (
                   <div style={{ padding: "8px 6px", color: "#4ade80", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-                    ✓ All done — {stats.found} prices found
+                    ✓ All done — {stats.saved} prices saved to your store
                   </div>
                 )}
               </div>
@@ -512,14 +512,7 @@ function AutoPricerWidget({ rate, rateLoading }: { rate: number; rateLoading: bo
                   </button>
                 )}
 
-                {/* Save all */}
-                {(isDone || runState === "paused") && stats.ready > 0 && (
-                  <button onClick={saveAll} disabled={bulkSaving} className="ap-btn-save" style={{ padding: "10px 22px", fontSize: 13 }}>
-                    {bulkSaving
-                      ? <><span className="ap-spin-icon" style={{ width: 13, height: 13, border: "2px solid rgba(0,0,0,0.15)", borderTopColor: "#050e08", borderRadius: "50%" }} /> Saving…</>
-                      : `💾 Save ${stats.ready} Prices to Store`}
-                  </button>
-                )}
+  
 
                 {/* Open in Pricing Manager */}
                 {sessionWritten && (
