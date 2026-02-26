@@ -485,11 +485,33 @@ const HERO_SLIDES = [
   { tag: "Beauty Picks",   headline: "Glow Up With\nPremium Skincare", sub: "Authentic beauty products from world-class brands", cta: "Shop Beauty", ctaLink: "/store?main_cat=beauty", bg: "linear-gradient(135deg,#4a1772,#7c3aed,#a855f7)", accent: "#fce7f3" },
 ];
 
+// ─────────────────────────────────────────────────────────────────
+// ROTATING IMAGE HOOK — cycles through an array of products,
+// smoothly cross-fading to a new one every `intervalMs` ms.
+// Returns the currently-visible product index.
+// ─────────────────────────────────────────────────────────────────
+function useRotatingIndex(total: number, intervalMs: number, offset = 0): number {
+  const [idx, setIdx] = useState(offset % Math.max(total, 1));
+  useEffect(() => {
+    if (total < 2) return;
+    const id = setInterval(() => setIdx(i => (i + 1) % total), intervalMs);
+    return () => clearInterval(id);
+  }, [total, intervalMs]);
+  return idx;
+}
+
 function HeroBanner({ products }: { products: HP[] }) {
   const router = useRouter();
   const [slide, setSlide] = useState(0);
   const [animIn, setAnimIn] = useState(true);
-  const featured = products.slice(0, 4);
+
+  // Each of the 4 mini-card slots rotates through the full products pool
+  // at different speeds & offsets so they're never all in sync
+  const slot0 = useRotatingIndex(products.length, 2800,  0);
+  const slot1 = useRotatingIndex(products.length, 3400,  5);
+  const slot2 = useRotatingIndex(products.length, 2600, 10);
+  const slot3 = useRotatingIndex(products.length, 3100, 15);
+  const slots = [slot0, slot1, slot2, slot3];
 
   const goTo = useCallback((i: number) => {
     setAnimIn(false);
@@ -503,7 +525,6 @@ function HeroBanner({ products }: { products: HP[] }) {
   const s = HERO_SLIDES[slide];
   return (
     <div style={{ position: "relative", overflow: "hidden", background: s.bg, transition: "background 0.7s ease" }}>
-      {/* Decorative blur circles */}
       <div style={{ position: "absolute", top: -60, right: -60, width: 300, height: 300, borderRadius: "50%", background: "rgba(200,167,90,0.08)", filter: "blur(40px)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: -40, left: 100, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.04)", filter: "blur(30px)", pointerEvents: "none" }} />
 
@@ -534,10 +555,17 @@ function HeroBanner({ products }: { products: HP[] }) {
           </div>
         </div>
 
-        {/* Right: Real product mini-grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, padding: "24px 0", opacity: animIn ? 1 : 0, transform: animIn ? "none" : "translateX(24px)", transition: "opacity 0.5s 0.1s ease, transform 0.5s 0.1s ease" }}>
-          {featured.length > 0
-            ? featured.map(p => <HeroMiniCard key={p.id} p={p} onClick={() => router.push(`/store/product/${p.id}`)} />)
+        {/* Right: 2×2 grid — each slot independently rotates through all products */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, padding: "24px 0" }}>
+          {products.length > 0
+            ? slots.map((pidx, i) => {
+                const p = products[pidx];
+                return p ? (
+                  <HeroMiniCard key={`slot-${i}-${p.id}`} p={p} onClick={() => router.push(`/store/product/${p.id}`)} />
+                ) : (
+                  <div key={i} className="shimbox" style={{ height: 156, borderRadius: 14 }} />
+                );
+              })
             : Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimbox" style={{ height: 156, borderRadius: 14 }} />)
           }
         </div>
@@ -548,24 +576,47 @@ function HeroBanner({ products }: { products: HP[] }) {
 }
 
 function HeroMiniCard({ p, onClick }: { p: HP; onClick: () => void }) {
-  const [err, setErr] = useState(false);
-  const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
+  const [visible, setVisible] = useState(true);
+  const [currentP, setCurrentP] = useState(p);
+
+  // Crossfade when the product prop changes
+  useEffect(() => {
+    setVisible(false);
+    const t = setTimeout(() => { setCurrentP(p); setVisible(true); }, 320);
+    return () => clearTimeout(t);
+  }, [p.id]);
+
+  const disc = currentP.discount_pct ?? (currentP.compare_price && currentP.compare_price > currentP.price
+    ? Math.round(((currentP.compare_price - currentP.price) / currentP.compare_price) * 100) : null);
+
   return (
-    <div onClick={onClick} style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 14, overflow: "hidden", cursor: "pointer", transition: "transform 0.25s, box-shadow 0.25s", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}
+    <div onClick={onClick}
+      style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 14, overflow: "hidden", cursor: "pointer", transition: "transform 0.25s, box-shadow 0.25s", boxShadow: "0 4px 16px rgba(0,0,0,0.15)", position: "relative" }}
       onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.transform = "translateY(-4px)"; el.style.boxShadow = "0 8px 24px rgba(0,0,0,0.25)"; }}
       onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.transform = "none"; el.style.boxShadow = "0 4px 16px rgba(0,0,0,0.15)"; }}
     >
       {disc && disc >= 5 && (
-        <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>
+        <div style={{ position: "absolute", top: 8, left: 8, zIndex: 3, background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>
       )}
-      {resolveImg(p.main_image) && !err
-        ? <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} />
-        : <div style={{ aspectRatio: "1/1", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
-      }
-      <div style={{ padding: "10px 10px 12px" }}>
+      {/* Image wrapper with crossfade */}
+      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden" }}>
+        <img
+          src={optimizeImg(resolveImg(currentP.main_image)) ?? ""}
+          alt={currentP.title}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: visible ? 1 : 0, transition: "opacity 0.35s ease", transform: visible ? "scale(1)" : "scale(1.04)", transitionProperty: "opacity, transform" }}
+          onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+        />
+        {/* Fallback shown only if no image */}
+        {!resolveImg(currentP.main_image) && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icons.ProductFallback />
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "10px 10px 12px", opacity: visible ? 1 : 0, transition: "opacity 0.3s ease 0.1s" }}>
         {disc && disc >= 5 && <span style={{ fontSize: 9, fontWeight: 800, color: "#fde68a", display: "block", marginBottom: 3 }}>-{disc}% OFF</span>}
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.88)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.title}</div>
-        <div style={{ fontSize: 13, fontWeight: 800, color: "white", marginTop: 6 }}>{formatCurrency(p.price)}</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.88)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{currentP.title}</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "white", marginTop: 6 }}>{formatCurrency(currentP.price)}</div>
       </div>
     </div>
   );
@@ -721,9 +772,23 @@ function FlashDeals({ products }: { products: HP[] }) {
 }
 
 function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
-  const [err, setErr] = useState(false);
   const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
   const sold = useRef(Math.floor(Math.random() * 40 + 10)).current;
+  // Each flash card independently rotates through images every 3.2 s
+  const [imgIdx, setImgIdx] = useState(0);
+  const [imgVisible, setImgVisible] = useState(true);
+  const imgs: string[] = [];
+  if (resolveImg(p.main_image)) imgs.push(resolveImg(p.main_image)!);
+  if (p.images) p.images.filter(Boolean).forEach(u => { const r = resolveImg(u); if (r && !imgs.includes(r)) imgs.push(r); });
+  useEffect(() => {
+    if (imgs.length < 2) return;
+    const id = setInterval(() => {
+      setImgVisible(false);
+      setTimeout(() => { setImgIdx(i => (i + 1) % imgs.length); setImgVisible(true); }, 320);
+    }, 3200);
+    return () => clearInterval(id);
+  }, [imgs.length]);
+  const currentImg = imgs[imgIdx] ?? null;
   return (
     <div onClick={onClick}
       style={{ width: 168, flexShrink: 0, scrollSnapAlign: "start", background: "white", border: "1px solid var(--gray-200)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", position: "relative" }}
@@ -733,10 +798,12 @@ function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
       {disc && disc >= 5 && (
         <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#e53e3e", color: "white", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 5 }}>-{disc}%</div>
       )}
-      {resolveImg(p.main_image) && !err
-        ? <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} />
-        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
-      }
+      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "var(--gray-100)" }}>
+        {currentImg
+          ? <img src={optimizeImg(currentImg)!} alt={p.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVisible ? 1 : 0, transform: imgVisible ? "scale(1)" : "scale(1.05)", transition: "opacity 0.35s ease, transform 0.35s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+          : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
+        }
+      </div>
       <div style={{ padding: "10px 10px 12px" }}>
         <div style={{ fontSize: 11, color: "var(--gray-700)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", marginBottom: 8, minHeight: 30 }}>{p.title}</div>
         <div style={{ fontSize: 15, fontWeight: 800, color: "#e53e3e", marginBottom: 2 }}>{formatCurrency(p.price)}</div>
@@ -875,8 +942,21 @@ function CategoryImageGrid() {
 //  SECTION CARD
 // ═══════════════════════════════════════════════════════════════
 function SectionCard({ p, accentColor, onClick }: { p: HP; accentColor: string; onClick: () => void }) {
-  const [err, setErr] = useState(false);
   const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
+  const [imgIdx, setImgIdx] = useState(0);
+  const [imgVis, setImgVis] = useState(true);
+  const imgs: string[] = [];
+  if (resolveImg(p.main_image)) imgs.push(resolveImg(p.main_image)!);
+  if (p.images) p.images.filter(Boolean).forEach(u => { const r = resolveImg(u); if (r && !imgs.includes(r)) imgs.push(r); });
+  useEffect(() => {
+    if (imgs.length < 2) return;
+    const id = setInterval(() => {
+      setImgVis(false);
+      setTimeout(() => { setImgIdx(i => (i + 1) % imgs.length); setImgVis(true); }, 300);
+    }, 3600);
+    return () => clearInterval(id);
+  }, [imgs.length]);
+  const curImg = imgs[imgIdx] ?? null;
   return (
     <div onClick={onClick}
       style={{ width: 172, flexShrink: 0, background: "white", border: "1px solid var(--gray-200)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", scrollSnapAlign: "start", position: "relative" }}
@@ -885,10 +965,12 @@ function SectionCard({ p, accentColor, onClick }: { p: HP; accentColor: string; 
     >
       {disc && disc >= 5 && <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: accentColor, color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>}
       {!p.in_stock && <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(255,255,255,0.6)", zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 10, fontWeight: 700, color: "var(--gray-600)", background: "white", border: "1px solid var(--gray-300)", padding: "4px 12px", borderRadius: 4 }}>Sold Out</span></div>}
-      {resolveImg(p.main_image) && !err
-        ? <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", transition: "transform 0.35s" }} onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.06)")} onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")} />
-        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
-      }
+      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "var(--gray-100)" }}>
+        {curImg
+          ? <img src={optimizeImg(curImg)!} alt={p.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.06)", transition: "opacity 0.32s ease, transform 0.32s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+          : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
+        }
+      </div>
       <div style={{ padding: "10px 10px 12px" }}>
         {(p.brand || p.category) && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, color: accentColor, marginBottom: 3 }}>{p.brand ?? p.category}</div>}
         <div style={{ fontSize: 12, color: "var(--gray-700)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 32, marginBottom: 6 }}>{p.title}</div>
@@ -1042,8 +1124,23 @@ function JustForYou({ products }: { products: HP[] }) {
 }
 
 function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; delay: number; onClick: () => void }) {
-  const [err, setErr] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [imgIdx, setImgIdx] = useState(0);
+  const [imgVis, setImgVis] = useState(true);
+  const imgs: string[] = [];
+  if (resolveImg(p.main_image)) imgs.push(resolveImg(p.main_image)!);
+  if (p.images) p.images.filter(Boolean).forEach(u => { const r = resolveImg(u); if (r && !imgs.includes(r)) imgs.push(r); });
+  // Stagger each card's rotation by its delay so they're out of phase
+  useEffect(() => {
+    if (imgs.length < 2) return;
+    const interval = 3000 + (delay % 800);
+    const id = setInterval(() => {
+      setImgVis(false);
+      setTimeout(() => { setImgIdx(i => (i + 1) % imgs.length); setImgVis(true); }, 300);
+    }, interval);
+    return () => clearInterval(id);
+  }, [imgs.length, delay]);
+  const curImg = imgs[imgIdx] ?? null;
   return (
     <div onClick={onClick}
       style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", position: "relative", animationDelay: `${delay}ms` }}
@@ -1064,10 +1161,12 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
       >
         <Icons.Heart filled={saved} />
       </button>
-      {resolveImg(p.main_image) && !err
-        ? <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} loading="lazy" />
-        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
-      }
+      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "var(--gray-100)" }}>
+        {curImg
+          ? <img src={optimizeImg(curImg)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.06)", transition: "opacity 0.32s ease, transform 0.32s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+          : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.ProductFallback /></div>
+        }
+      </div>
       <div style={{ padding: "10px 12px 14px" }}>
         {p.brand && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: "var(--primary)", letterSpacing: 0.8, marginBottom: 3 }}>{p.brand}</div>}
         <div style={{ fontSize: 12, color: "var(--gray-700)", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 34, marginBottom: 8 }}>{p.title}</div>
