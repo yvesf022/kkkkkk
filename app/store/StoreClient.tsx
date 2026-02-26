@@ -380,8 +380,11 @@ export default function StoreClient() {
       let url: string;
       let data: { total?: number; results?: ProductListItem[] };
 
-      if (selectedMainCat === "beauty" || selectedMainCat === "phones") {
-        /* Strategy A — department endpoint */
+      if ((selectedMainCat === "beauty" || selectedMainCat === "phones") && !selectedCategory) {
+        /* Strategy A — department endpoint (only when NO subcategory selected).
+           The by-department endpoint does NOT support a category= filter — it returns
+           ALL products in the department. When a subcategory is selected we fall through
+           to Strategy B which sends category= to the main products endpoint instead. */
         const qs = new URLSearchParams({
           sort:     apiSort,
           page:     String(pg),
@@ -395,6 +398,8 @@ export default function StoreClient() {
         const qs = new URLSearchParams({ sort: apiSort, page: String(pg), per_page: String(PAGE_SIZE) });
         // search — backend accepts both q= and search=; we send q=
         if (searchQuery)      qs.set("q",          searchQuery);
+        // FIX: when user picked a subcategory within beauty/phones, pass category= so
+        // products are filtered correctly (the by-department endpoint doesn't support this).
         if (selectedCategory) qs.set("category",   selectedCategory);
         if (selectedBrand)    qs.set("brand",       selectedBrand);
         if (priceMin)         qs.set("min_price",   priceMin);
@@ -434,10 +439,17 @@ export default function StoreClient() {
     setSort("newest");
     setSelectedCategory(""); setSelectedBrand(""); setSelectedMainCat("");
     setPriceMin(""); setPriceMax(""); setInStockOnly(false); setMinRating("");
-    // Apply quick filter
-    if (q.includes("sort="))     setSort(q.replace("sort=", "") as SortOption);
-    if (q.includes("main_cat=")) setSelectedMainCat(q.replace("main_cat=", ""));
-    if (q.includes("in_stock=")) setInStockOnly(true);
+    setSearchQuery(""); setSearchInput("");
+    // If q is empty string ("All Products"), just show everything with default sort
+    if (!q) return;
+    // Apply quick filter — parse as URLSearchParams so multi-param values work
+    const parsed = new URLSearchParams(q);
+    const sortVal = parsed.get("sort");
+    const mainCat = parsed.get("main_cat");
+    const inStock = parsed.get("in_stock");
+    if (sortVal) setSort(sortVal as SortOption);
+    if (mainCat) setSelectedMainCat(mainCat);
+    if (inStock === "true") setInStockOnly(true);
   };
 
   const handleSearch = (e?: React.FormEvent) => {

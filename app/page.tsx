@@ -16,7 +16,8 @@ function resolveImg(url: string | null | undefined): string | null {
 function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 300): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
-  return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
+  // FIX: also handle _SL<n>_ variant (was missing in page.tsx, already fixed in StoreClient)
+  return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`).replace(/_SL\d+_/g, `_AC_SL${size}_`);
 }
 
 interface HP {
@@ -31,6 +32,7 @@ interface HP {
   rating_number?: number | null;
   in_stock: boolean;
   main_image?: string | null;
+  images?: string[] | null;  // FIX: was missing — FlashCard & SectionCard use p.images
   sales?: number | null;
 }
 
@@ -76,14 +78,19 @@ const THEME_MAP: Record<string, { primary: string }> = {
   stone:  { primary: "#4a3728" },
 };
 
+// FIX: safeViewAll was only passing q= and sort= params but the backend
+// section view_all URLs also contain category=, brand=, main_category=, etc.
+// Pass all recognised store params through so "View All" actually filters correctly.
 function safeViewAll(raw: string): string {
   try {
     const url = new URL(raw, "http://x");
     const params = new URLSearchParams();
-    const q = url.searchParams.get("q");
-    const sort = url.searchParams.get("sort");
-    if (q) params.set("q", q);
-    if (sort) params.set("sort", sort);
+    // Whitelist every param the store page understands
+    for (const key of ["q", "sort", "category", "brand", "main_cat", "main_category",
+                        "min_price", "max_price", "in_stock", "min_rating"]) {
+      const val = url.searchParams.get(key);
+      if (val) params.set(key, val);
+    }
     return `/store${params.toString() ? "?" + params.toString() : ""}`;
   } catch { return "/store"; }
 }
@@ -370,6 +377,7 @@ const NAV_CATS = [
     alt: "Natural oil bottles",
   },
   {
+    // FIX: "Gift Sets" linked to ?sort=discount which is valid — keeping it
     label: "Gift Sets",
     href: "/store?sort=discount",
     img: "https://images.unsplash.com/photo-1567721913486-6585f069b332?fm=jpg&q=80&w=200&h=200&fit=crop",
@@ -485,11 +493,6 @@ const HERO_SLIDES = [
   { tag: "Beauty Picks",   headline: "Glow Up With\nPremium Skincare", sub: "Authentic beauty products from world-class brands", cta: "Shop Beauty", ctaLink: "/store?main_cat=beauty", bg: "linear-gradient(135deg,#4a1772,#7c3aed,#a855f7)", accent: "#fce7f3" },
 ];
 
-// ─────────────────────────────────────────────────────────────────
-// ROTATING IMAGE HOOK — cycles through an array of products,
-// smoothly cross-fading to a new one every `intervalMs` ms.
-// Returns the currently-visible product index.
-// ─────────────────────────────────────────────────────────────────
 function useRotatingIndex(total: number, intervalMs: number, offset = 0): number {
   const [idx, setIdx] = useState(offset % Math.max(total, 1));
   useEffect(() => {
@@ -505,8 +508,6 @@ function HeroBanner({ products }: { products: HP[] }) {
   const [slide, setSlide] = useState(0);
   const [animIn, setAnimIn] = useState(true);
 
-  // Each of the 4 mini-card slots rotates through the full products pool
-  // at different speeds & offsets so they're never all in sync
   const slot0 = useRotatingIndex(products.length, 2800,  0);
   const slot1 = useRotatingIndex(products.length, 3400,  5);
   const slot2 = useRotatingIndex(products.length, 2600, 10);
@@ -555,7 +556,7 @@ function HeroBanner({ products }: { products: HP[] }) {
           </div>
         </div>
 
-        {/* Right: 2×2 grid — each slot independently rotates through all products */}
+        {/* Right: 2×2 grid */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, padding: "24px 0" }}>
           {products.length > 0
             ? slots.map((pidx, i) => {
@@ -579,7 +580,6 @@ function HeroMiniCard({ p, onClick }: { p: HP; onClick: () => void }) {
   const [visible, setVisible] = useState(true);
   const [currentP, setCurrentP] = useState(p);
 
-  // Crossfade when the product prop changes
   useEffect(() => {
     setVisible(false);
     const t = setTimeout(() => { setCurrentP(p); setVisible(true); }, 320);
@@ -598,16 +598,16 @@ function HeroMiniCard({ p, onClick }: { p: HP; onClick: () => void }) {
       {disc && disc >= 5 && (
         <div style={{ position: "absolute", top: 8, left: 8, zIndex: 3, background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>
       )}
-      {/* Image wrapper with crossfade */}
       <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden" }}>
-        <img
-          src={optimizeImg(resolveImg(currentP.main_image)) ?? ""}
-          alt={currentP.title}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: visible ? 1 : 0, transition: "opacity 0.35s ease", transform: visible ? "scale(1)" : "scale(1.04)", transitionProperty: "opacity, transform" }}
-          onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-        />
-        {/* Fallback shown only if no image */}
-        {!resolveImg(currentP.main_image) && (
+        {/* FIX: show fallback if no image instead of broken <img src=""> */}
+        {resolveImg(currentP.main_image) ? (
+          <img
+            src={optimizeImg(resolveImg(currentP.main_image)) ?? ""}
+            alt={currentP.title}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: visible ? 1 : 0, transition: "opacity 0.35s ease", transform: visible ? "scale(1)" : "scale(1.04)", transitionProperty: "opacity, transform" }}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : (
           <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Icons.ProductFallback />
           </div>
@@ -623,7 +623,7 @@ function HeroMiniCard({ p, onClick }: { p: HP; onClick: () => void }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  TRUST BAR — SVG icons
+//  TRUST BAR
 // ═══════════════════════════════════════════════════════════════
 function TrustBar() {
   const items = [
@@ -656,30 +656,29 @@ function TrustBar() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  PROMO BANNERS — real product images from Unsplash
+//  PROMO BANNERS
 // ═══════════════════════════════════════════════════════════════
 function PromoBanners() {
   const banners = [
     {
-      // Skincare: white & gold bottles — confirmed from unsplash page fetch
       img: "https://images.unsplash.com/photo-1591130901921-3f0652bb3915?fm=jpg&q=85&w=600&fit=crop",
       gradientOverlay: "linear-gradient(90deg, rgba(6,78,59,0.97) 0%, rgba(6,78,59,0.92) 52%, rgba(6,78,59,0.4) 75%, transparent 100%)",
       tag: "Beauty", title: "Skincare\nEssentials", sub: "Up to 40% off premium brands",
       href: "/store?main_cat=beauty", accent: "#c8a75a",
     },
     {
-      // Phones: black smartphone
       img: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?fm=jpg&q=85&w=600&fit=crop",
       gradientOverlay: "linear-gradient(90deg, rgba(30,58,138,0.97) 0%, rgba(30,58,138,0.92) 52%, rgba(30,58,138,0.4) 75%, transparent 100%)",
       tag: "Phones", title: "Latest\nSmartphones", sub: "Top brands at best prices",
       href: "/store?main_cat=phones", accent: "#93c5fd",
     },
     {
-      // Wellness: essential oils / natural bottles
       img: "https://images.unsplash.com/photo-1613803745799-ba6c10aace85?fm=jpg&q=85&w=600&fit=crop",
       gradientOverlay: "linear-gradient(90deg, rgba(76,29,149,0.97) 0%, rgba(76,29,149,0.92) 52%, rgba(76,29,149,0.4) 75%, transparent 100%)",
+      // FIX: was /store?q=wellness — the backend q= param does a title/brand search.
+      // Use category=collagen to ensure products actually appear.
       tag: "Wellness", title: "Health &\nWellness", sub: "Natural & organic products",
-      href: "/store?q=wellness", accent: "#e9d5ff",
+      href: "/store?category=collagen", accent: "#e9d5ff",
     },
   ];
   return (
@@ -696,7 +695,6 @@ function PromoBanners() {
             onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "translateY(-4px)"; el.style.boxShadow = "0 12px 36px rgba(0,0,0,0.22)"; }}
             onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "none"; el.style.boxShadow = "0 4px 16px rgba(0,0,0,0.14)"; }}
           >
-            {/* Real product photo fills the card */}
             <img
               src={b.img}
               alt={b.tag}
@@ -704,9 +702,7 @@ function PromoBanners() {
               onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
             />
-            {/* Gradient overlay so text stays legible */}
             <div style={{ position: "absolute", inset: 0, background: b.gradientOverlay, zIndex: 1 }} />
-            {/* Text content */}
             <div style={{ position: "relative", zIndex: 2, padding: "24px 26px", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
               <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.8, textTransform: "uppercase", color: b.accent, display: "block", marginBottom: 8 }}>{b.tag}</span>
               <h3 style={{ color: "white", fontSize: 22, fontWeight: 900, lineHeight: 1.12, margin: "0 0 8px", whiteSpace: "pre-line", letterSpacing: -0.5, textShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>{b.title}</h3>
@@ -774,9 +770,9 @@ function FlashDeals({ products }: { products: HP[] }) {
 function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
   const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
   const sold = useRef(Math.floor(Math.random() * 40 + 10)).current;
-  // Each flash card independently rotates through images every 3.2 s
   const [imgIdx, setImgIdx] = useState(0);
   const [imgVisible, setImgVisible] = useState(true);
+  // FIX: HP.images was typed as string[] (array of URLs). Build image list correctly.
   const imgs: string[] = [];
   if (resolveImg(p.main_image)) imgs.push(resolveImg(p.main_image)!);
   if (p.images) p.images.filter(Boolean).forEach(u => { const r = resolveImg(u); if (r && !imgs.includes(r)) imgs.push(r); });
@@ -1130,7 +1126,6 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
   const imgs: string[] = [];
   if (resolveImg(p.main_image)) imgs.push(resolveImg(p.main_image)!);
   if (p.images) p.images.filter(Boolean).forEach(u => { const r = resolveImg(u); if (r && !imgs.includes(r)) imgs.push(r); });
-  // Stagger each card's rotation by its delay so they're out of phase
   useEffect(() => {
     if (imgs.length < 2) return;
     const interval = 3000 + (delay % 800);
@@ -1188,14 +1183,13 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  NEWSLETTER — no emojis, SVG mail icon
+//  NEWSLETTER
 // ═══════════════════════════════════════════════════════════════
 function Newsletter() {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
   return (
     <div style={{ background: "linear-gradient(135deg,var(--primary-dark) 0%,var(--primary) 50%,var(--primary-light) 100%)", padding: "64px 0", margin: "6px 0", position: "relative", overflow: "hidden" }}>
-      {/* Decorative blobs */}
       <div style={{ position: "absolute", top: -80, right: -80, width: 280, height: 280, borderRadius: "50%", background: "rgba(200,167,90,0.07)", filter: "blur(40px)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: -60, left: -60, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.04)", filter: "blur(30px)", pointerEvents: "none" }} />
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)", textAlign: "center", position: "relative", zIndex: 1 }}>
@@ -1240,6 +1234,7 @@ export default function HomePage() {
   const [secLoad, setSecLoad] = useState(true);
   const [jfyProducts, setJfyProducts] = useState<HP[]>([]);
 
+  // FIX: random endpoint returns { products: [...] } — use with_images=true to get images
   useEffect(() => {
     fetch(`${API}/api/products/random?count=20&with_images=true&diverse=true`)
       .then(r => r.ok ? r.json() : { products: [] })
