@@ -9,21 +9,17 @@ import { formatCurrency } from "@/lib/currency";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-/** Ensure image URLs are absolute — relative paths are served from the backend. */
 function resolveImg(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
-/** Downsize Amazon CDN images for fast card loading.
- *  _SL1500_ JPEGs are ~200KB each — _SL300_ is ~8KB for the same image. */
 function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 300): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
   return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`);
 }
-
 
 interface HP {
   id: string; title: string; price: number; compare_price?: number | null;
@@ -80,148 +76,707 @@ const THEME_MAP: Record<string, { primary: string; glow: string }> = {
   stone:  { primary: "#4a3728", glow: "rgba(74,55,40,0.15)" },
 };
 
-/* ══════════════════════════════════════════════
-   HERO PRODUCT CARD — fills grid cell exactly
-══════════════════════════════════════════════ */
-function HeroCard({ p, size = "normal", onClick, index = 0, visible: isVisible }: {
-  p: HP; size?: "large" | "normal"; onClick: () => void; index?: number; visible?: boolean;
-}) {
+/* ═══════════════════════════════════
+   COUNTDOWN TIMER HOOK
+═══════════════════════════════════ */
+function useCountdown(targetHours = 6) {
+  const [time, setTime] = useState({ h: targetHours, m: 0, s: 0 });
+  useEffect(() => {
+    const end = Date.now() + targetHours * 3600 * 1000;
+    const tick = () => {
+      const diff = Math.max(0, end - Date.now());
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTime({ h, m, s });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [targetHours]);
+  return time;
+}
+
+/* ═══════════════════════════════════
+   ANNOUNCEMENT BAR
+═══════════════════════════════════ */
+function AnnouncementBar() {
+  const msgs = [
+    "🎉 Free delivery on orders over M500",
+    "✨ 100% authentic products — guaranteed",
+    "🔒 Secure payment & encrypted checkout",
+    "🎁 Premium gift wrapping available",
+    "📦 Easy 7-day returns & exchanges",
+    "💎 Lesotho's finest luxury boutique",
+  ];
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setIdx(i => (i + 1) % msgs.length), 3500);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div style={{
+      background: "var(--primary)",
+      color: "white",
+      height: 36,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 12,
+      fontWeight: 500,
+      letterSpacing: 0.3,
+      overflow: "hidden",
+      position: "relative",
+    }}>
+      {msgs.map((m, i) => (
+        <span key={i} style={{
+          position: "absolute",
+          opacity: i === idx ? 1 : 0,
+          transform: i === idx ? "translateY(0)" : "translateY(8px)",
+          transition: "opacity 0.5s ease, transform 0.5s ease",
+          whiteSpace: "nowrap",
+        }}>{m}</span>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════
+   HERO BANNER CAROUSEL
+═══════════════════════════════════ */
+const HERO_SLIDES = [
+  {
+    tag: "New Collection",
+    headline: "Elevate Your\nStyle Game",
+    sub: "Premium fashion curated for Lesotho's finest",
+    cta: "Shop Fashion",
+    ctaLink: "/store?main_cat=beauty",
+    bg: "linear-gradient(135deg, #0f3f2f 0%, #1b5e4a 50%, #0d3328 100%)",
+    accent: "#c8a75a",
+    img: "https://m.media-amazon.com/images/I/71aZHLk28TL._AC_SL500_.jpg",
+  },
+  {
+    tag: "Flash Deals",
+    headline: "Up to 60% Off\nTop Brands",
+    sub: "Limited time — grab the best deals before they're gone",
+    cta: "View Deals",
+    ctaLink: "/store?sort=discount",
+    bg: "linear-gradient(135deg, #c0392b 0%, #e74c3c 50%, #a93226 100%)",
+    accent: "#f5c842",
+    img: "https://m.media-amazon.com/images/I/61RyQSOaP9L._AC_SL500_.jpg",
+  },
+  {
+    tag: "Beauty Picks",
+    headline: "Glow Up With\nPremium Skincare",
+    sub: "Authentic beauty products from world-class brands",
+    cta: "Shop Beauty",
+    ctaLink: "/store?main_cat=beauty",
+    bg: "linear-gradient(135deg, #6b1f7c 0%, #8e44ad 50%, #5b1768 100%)",
+    accent: "#f8c8e0",
+    img: "https://m.media-amazon.com/images/I/71rJyMDJDML._AC_SL500_.jpg",
+  },
+];
+
+function HeroBanner({ products }: { products: HP[] }) {
+  const router = useRouter();
+  const [slide, setSlide] = useState(0);
+  const [animIn, setAnimIn] = useState(true);
+  const featured = products.slice(0, 4);
+
+  const goTo = useCallback((i: number) => {
+    setAnimIn(false);
+    setTimeout(() => { setSlide(i); setAnimIn(true); }, 300);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => goTo((slide + 1) % HERO_SLIDES.length), 5000);
+    return () => clearInterval(id);
+  }, [slide, goTo]);
+
+  const s = HERO_SLIDES[slide];
+
+  return (
+    <div style={{ position: "relative", overflow: "hidden", background: s.bg, transition: "background 0.6s ease" }}>
+      {/* Main hero content */}
+      <div style={{
+        maxWidth: 1400,
+        margin: "0 auto",
+        padding: "0 clamp(16px,4vw,40px)",
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 40,
+        minHeight: 340,
+        alignItems: "center",
+      }}>
+        {/* Left: Text */}
+        <div style={{
+          padding: "40px 0",
+          opacity: animIn ? 1 : 0,
+          transform: animIn ? "none" : "translateX(-20px)",
+          transition: "opacity 0.5s ease, transform 0.5s ease",
+        }}>
+          <div style={{
+            display: "inline-block",
+            background: s.accent,
+            color: "#1a1a1a",
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            padding: "5px 14px",
+            borderRadius: 20,
+            marginBottom: 16,
+          }}>{s.tag}</div>
+          <h1 style={{
+            color: "white",
+            fontSize: "clamp(28px,5vw,52px)",
+            fontWeight: 900,
+            lineHeight: 1.1,
+            marginBottom: 14,
+            letterSpacing: -1,
+            whiteSpace: "pre-line",
+          }}>{s.headline}</h1>
+          <p style={{
+            color: "rgba(255,255,255,0.75)",
+            fontSize: 14,
+            marginBottom: 28,
+            lineHeight: 1.6,
+          }}>{s.sub}</p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Link href={s.ctaLink} style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: s.accent,
+              color: "#1a1a1a",
+              padding: "13px 28px",
+              borderRadius: 8,
+              fontWeight: 700,
+              fontSize: 14,
+              textDecoration: "none",
+              transition: "transform 0.2s, box-shadow 0.2s",
+            }}
+              onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-2px)")}
+              onMouseLeave={e => (e.currentTarget.style.transform = "none")}
+            >{s.cta} →</Link>
+            <Link href="/store" style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: "rgba(255,255,255,0.15)",
+              color: "white",
+              padding: "13px 24px",
+              borderRadius: 8,
+              fontWeight: 600,
+              fontSize: 14,
+              textDecoration: "none",
+              border: "1px solid rgba(255,255,255,0.3)",
+            }}>Browse All</Link>
+          </div>
+
+          {/* Slide dots */}
+          <div style={{ display: "flex", gap: 8, marginTop: 32 }}>
+            {HERO_SLIDES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                style={{
+                  height: 4,
+                  width: i === slide ? 32 : 12,
+                  borderRadius: 2,
+                  background: i === slide ? s.accent : "rgba(255,255,255,0.3)",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  padding: 0,
+                  minHeight: "auto",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Right: Featured products mini grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2,1fr)",
+          gap: 10,
+          padding: "20px 0",
+          opacity: animIn ? 1 : 0,
+          transform: animIn ? "none" : "translateX(20px)",
+          transition: "opacity 0.5s ease 0.1s, transform 0.5s ease 0.1s",
+        }}>
+          {featured.length > 0 ? featured.map((p, i) => (
+            <HeroMiniCard key={p.id} p={p} delay={i * 60} onClick={() => router.push(`/store/product/${p.id}`)} />
+          )) : Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="shimbox" style={{ height: 150, borderRadius: 12 }} />
+          ))}
+        </div>
+      </div>
+
+      {/* Decorative bottom wave */}
+      <div style={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 40,
+        background: "var(--gray-50)",
+        clipPath: "ellipse(55% 100% at 50% 100%)",
+      }} />
+    </div>
+  );
+}
+
+function HeroMiniCard({ p, delay, onClick }: { p: HP; delay: number; onClick: () => void }) {
   const [err, setErr] = useState(false);
   const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price
     ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
-
   return (
     <div
-      className={`hcard hcard-${size}`}
       onClick={onClick}
       style={{
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "none" : "scale(0.97)",
-        transition: `opacity 0.55s ease ${index * 80}ms, transform 0.55s ease ${index * 80}ms`,
+        background: "rgba(255,255,255,0.1)",
+        backdropFilter: "blur(10px)",
+        border: "1px solid rgba(255,255,255,0.15)",
+        borderRadius: 12,
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "transform 0.25s, background 0.25s",
+        animationDelay: `${delay}ms`,
       }}
+      onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-3px)")}
+      onMouseLeave={e => (e.currentTarget.style.transform = "none")}
     >
-      <div className="hcard-inner">
-        {resolveImg(p.main_image) && !err ? (
-          <div className="hcard-img-box">
-          <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} className="hcard-img"
-              onError={() => setErr(true)} loading="eager" fetchPriority={size === "large" ? "high" : "auto"} />
-          </div>
-        ) : (
-          <div className="hcard-empty">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <path d="M21 15l-5-5L5 21"/>
-            </svg>
-          </div>
-        )}
-        <div className="hcard-gradient" />
-        {disc && disc >= 5 && (
-          <div className="hcard-badges"><span className="badge-off">-{disc}%</span></div>
-        )}
-        <div className="hcard-info">
-          {(p.category || p.brand) && (
-            <div className="hcard-cat">{p.brand ?? p.category}</div>
-          )}
-          <div className="hcard-title">{p.title}</div>
-          <div className="hcard-price-row">
-            <span className="hcard-price">{formatCurrency(p.price)}</span>
-            {p.compare_price && p.compare_price > p.price && (
-              <span className="hcard-old">{formatCurrency(p.compare_price)}</span>
-            )}
-            {p.rating && p.rating >= 4 && (
-              <span className="hcard-star">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="#f5c842" stroke="none">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-                {p.rating.toFixed(1)}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="hcard-cta">
-          <span>View Product</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+      {resolveImg(p.main_image) && !err ? (
+        <img
+          src={optimizeImg(resolveImg(p.main_image))!}
+          alt={p.title}
+          onError={() => setErr(true)}
+          style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
+        />
+      ) : (
+        <div style={{ aspectRatio: "1/1", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
           </svg>
+        </div>
+      )}
+      <div style={{ padding: "10px 10px 12px" }}>
+        {disc && disc >= 5 && (
+          <span style={{ fontSize: 9, fontWeight: 800, color: "#f5c842", display: "block", marginBottom: 3 }}>-{disc}% OFF</span>
+        )}
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.title}</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "white", marginTop: 6 }}>{formatCurrency(p.price)}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════
+   CATEGORY NAV GRID
+═══════════════════════════════════ */
+const NAV_CATS = [
+  { icon: "💄", label: "Skincare", href: "/store?category=moisturizer" },
+  { icon: "📱", label: "Phones", href: "/store?main_cat=phones" },
+  { icon: "💊", label: "Wellness", href: "/store?category=collagen" },
+  { icon: "🧴", label: "Body Care", href: "/store?category=body_lotion" },
+  { icon: "☀️", label: "Sunscreen", href: "/store?category=sunscreen" },
+  { icon: "✨", label: "Serums", href: "/store?category=serum" },
+  { icon: "🌿", label: "Natural Oils", href: "/store?category=herbal_oils" },
+  { icon: "🎁", label: "Gift Sets", href: "/store?sort=discount" },
+  { icon: "👁️", label: "Eye Care", href: "/store?category=eye_mask" },
+  { icon: "🧼", label: "Cleansers", href: "/store?category=face_wash" },
+  { icon: "💫", label: "Brightening", href: "/store?category=skin_brightening" },
+  { icon: "🔋", label: "Anti-Aging", href: "/store?category=anti_wrinkles" },
+];
+
+function CategoryNav() {
+  return (
+    <div style={{ background: "white", borderBottom: "1px solid var(--gray-200)", padding: "16px 0" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(12, 1fr)",
+          gap: 8,
+        }}>
+          {NAV_CATS.map(cat => (
+            <Link
+              key={cat.href}
+              href={cat.href}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 6,
+                padding: "12px 8px",
+                borderRadius: 10,
+                textDecoration: "none",
+                transition: "background 0.2s",
+                background: "transparent",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--gray-100)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            >
+              <div style={{ fontSize: 22, lineHeight: 1 }}>{cat.icon}</div>
+              <span style={{ fontSize: 10, fontWeight: 600, color: "var(--gray-700)", textAlign: "center", lineHeight: 1.2, letterSpacing: 0.2 }}>{cat.label}</span>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════
-   HERO SKELETON
-══════════════════════════════════════════════ */
-function HeroSkeleton() {
+/* ═══════════════════════════════════
+   FLASH DEALS SECTION
+═══════════════════════════════════ */
+function FlashDeals({ products }: { products: HP[] }) {
+  const countdown = useCountdown(6);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const flash = products.filter(p => (p.discount_pct ?? 0) >= 10 || (p.compare_price && p.compare_price > p.price * 1.1));
+  if (flash.length === 0) return null;
+  const router = useRouter();
+
+  const scroll = (dir: "l" | "r") =>
+    rowRef.current?.scrollBy({ left: dir === "r" ? 700 : -700, behavior: "smooth" });
+
   return (
-    <>
-      <div className="shimbox hcard hcard-large" />
-      <div className="shimbox hcard hcard-normal" />
-      <div className="shimbox hcard hcard-normal" />
-      <div className="shimbox hcard hcard-normal" />
-      <div className="shimbox hcard hcard-normal" />
-    </>
+    <div style={{ background: "white", margin: "6px 0", padding: "20px 0" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 18 }}>⚡</span>
+              <h2 style={{
+                fontSize: 18,
+                fontWeight: 900,
+                color: "#c0392b",
+                margin: 0,
+                letterSpacing: -0.3,
+              }}>Flash Deals</h2>
+            </div>
+            {/* Countdown */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, color: "var(--gray-600)", fontWeight: 600 }}>Ends in</span>
+              {[countdown.h, countdown.m, countdown.s].map((val, i) => (
+                <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{
+                    background: "#c0392b",
+                    color: "white",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    padding: "3px 7px",
+                    borderRadius: 4,
+                    minWidth: 30,
+                    textAlign: "center",
+                    fontVariantNumeric: "tabular-nums",
+                  }}>{String(val).padStart(2, "0")}</span>
+                  {i < 2 && <span style={{ color: "#c0392b", fontWeight: 800, fontSize: 13 }}>:</span>}
+                </span>
+              ))}
+            </div>
+          </div>
+          <Link href="/store?sort=discount" style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#c0392b",
+            textDecoration: "none",
+            border: "1.5px solid #c0392b",
+            padding: "6px 16px",
+            borderRadius: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}>See All Deals →</Link>
+        </div>
+
+        {/* Scroll row */}
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={() => scroll("l")}
+            style={{
+              position: "absolute",
+              left: -16,
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 10,
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: "white",
+              border: "1px solid var(--gray-300)",
+              boxShadow: "var(--shadow-card)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "auto",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div ref={rowRef} style={{
+            display: "flex",
+            gap: 10,
+            overflowX: "auto",
+            scrollSnapType: "x mandatory",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            padding: "4px 2px 8px",
+          }}>
+            {flash.slice(0, 14).map((p, i) => (
+              <FlashCard key={p.id} p={p} delay={i * 40} onClick={() => router.push(`/store/product/${p.id}`)} />
+            ))}
+          </div>
+          <button
+            onClick={() => scroll("r")}
+            style={{
+              position: "absolute",
+              right: -16,
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 10,
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: "white",
+              border: "1px solid var(--gray-300)",
+              boxShadow: "var(--shadow-card)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "auto",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
-/* ══════════════════════════════════════════════
+function FlashCard({ p, delay, onClick }: { p: HP; delay: number; onClick: () => void }) {
+  const [err, setErr] = useState(false);
+  const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price
+    ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
+  const sold = Math.floor(Math.random() * 40 + 10);
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        width: 165,
+        flexShrink: 0,
+        scrollSnapAlign: "start",
+        background: "white",
+        border: "1px solid var(--gray-200)",
+        borderRadius: 10,
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "box-shadow 0.2s, transform 0.2s",
+        animationDelay: `${delay}ms`,
+        position: "relative",
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-elevated)";
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+        (e.currentTarget as HTMLDivElement).style.transform = "none";
+      }}
+    >
+      {/* Discount badge */}
+      {disc && disc >= 5 && (
+        <div style={{
+          position: "absolute",
+          top: 8,
+          left: 8,
+          zIndex: 2,
+          background: "#c0392b",
+          color: "white",
+          fontSize: 10,
+          fontWeight: 800,
+          padding: "2px 7px",
+          borderRadius: 4,
+        }}>-{disc}%</div>
+      )}
+
+      {/* Image */}
+      {resolveImg(p.main_image) && !err ? (
+        <img
+          src={optimizeImg(resolveImg(p.main_image))!}
+          alt={p.title}
+          onError={() => setErr(true)}
+          style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }}
+        />
+      ) : (
+        <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        </div>
+      )}
+
+      <div style={{ padding: "10px 10px 12px" }}>
+        <div style={{ fontSize: 11, color: "var(--gray-700)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", marginBottom: 8, minHeight: 30 }}>{p.title}</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#c0392b", marginBottom: 2 }}>{formatCurrency(p.price)}</div>
+        {p.compare_price && p.compare_price > p.price && (
+          <div style={{ fontSize: 10, color: "var(--gray-400)", textDecoration: "line-through" }}>{formatCurrency(p.compare_price)}</div>
+        )}
+        {/* Sold progress bar */}
+        <div style={{ marginTop: 8 }}>
+          <div style={{ height: 4, background: "#fde8e8", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${sold}%`, background: "#c0392b", borderRadius: 2 }} />
+          </div>
+          <span style={{ fontSize: 9, color: "#c0392b", fontWeight: 700, marginTop: 3, display: "block" }}>{sold}% claimed</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════
+   PROMO BANNERS ROW
+═══════════════════════════════════ */
+function PromoBanners() {
+  const banners = [
+    { bg: "linear-gradient(135deg,#0f3f2f,#1b5e4a)", tag: "Beauty", title: "Skincare\nEssentials", sub: "Up to 40% off premium brands", href: "/store?main_cat=beauty", accent: "#c8a75a", emoji: "✨" },
+    { bg: "linear-gradient(135deg,#1a3a6b,#2d5a9b)", tag: "Phones", title: "Latest\nSmartphones", sub: "Top brands at best prices", href: "/store?main_cat=phones", accent: "#7eb8ff", emoji: "📱" },
+    { bg: "linear-gradient(135deg,#6b1f7c,#9b59b6)", tag: "Wellness", title: "Health &\nWellness", sub: "Natural & organic products", href: "/store?category=collagen", accent: "#f8c8e0", emoji: "💊" },
+  ];
+  return (
+    <div style={{ maxWidth: 1400, margin: "0 auto", padding: "16px clamp(16px,4vw,40px)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+        {banners.map((b, i) => (
+          <Link key={i} href={b.href} style={{
+            background: b.bg,
+            borderRadius: 14,
+            padding: "28px 24px",
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            overflow: "hidden",
+            position: "relative",
+            transition: "transform 0.25s, box-shadow 0.25s",
+            boxShadow: "var(--shadow-card)",
+          }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-3px)";
+              (e.currentTarget as HTMLAnchorElement).style.boxShadow = "var(--shadow-elevated)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLAnchorElement).style.transform = "none";
+              (e.currentTarget as HTMLAnchorElement).style.boxShadow = "var(--shadow-card)";
+            }}
+          >
+            <div>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: b.accent, display: "block", marginBottom: 8 }}>{b.tag}</span>
+              <h3 style={{ color: "white", fontSize: 20, fontWeight: 900, lineHeight: 1.15, margin: "0 0 8px", whiteSpace: "pre-line", letterSpacing: -0.5 }}>{b.title}</h3>
+              <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, margin: "0 0 16px", lineHeight: 1.4 }}>{b.sub}</p>
+              <span style={{ background: b.accent, color: "#1a1a1a", fontSize: 11, fontWeight: 700, padding: "7px 16px", borderRadius: 6, display: "inline-block" }}>Shop Now →</span>
+            </div>
+            <div style={{ fontSize: 52, opacity: 0.4, position: "absolute", right: 20, top: "50%", transform: "translateY(-50%) rotate(10deg)" }}>{b.emoji}</div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════
    SECTION PRODUCT CARD
-══════════════════════════════════════════════ */
-function SectionCard({ p, idx, accentColor, onClick }: {
-  p: HP; idx: number; accentColor: string; onClick: () => void;
-}) {
+═══════════════════════════════════ */
+function SectionCard({ p, accentColor, onClick }: { p: HP; accentColor: string; onClick: () => void }) {
   const [err, setErr] = useState(false);
   const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price
     ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
 
   return (
-    <div className="scard" onClick={onClick} style={{ animationDelay: `${idx * 50}ms` }}>
-      <div className="scard-img-wrap">
-        {resolveImg(p.main_image) && !err ? (
-          <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} className="scard-img"
-            onError={() => setErr(true)} loading="lazy" />
-        ) : (
-          <div className="scard-no-img">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <path d="M21 15l-5-5L5 21"/>
-            </svg>
-          </div>
-        )}
-        {disc && disc >= 5 && <div className="scard-badge" style={{ background: "#c0392b" }}>-{disc}%</div>}
-        {!p.in_stock && <div className="scard-soldout">Sold Out</div>}
-        <div className="scard-hover-overlay">
-          <div className="scard-view-btn" style={{ background: accentColor }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            Quick View
-          </div>
+    <div
+      onClick={onClick}
+      style={{
+        width: 168,
+        flexShrink: 0,
+        background: "white",
+        border: "1px solid var(--gray-200)",
+        borderRadius: 10,
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "box-shadow 0.2s, transform 0.2s",
+        scrollSnapAlign: "start",
+        position: "relative",
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-elevated)";
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)";
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+        (e.currentTarget as HTMLDivElement).style.transform = "none";
+      }}
+    >
+      {disc && disc >= 5 && (
+        <div style={{
+          position: "absolute",
+          top: 8,
+          left: 8,
+          zIndex: 2,
+          background: accentColor,
+          color: "white",
+          fontSize: 9,
+          fontWeight: 800,
+          padding: "2px 7px",
+          borderRadius: 4,
+        }}>-{disc}%</div>
+      )}
+      {!p.in_stock && (
+        <div style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          zIndex: 2,
+          background: "rgba(0,0,0,0.55)",
+          color: "white",
+          fontSize: 9,
+          fontWeight: 600,
+          padding: "2px 7px",
+          borderRadius: 4,
+        }}>Sold Out</div>
+      )}
+      {resolveImg(p.main_image) && !err ? (
+        <img
+          src={optimizeImg(resolveImg(p.main_image))!}
+          alt={p.title}
+          onError={() => setErr(true)}
+          style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", transition: "transform 0.3s" }}
+          onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.06)")}
+          onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+        />
+      ) : (
+        <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         </div>
-      </div>
-      <div className="scard-info">
+      )}
+      <div style={{ padding: "10px 10px 12px" }}>
         {(p.brand || p.category) && (
-          <div className="scard-brand" style={{ color: accentColor }}>{p.brand ?? p.category}</div>
+          <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, color: accentColor, marginBottom: 3 }}>{p.brand ?? p.category}</div>
         )}
-        <div className="scard-title">{p.title}</div>
-        <div className="scard-footer">
-          <div className="scard-prices">
-            <span className="scard-price">{formatCurrency(p.price)}</span>
+        <div style={{ fontSize: 12, color: "var(--gray-700)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 32, marginBottom: 6 }}>{p.title}</div>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--gray-900)" }}>{formatCurrency(p.price)}</div>
             {p.compare_price && p.compare_price > p.price && (
-              <span className="scard-compare">{formatCurrency(p.compare_price)}</span>
+              <div style={{ fontSize: 10, color: "var(--gray-400)", textDecoration: "line-through" }}>{formatCurrency(p.compare_price)}</div>
             )}
           </div>
-          {p.rating && p.rating > 0 && (
-            <div className="scard-rating">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <svg key={i} width="9" height="9" viewBox="0 0 24 24"
-                  fill={i < Math.round(p.rating!) ? "#c8a75a" : "#e0e0e0"} stroke="none">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              ))}
+          {p.rating && p.rating >= 4 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="#c8a75a" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--gray-700)" }}>{p.rating.toFixed(1)}</span>
             </div>
           )}
         </div>
@@ -230,20 +785,19 @@ function SectionCard({ p, idx, accentColor, onClick }: {
   );
 }
 
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════
    SECTION ROW
-══════════════════════════════════════════════ */
-function SectionRow({ sec, onProductClick }: {
-  sec: Section; onProductClick: (id: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
+═══════════════════════════════════ */
+function SectionRow({ sec, onProductClick }: { sec: Section; onProductClick: (id: string) => void }) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const th = THEME_MAP[sec.theme] ?? THEME_MAP.forest;
   const href = safeViewAll(sec.view_all);
 
   useEffect(() => {
-    const el = ref.current; if (!el) return;
+    const el = wrapRef.current;
+    if (!el) return;
     const obs = new IntersectionObserver(([e]) => {
       if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
     }, { threshold: 0.04 });
@@ -252,352 +806,263 @@ function SectionRow({ sec, onProductClick }: {
   }, []);
 
   const scroll = (dir: "l" | "r") =>
-    rowRef.current?.scrollBy({ left: dir === "r" ? 680 : -680, behavior: "smooth" });
+    rowRef.current?.scrollBy({ left: dir === "r" ? 700 : -700, behavior: "smooth" });
 
   return (
-    <div ref={ref} className="section-block" style={{
-      opacity: visible ? 1 : 0,
-      transform: visible ? "none" : "translateY(28px)",
-      transition: "opacity 0.55s ease, transform 0.55s ease",
-    }}>
-      <div className="section-head">
-        <div className="section-head-left">
-          <div className="section-accent-bar" style={{ background: th.primary }} />
-          <div>
-            {sec.badge && <span className="section-badge" style={{ background: th.primary }}>{sec.badge}</span>}
-            <div className="section-title">{sec.title}</div>
-            <div className="section-sub">{sec.subtitle}</div>
-          </div>
-        </div>
-        <Link href={href} className="view-all-link" style={{ color: th.primary, borderColor: th.primary }}>
-          View All
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-          </svg>
-        </Link>
-      </div>
-      <div className="section-scroll-wrap">
-        <button className="scroll-btn scroll-btn-l" onClick={() => scroll("l")} aria-label="Scroll left">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6"/>
-          </svg>
-        </button>
-        <div ref={rowRef} className="section-scroll">
-          {sec.products.map((p, i) => (
-            <SectionCard key={p.id} p={p} idx={i} accentColor={th.primary} onClick={() => onProductClick(p.id)} />
-          ))}
-          <Link href={href} className="see-more-card" style={{ borderColor: `${th.primary}40` }}>
-            <div className="see-more-circle" style={{ borderColor: th.primary, color: th.primary }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-              </svg>
+    <div
+      ref={wrapRef}
+      style={{
+        background: "white",
+        margin: "6px 0",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "none" : "translateY(24px)",
+        transition: "opacity 0.55s ease, transform 0.55s ease",
+      }}
+    >
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "20px clamp(16px,4vw,40px) 0" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 4, height: 36, background: th.primary, borderRadius: 2 }} />
+            <div>
+              {sec.badge && (
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  color: "white",
+                  background: th.primary,
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  display: "inline-block",
+                  marginBottom: 4,
+                }}>{sec.badge}</span>
+              )}
+              <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.3 }}>{sec.title}</h2>
+              {sec.subtitle && <p style={{ fontSize: 12, color: "var(--gray-600)", margin: "2px 0 0" }}>{sec.subtitle}</p>}
             </div>
-            <span className="see-more-label">See All<br/>{sec.title}</span>
+          </div>
+          <Link href={href} style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: th.primary,
+            textDecoration: "none",
+            border: `1.5px solid ${th.primary}`,
+            padding: "6px 16px",
+            borderRadius: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            transition: "background 0.2s",
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = th.primary; (e.currentTarget as HTMLAnchorElement).style.color = "white"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; (e.currentTarget as HTMLAnchorElement).style.color = th.primary; }}
+          >View All →</Link>
+        </div>
+      </div>
+
+      <div style={{ position: "relative", maxWidth: 1400, margin: "0 auto" }}>
+        <button onClick={() => scroll("l")} style={{
+          position: "absolute",
+          left: "clamp(0px,2vw,20px)",
+          top: "50%",
+          transform: "translateY(-50%)",
+          zIndex: 10,
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+          background: "white",
+          border: "1px solid var(--gray-300)",
+          boxShadow: "var(--shadow-card)",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "auto",
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+
+        <div ref={rowRef} style={{
+          display: "flex",
+          gap: 2,
+          overflowX: "auto",
+          scrollSnapType: "x mandatory",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          padding: "8px clamp(16px,4vw,40px) 20px",
+        }}>
+          {sec.products.map(p => (
+            <SectionCard key={p.id} p={p} accentColor={th.primary} onClick={() => onProductClick(p.id)} />
+          ))}
+          <Link href={href} style={{
+            width: 130,
+            flexShrink: 0,
+            background: "var(--gray-50)",
+            border: `2px dashed ${th.primary}40`,
+            borderRadius: 10,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            textDecoration: "none",
+            padding: "20px 12px",
+            scrollSnapAlign: "start",
+            cursor: "pointer",
+            transition: "background 0.2s",
+          }}
+            onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.background = "var(--gray-100)")}
+            onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.background = "var(--gray-50)")}
+          >
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+              border: `2px solid ${th.primary}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: th.primary,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, textAlign: "center", color: "var(--gray-600)", textTransform: "uppercase", letterSpacing: 0.5, lineHeight: 1.4 }}>See All<br/>{sec.title}</span>
           </Link>
         </div>
-        <button className="scroll-btn scroll-btn-r" onClick={() => scroll("r")} aria-label="Scroll right">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
+
+        <button onClick={() => scroll("r")} style={{
+          position: "absolute",
+          right: "clamp(0px,2vw,20px)",
+          top: "50%",
+          transform: "translateY(-50%)",
+          zIndex: 10,
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+          background: "white",
+          border: "1px solid var(--gray-300)",
+          boxShadow: "var(--shadow-card)",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "auto",
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════
-   SKELETON SECTION
-══════════════════════════════════════════════ */
 function SkeletonSection() {
   return (
-    <div className="section-block">
-      <div className="section-head">
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <div className="shimbox" style={{ width: 4, height: 44, borderRadius: 2 }} />
+    <div style={{ background: "white", margin: "6px 0", padding: "20px clamp(16px,4vw,40px)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="shimbox" style={{ width: 4, height: 36, borderRadius: 2 }} />
           <div>
-            <div className="shimbox" style={{ width: 180, height: 18, borderRadius: 4, marginBottom: 6 }} />
-            <div className="shimbox" style={{ width: 120, height: 12, borderRadius: 4 }} />
+            <div className="shimbox" style={{ width: 160, height: 16, borderRadius: 4, marginBottom: 6 }} />
+            <div className="shimbox" style={{ width: 100, height: 10, borderRadius: 4 }} />
           </div>
         </div>
-        <div className="shimbox" style={{ width: 90, height: 34, borderRadius: 50 }} />
+        <div className="shimbox" style={{ width: 80, height: 30, borderRadius: 20 }} />
       </div>
-      <div style={{ display: "flex", gap: 2, padding: "12px 20px", overflow: "hidden" }}>
-        {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="shimbox" style={{ width: 190, height: 290, flexShrink: 0, borderRadius: 0 }} />
+      <div style={{ display: "flex", gap: 2 }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="shimbox" style={{ width: 168, height: 250, flexShrink: 0, borderRadius: 10 }} />
         ))}
       </div>
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════
-   CATEGORY STRIP
-══════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════
-   CATEGORY IMAGE GRID — Amazon-style shop by dept
-══════════════════════════════════════════════ */
-/* ── Phone brand accent colours (static — brand identity never changes) ── */
-const PHONE_BRAND_COLORS: Record<string, string> = {
-  samsung:  "#1428A0",
-  apple:    "#555555",
-  xiaomi:   "#FF6900",
-  motorola: "#7F4FC9",
-  oneplus:  "#F5010C",
-  google:   "#4285F4",
-  realme:   "#FFD200",
-};
-
-/* ── Fallback images used only when a category has no products yet ── */
-const BEAUTY_FALLBACKS: Record<string, string> = {
-  moisturizer:      "https://m.media-amazon.com/images/I/514oxIFEEtL._SL1000_.jpg",
-  sunscreen:        "https://m.media-amazon.com/images/I/51NBAgCAtTL._AC_SL1262_.jpg",
-  face_wash:        "https://m.media-amazon.com/images/I/71fmbSTcBfL._SL1500_.jpg",
-  serum:            "https://m.media-amazon.com/images/I/81Jdiv-7ErL._SL1500_.jpg",
-  body_lotion:      "https://m.media-amazon.com/images/I/61caZHEaaDL._SL1500_.jpg",
-  face_mask:        "https://m.media-amazon.com/images/I/41QqHD8VhdL._AC_SL1024_.jpg",
-  eye_mask:         "https://m.media-amazon.com/images/I/71wkEO2BGeL._SL1405_.jpg",
-  anti_acne:        "https://m.media-amazon.com/images/I/71sidEjIgpL._SL1500_.jpg",
-  skin_brightening: "https://m.media-amazon.com/images/I/71lmZYJ0cRL._SL1500_.jpg",
-  collagen:         "https://m.media-amazon.com/images/I/91ns5Kww0vL._SL1500_.jpg",
-  skin_natural_oils:"https://m.media-amazon.com/images/I/71DK0uFLIvL._SL1500_.jpg",
-  herbal_oils:      "https://m.media-amazon.com/images/I/61T8RzR0MtL._AC_SL1500_.jpg",
-  anti_wrinkles:    "https://m.media-amazon.com/images/I/51NfUaTsYEL._SL1500_.jpg",
-  body_wash:        "https://m.media-amazon.com/images/I/71Risnk3leL._AC_SL1500_.jpg",
-  exfoliator:       "https://m.media-amazon.com/images/I/615ijn+VIBS._SL1228_.jpg",
-  lip_mask:         "https://m.media-amazon.com/images/I/71cdS3CsREL._SL1500_.jpg",
-};
-const PHONE_FALLBACKS: Record<string, string> = {
-  samsung:  "https://m.media-amazon.com/images/I/81sQcfsDEBL._AC_SL1500_.jpg",
-  apple:    "https://m.media-amazon.com/images/I/81mYHETHGEL._AC_SL1500_.jpg",
-  xiaomi:   "https://m.media-amazon.com/images/I/71l3coNp4bL._AC_SL1500_.jpg",
-  motorola: "https://m.media-amazon.com/images/I/61byhjs+FML._AC_SL1500_.jpg",
-  oneplus:  "https://m.media-amazon.com/images/I/51GhOHvRlhL._AC_SL1040_.jpg",
-  google:   "https://m.media-amazon.com/images/I/61etNKg8JlL._AC_SL1500_.jpg",
-  realme:   "https://m.media-amazon.com/images/I/81PJLFYSKcL._AC_SL1500_.jpg",
-};
-
-/* ── Shape returned by GET /api/categories/departments ── */
-interface CatSubcat { key: string; label: string; href: string; image: string | null; }
-interface CatDept   { key: string; title: string; href: string; image: string | null; subcategories: CatSubcat[]; }
-
-/* ── Tile skeleton shown while the API loads ── */
-function CatTileSkeleton({ count }: { count: number }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="cattile" style={{ cursor: "default" }}>
-          <div className="shimbox cattile-img-wrap" style={{ borderRadius: 0 }} />
-          <div className="shimbox cattile-label" style={{ height: 10, width: "60%", margin: "8px auto", borderRadius: 3 }} />
-        </div>
-      ))}
-    </>
-  );
-}
-
-function CategoryImageGrid() {
-  const [depts, setDepts]   = useState<CatDept[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    categoriesApi.departments()
-      .then((data: any) => { setDepts(Array.isArray(data) ? data : []); setLoaded(true); })
-      .catch(() => setLoaded(true)); // fallbacks render on error too
-  }, []);
-
-  /* Resolve the right image: DB image → static fallback → null */
-  function beautyImg(sub: CatSubcat) {
-    return sub.image ?? BEAUTY_FALLBACKS[sub.key] ?? null;
-  }
-  function phoneImg(sub: CatSubcat) {
-    return sub.image ?? PHONE_FALLBACKS[sub.key] ?? null;
-  }
-
-  const beauty = depts.find(d => d.key === "beauty");
-  const phones = depts.find(d => d.key === "phones");
-
-  // Guaranteed fallback subcategory lists — used when API returns empty subcategories
-  // so the grid always renders tiles even before products are categorised
-  const BEAUTY_SUBS_FALLBACK: CatSubcat[] = [
-    { key:"moisturizer",       label:"Moisturisers",      href:"/store?category=moisturizer",       image:null },
-    { key:"sunscreen",         label:"Sunscreen",          href:"/store?category=sunscreen",          image:null },
-    { key:"face_wash",         label:"Face Wash",          href:"/store?category=face_wash",          image:null },
-    { key:"serum",             label:"Serums",             href:"/store?category=serum",              image:null },
-    { key:"body_lotion",       label:"Body Lotion",        href:"/store?category=body_lotion",        image:null },
-    { key:"face_mask",         label:"Face Masks",         href:"/store?category=face_mask",          image:null },
-    { key:"eye_mask",          label:"Eye Masks",          href:"/store?category=eye_mask",           image:null },
-    { key:"anti_acne",         label:"Anti-Acne",          href:"/store?category=anti_acne",          image:null },
-    { key:"skin_brightening",  label:"Skin Brightening",   href:"/store?category=skin_brightening",   image:null },
-    { key:"collagen",          label:"Collagen Care",      href:"/store?category=collagen",           image:null },
-    { key:"skin_natural_oils", label:"Natural Oils",       href:"/store?category=skin_natural_oils",  image:null },
-    { key:"herbal_oils",       label:"Herbal Oils",        href:"/store?category=herbal_oils",        image:null },
-    { key:"anti_wrinkles",     label:"Anti-Wrinkle",       href:"/store?category=anti_wrinkles",      image:null },
-    { key:"body_wash",         label:"Body Wash",          href:"/store?category=body_wash",          image:null },
-    { key:"exfoliator",        label:"Exfoliators",        href:"/store?category=exfoliator",         image:null },
-    { key:"lip_mask",          label:"Lip Masks",          href:"/store?category=lip_mask",           image:null },
-  ];
-  const PHONE_SUBS_FALLBACK: CatSubcat[] = [
-    { key:"samsung",  label:"Samsung",      href:"/store?category=samsung",  image:null },
-    { key:"apple",    label:"Apple",        href:"/store?category=apple",    image:null },
-    { key:"xiaomi",   label:"Xiaomi",       href:"/store?category=xiaomi",   image:null },
-    { key:"motorola", label:"Motorola",     href:"/store?category=motorola", image:null },
-    { key:"oneplus",  label:"OnePlus",      href:"/store?category=oneplus",  image:null },
-    { key:"google",   label:"Google Pixel", href:"/store?category=google",   image:null },
-    { key:"realme",   label:"Realme",       href:"/store?category=realme",   image:null },
-  ];
-
-  const beautySubs = (beauty?.subcategories?.length ? beauty.subcategories : BEAUTY_SUBS_FALLBACK);
-  const phoneSubs  = (phones?.subcategories?.length ? phones.subcategories  : PHONE_SUBS_FALLBACK);
-
-  return (
-    <div className="catgrid-wrap">
-
-      {/* ── Beauty Section ── */}
-      <div className="catgrid-section">
-        <div className="catgrid-header">
-          <div className="catgrid-header-left">
-            <span className="catgrid-pill">Beauty</span>
-            <h2 className="catgrid-title">Beauty &amp; Personal Care</h2>
-          </div>
-          <Link href="/store?main_cat=beauty" className="catgrid-view-all">
-            View all
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-            </svg>
-          </Link>
-        </div>
-        <div className="catgrid-tiles catgrid-tiles-beauty">
-          {!loaded ? (
-            <CatTileSkeleton count={16} />
-          ) : beautySubs.map((sub) => {
-            const img = beautyImg(sub);
-            return (
-              <Link key={sub.key} href={sub.href} className="cattile cattile-beauty">
-                <div className="cattile-img-wrap">
-                  {img
-                    ? <img src={optimizeImg(img)!} alt={sub.label} className="cattile-img" loading="lazy" />
-                    : <div className="cattile-img-wrap" style={{ background: "#ece9e4", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                      </div>
-                  }
-                </div>
-                <div className="cattile-label">{sub.label}</div>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Phones Section ── */}
-      <div className="catgrid-section catgrid-section-dark">
-        <div className="catgrid-header">
-          <div className="catgrid-header-left">
-            <span className="catgrid-pill catgrid-pill-blue">Phones</span>
-            <h2 className="catgrid-title">Cell Phones &amp; Accessories</h2>
-          </div>
-          <Link href="/store?main_cat=phones" className="catgrid-view-all">
-            View all
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-            </svg>
-          </Link>
-        </div>
-        <div className="catgrid-tiles catgrid-tiles-phones">
-          {!loaded ? (
-            <CatTileSkeleton count={7} />
-          ) : phoneSubs.map((sub) => {
-            const img   = phoneImg(sub);
-            const color = PHONE_BRAND_COLORS[sub.key] ?? "#0f3f2f";
-            return (
-              <Link key={sub.key} href={sub.href} className="cattile cattile-phone">
-                <div className="cattile-phone-img-wrap" style={{ background: `linear-gradient(135deg, ${color}18, ${color}08)` }}>
-                  {img
-                    ? <img src={optimizeImg(img)!} alt={sub.label} className="cattile-img" loading="lazy" />
-                    : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                      </div>
-                  }
-                  <div className="cattile-phone-accent" style={{ background: color }} />
-                </div>
-                <div className="cattile-label">{sub.label}</div>
-              </Link>
-            );
-          })}
-          {/* Always-present "All Phones" tile */}
-          {loaded && (
-            <Link href="/store?main_cat=phones" className="cattile cattile-phone">
-              <div className="cattile-phone-img-wrap" style={{ background: "linear-gradient(135deg,#0f3f2f18,#0f3f2f08)" }}>
-                <img src="https://m.media-amazon.com/images/I/61RyQSOaP9L._AC_SL1500_.jpg" alt="All Phones" className="cattile-img" loading="lazy" />
-                <div className="cattile-phone-accent" style={{ background: "#0f3f2f" }} />
-              </div>
-              <div className="cattile-label">All Phones</div>
-            </Link>
-          )}
-        </div>
-      </div>
-
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════
    TRUST BAR
-══════════════════════════════════════════════ */
+═══════════════════════════════════ */
 function TrustBar() {
   const items = [
     {
-      title: "Free Delivery", sub: "Orders over M500",
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+      icon: <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+      title: "Free Delivery",
+      sub: "Orders over M500",
     },
     {
-      title: "Authentic Products", sub: "100% verified",
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>,
+      icon: <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>,
+      title: "100% Authentic",
+      sub: "Verified products",
     },
     {
-      title: "Easy Returns", sub: "7-day hassle-free",
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 .7-3.6"/></svg>,
+      icon: <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 .7-3.6"/></svg>,
+      title: "Easy Returns",
+      sub: "7-day hassle-free",
     },
     {
-      title: "Secure Payment", sub: "Encrypted checkout",
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+      icon: <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+      title: "Secure Payment",
+      sub: "Encrypted checkout",
     },
     {
-      title: "Gift Packaging", sub: "Premium wrapping",
-      icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>,
+      icon: <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>,
+      title: "Gift Packaging",
+      sub: "Premium wrapping",
     },
   ];
   return (
-    <div className="trust-bar">
-      {items.map((item) => (
-        <div key={item.title} className="trust-item">
-          <div className="trust-icon-wrap">{item.icon}</div>
-          <div className="trust-text">
-            <div className="trust-title">{item.title}</div>
-            <div className="trust-sub">{item.sub}</div>
-          </div>
+    <div style={{ background: "white", borderTop: "1px solid var(--gray-200)", borderBottom: "1px solid var(--gray-200)", margin: "6px 0" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 0 }}>
+          {items.map((item, i) => (
+            <div key={item.title} style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "18px 16px",
+              borderRight: i < items.length - 1 ? "1px solid var(--gray-200)" : "none",
+            }}>
+              <div style={{ color: "var(--primary)", flexShrink: 0 }}>{item.icon}</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gray-900)", lineHeight: 1.2 }}>{item.title}</div>
+                <div style={{ fontSize: 11, color: "var(--gray-500)", marginTop: 2 }}>{item.sub}</div>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════
+/* ═══════════════════════════════════
    MARQUEE
-══════════════════════════════════════════════ */
+═══════════════════════════════════ */
 function Marquee() {
   const items = [
-    "Free Delivery on Orders over M500", "100% Authentic Products",
-    "Secure & Encrypted Checkout", "7-Day Easy Returns",
-    "Premium Gift Packaging", "Lesotho's Finest Boutique",
-    "New Collections Weekly", "Exclusive Member Rewards",
+    "Free Delivery on Orders over M500",
+    "100% Authentic Products",
+    "Secure & Encrypted Checkout",
+    "7-Day Easy Returns",
+    "Premium Gift Packaging",
+    "Lesotho's Finest Boutique",
+    "New Collections Weekly",
+    "Exclusive Member Rewards",
   ];
   return (
-    <div className="marquee-bar">
-      <div className="marquee-track">
-        {[...items, ...items, ...items].map((t, i) => (
-          <span key={i} className="marquee-item">
-            <svg width="5" height="5" viewBox="0 0 10 10" fill="#c8a75a" stroke="none">
-              <polygon points="5 0 6.12 3.38 9.51 3.45 6.97 5.56 7.94 9 5 7.02 2.06 9 3.03 5.56 0.49 3.45 3.88 3.38"/>
-            </svg>
+    <div style={{ background: "var(--primary)", overflow: "hidden", height: 40, display: "flex", alignItems: "center" }}>
+      <style>{`
+        @keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+      `}</style>
+      <div style={{
+        display: "flex",
+        gap: 0,
+        whiteSpace: "nowrap",
+        animation: "marquee 28s linear infinite",
+        willChange: "transform",
+      }}>
+        {[...items, ...items, ...items, ...items].map((t, i) => (
+          <span key={i} style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.8)", padding: "0 28px", display: "flex", alignItems: "center", gap: 10 }}>
+            <svg width="5" height="5" viewBox="0 0 10 10" fill="#c8a75a" stroke="none"><polygon points="5 0 6.12 3.38 9.51 3.45 6.97 5.56 7.94 9 5 7.02 2.06 9 3.03 5.56 0.49 3.45 3.88 3.38"/></svg>
             {t}
           </span>
         ))}
@@ -606,782 +1071,465 @@ function Marquee() {
   );
 }
 
-/* ══════════════════════════════════════════════
-   MAIN PAGE
-══════════════════════════════════════════════ */
-const ROTATE_MS = 6000;
+/* ═══════════════════════════════════
+   CATEGORY IMAGE GRID (Amazon/Jumia style)
+═══════════════════════════════════ */
+interface SubCat { key: string; label: string; href: string; image?: string | null; }
 
-export default function HomePage() {
-  const router = useRouter();
-  const [pool, setPool]         = useState<HP[]>([]);
-  const [offset, setOffset]     = useState(0);
-  const [cardsVisible, setCardsVisible] = useState(true);
-  const [sections, setSections] = useState<Section[]>([]);
-  const [heroLoad, setHeroLoad] = useState(true);
-  const [secLoad, setSecLoad]   = useState(true);
-  const rotateRef               = useRef<ReturnType<typeof setInterval> | null>(null);
+function CategoryImageGrid() {
+  const [loaded, setLoaded] = useState(false);
+  const [beauty, setBeauty] = useState<{ subcategories?: SubCat[] } | null>(null);
+  const [phones, setPhones] = useState<{ subcategories?: SubCat[] } | null>(null);
 
-  /* ── Fetch random hero products ── */
   useEffect(() => {
-    // Only exclude low-visual accessories — smartphones & beauty products make great hero cards
-    const EXCLUDE_KEYWORDS = [
-      "charger","cable","power bank","powerbank","adapter","case for","screen protector",
-      "sim card","sim tray","stylus","usb hub",
-    ];
-    function isHeroWorthy(p: HP): boolean {
-      if (!resolveImg(p.main_image)) return false;
-      const haystack = [p.category, p.title, (p as any).main_category].filter(Boolean).join(" ").toLowerCase();
-      return !EXCLUDE_KEYWORDS.some(kw => haystack.includes(kw));
-    }
-    async function fetchPool() {
-      try {
-        const res = await fetch(`${API}/api/products/random?count=40&with_images=true&diverse=true`);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        const filtered = (data.products ?? []).filter(isHeroWorthy);
-        setPool(filtered.length >= 5 ? filtered : (data.products ?? []).filter((p: HP) => p.main_image));
-      } catch {
-        try {
-          const res = await fetch(`${API}/api/products?per_page=40&in_stock=true`);
-          const data = await res.json();
-          const all = (data.results ?? []).filter((p: HP) => p.main_image);
-          const filtered = all.filter(isHeroWorthy);
-          setPool(shuffle(filtered.length >= 5 ? filtered : all));
-        } catch {}
-      } finally { setHeroLoad(false); }
-    }
-    fetchPool();
+    Promise.all([
+      categoriesApi.getWithImages?.("beauty").catch(() => null),
+      categoriesApi.getWithImages?.("phones").catch(() => null),
+    ]).then(([b, p]) => {
+      if (b) setBeauty(b);
+      if (p) setPhones(p);
+      setLoaded(true);
+    });
   }, []);
 
-  /* ── Auto-rotate ── */
-  useEffect(() => {
-    if (pool.length < 2) return;
-    rotateRef.current = setInterval(() => {
-      setCardsVisible(false);
-      setTimeout(() => {
-        setOffset(prev => { const next = prev + 5; return next + 5 > pool.length ? 0 : next; });
-        setTimeout(() => setCardsVisible(true), 60);
-      }, 450);
-    }, ROTATE_MS);
-    return () => { if (rotateRef.current) clearInterval(rotateRef.current); };
-  }, [pool.length]);
+  const BEAUTY_SUBS_FALLBACK: SubCat[] = [
+    { key: "moisturizer", label: "Moisturiser", href: "/store?category=moisturizer" },
+    { key: "sunscreen", label: "Sunscreen", href: "/store?category=sunscreen" },
+    { key: "face_wash", label: "Face Wash", href: "/store?category=face_wash" },
+    { key: "serum", label: "Serum", href: "/store?category=serum" },
+    { key: "body_lotion", label: "Body Lotion", href: "/store?category=body_lotion" },
+    { key: "face_mask", label: "Face Mask", href: "/store?category=face_mask" },
+    { key: "eye_mask", label: "Eye Mask", href: "/store?category=eye_mask" },
+    { key: "anti_acne", label: "Anti-Acne", href: "/store?category=anti_acne" },
+    { key: "skin_brightening", label: "Brightening", href: "/store?category=skin_brightening" },
+    { key: "collagen", label: "Collagen", href: "/store?category=collagen" },
+    { key: "skin_natural_oils", label: "Natural Oils", href: "/store?category=skin_natural_oils" },
+    { key: "herbal_oils", label: "Herbal Oils", href: "/store?category=herbal_oils" },
+    { key: "anti_wrinkles", label: "Anti-Wrinkle", href: "/store?category=anti_wrinkles" },
+    { key: "body_wash", label: "Body Wash", href: "/store?category=body_wash" },
+    { key: "exfoliator", label: "Exfoliator", href: "/store?category=exfoliator" },
+    { key: "lip_mask", label: "Lip Mask", href: "/store?category=lip_mask" },
+  ];
 
-  /* ── Fetch sections ── */
-  useEffect(() => {
-    fetch(`${API}/api/homepage/sections`)
-      .then(r => r.json())
-      .then(d => setSections(d.sections ?? []))
-      .catch(() => setSections([]))
-      .finally(() => setSecLoad(false));
-  }, []);
+  const PHONE_SUBS_FALLBACK: SubCat[] = [
+    { key: "samsung", label: "Samsung", href: "/store?category=samsung" },
+    { key: "apple", label: "Apple", href: "/store?category=apple" },
+    { key: "xiaomi", label: "Xiaomi", href: "/store?category=xiaomi" },
+    { key: "motorola", label: "Motorola", href: "/store?category=motorola" },
+    { key: "oneplus", label: "OnePlus", href: "/store?category=oneplus" },
+    { key: "google", label: "Google Pixel", href: "/store?category=google" },
+    { key: "realme", label: "Realme", href: "/store?category=realme" },
+  ];
 
-  const visible   = pool.length > 0 ? pool.slice(offset, Math.min(offset + 5, pool.length)) : [];
-  const heroBig   = visible[0] as HP | undefined;
-  const heroSmall = visible.slice(1, 5) as HP[];
-  const totalDots = Math.min(Math.ceil(pool.length / 5), 12);
-  const currentDot = Math.floor(offset / 5);
+  const beautySubs = (beauty?.subcategories?.length ? beauty.subcategories : BEAUTY_SUBS_FALLBACK);
+  const phoneSubs  = (phones?.subcategories?.length  ? phones.subcategories  : PHONE_SUBS_FALLBACK);
 
   return (
-    <div className="page-root">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
-        :root{
-          --primary:#0f3f2f;--primary-dark:#061a10;--primary-light:#1b5e4a;
-          --gold:#c8a75a;--gold-light:#d4b976;
-          --text:#1a1a1a;--text-muted:#64655e;--text-light:#9e9d97;
-          --border:#e5e3de;--bg:#f7f6f3;--white:#ffffff;
-          --shadow-sm:0 1px 4px rgba(0,0,0,0.07);
-          --shadow-md:0 4px 16px rgba(0,0,0,0.08);
-          --shadow-lg:0 8px 32px rgba(0,0,0,0.10);
-        }
-        ::-webkit-scrollbar{width:4px;height:3px}
-        ::-webkit-scrollbar-thumb{background:var(--primary);border-radius:4px}
-        ::-webkit-scrollbar-track{background:transparent}
-        @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
-        @keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
-        @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-33.333%)}}
-        @keyframes goldPulse{0%,100%{opacity:1}50%{opacity:0.6}}
-        @keyframes fadeInUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
-
-        .shimbox{
-          background:linear-gradient(90deg,#ebebea 0%,#d9d8d5 50%,#ebebea 100%);
-          background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite;
-        }
-        .page-root{
-          min-height:100vh;background:var(--bg);
-          font-family:'DM Sans',system-ui,sans-serif;color:var(--text);
-        }
-
-        /* ══════════════════════════════════════════════
-           HERO SECTION — Editorial Split Layout
-        ══════════════════════════════════════════════ */
-        @keyframes floatIn{from{opacity:0;transform:translateY(30px) scale(0.98)}to{opacity:1;transform:none}}
-        @keyframes slideRight{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
-        @keyframes lineDraw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-        @keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 rgba(200,167,90,0)}50%{box-shadow:0 0 32px 4px rgba(200,167,90,0.18)}}
-
-        .hero-section{
-          display:grid;
-          grid-template-columns:380px 1fr;
-          min-height:460px;
-          background:#050e08;
-          position:relative;
-          overflow:hidden;
-        }
-        /* Layered ambient light effect */
-        .hero-section::before{
-          content:'';position:absolute;inset:0;
-          background:
-            radial-gradient(ellipse 55% 100% at 0% 50%, rgba(200,167,90,0.06) 0%, transparent 55%),
-            radial-gradient(ellipse 70% 60% at 100% 0%, rgba(15,63,47,0.35) 0%, transparent 60%),
-            radial-gradient(ellipse 50% 70% at 60% 100%, rgba(6,26,16,0.8) 0%, transparent 50%);
-          pointer-events:none;z-index:0;
-        }
-        /* Noise texture for depth */
-        .hero-section::after{
-          content:'';position:absolute;inset:0;
-          background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-          pointer-events:none;z-index:0;opacity:0.6;
-        }
-        .hero-divider{
-          position:absolute;left:380px;top:10%;bottom:10%;
-          width:1px;
-          background:linear-gradient(to bottom,transparent,rgba(200,167,90,0.25) 20%,rgba(200,167,90,0.4) 50%,rgba(200,167,90,0.25) 80%,transparent);
-          z-index:5;pointer-events:none;
-        }
-
-        /* ── BRAND PANEL ── */
-        .hero-brand{
-          position:relative;z-index:2;
-          padding:36px 32px 32px;
-          display:flex;flex-direction:column;
-          justify-content:space-between;
-          gap:0;
-        }
-        .hero-brand-top{display:flex;flex-direction:column;}
-        .hero-eyebrow{
-          display:flex;align-items:center;gap:10px;
-          font-size:9px;font-weight:700;
-          color:rgba(200,167,90,0.55);
-          letter-spacing:3px;text-transform:uppercase;
-          margin-bottom:20px;
-          animation:slideRight 0.6s ease both;
-        }
-        .hero-eyebrow-line{
-          height:1px;flex:1;max-width:32px;
-          background:linear-gradient(to right,rgba(200,167,90,0.4),transparent);
-          transform-origin:left;animation:lineDraw 0.6s ease 0.2s both;
-        }
-        .hero-monogram{
-          font-family:'Cormorant Garamond',serif;
-          font-size:clamp(56px,7vw,80px);
-          font-weight:700;
-          color:transparent;
-          background:linear-gradient(135deg,rgba(200,167,90,0.9) 0%,rgba(212,185,118,0.5) 50%,rgba(200,167,90,0.3) 100%);
-          -webkit-background-clip:text;
-          background-clip:text;
-          line-height:0.9;
-          letter-spacing:-4px;
-          margin-bottom:10px;
-          display:block;
-          animation:floatIn 0.8s cubic-bezier(0.16,1,0.3,1) 0.05s both;
-        }
-        .hero-store-name{
-          font-family:'Cormorant Garamond',serif;
-          font-size:clamp(26px,3.2vw,38px);
-          font-weight:600;
-          color:#fff;
-          line-height:1.1;
-          letter-spacing:-0.5px;
-          margin-bottom:12px;
-          animation:floatIn 0.8s cubic-bezier(0.16,1,0.3,1) 0.12s both;
-        }
-        .hero-tagline{
-          font-size:12.5px;
-          color:rgba(255,255,255,0.38);
-          font-weight:400;
-          letter-spacing:0.3px;
-          line-height:1.7;
-          animation:floatIn 0.8s ease 0.22s both;
-        }
-        .hero-location{
-          display:inline-flex;align-items:center;gap:5px;
-          font-size:9.5px;font-weight:700;
-          color:rgba(200,167,90,0.5);
-          letter-spacing:1.5px;text-transform:uppercase;
-          margin-top:10px;
-          animation:floatIn 0.7s ease 0.28s both;
-        }
-        .hero-separator{
-          width:0;height:1px;
-          background:linear-gradient(to right,rgba(200,167,90,0.7),rgba(200,167,90,0.1));
-          margin:20px 0 0;
-          animation:lineDraw 0.8s ease 0.35s forwards;
-          transform-origin:left;
-        }
-        /* CTA buttons */
-        .hero-ctas{
-          display:flex;flex-direction:column;gap:10px;
-          animation:floatIn 0.7s ease 0.4s both;
-          margin-top:24px;
-        }
-        .hero-btn-primary{
-          display:flex;align-items:center;justify-content:space-between;gap:8px;
-          background:linear-gradient(135deg,#c8a75a,#b8973e);
-          color:#fff;
-          padding:14px 22px;
-          font-size:12.5px;font-weight:800;
-          text-decoration:none;letter-spacing:0.5px;text-transform:uppercase;
-          transition:all 0.25s ease;
-          position:relative;overflow:hidden;
-          animation:glowPulse 3s ease 1.5s infinite;
-        }
-        .hero-btn-primary::before{
-          content:'';position:absolute;inset:0;
-          background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent);
-          pointer-events:none;
-        }
-        .hero-btn-primary:hover{
-          transform:translateY(-2px);
-          box-shadow:0 8px 32px rgba(200,167,90,0.5);
-          filter:brightness(1.08);
-        }
-        .hero-btn-ghost{
-          display:flex;align-items:center;justify-content:space-between;gap:8px;
-          border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);
-          padding:12px 22px;
-          font-size:12px;font-weight:600;
-          text-decoration:none;letter-spacing:0.4px;text-transform:uppercase;
-          transition:all 0.25s ease;
-          background:rgba(255,255,255,0.03);
-        }
-        .hero-btn-ghost:hover{
-          border-color:rgba(200,167,90,0.45);
-          color:var(--gold);
-          background:rgba(200,167,90,0.05);
-        }
-        .hero-stats{
-          display:flex;gap:0;
-          margin-top:20px;
-          border-top:1px solid rgba(255,255,255,0.05);
-          padding-top:18px;
-          animation:floatIn 0.7s ease 0.48s both;
-        }
-        .hero-stat-item{
-          flex:1;text-align:center;
-          padding:0 8px;
-          border-right:1px solid rgba(255,255,255,0.05);
-        }
-        .hero-stat-item:last-child{border-right:none;}
-        .hero-stat-num{
-          font-family:'Cormorant Garamond',serif;
-          font-size:24px;font-weight:700;
-          color:var(--gold);line-height:1;
-          letter-spacing:-0.5px;
-        }
-        .hero-stat-lbl{
-          font-size:8.5px;font-weight:600;
-          color:rgba(255,255,255,0.25);
-          text-transform:uppercase;letter-spacing:1px;
-          margin-top:3px;
-        }
-        .hero-dots-panel{
-          display:flex;align-items:center;gap:6px;
-          margin-top:14px;
-          animation:floatIn 0.7s ease 0.52s both;
-        }
-        .hero-dot-btn{
-          border:none;cursor:pointer;
-          background:rgba(255,255,255,0.15);
-          border-radius:2px;height:2px;padding:0;
-          transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1);
-        }
-        .hero-dot-btn.active{background:var(--gold);}
-        .hero-dot-btn:hover{background:rgba(200,167,90,0.5);}
-
-        /* ── PRODUCT MOSAIC ── */
-        .hero-mosaic{
-          position:relative;z-index:1;
-          display:grid;
-          grid-template-columns:1.7fr 1fr 1fr;
-          grid-template-rows:230px 200px;
-          gap:3px;
-          background:rgba(0,0,0,0.6);
-          overflow:hidden;
-        }
-        .hero-mosaic::after{
-          content:'✦  NEW ARRIVALS';
-          position:absolute;top:20px;right:20px;
-          font-size:8.5px;font-weight:800;letter-spacing:2.5px;
-          color:rgba(255,255,255,0.9);
-          background:linear-gradient(135deg,rgba(200,167,90,0.95),rgba(184,151,62,0.95));
-          padding:5px 12px;
-          z-index:10;pointer-events:none;
-          backdrop-filter:blur(4px);
-        }
-
-        /* ── CARD BASE ── */
-        .hcard{
-          position:relative;overflow:hidden;cursor:pointer;
-          background:#0d1f14;width:100%;height:100%;display:block;
-        }
-        .hcard-large{grid-column:1;grid-row:1 / span 2;}
-        .hcard-normal{grid-column:auto;grid-row:auto;}
-        .hcard-inner{position:relative;width:100%;height:100%;overflow:hidden;background:#0d1f14;}
-        .hcard-img-box{
-          position:absolute;inset:0;
-          display:flex;align-items:center;justify-content:center;
-          padding:10px;
-          transition:transform 0.7s cubic-bezier(0.16,1,0.3,1);
-        }
-        .hcard:hover .hcard-img-box{transform:scale(1.08);}
-        .hcard-img{width:100%;height:100%;object-fit:contain;object-position:center;display:block;}
-        .hcard-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#0d1f14;}
-        .hcard-gradient{
-          position:absolute;inset:0;
-          background:
-            linear-gradient(to top,rgba(3,8,5,0.97) 0%,rgba(3,8,5,0.6) 25%,rgba(3,8,5,0.15) 50%,transparent 70%),
-            linear-gradient(to right,rgba(3,8,5,0.2) 0%,transparent 40%);
-          z-index:2;pointer-events:none;
-        }
-        .hcard-badges{position:absolute;top:12px;left:12px;z-index:4;}
-        .badge-off{
-          display:inline-flex;align-items:center;
-          background:linear-gradient(135deg,#e63946,#c0392b);
-          color:#fff;font-size:9px;font-weight:900;
-          padding:3px 9px;letter-spacing:0.5px;
-          clip-path:polygon(0 0,100% 0,95% 100%,0 100%);
-        }
-        .hcard-info{position:absolute;bottom:0;left:0;right:0;padding:14px 16px 16px;z-index:3;}
-        .hcard-cat{
-          font-size:8px;font-weight:700;
-          color:rgba(200,167,90,0.65);
-          text-transform:uppercase;letter-spacing:2px;
-          display:block;margin-bottom:4px;
-        }
-        .hcard-title{
-          font-size:11px;font-weight:500;color:rgba(255,255,255,0.85);
-          line-height:1.35;margin-bottom:6px;
-          display:-webkit-box;-webkit-line-clamp:2;
-          -webkit-box-orient:vertical;overflow:hidden;
-        }
-        .hcard-large .hcard-title{
-          font-family:'Cormorant Garamond',serif;
-          font-size:clamp(15px,1.9vw,21px);font-weight:600;
-          -webkit-line-clamp:3;color:#fff;letter-spacing:-0.2px;
-        }
-        .hcard-price-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-        .hcard-price{
-          font-size:13px;font-weight:800;
-          color:var(--gold);
-          text-shadow:0 0 20px rgba(200,167,90,0.4);
-        }
-        .hcard-large .hcard-price{font-size:17px;}
-        .hcard-old{font-size:10px;color:rgba(255,255,255,0.2);text-decoration:line-through;}
-        .hcard-star{
-          display:inline-flex;align-items:center;gap:3px;
-          font-size:10px;color:#f5c842;margin-left:auto;font-weight:700;
-        }
-        .hcard-cta{
-          position:absolute;inset:0;
-          display:flex;align-items:center;justify-content:center;gap:8px;
-          background:linear-gradient(to top,rgba(3,8,5,0.7),rgba(15,63,47,0.4));
-          color:#fff;font-size:11.5px;font-weight:700;
-          letter-spacing:0.8px;text-transform:uppercase;
-          opacity:0;transition:opacity 0.28s ease;
-          z-index:5;backdrop-filter:blur(3px);
-        }
-        .hcard:hover .hcard-cta{opacity:1;}
-        /* Top border glow on hover */
-        .hcard::after{
-          content:'';position:absolute;top:0;left:0;right:0;
-          height:2px;
-          background:linear-gradient(90deg,transparent,rgba(200,167,90,0.8),transparent);
-          opacity:0;transition:opacity 0.3s ease;z-index:6;
-        }
-        .hcard:hover::after{opacity:1;}
-
-        /* ── RESPONSIVE HERO ── */
-        @media(max-width:960px){
-          .hero-section{grid-template-columns:1fr;min-height:auto;}
-          .hero-divider{display:none;}
-          .hero-brand{
-            padding:28px 24px 22px;
-            flex-direction:row;flex-wrap:wrap;
-            align-items:center;gap:16px;
-          }
-          .hero-brand-top{flex:1;min-width:220px;}
-          .hero-monogram{font-size:52px;}
-          .hero-store-name{font-size:24px;}
-          .hero-tagline{display:none;}
-          .hero-separator{display:none;}
-          .hero-ctas{flex-direction:row;flex-wrap:wrap;margin-top:16px;}
-          .hero-stats{display:none;}
-          .hero-mosaic{
-            grid-template-columns:1fr 1fr;
-            grid-template-rows:210px 165px;
-            gap:2px;
-          }
-          .hcard-large{grid-column:span 2;grid-row:1;}
-          .catgrid-tiles-beauty{grid-template-columns:repeat(5,1fr);}
-          .catgrid-tiles-phones{grid-template-columns:repeat(4,1fr);}
-        }
-        @media(max-width:640px){
-          .hero-section{grid-template-columns:1fr;}
-          .hero-brand{padding:20px 16px 16px;}
-          .hero-monogram{font-size:44px;}
-          .hero-mosaic{
-            grid-template-columns:1fr 1fr;
-            grid-template-rows:185px 145px 145px;
-            gap:2px;
-          }
-          .hero-ctas .hero-btn-ghost{display:none;}
-          .hero-stats{display:none;}
-          .catgrid-tiles-beauty{grid-template-columns:repeat(4,1fr);}
-          .catgrid-tiles-phones{grid-template-columns:repeat(4,1fr);}
-          .catgrid-title{font-size:16px;}
-        }
-
-        /* ── MARQUEE ── */
-        .marquee-bar{background:linear-gradient(90deg,var(--primary),var(--primary-light));overflow:hidden;}
-        .marquee-track{display:flex;width:300%;animation:marquee 36s linear infinite;}
-        .marquee-item{
-          display:inline-flex;align-items:center;gap:9px;
-          padding:9px 24px;white-space:nowrap;flex-shrink:0;
-          font-size:10px;font-weight:600;letter-spacing:1px;
-          text-transform:uppercase;color:rgba(255,255,255,0.9);
-        }
-
-        /* ══════════════════════════════════════════════
-           CATEGORY IMAGE GRID
-        ══════════════════════════════════════════════ */
-        .catgrid-wrap{
-          background:var(--bg);
-        }
-        .catgrid-section{
-          padding:32px 0;
-          border-bottom:1px solid rgba(0,0,0,0.06);
-        }
-        .catgrid-section-dark{
-          background:linear-gradient(180deg,#f9faf8 0%,#f5f7f5 100%);
-        }
-        .catgrid-header{
-          max-width:1400px;margin:0 auto;
-          padding:0 clamp(16px,4vw,40px) 20px;
-          display:flex;align-items:center;justify-content:space-between;
-        }
-        .catgrid-header-left{display:flex;align-items:center;gap:12px;}
-        .catgrid-pill{
-          font-size:10px;font-weight:700;
-          letter-spacing:1.5px;text-transform:uppercase;
-          color:var(--primary);
-          background:rgba(15,63,47,0.08);
-          padding:4px 10px;border-radius:30px;white-space:nowrap;
-        }
-        .catgrid-pill-blue{color:#1428A0;background:rgba(20,40,160,0.08);}
-        .catgrid-title{
-          font-family:'Cormorant Garamond',serif;
-          font-size:clamp(18px,2.5vw,26px);font-weight:700;
-          color:var(--text);letter-spacing:-0.3px;margin:0;line-height:1;
-        }
-        .catgrid-view-all{
-          display:flex;align-items:center;gap:5px;
-          font-size:13px;font-weight:600;color:var(--primary);text-decoration:none;
-          border:1px solid rgba(15,63,47,0.2);padding:7px 14px;border-radius:20px;
-          transition:all 0.2s ease;white-space:nowrap;
-        }
-        .catgrid-view-all:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
-        .catgrid-tiles{
-          max-width:1400px;margin:0 auto;
-          padding:0 clamp(16px,4vw,40px);
-          display:grid;gap:12px;
-        }
-        .catgrid-tiles-beauty{grid-template-columns:repeat(8,1fr);}
-        .catgrid-tiles-phones{grid-template-columns:repeat(8,1fr);}
-
-        .cattile{
-          text-decoration:none;
-          display:flex;flex-direction:column;align-items:center;gap:8px;
-          transition:transform 0.25s ease;
-        }
-        .cattile:hover{transform:translateY(-3px);}
-        .cattile-label{
-          font-size:12px;font-weight:600;color:var(--text);
-          text-align:center;line-height:1.3;
-        }
-        .cattile-beauty .cattile-img-wrap{
-          width:100%;aspect-ratio:1;background:#fff;border-radius:50%;overflow:hidden;
-          border:2px solid var(--border);
-          box-shadow:0 2px 8px rgba(0,0,0,0.06);
-          transition:border-color 0.25s ease,box-shadow 0.25s ease;
-          display:flex;align-items:center;justify-content:center;padding:6px;
-        }
-        .cattile-beauty:hover .cattile-img-wrap{
-          border-color:rgba(200,167,90,0.5);
-          box-shadow:0 6px 20px rgba(200,167,90,0.2);
-        }
-        .cattile-img{width:100%;height:100%;object-fit:contain;display:block;}
-        .cattile-phone .cattile-phone-img-wrap{
-          width:100%;aspect-ratio:3/4;border-radius:12px;overflow:hidden;
-          border:1px solid var(--border);
-          box-shadow:0 2px 8px rgba(0,0,0,0.06);
-          transition:box-shadow 0.25s ease,transform 0.25s ease;
-          position:relative;display:flex;align-items:center;justify-content:center;
-          padding:8px;background:#fff;
-        }
-        .cattile-phone:hover .cattile-phone-img-wrap{
-          box-shadow:0 8px 24px rgba(0,0,0,0.12);
-        }
-        .cattile-phone-accent{
-          position:absolute;bottom:0;left:0;right:0;height:3px;opacity:0.7;
-        }
-
-        /* ── TRUST BAR ── */
-        .trust-bar{
-          background:var(--white);
-          border-top:1px solid var(--border);border-bottom:3px solid var(--border);
-          display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-        }
-        .trust-item{
-          display:flex;align-items:center;gap:12px;
-          padding:18px 20px;border-right:1px solid var(--border);
-        }
-        .trust-item:last-child{border-right:none;}
-        .trust-icon-wrap{color:var(--primary);flex-shrink:0;}
-        .trust-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:1px;}
-        .trust-sub{font-size:11px;color:var(--text-muted);}
-
-        /* ── CATEGORY STRIP ── */
-        .cat-strip{background:var(--white);border-bottom:1px solid var(--border);overflow-x:auto;padding:0 clamp(12px,3vw,40px);}
-        .cat-strip::-webkit-scrollbar{height:0;}
-        .cat-strip-inner{display:flex;gap:6px;padding:12px 0;white-space:nowrap;align-items:center;}
-        .cat-pill{
-          display:inline-flex;align-items:center;gap:5px;
-          padding:7px 16px;border:1px solid var(--border);background:var(--white);
-          font-size:12px;font-weight:500;color:var(--text-muted);text-decoration:none;flex-shrink:0;
-          transition:all 0.18s ease;letter-spacing:0.1px;
-        }
-        .cat-pill:hover{border-color:var(--primary);color:var(--primary);background:#f0f7f4;}
-
-        /* ── SECTIONS ── */
-        .sections-wrap{padding-bottom:clamp(32px,5vw,64px);}
-        .section-block{background:var(--white);margin-bottom:6px;}
-        .section-head{
-          display:flex;align-items:center;justify-content:space-between;
-          padding:18px clamp(16px,3vw,28px) 14px;border-bottom:1px solid var(--border);
-        }
-        .section-head-left{display:flex;align-items:center;gap:14px;}
-        .section-accent-bar{width:4px;height:42px;border-radius:2px;flex-shrink:0;}
-        .section-badge{
-          display:inline-block;font-size:8px;font-weight:800;
-          padding:3px 9px;color:#fff;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;
-        }
-        .section-title{
-          font-family:'Cormorant Garamond',serif;
-          font-size:clamp(18px,2.5vw,24px);font-weight:600;
-          color:var(--text);letter-spacing:-0.3px;line-height:1.2;
-        }
-        .section-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
-        .view-all-link{
-          display:inline-flex;align-items:center;gap:6px;
-          font-size:12px;font-weight:700;text-decoration:none;
-          padding:8px 18px;border:1.5px solid;
-          transition:all 0.18s ease;white-space:nowrap;
-          letter-spacing:0.3px;text-transform:uppercase;
-        }
-        .view-all-link:hover{color:#fff !important;background:currentColor;}
-        .section-scroll-wrap{position:relative;}
-        .section-scroll{
-          display:flex;gap:2px;overflow-x:auto;
-          padding:12px clamp(16px,3vw,28px);
-          scroll-behavior:smooth;background:var(--bg);
-        }
-        .section-scroll::-webkit-scrollbar{height:0;}
-        .scroll-btn{
-          position:absolute;top:50%;transform:translateY(-50%);
-          width:32px;height:52px;background:var(--white);border:1px solid var(--border);
-          box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;
-          cursor:pointer;z-index:10;color:var(--text-muted);transition:all 0.18s ease;
-        }
-        .scroll-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
-        .scroll-btn-l{left:0;}.scroll-btn-r{right:0;}
-
-        /* ── SECTION CARDS ── */
-        .scard{
-          width:190px;flex-shrink:0;background:var(--white);cursor:pointer;
-          border:1px solid transparent;transition:all 0.22s ease;
-          animation:scaleIn 0.45s ease both;position:relative;
-        }
-        .scard:hover{border-color:rgba(15,63,47,0.25);box-shadow:0 6px 24px rgba(15,63,47,0.10);z-index:2;transform:translateY(-2px);}
-        .scard-img-wrap{position:relative;height:190px;background:#f4f3f0;overflow:hidden;}
-        .scard-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.45s ease;}
-        .scard:hover .scard-img{transform:scale(1.07);}
-        .scard-no-img{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#ece9e4;}
-        .scard-badge{position:absolute;top:8px;left:8px;font-size:9px;font-weight:800;color:#fff;padding:2px 8px;z-index:3;letter-spacing:0.3px;}
-        .scard-soldout{position:absolute;top:8px;right:8px;font-size:9px;font-weight:600;background:rgba(0,0,0,0.6);color:#fff;padding:2px 7px;z-index:3;}
-        .scard-hover-overlay{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px;z-index:4;opacity:0;transition:opacity 0.22s ease;}
-        .scard:hover .scard-hover-overlay{opacity:1;}
-        .scard-view-btn{display:inline-flex;align-items:center;gap:6px;color:#fff;font-size:10px;font-weight:700;padding:7px 16px;letter-spacing:0.4px;text-transform:uppercase;transform:translateY(6px);transition:transform 0.22s ease;}
-        .scard:hover .scard-view-btn{transform:translateY(0);}
-        .scard-info{padding:10px 12px 14px;}
-        .scard-brand{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;}
-        .scard-title{font-size:12px;color:var(--text);line-height:1.4;margin-bottom:8px;font-weight:400;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:33px;}
-        .scard-footer{display:flex;align-items:flex-end;justify-content:space-between;gap:6px;}
-        .scard-prices{display:flex;flex-direction:column;gap:1px;}
-        .scard-price{font-size:14px;font-weight:800;color:var(--text);}
-        .scard-compare{font-size:10px;color:var(--text-light);text-decoration:line-through;}
-        .scard-rating{display:flex;gap:1px;align-items:center;}
-        .see-more-card{width:140px;flex-shrink:0;background:var(--white);border:2px dashed #d6d4cf;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-decoration:none;padding:24px 16px;transition:all 0.2s ease;cursor:pointer;}
-        .see-more-card:hover{background:var(--bg);}
-        .see-more-circle{width:44px;height:44px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;}
-        .see-more-label{font-size:10px;font-weight:700;text-align:center;line-height:1.5;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);}
-        .empty-sections{text-align:center;padding:80px 20px;background:var(--white);margin:6px 0;}
-        .empty-sections p{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text-muted);}
-      `}</style>
-
-      {/* ══════════════════════════════════════════════
-          HERO SECTION — Editorial Split Layout
-      ══════════════════════════════════════════════ */}
-      <div className="hero-section">
-        {/* Vertical gold divider */}
-        <div className="hero-divider" />
-
-        {/* LEFT: Brand Identity Panel */}
-        <div className="hero-brand">
-          <div className="hero-brand-top">
-            {/* Eyebrow */}
-            <div className="hero-eyebrow">
-              <div className="hero-eyebrow-line" />
-              Est. Lesotho
-              <div className="hero-eyebrow-line" />
+    <div style={{ background: "var(--gray-50)" }}>
+      {/* Beauty */}
+      <div style={{ background: "white", margin: "6px 0", padding: "24px 0 20px" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ background: "var(--primary)", color: "white", fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", padding: "3px 10px", borderRadius: 20 }}>Beauty</span>
+              <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.3 }}>Beauty &amp; Personal Care</h2>
             </div>
-
-            {/* Gradient monogram */}
-            <span className="hero-monogram">K</span>
-
-            {/* Store name */}
-            <div className="hero-store-name">
-              Karabo&apos;s<br/>Store
-            </div>
-
-            {/* Tagline */}
-            <div className="hero-tagline">
-              Premium fashion &amp; beauty,<br/>
-              curated for elegance &amp; confidence.
-            </div>
-
-            {/* Location */}
-            <div className="hero-location">
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-              </svg>
-              Lesotho
-            </div>
-
-            {/* Animated gold line */}
-            <div className="hero-separator" />
+            <Link href="/store?main_cat=beauty" style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}>
+              View All →
+            </Link>
           </div>
-
-          {/* CTA Buttons + Stats */}
-          <div>
-            <div className="hero-ctas">
-              <Link href="/store" className="hero-btn-primary">
-                <span>Shop Collection</span>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-                </svg>
-              </Link>
-              <Link href="/store?sort=discount" className="hero-btn-ghost">
-                <span>View Deals</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              </Link>
-            </div>
-
-            {/* Stats */}
-            {!heroLoad && pool.length > 0 && (
-              <div className="hero-stats">
-                <div className="hero-stat-item">
-                  <div className="hero-stat-num">{pool.length}+</div>
-                  <div className="hero-stat-lbl">Products</div>
-                </div>
-                <div className="hero-stat-item">
-                  <div className="hero-stat-num">100%</div>
-                  <div className="hero-stat-lbl">Authentic</div>
-                </div>
-                <div className="hero-stat-item">
-                  <div className="hero-stat-num">M500+</div>
-                  <div className="hero-stat-lbl">Free Ship</div>
-                </div>
-              </div>
-            )}
-
-            {/* Rotation dots */}
-            {!heroLoad && pool.length >= 5 && (
-              <div className="hero-dots-panel">
-                {Array.from({ length: totalDots }).map((_, i) => (
-                  <button
-                    key={i}
-                    className={`hero-dot-btn ${i === currentDot ? "active" : ""}`}
-                    style={{ width: i === currentDot ? 26 : 7 }}
-                    onClick={() => {
-                      setCardsVisible(false);
-                      setTimeout(() => {
-                        setOffset(i * 5);
-                        setTimeout(() => setCardsVisible(true), 60);
-                      }, 400);
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 8 }}>
+            {!loaded
+              ? Array.from({ length: 16 }).map((_, i) => (
+                  <div key={i} className="shimbox" style={{ height: 110, borderRadius: 10 }} />
+                ))
+              : beautySubs.slice(0, 16).map(sub => (
+                  <Link key={sub.key} href={sub.href} style={{ textDecoration: "none", display: "block" }}>
+                    <div style={{
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      border: "1px solid var(--gray-200)",
+                      transition: "box-shadow 0.2s, transform 0.2s",
+                      background: "white",
                     }}
-                    aria-label={`Group ${i + 1}`}
-                  />
-                ))}
-              </div>
-            )}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
+                    >
+                      {sub.image ? (
+                        <img src={optimizeImg(sub.image)!} alt={sub.label} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} loading="lazy" />
+                      ) : (
+                        <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>
+                          💄
+                        </div>
+                      )}
+                      <div style={{ padding: "6px 8px 8px", fontSize: 11, fontWeight: 600, color: "var(--gray-800)", textAlign: "center", lineHeight: 1.2 }}>{sub.label}</div>
+                    </div>
+                  </Link>
+                ))
+            }
           </div>
-        </div>
-
-        {/* RIGHT: Product Mosaic */}
-        <div className="hero-mosaic">
-          {heroLoad ? (
-            <HeroSkeleton />
-          ) : visible.length >= 1 ? (
-            <>
-              <HeroCard p={heroBig!} size="large" index={0} visible={cardsVisible}
-                onClick={() => router.push(`/store/product/${heroBig!.id}`)} />
-              {heroSmall.map((p, i) => (
-                <HeroCard key={p.id} p={p} size="normal" index={i + 1} visible={cardsVisible}
-                  onClick={() => router.push(`/store/product/${p.id}`)} />
-              ))}
-            </>
-          ) : !heroLoad && pool.length === 0 ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
-              gridColumn: "1 / -1", color: "rgba(255,255,255,0.18)", fontSize: 13, letterSpacing: "0.5px" }}>
-              Add products to get started
-            </div>
-          ) : (
-            <HeroSkeleton />
-          )}
         </div>
       </div>
 
-      {/* MARQUEE */}
-      <Marquee />
+      {/* Phones */}
+      <div style={{ background: "#0d1b2a", margin: "6px 0", padding: "24px 0 20px" }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ background: "#2563eb", color: "white", fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", padding: "3px 10px", borderRadius: 20 }}>Phones</span>
+              <h2 style={{ fontSize: 17, fontWeight: 900, color: "white", margin: 0, letterSpacing: -0.3 }}>Cell Phones &amp; Accessories</h2>
+            </div>
+            <Link href="/store?main_cat=phones" style={{ fontSize: 12, fontWeight: 700, color: "#7eb8ff", textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}>
+              View All →
+            </Link>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(phoneSubs.length + 1, 8)}, 1fr)`, gap: 10 }}>
+            {!loaded
+              ? Array.from({ length: 7 }).map((_, i) => (
+                  <div key={i} className="shimbox" style={{ height: 120, borderRadius: 10 }} />
+                ))
+              : [...phoneSubs, { key: "all", label: "All Phones", href: "/store?main_cat=phones", image: null }].map(sub => (
+                  <Link key={sub.key} href={sub.href} style={{ textDecoration: "none", display: "block" }}>
+                    <div style={{
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "rgba(255,255,255,0.06)",
+                      transition: "background 0.2s, transform 0.2s",
+                    }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.12)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
+                    >
+                      {sub.image ? (
+                        <img src={optimizeImg(sub.image)!} alt={sub.label} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} loading="lazy" />
+                      ) : (
+                        <div style={{ aspectRatio: "1/1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
+                          📱
+                        </div>
+                      )}
+                      <div style={{ padding: "6px 8px 8px", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 1.2 }}>{sub.label}</div>
+                    </div>
+                  </Link>
+                ))
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      {/* TRUST BAR */}
+/* ═══════════════════════════════════
+   JUST FOR YOU — full grid
+═══════════════════════════════════ */
+function JustForYou({ products }: { products: HP[] }) {
+  const router = useRouter();
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold: 0.04 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const display = showAll ? products : products.slice(0, 20);
+  if (products.length === 0) return null;
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{
+        background: "white",
+        margin: "6px 0",
+        padding: "24px 0",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "none" : "translateY(24px)",
+        transition: "opacity 0.6s ease, transform 0.6s ease",
+      }}
+    >
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 4, height: 36, background: "var(--accent)", borderRadius: 2 }} />
+            <div>
+              <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.3 }}>Just For You</h2>
+              <p style={{ fontSize: 12, color: "var(--gray-600)", margin: "2px 0 0" }}>Curated recommendations for Karabo customers</p>
+            </div>
+          </div>
+          <Link href="/store" style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textDecoration: "none", border: "1.5px solid var(--accent)", padding: "6px 16px", borderRadius: 20 }}>
+            See All →
+          </Link>
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+          gap: 12,
+        }}>
+          {display.map((p, i) => {
+            const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price
+              ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null);
+            return (
+              <JFYCard key={p.id} p={p} disc={disc} delay={Math.min(i, 15) * 40} onClick={() => router.push(`/store/product/${p.id}`)} />
+            );
+          })}
+        </div>
+
+        {!showAll && products.length > 20 && (
+          <div style={{ textAlign: "center", marginTop: 24 }}>
+            <button
+              onClick={() => setShowAll(true)}
+              style={{
+                background: "var(--primary)",
+                color: "white",
+                border: "none",
+                padding: "13px 36px",
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+                transition: "background 0.2s, transform 0.2s",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "var(--primary-dark)"; (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "var(--primary)"; (e.currentTarget as HTMLButtonElement).style.transform = "none"; }}
+            >
+              Load More Products
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; delay: number; onClick: () => void }) {
+  const [err, setErr] = useState(false);
+  const [saved, setSaved] = useState(false);
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: "white",
+        border: "1px solid var(--gray-200)",
+        borderRadius: 10,
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "box-shadow 0.2s, transform 0.2s",
+        position: "relative",
+        animationDelay: `${delay}ms`,
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-elevated)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
+    >
+      {disc && disc >= 5 && (
+        <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#c0392b", color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>
+      )}
+      {!p.in_stock && (
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(255,255,255,0.6)", zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--gray-600)", background: "white", border: "1px solid var(--gray-300)", padding: "4px 12px", borderRadius: 4 }}>Sold Out</span>
+        </div>
+      )}
+      <button
+        style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          zIndex: 4,
+          width: 30,
+          height: 30,
+          borderRadius: "50%",
+          background: "white",
+          border: "none",
+          boxShadow: "var(--shadow-soft)",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "auto",
+          padding: 0,
+        }}
+        onClick={e => { e.stopPropagation(); setSaved(!saved); }}
+        aria-label={saved ? "Remove from wishlist" : "Add to wishlist"}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill={saved ? "#c0392b" : "none"} stroke={saved ? "#c0392b" : "#aaa"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+      </button>
+      {resolveImg(p.main_image) && !err ? (
+        <img src={optimizeImg(resolveImg(p.main_image))!} alt={p.title} onError={() => setErr(true)} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} loading="lazy" />
+      ) : (
+        <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        </div>
+      )}
+      <div style={{ padding: "10px 12px 14px" }}>
+        {p.brand && <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: "var(--primary)", letterSpacing: 0.8, marginBottom: 3 }}>{p.brand}</div>}
+        <div style={{ fontSize: 12, color: "var(--gray-700)", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: 34, marginBottom: 8 }}>{p.title}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--gray-900)" }}>{formatCurrency(p.price)}</div>
+            {p.compare_price && p.compare_price > p.price && (
+              <div style={{ fontSize: 10, color: "var(--gray-400)", textDecoration: "line-through" }}>{formatCurrency(p.compare_price)}</div>
+            )}
+          </div>
+          {p.rating && p.rating > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="#c8a75a" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span style={{ fontSize: 10, color: "var(--gray-600)", fontWeight: 600 }}>{p.rating.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════
+   NEWSLETTER
+═══════════════════════════════════ */
+function Newsletter() {
+  const [email, setEmail] = useState("");
+  const [done, setDone] = useState(false);
+  return (
+    <div style={{
+      background: "linear-gradient(135deg,var(--primary) 0%,var(--primary-light) 100%)",
+      padding: "56px 0",
+      margin: "6px 0",
+    }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)", textAlign: "center" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>💌</div>
+        <h2 style={{ color: "white", fontSize: 26, fontWeight: 900, margin: "0 0 10px", letterSpacing: -0.5 }}>Stay in the loop</h2>
+        <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, marginBottom: 28, lineHeight: 1.6 }}>
+          Subscribe for exclusive deals, new arrivals, and curated style tips from Karabo&apos;s Store.
+        </p>
+        {done ? (
+          <div style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 10, padding: "16px 28px", color: "white", fontWeight: 600 }}>
+            ✅ You&apos;re subscribed! Watch your inbox for exclusive deals.
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 10, maxWidth: 480, margin: "0 auto" }}>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Enter your email address"
+              style={{
+                flex: 1,
+                padding: "13px 18px",
+                borderRadius: 8,
+                border: "none",
+                fontSize: 14,
+                fontFamily: "inherit",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={() => { if (email.includes("@")) setDone(true); }}
+              style={{
+                background: "var(--accent)",
+                color: "#1a1a1a",
+                border: "none",
+                padding: "13px 24px",
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                fontFamily: "inherit",
+                transition: "transform 0.2s",
+              }}
+              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)")}
+              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.transform = "none")}
+            >
+              Subscribe →
+            </button>
+          </div>
+        )}
+        <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 14 }}>No spam, ever. Unsubscribe anytime.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════
+   MAIN PAGE COMPONENT
+═══════════════════════════════════ */
+export default function HomePage() {
+  const router = useRouter();
+  const [heroProducts, setHeroProducts] = useState<HP[]>([]);
+  const [heroLoad, setHeroLoad] = useState(true);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [secLoad, setSecLoad] = useState(true);
+  const [allProducts, setAllProducts] = useState<HP[]>([]);
+
+  // Fetch hero / featured products
+  useEffect(() => {
+    fetch(`${API}/api/products?limit=24&sort=sales&in_stock=true`)
+      .then(r => r.json())
+      .then(d => {
+        const items: HP[] = d.products ?? d.items ?? d ?? [];
+        setHeroProducts(shuffle(items));
+      })
+      .catch(() => {})
+      .finally(() => setHeroLoad(false));
+  }, []);
+
+  // Fetch page sections
+  useEffect(() => {
+    fetch(`${API}/api/homepage/sections`)
+      .then(r => r.json())
+      .then(d => setSections(d.sections ?? d ?? []))
+      .catch(() => {})
+      .finally(() => setSecLoad(false));
+  }, []);
+
+  // Fetch "just for you" — all products
+  useEffect(() => {
+    fetch(`${API}/api/products?limit=40&sort=rating`)
+      .then(r => r.json())
+      .then(d => setAllProducts(d.products ?? d.items ?? d ?? []))
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div style={{ background: "var(--gray-50)", minHeight: "100vh" }}>
+      {/* Announcement bar */}
+      <AnnouncementBar />
+
+      {/* Category nav */}
+      <CategoryNav />
+
+      {/* Hero banner */}
+      <HeroBanner products={heroProducts} />
+
+      {/* Trust bar */}
       <TrustBar />
 
-      {/* CATEGORY IMAGE GRID */}
+      {/* Promo banners */}
+      <PromoBanners />
+
+      {/* Flash deals */}
+      <FlashDeals products={heroProducts} />
+
+      {/* Marquee */}
+      <Marquee />
+
+      {/* Category image grids */}
       <CategoryImageGrid />
 
-      {/* SECTIONS */}
-      <div className="sections-wrap">
+      {/* Product sections */}
+      <div>
         {secLoad ? (
           <><SkeletonSection /><SkeletonSection /><SkeletonSection /></>
         ) : sections.length === 0 ? (
-          <div className="empty-sections">
-            <p>Add products to your store — sections will appear automatically.</p>
+          <div style={{ textAlign: "center", padding: "80px 20px", background: "white", margin: "6px 0" }}>
+            <p style={{ fontSize: 18, color: "var(--gray-400)", fontStyle: "italic" }}>Add products to your store — sections will appear automatically.</p>
           </div>
         ) : (
           sections.map(sec => (
@@ -1389,6 +1537,26 @@ export default function HomePage() {
           ))
         )}
       </div>
+
+      {/* Just for You */}
+      <JustForYou products={allProducts} />
+
+      {/* Newsletter */}
+      <Newsletter />
+
+      {/* Shimmer styles */}
+      <style>{`
+        .shimbox {
+          background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.4s infinite;
+        }
+        @keyframes shimmer {
+          0% { background-position: 200% 0 }
+          100% { background-position: -200% 0 }
+        }
+        ::-webkit-scrollbar { display: none; }
+      `}</style>
     </div>
   );
 }
