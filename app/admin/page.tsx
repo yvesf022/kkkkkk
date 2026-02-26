@@ -338,31 +338,23 @@ function AutoPricerWidget({ rate, rateLoading }: { rate: number; rateLoading: bo
 
         {/* Header */}
         <CardHeader
-          title={
-            <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
-              <span style={{
-                width: 30, height: 30, borderRadius: 8,
-                background: "linear-gradient(135deg,#c8a75a,#b8973e)",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                fontSize: 16, color: "#050e08", fontWeight: 900, flexShrink: 0,
-              }}>₹</span>
-              AI Auto-Pricer
+          title="🤖 AI Auto-Pricer"
+          action={
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {isRunning && (
                 <span style={{
                   fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
                   background: "rgba(15,63,47,0.1)", color: "#0f3f2f",
-                  display: "flex", alignItems: "center", gap: 5,
+                  display: "inline-flex", alignItems: "center", gap: 5,
                 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", animation: "ap-pulse 1.2s infinite" }} />
-                  LIVE — product {currentIdx + 1} of {jobs.length}
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", flexShrink: 0, animation: "ap-pulse 1.2s infinite" }} />
+                  LIVE — {currentIdx + 1} / {jobs.length}
                 </span>
               )}
-            </span>
-          }
-          action={
-            <Link href="/admin/pricing" style={{ fontSize: 12, color: C.accent, textDecoration: "none", fontWeight: 600 }}>
-              Full Pricing Manager →
-            </Link>
+              <Link href="/admin/pricing" style={{ fontSize: 12, color: C.accent, textDecoration: "none", fontWeight: 600 }}>
+                Full Pricing Manager →
+              </Link>
+            </div>
           }
         />
 
