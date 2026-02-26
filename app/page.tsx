@@ -605,40 +605,30 @@ function TrustBar() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  PROMO BANNERS — illustrated with inline SVG patterns
+//  PROMO BANNERS — real product images from Unsplash
 // ═══════════════════════════════════════════════════════════════
 function PromoBanners() {
   const banners = [
     {
-      bg: "linear-gradient(135deg,#064e3b,#065f46,#059669)",
+      // Skincare: white & gold bottles — confirmed from unsplash page fetch
+      img: "https://images.unsplash.com/photo-1591130901921-3f0652bb3915?fm=jpg&q=85&w=600&fit=crop",
+      gradientOverlay: "linear-gradient(90deg, rgba(6,78,59,0.97) 0%, rgba(6,78,59,0.92) 52%, rgba(6,78,59,0.4) 75%, transparent 100%)",
       tag: "Beauty", title: "Skincare\nEssentials", sub: "Up to 40% off premium brands",
       href: "/store?main_cat=beauty", accent: "#c8a75a",
-      svg: <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="72" height="72" style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", opacity: 0.35 }}>
-        <ellipse cx="40" cy="44" rx="20" ry="26" fill="rgba(255,255,255,0.8)"/>
-        <ellipse cx="40" cy="34" rx="14" ry="18" fill="rgba(255,255,255,0.6)"/>
-        <circle cx="40" cy="22" r="7" fill="rgba(255,255,255,0.9)"/>
-        <path d="M28 44 Q40 52 52 44" stroke="rgba(255,255,255,0.5)" strokeWidth="2" fill="none" strokeLinecap="round"/>
-      </svg>
     },
     {
-      bg: "linear-gradient(135deg,#1e3a8a,#1d4ed8,#3b82f6)",
+      // Phones: black smartphone
+      img: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?fm=jpg&q=85&w=600&fit=crop",
+      gradientOverlay: "linear-gradient(90deg, rgba(30,58,138,0.97) 0%, rgba(30,58,138,0.92) 52%, rgba(30,58,138,0.4) 75%, transparent 100%)",
       tag: "Phones", title: "Latest\nSmartphones", sub: "Top brands at best prices",
       href: "/store?main_cat=phones", accent: "#93c5fd",
-      svg: <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="72" height="72" style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", opacity: 0.35 }}>
-        <rect x="22" y="6" width="36" height="68" rx="7" fill="rgba(255,255,255,0.9)"/>
-        <rect x="25" y="12" width="30" height="48" rx="3" fill="rgba(147,197,253,0.6)"/>
-        <circle cx="40" cy="68" r="4" fill="rgba(255,255,255,0.6)"/>
-        <rect x="32" y="9" width="16" height="3" rx="1.5" fill="rgba(147,197,253,0.8)"/>
-      </svg>
     },
     {
-      bg: "linear-gradient(135deg,#4c1d95,#6d28d9,#8b5cf6)",
+      // Wellness: essential oils / natural bottles
+      img: "https://images.unsplash.com/photo-1613803745799-ba6c10aace85?fm=jpg&q=85&w=600&fit=crop",
+      gradientOverlay: "linear-gradient(90deg, rgba(76,29,149,0.97) 0%, rgba(76,29,149,0.92) 52%, rgba(76,29,149,0.4) 75%, transparent 100%)",
       tag: "Wellness", title: "Health &\nWellness", sub: "Natural & organic products",
       href: "/store?q=wellness", accent: "#e9d5ff",
-      svg: <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="72" height="72" style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", opacity: 0.35 }}>
-        <path d="M40 10 C36 16 26 20 26 30 C26 42 32 50 40 54 C48 50 54 42 54 30 C54 20 44 16 40 10Z" fill="rgba(255,255,255,0.8)"/>
-        <path d="M40 22 C38 26 34 28 34 34 C34 39 36.5 43 40 45" stroke="rgba(233,213,255,0.8)" strokeWidth="2" fill="none" strokeLinecap="round"/>
-      </svg>
     },
   ];
   return (
@@ -646,19 +636,34 @@ function PromoBanners() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
         {banners.map((b, i) => (
           <Link key={i} href={b.href}
-            style={{ background: b.bg, borderRadius: 16, padding: "28px 24px", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", overflow: "hidden", position: "relative", transition: "transform 0.25s, box-shadow 0.25s", boxShadow: "var(--shadow-card)" }}
-            onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "translateY(-3px)"; el.style.boxShadow = "var(--shadow-elevated)"; }}
-            onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "none"; el.style.boxShadow = "var(--shadow-card)"; }}
+            style={{
+              borderRadius: 16, textDecoration: "none", overflow: "hidden",
+              position: "relative", height: 180, display: "block",
+              transition: "transform 0.28s cubic-bezier(.22,.9,.34,1), box-shadow 0.28s",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.14)",
+            }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "translateY(-4px)"; el.style.boxShadow = "0 12px 36px rgba(0,0,0,0.22)"; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "none"; el.style.boxShadow = "0 4px 16px rgba(0,0,0,0.14)"; }}
           >
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: b.accent, display: "block", marginBottom: 8 }}>{b.tag}</span>
-              <h3 style={{ color: "white", fontSize: 22, fontWeight: 900, lineHeight: 1.15, margin: "0 0 8px", whiteSpace: "pre-line", letterSpacing: -0.5 }}>{b.title}</h3>
-              <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, margin: "0 0 18px", lineHeight: 1.4 }}>{b.sub}</p>
-              <span style={{ background: b.accent, color: "#1a1a1a", fontSize: 11, fontWeight: 800, padding: "8px 18px", borderRadius: 7, display: "inline-flex", alignItems: "center", gap: 5 }}>
+            {/* Real product photo fills the card */}
+            <img
+              src={b.img}
+              alt={b.tag}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center right", transition: "transform 0.5s ease" }}
+              onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
+              onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+            />
+            {/* Gradient overlay so text stays legible */}
+            <div style={{ position: "absolute", inset: 0, background: b.gradientOverlay, zIndex: 1 }} />
+            {/* Text content */}
+            <div style={{ position: "relative", zIndex: 2, padding: "24px 26px", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.8, textTransform: "uppercase", color: b.accent, display: "block", marginBottom: 8 }}>{b.tag}</span>
+              <h3 style={{ color: "white", fontSize: 22, fontWeight: 900, lineHeight: 1.12, margin: "0 0 8px", whiteSpace: "pre-line", letterSpacing: -0.5, textShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>{b.title}</h3>
+              <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 12, margin: "0 0 18px", lineHeight: 1.45 }}>{b.sub}</p>
+              <span style={{ background: b.accent, color: "#1a1a1a", fontSize: 11, fontWeight: 800, padding: "8px 18px", borderRadius: 7, display: "inline-flex", alignItems: "center", gap: 5, width: "fit-content" }}>
                 Shop Now <Icons.ArrowRight />
               </span>
             </div>
-            {b.svg}
           </Link>
         ))}
       </div>
