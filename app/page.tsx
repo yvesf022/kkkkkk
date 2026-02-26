@@ -325,19 +325,80 @@ const Icons = {
   ),
 };
 
+// Real product photos from Unsplash (free to use, no attribution required)
 const NAV_CATS = [
-  { Icon: Icons.Skincare,    label: "Skincare",     href: "/store?category=moisturizer",    bg: "#fce7f3" },
-  { Icon: Icons.Phone,       label: "Phones",       href: "/store?main_cat=phones",          bg: "#dbeafe" },
-  { Icon: Icons.Wellness,    label: "Wellness",     href: "/store?category=collagen",        bg: "#d1fae5" },
-  { Icon: Icons.BodyCare,    label: "Body Care",    href: "/store?category=body_lotion",     bg: "#fef3c7" },
-  { Icon: Icons.Sunscreen,   label: "Sunscreen",    href: "/store?category=sunscreen",       bg: "#fff7ed" },
-  { Icon: Icons.Serum,       label: "Serums",       href: "/store?category=serum",           bg: "#ede9fe" },
-  { Icon: Icons.NaturalOil,  label: "Natural Oils", href: "/store?category=herbal_oils",     bg: "#dcfce7" },
-  { Icon: Icons.Gift,        label: "Gift Sets",    href: "/store?sort=discount",            bg: "#fce7f3" },
-  { Icon: Icons.EyeCare,     label: "Eye Care",     href: "/store?category=eye_mask",        bg: "#e0f2fe" },
-  { Icon: Icons.Cleanser,    label: "Cleansers",    href: "/store?category=face_wash",       bg: "#f0fdfa" },
-  { Icon: Icons.Brightening, label: "Brightening",  href: "/store?category=skin_brightening",bg: "#fefce8" },
-  { Icon: Icons.AntiAging,   label: "Anti-Aging",   href: "/store?category=anti_wrinkles",   bg: "#fdf4ff" },
+  {
+    label: "Skincare",
+    href: "/store?category=moisturizer",
+    img: "https://images.unsplash.com/photo-1591130901921-3f0652bb3915?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Skincare moisturizer bottles",
+  },
+  {
+    label: "Phones",
+    href: "/store?main_cat=phones",
+    img: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Smartphone",
+  },
+  {
+    label: "Wellness",
+    href: "/store?category=collagen",
+    img: "https://images.unsplash.com/photo-1616750819456-5cdee9b85d22?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Wellness supplements",
+  },
+  {
+    label: "Body Care",
+    href: "/store?category=body_lotion",
+    img: "https://images.unsplash.com/photo-1629380108599-ea06489d66f5?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Body lotion bottles",
+  },
+  {
+    label: "Sunscreen",
+    href: "/store?category=sunscreen",
+    img: "https://images.unsplash.com/photo-1638609927040-8a7e97cd9d6a?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Sunscreen tube",
+  },
+  {
+    label: "Serums",
+    href: "/store?category=serum",
+    img: "https://images.unsplash.com/photo-1679394270597-e90694d70350?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Face serum bottle",
+  },
+  {
+    label: "Natural Oils",
+    href: "/store?category=herbal_oils",
+    img: "https://images.unsplash.com/photo-1613803745799-ba6c10aace85?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Natural oil bottles",
+  },
+  {
+    label: "Gift Sets",
+    href: "/store?sort=discount",
+    img: "https://images.unsplash.com/photo-1567721913486-6585f069b332?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Luxury gift set",
+  },
+  {
+    label: "Eye Care",
+    href: "/store?category=eye_mask",
+    img: "https://images.unsplash.com/photo-1620916297397-a4a5402a3c6c?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Eye care product",
+  },
+  {
+    label: "Cleansers",
+    href: "/store?category=face_wash",
+    img: "https://images.unsplash.com/photo-1571782742478-0816a4773a10?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Face cleanser tubes",
+  },
+  {
+    label: "Brightening",
+    href: "/store?category=skin_brightening",
+    img: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Brightening skincare product",
+  },
+  {
+    label: "Anti-Aging",
+    href: "/store?category=anti_wrinkles",
+    img: "https://images.unsplash.com/photo-1670615119585-3585bc6a0fc6?fm=jpg&q=80&w=200&h=200&fit=crop",
+    alt: "Anti-aging cream",
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -383,7 +444,7 @@ function AnnouncementBar() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  CATEGORY NAV STRIP — SVG icons, no emojis
+//  CATEGORY NAV STRIP — real product photos from Unsplash
 // ═══════════════════════════════════════════════════════════════
 function CategoryNav() {
   return (
@@ -393,13 +454,20 @@ function CategoryNav() {
           {NAV_CATS.map(c => (
             <Link key={c.href} href={c.href}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "10px 6px", borderRadius: 12, textDecoration: "none", transition: "background 0.2s, transform 0.2s" }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "var(--gray-50)"; el.style.transform = "translateY(-2px)"; }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "var(--gray-50)"; el.style.transform = "translateY(-3px)"; }}
               onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.transform = "none"; }}
             >
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-                <c.Icon />
+              <div style={{ width: 64, height: 64, borderRadius: 16, overflow: "hidden", boxShadow: "0 3px 12px rgba(0,0,0,0.12)", border: "2px solid var(--gray-100)", flexShrink: 0 }}>
+                <img
+                  src={c.img}
+                  alt={c.alt}
+                  loading="lazy"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.35s ease" }}
+                  onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.12)")}
+                  onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+                />
               </div>
-              <span style={{ fontSize: 10, fontWeight: 600, color: "var(--gray-700)", textAlign: "center", lineHeight: 1.2 }}>{c.label}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--gray-700)", textAlign: "center", lineHeight: 1.2, letterSpacing: 0.1 }}>{c.label}</span>
             </Link>
           ))}
         </div>
