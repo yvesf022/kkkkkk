@@ -96,7 +96,6 @@ type BatchRow = {
   isSelected:   boolean;
   confirmDelete: boolean;           // show inline confirm UI
   isDeleted:    boolean;            // soft-deleted, remove from list
-  stableIndex:  number;             // load-time order — keeps cards from jumping on approve
 };
 
 type ComputedPrice = {
@@ -246,12 +245,10 @@ export default function AdminPricingPage() {
   const [toast, setToast]           = useState<{ msg:string; ok:boolean; undo?:()=>void }|null>(null);
   const [totalCount, setTotal]      = useState(0);
   const [loadedAt, setLoadedAt]     = useState<number|null>(null);
-  const [resetBusy, setResetBusy]   = useState(false);   // for reset-bulk button
 
   const scrollRef   = useRef<HTMLDivElement>(null);
   const inputRefs   = useRef<Map<string,HTMLInputElement>>(new Map());
   const toastTimer  = useRef<ReturnType<typeof setTimeout>|null>(null);
-  const pollTimer   = useRef<ReturnType<typeof setInterval>|null>(null);
 
   // ── Exchange rate ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -278,63 +275,6 @@ export default function AdminPricingPage() {
     toastTimer.current = setTimeout(() => setToast(null), undo ? 4800 : 3200);
   }, []);
 
-  // ── Scroll-preserving setRows ──────────────────────────────────────────────
-  // Saves scrollTop before a state update and restores it two animation frames
-  // later (after React has committed and the browser has painted). This prevents
-  // the scroll bar from jumping to the top when a card's status changes.
-  const setRowsKeepScroll = useCallback((updater: React.SetStateAction<BatchRow[]>) => {
-    const top = scrollRef.current?.scrollTop ?? 0;
-    setRows(updater);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (scrollRef.current) scrollRef.current.scrollTop = top;
-      });
-    });
-  }, []);
-
-  // ── 30-second background poll — syncs approvals from other devices ─────────
-  const pollForUpdates = useCallback(async () => {
-    // Only poll if we have products loaded and the page is visible
-    if (rows.length === 0 || document.hidden) return;
-    try {
-      const data = await api<{ items: Array<{ id:string; pricing_status:string; is_priced:boolean; price:number|null; compare_price:number|null }> }>(
-        "GET", "/api/products/admin/pricing/poll"
-      );
-      const statusMap = new Map(data.items.map(i => [i.id, i]));
-      setRows(prev => prev.map(row => {
-        const remote = statusMap.get(row.product.id);
-        if (!remote) return row;
-        // Only sync if remote is AHEAD of local (don't clobber user's active edits)
-        if (remote.pricing_status === row.status) return row;
-        if (row.status === "saving") return row;  // mid-flight — skip
-        if (remote.pricing_status === "admin_approved" && row.status !== "admin_approved") {
-          // Another device approved this — update silently
-          return {
-            ...row,
-            status: "admin_approved",
-            product: { ...row.product, is_priced:true, pricing_status:"admin_approved", price:remote.price, compare_price:remote.compare_price },
-          };
-        }
-        if (remote.pricing_status === "unpriced" && row.status === "admin_approved") {
-          // Another device reset this — update silently
-          return {
-            ...row,
-            status: "unpriced",
-            product: { ...row.product, is_priced:false, pricing_status:"unpriced", price:null },
-          };
-        }
-        return row;
-      }));
-    } catch {
-      // Silently ignore poll failures — not critical
-    }
-  }, [rows.length]);
-
-  useEffect(() => {
-    pollTimer.current = setInterval(pollForUpdates, 30_000);
-    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
-  }, [pollForUpdates]);
-
   // ── Derived lists ─────────────────────────────────────────────────────────
   const categories = useMemo(() =>
     [...new Set(rows.map(r => r.product.category).filter(Boolean))].sort() as string[], [rows]);
@@ -354,10 +294,6 @@ export default function AdminPricingPage() {
   }, [rows]);
 
   // ── Display rows (filter + sort, exclude deleted) ─────────────────────────
-  // IMPORTANT: we sort by stableIndex as the primary key so that approving a
-  // product never causes other cards to shift position (no scroll jump).
-  // The sortKey applies only when the user explicitly requests a re-sort via
-  // the dropdown; after load, cards stay in place until the next full reload.
   const displayRows = useMemo(() => {
     let r = rows.filter(row => !row.isDeleted);
     if (filterTab === "unpriced")  r = r.filter(row => row.status === "unpriced" || row.status === "admin_rejected");
@@ -365,25 +301,16 @@ export default function AdminPricingPage() {
     if (filterTab === "suggested") r = r.filter(row => row.status === "ai_suggested");
     if (catFilter)   r = r.filter(row => row.product.category === catFilter);
     if (brandFilter) r = r.filter(row => row.product.brand === brandFilter);
-    if (searchQ) {
-      const q = searchQ.toLowerCase();
-      r = r.filter(row =>
-        row.product.title.toLowerCase().includes(q) ||
-        (row.product.brand ?? "").toLowerCase().includes(q) ||
-        (row.product.category ?? "").toLowerCase().includes(q)
-      );
-    }
-    // Always sort by stableIndex to prevent position jumps when status changes.
-    // The API already returns products in the desired order (unpriced first).
-    // User can change the secondary sort but cards won't jump on approve.
-    if (sortKey === "name")       r = [...r].sort((a,b) => a.product.title.localeCompare(b.product.title));
+    if (sortKey === "name")          r = [...r].sort((a,b) => a.product.title.localeCompare(b.product.title));
+    if (sortKey === "unpriced_first") r = [...r].sort((a,b) => {
+      const aIsApproved = a.status === "admin_approved" ? 1 : 0;
+      const bIsApproved = b.status === "admin_approved" ? 1 : 0;
+      return aIsApproved - bIsApproved || a.product.title.localeCompare(b.product.title);
+    });
     if (sortKey === "price_asc")  r = [...r].sort((a,b) => (a.product.price??0)-(b.product.price??0));
     if (sortKey === "price_desc") r = [...r].sort((a,b) => (b.product.price??0)-(a.product.price??0));
-    // "unpriced_first" and "default" → preserve stableIndex order (API already sorted correctly)
-    if (sortKey === "default" || sortKey === "unpriced_first")
-      r = [...r].sort((a,b) => a.stableIndex - b.stableIndex);
     return r;
-  }, [rows, filterTab, catFilter, brandFilter, sortKey, searchQ]);
+  }, [rows, filterTab, catFilter, brandFilter, sortKey]);
 
   // ── Load products ─────────────────────────────────────────────────────────
   const loadProducts = useCallback(async () => {
@@ -401,7 +328,7 @@ export default function AdminPricingPage() {
       const session     = loadSession();
       const savedInputs = session?.inputs ?? {};
 
-      setRows(products.map((p: ProductListItem, idx: number) => {
+      setRows(products.map((p: ProductListItem) => {
         const dbStatus   = p.pricing_status || (p.is_priced ? "admin_approved" : "unpriced");
         const savedInr   = savedInputs[p.id] ?? "";
         const v          = parseFloat(savedInr);
@@ -421,7 +348,6 @@ export default function AdminPricingPage() {
           isSelected:    false,
           confirmDelete: false,
           isDeleted:     false,
-          stableIndex:   idx,
         };
       }));
       setLoadedAt(Date.now());
@@ -474,7 +400,7 @@ export default function AdminPricingPage() {
   const approveManual = async (id: string) => {
     const row = rows.find(r => r.product.id === id);
     if (!row?.computed) return;
-    setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? { ...r, status:"saving" } : r));
+    setRows(prev => prev.map(r => r.product.id === id ? { ...r, status:"saving" } : r));
     try {
       await api("POST", "/api/products/admin/auto-price/approve-manual", {
         product_id:        id,
@@ -488,7 +414,7 @@ export default function AdminPricingPage() {
       delete session.inputs[id];
       saveSession({ inputs: session.inputs });
 
-      setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? {
+      setRows(prev => prev.map(r => r.product.id === id ? {
         ...r,
         status:   "admin_approved",
         errorMsg: null,
@@ -496,7 +422,7 @@ export default function AdminPricingPage() {
       } : r));
       showToast(`✓ Approved — M ${fmt(row.computed.final_price_lsl)}`, true, () => markUnpriced(id));
     } catch (e: any) {
-      setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? { ...r, status:"error", errorMsg: e?.message } : r));
+      setRows(prev => prev.map(r => r.product.id === id ? { ...r, status:"error", errorMsg: e?.message } : r));
     }
   };
 
@@ -504,12 +430,12 @@ export default function AdminPricingPage() {
   const approveProposal = async (id: string) => {
     const row = rows.find(r => r.product.id === id);
     if (!row?.proposal) return;
-    setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? { ...r, status:"saving" } : r));
+    setRows(prev => prev.map(r => r.product.id === id ? { ...r, status:"saving" } : r));
     try {
       await api("POST", "/api/products/admin/auto-price/approve", {
         proposal_id: row.proposal.proposal_id,
       });
-      setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? {
+      setRows(prev => prev.map(r => r.product.id === id ? {
         ...r,
         status:   "admin_approved",
         errorMsg: null,
@@ -517,7 +443,7 @@ export default function AdminPricingPage() {
       } : r));
       showToast(`✓ AI price approved — M ${fmt(row.proposal.final_price_lsl)}`, true);
     } catch (e: any) {
-      setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? { ...r, status:"error", errorMsg: e?.message } : r));
+      setRows(prev => prev.map(r => r.product.id === id ? { ...r, status:"error", errorMsg: e?.message } : r));
     }
   };
 
@@ -529,7 +455,7 @@ export default function AdminPricingPage() {
       await api("POST", "/api/products/admin/auto-price/reject", {
         proposal_id: row.proposal.proposal_id,
       });
-      setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? {
+      setRows(prev => prev.map(r => r.product.id === id ? {
         ...r, status:"admin_rejected", proposal:null, errorMsg:null,
         product: { ...r.product, pricing_status:"admin_rejected" },
       } : r));
@@ -610,7 +536,7 @@ export default function AdminPricingPage() {
           product_id:        r.product.id,
           price_lsl:         r.proposal?.final_price_lsl ?? r.computed!.final_price_lsl,
           compare_price_lsl: r.proposal?.compare_price_lsl ?? r.computed!.compare_price_lsl,
-          inr_price:         r.proposal?.inr_price ?? parseFloat(r.marketInr) || 0,
+          inr_price:         r.proposal?.inr_price ?? (parseFloat(r.marketInr) || 0),
           exchange_rate:     r.proposal?.exchange_rate ?? effectiveRate,
         })),
       });
@@ -660,13 +586,13 @@ export default function AdminPricingPage() {
 
   // ── Delete product ────────────────────────────────────────────────────────
   const deleteProduct = async (id: string) => {
-    setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? { ...r, status:"saving" } : r));
+    setRows(prev => prev.map(r => r.product.id === id ? { ...r, status:"saving" } : r));
     try {
       await api("DELETE", `/api/products/admin/pricing/${id}/delete`);
-      setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? { ...r, isDeleted:true, confirmDelete:false } : r));
+      setRows(prev => prev.map(r => r.product.id === id ? { ...r, isDeleted:true, confirmDelete:false } : r));
       showToast("Product removed from store", false);
     } catch (e: any) {
-      setRowsKeepScroll(prev => prev.map(r => r.product.id === id ? { ...r, status:"error", errorMsg:e?.message, confirmDelete:false } : r));
+      setRows(prev => prev.map(r => r.product.id === id ? { ...r, status:"error", errorMsg:e?.message, confirmDelete:false } : r));
       showToast(e?.message ?? "Delete failed", false);
     }
   };
@@ -706,29 +632,6 @@ export default function AdminPricingPage() {
   };
 
   const isStale = loadedAt && Date.now() - loadedAt > 15 * 60_000;
-
-  // ── Reset all bulk-priced products back to unpriced ───────────────────────
-  // Targets products where is_priced=TRUE but priced_by=NULL (set by bulk_price_update.py
-  // not by a real admin approval). This lets you confirm them one by one.
-  const resetBulkUnpriced = async () => {
-    if (!confirm(
-      "This will reset all products that were bulk-priced (never individually confirmed) back to 'Unpriced', so you can confirm them via this tool.\n\nProducts you manually approved are NOT affected.\n\nContinue?"
-    )) return;
-    setResetBusy(true);
-    try {
-      const res = await api<{ reset: number; message: string }>(
-        "POST", "/api/products/admin/pricing/reset-bulk-unpriced"
-      );
-      showToast(`↺ ${res.reset} products reset to unpriced — reload to see them`, true);
-      // Optimistically update local state for rows that have no priced_by
-      // (we can't know which ones from the frontend, so just reload)
-      setTimeout(loadProducts, 800);
-    } catch (e: any) {
-      showToast(e?.message ?? "Reset failed", false);
-    } finally {
-      setResetBusy(false);
-    }
-  };
 
   /* ════════════════ RENDER ════════════════ */
   return (
@@ -981,7 +884,7 @@ export default function AdminPricingPage() {
             {rows.length > 0 && (() => {
               const r = 10, circ = 2 * Math.PI * r, dash = (stats.pctDone / 100) * circ;
               return (
-                <svg width="30" height="30" viewBox="0 0 26 26" title={`${stats.pctDone}% approved`}>
+                <svg width="30" height="30" viewBox="0 0 26 26" aria-label={`${stats.pctDone}% approved`}>
                   <circle cx="13" cy="13" r={r} fill="none" stroke="#e5e7eb" strokeWidth="3"/>
                   <circle cx="13" cy="13" r={r} fill="none" stroke={stats.pctDone===100?"#16a34a":"#0f3f2f"} strokeWidth="3"
                     strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" transform="rotate(-90 13 13)"
@@ -1030,15 +933,6 @@ export default function AdminPricingPage() {
                   CSV
                 </button>
               )}
-
-              {/* Reset bulk-priced: targets products priced by bulk_price_update (priced_by=NULL) */}
-              <button onClick={resetBulkUnpriced} disabled={resetBusy} className="btn btn-warn btn-sm" style={{ flexShrink:0 }}
-                title="Reset products that were bulk-priced (never individually confirmed) back to Unpriced, so you can confirm each one">
-                {resetBusy
-                  ? <span className="spin" style={{ width:12, height:12, border:"2px solid #fed7aa", borderTopColor:"#92400e", borderRadius:"50%" }}/>
-                  : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 .7-3.6"/></svg>}
-                Reset Bulk-Priced
-              </button>
 
               <button onClick={() => setFilters(!showFilters)}
                 style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", borderRadius:8,
@@ -1210,16 +1104,11 @@ export default function AdminPricingPage() {
                     <div className="pc-title-row">
                       <span className="pc-title">{row.product.title}</span>
 
-                      {/* DELETE BUTTON — always visible, red */}
+                      {/* DELETE BUTTON */}
                       {!row.confirmDelete && (
-                        <button
-                          className="pc-del-btn"
-                          title="Delete this product from the store"
-                          onClick={() => setConfirmDelete(row.product.id, true)}
-                          style={{ borderColor:"#fca5a5", color:"#dc2626", background:"#fff5f5", width:"auto", padding:"3px 9px", gap:4, fontSize:11, fontWeight:700 }}
-                        >
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                          Delete
+                        <button className="pc-del-btn" title="Delete product from store"
+                          onClick={() => setConfirmDelete(row.product.id, true)}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                         </button>
                       )}
                     </div>
@@ -1406,17 +1295,13 @@ export default function AdminPricingPage() {
 
           {/* Footer */}
           {displayRows.length > 0 && (
-            <div style={{ padding:"6px 4px", fontSize:11, color:"#9ca3af", display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+            <div style={{ padding:"6px 4px", fontSize:11, color:"#9ca3af", display:"flex", gap:10, flexWrap:"wrap" }}>
               <span>📦 {stats.total} loaded</span>
               {totalCount > rows.length && <span>· {totalCount} in DB</span>}
               <span style={{ color:"#d97706", fontWeight:700 }}>⚠ {stats.unpriced} unpriced</span>
               <span style={{ color:"#0284c7", fontWeight:700 }}>🤖 {stats.suggested} AI suggested</span>
               <span style={{ color:"#0f3f2f", fontWeight:700 }}>✓ {stats.approved} approved</span>
               {stats.errors > 0 && <span style={{ color:"#dc2626", fontWeight:700 }}>✗ {stats.errors} errors</span>}
-              <span style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:4, color:"#9ca3af" }}>
-                <span style={{ width:6, height:6, borderRadius:"50%", background:"#16a34a", display:"inline-block" }}/>
-                Live sync · every 30s
-              </span>
             </div>
           )}
         </div>
