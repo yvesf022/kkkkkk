@@ -57,33 +57,47 @@ type JobRow = {
 type RunState = "idle" | "running" | "paused" | "done";
 
 /* ══════════════════════════════════════════════════════════════
-   AI PRICE SEARCH  — calls Claude with web_search
+   BACKEND PRICE SEARCH
+   Calls FastAPI /api/products/admin/auto-price/search
+   which uses Claude + web_search server-side (ANTHROPIC_API_KEY
+   lives on the server, never in the browser).
+   
+   Status codes:
+     200 = found and saved (or saved=false if DB write failed)
+     422 = not found on Indian sites — move on, don't retry
+     503 = AI/network error — should retry
 ══════════════════════════════════════════════════════════════ */
-async function findPriceINR(title: string, brand?: string | null, category?: string | null) {
-  const query = [brand, title, category].filter(Boolean).join(" ");
-  const prompt = `Find the current retail price in Indian Rupees (₹) for: "${query}"
-
-Search Amazon.in, Flipkart.com, or Nykaa.com. Return ONLY this JSON, nothing else:
-{"inr_price": <number or null>, "source": "<site name>", "confidence": "high|medium|low"}`;
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+async function findAndSavePrice(
+  productId: string,
+  title: string,
+  brand?: string | null,
+  category?: string | null,
+) {
+  const res = await fetch(`${BACKEND}/api/products/admin/auto-price/search`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 300,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
-      messages: [{ role: "user", content: prompt }],
-    }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${adminTokenStorage.get() ?? ""}`,
+    },
+    body: JSON.stringify({ product_id: productId, title, brand, category }),
   });
-  if (!res.ok) throw new Error(`API ${res.status}`);
-  const data = await res.json();
-  const text = data.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("");
-  const match = text.match(/\{[\s\S]*?\}/);
-  if (!match) throw new Error("No price found");
-  const parsed = JSON.parse(match[0]);
-  if (!parsed.inr_price) throw new Error("Price not found on Indian sites");
-  return { inr: parseFloat(parsed.inr_price), source: parsed.source ?? "Unknown" };
+
+  if (res.status === 422) {
+    // Product genuinely not found on Indian sites — don't retry
+    const err = await res.json();
+    const notFoundError = new Error(err.detail ?? "Not found on Indian sites");
+    (notFoundError as any).notFound = true;
+    throw notFoundError;
+  }
+
+  if (!res.ok) {
+    // 503 or other — retriable error
+    throw new Error(`Search failed (${res.status})`);
+  }
+
+  return await res.json();
+  // Returns: { inr_price, source, confidence, final_price_lsl, compare_price_lsl,
+  //            discount_pct, margin_pct, exchange_rate, saved, error }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -155,35 +169,29 @@ function AutoPricerWidget({ rate, rateLoading }: { rate: number; rateLoading: bo
         setTimeout(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, 50);
 
         try {
-          // 1. Find price on Google India
-          const { inr, source } = await findPriceINR(row.product.title, row.product.brand, row.product.category);
-          const result = calculatePrice({ market_price_inr: inr, exchange_rate: rate });
+          // Backend does everything: searches Google India, calculates price, saves to DB
+          const data = await findAndSavePrice(
+            id, row.product.title, row.product.brand, row.product.category
+          );
 
-          // 2. Show found in UI immediately
+          // Update UI with result from backend
           setJobs(prev => prev.map(j => j.product.id === id ? {
-            ...j, status: "found", inr, inrSource: source,
-            lsl: result.final_price_lsl, compareLsl: result.compare_price_lsl,
+            ...j,
+            status: data.saved ? "saved" : "found",
+            inr: data.inr_price,
+            inrSource: data.source,
+            lsl: data.final_price_lsl,
+            compareLsl: data.compare_price_lsl,
           } : j));
 
-          // 3. Save to DB immediately — no waiting for user action
-          await pricingApi.applyToProduct(id, result.final_price_lsl, result.compare_price_lsl);
-
-          // 4. Mark as priced in DB
-          fetch(`${BACKEND}/api/products/admin/pricing/${id}/mark`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminTokenStorage.get() ?? ""}` },
-            body: JSON.stringify({ is_priced: true }),
-          }).catch(() => {});
-
-          // 5. Update UI to saved
-          setJobs(prev => prev.map(j => j.product.id === id ? { ...j, status: "saved" } : j));
-          writePricingSession({ [id]: String(inr) });
+          // Write to pricing tool session so it shows pre-filled if opened
+          writePricingSession({ [id]: String(data.inr_price) });
 
         } catch (e: any) {
-          const notFound = e?.message?.includes("not found") || e?.message?.includes("Price not found");
+          const notFound = (e as any).notFound === true;
 
           if (!notFound && attempt < MAX_RETRIES) {
-            // Auto-retry with backoff — don't give up on network blips
+            // Auto-retry on network/AI errors — backend returns 503 for these
             await new Promise(r => setTimeout(r, 1500 * attempt));
             return searchAndSave(row, attempt + 1);
           }
@@ -575,8 +583,16 @@ export default function AdminDashboardPage() {
   const [rateLoading, setRateLoading] = useState(true);
 
   useEffect(() => {
-    exchangeApi.getINRtoLSL()
-      .then(({ rate: r }) => setRate(r))
+    // Fetch rate from our own backend (same rate used for calculations server-side)
+    fetch(`${BACKEND}/api/products/admin/auto-price/rate`, {
+      headers: { Authorization: `Bearer ${adminTokenStorage.get() ?? ""}` },
+    })
+      .then(r => r.json())
+      .then(d => { if (d.rate) setRate(d.rate); })
+      .catch(() => {
+        // Fallback to exchangeApi if backend rate endpoint fails
+        exchangeApi.getINRtoLSL().then(({ rate: r }) => setRate(r)).catch(() => {});
+      })
       .finally(() => setRateLoading(false));
   }, []);
 
