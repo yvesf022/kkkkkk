@@ -15,10 +15,15 @@ function resolveImg(url: string | null | undefined): string | null {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
 }
-function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 300): string | null {
+function optimizeImg(url: string | null | undefined, size: 300 | 500 | 800 | 1500 = 500): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
-  return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`).replace(/_SL\d+_/g, `_AC_SL${size}_`);
+  return url
+    .replace(/_AC_U[XY]\d+_(?:CR\d+,\d+,\d+,\d+_)?/gi, `_AC_SL${size}_`)
+    .replace(/_AC_S[LYX][SX]?\d+_/gi, `_AC_SL${size}_`)
+    .replace(/_SL\d+_/g, `_AC_SL${size}_`)
+    .replace(/_SS\d+_/g, `_AC_SL${size}_`)
+    .replace(/\._[A-Z]{2}\d+_\./, `._SL${size}_.`);
 }
 
 /* ================================================================

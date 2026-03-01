@@ -15,10 +15,16 @@ function resolveImg(url: string | null | undefined): string | null {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
 }
-function optimizeImg(url: string | null | undefined, size: 300 | 500 | 1500 = 300): string | null {
+function optimizeImg(url: string | null | undefined, size: 300 | 500 | 800 | 1500 = 500): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
-  return url.replace(/_AC_S[LY]\d+_/g, `_AC_SL${size}_`).replace(/_SL\d+_/g, `_AC_SL${size}_`);
+  // Replace ALL Amazon image size tokens — SL, SY, SX, SS, CR variants
+  return url
+    .replace(/_AC_U[XY]\d+_(?:CR\d+,\d+,\d+,\d+_)?/gi, `_AC_SL${size}_`)
+    .replace(/_AC_S[LYX][SX]?\d+_/gi, `_AC_SL${size}_`)
+    .replace(/_SL\d+_/g, `_AC_SL${size}_`)
+    .replace(/_SS\d+_/g, `_AC_SL${size}_`)
+    .replace(/\._[A-Z]{2}\d+_\./, `._SL${size}_.`);
 }
 
 /* ─────────────────────────────────────────────────
@@ -125,12 +131,32 @@ function useCountdown(targetHours = 6) {
    ROTATING INDEX HOOK
 ───────────────────────────────────────────────── */
 function useRotatingIndex(total: number, intervalMs: number, offset = 0): number {
-  const [idx, setIdx] = useState(offset % Math.max(total, 1));
+  // Use a ref to track the true current index so it survives total changing
+  const idxRef = useRef<number | null>(null);
+  const [idx, setIdx] = useState(0);
+
+  // Once total is known, seed the starting position using the offset — only once
+  useEffect(() => {
+    if (total < 1) return;
+    if (idxRef.current === null) {
+      const start = offset % total;
+      idxRef.current = start;
+      setIdx(start);
+    }
+  }, [total, offset]);
+
   useEffect(() => {
     if (total < 2) return;
-    const id = setInterval(() => setIdx(i => (i + 1) % total), intervalMs);
+    const id = setInterval(() => {
+      setIdx(prev => {
+        const next = (prev + 1) % total;
+        idxRef.current = next;
+        return next;
+      });
+    }, intervalMs);
     return () => clearInterval(id);
   }, [total, intervalMs]);
+
   return idx;
 }
 
@@ -352,10 +378,13 @@ function HeroBanner({ products }: { products: HP[] }) {
   const [slide, setSlide] = useState(0);
   const [animIn, setAnimIn] = useState(true);
 
-  const slot0 = useRotatingIndex(products.length, 2600, 0);
-  const slot1 = useRotatingIndex(products.length, 3200, 5);
-  const slot2 = useRotatingIndex(products.length, 2900, 10);
-  const slot3 = useRotatingIndex(products.length, 3500, 15);
+  // Spread offsets evenly across the product array so each slot starts at a different product.
+  // E.g. with 40 products: slot0=0, slot1=10, slot2=20, slot3=30
+  const spread = Math.max(1, Math.floor(products.length / 4));
+  const slot0 = useRotatingIndex(products.length, 2800, 0);
+  const slot1 = useRotatingIndex(products.length, 3300, spread);
+  const slot2 = useRotatingIndex(products.length, 2600, spread * 2);
+  const slot3 = useRotatingIndex(products.length, 3700, spread * 3);
   const slots = [slot0, slot1, slot2, slot3];
 
   const goTo = useCallback((i: number) => {
@@ -449,7 +478,7 @@ function HeroProductImg({ p }: { p: HP }) {
   }, [p.id]);
   const src = resolveImg(cur.main_image);
   return src ? (
-    <img src={optimizeImg(src, 300)!} alt={cur.title}
+    <img src={optimizeImg(src, 500)!} alt={cur.title}
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: visible ? 1 : 0, transform: visible ? "scale(1)" : "scale(1.04)", transition: "opacity 0.3s ease, transform 0.3s ease" }}
       onLoad={() => setVisible(true)}
       onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
@@ -576,7 +605,7 @@ function PromoBanners({ featuredProducts }: { featuredProducts: HP[] }) {
               onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.transform = "none"; el.style.boxShadow = "0 4px 18px rgba(0,0,0,0.14)"; }}
             >
               {imgSrc ? (
-                <img src={optimizeImg(imgSrc, 500)!} alt={b.tag} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center right", transition: "transform 0.5s ease" }}
+                <img src={optimizeImg(imgSrc, 800)!} alt={b.tag} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center right", transition: "transform 0.5s ease" }}
                   onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.06)")}
                   onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
                 />
@@ -672,7 +701,7 @@ function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
       {disc && disc >= 5 && <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#c0392b", color: "white", fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 5 }}>-{disc}%</div>}
       <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "#f8fafc" }}>
         {curImg ? (
-          <img src={optimizeImg(curImg, 300)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.05)", transition: "opacity 0.3s ease, transform 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+          <img src={optimizeImg(curImg, 500)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.05)", transition: "opacity 0.3s ease, transform 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
         ) : <div className="shimbox" style={{ position: "absolute", inset: 0 }} />}
       </div>
       <div style={{ padding: "10px 10px 13px" }}>
@@ -727,7 +756,7 @@ function DepartmentGrid({ departments }: { departments: DeptCategory[] }) {
                     onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
                   >
                     <div style={{ aspectRatio: "1/1", overflow: "hidden", background: "#f1f5f9" }}>
-                      <img src={optimizeImg(sub.image, 300)!} alt={sub.label} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.35s ease" }}
+                      <img src={optimizeImg(sub.image, 500)!} alt={sub.label} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.35s ease" }}
                         onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.1)")}
                         onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
                       />
@@ -833,7 +862,7 @@ function SectionCard({ p, accent, onClick }: { p: HP; accent: string; onClick: (
       {!p.in_stock && <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.65)", zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", background: "white", border: "1px solid #d1d5db", padding: "4px 12px", borderRadius: 6 }}>Sold Out</span></div>}
       <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "#f8fafc" }}>
         {curImg ? (
-          <img src={optimizeImg(curImg, 300)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.06)", transition: "opacity 0.3s ease, transform 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+          <img src={optimizeImg(curImg, 500)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.06)", transition: "opacity 0.3s ease, transform 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
         ) : <div className="shimbox" style={{ position: "absolute", inset: 0 }} />}
       </div>
       <div style={{ padding: "10px 11px 13px" }}>
@@ -953,7 +982,7 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
       </button>
       <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "#f8fafc" }}>
         {curImg ? (
-          <img src={optimizeImg(curImg, 300)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.04)", transition: "opacity 0.3s ease, transform 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+          <img src={optimizeImg(curImg, 500)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.04)", transition: "opacity 0.3s ease, transform 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
         ) : <div className="shimbox" style={{ position: "absolute", inset: 0 }} />}
       </div>
       <div style={{ padding: "10px 12px 13px" }}>
@@ -1019,7 +1048,7 @@ function RecentlyViewed() {
             >
               <div style={{ aspectRatio: "1/1", overflow: "hidden", background: "#f1f5f9" }}>
                 {p.main_image ? (
-                  <img src={optimizeImg(resolveImg(p.main_image), 300)!} alt={p.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={optimizeImg(resolveImg(p.main_image), 500)!} alt={p.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : <div className="shimbox" style={{ width: "100%", height: "100%" }} />}
               </div>
               <div style={{ padding: "8px 9px 10px" }}>
