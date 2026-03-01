@@ -284,23 +284,44 @@ function AnnouncementBar() {
 /* ═══════════════════════════════════════════════════════════════
    CATEGORY NAV — real product images fetched from backend
 ═══════════════════════════════════════════════════════════════ */
+// Top scrollable category bubbles — one per major store category + key sub-tags
 const NAV_CATS = [
-  { label: "Anti-Aging",          tag: "anti_aging" },
-  { label: "Acne",                tag: "acne" },
-  { label: "Brightening",         tag: "brightening" },
-  { label: "Whitening",           tag: "whitening" },
-  { label: "Hydration",           tag: "hydration" },
-  { label: "Repair",              tag: "repair" },
-  { label: "Barrier",             tag: "barrier" },
-  { label: "Eczema",              tag: "eczema" },
-  { label: "Sunscreen",           tag: "sunscreen" },
-  { label: "Oils",                tag: "oils" },
-  { label: "Soaps",               tag: "soaps" },
-  { label: "Masks",               tag: "masks" },
-  { label: "Exfoliation",         tag: "exfoliation" },
-  { label: "Clinical Acids",      tag: "clinical_acids" },
-  { label: "African Picks",       tag: "african_ingredients" },
-  { label: "K-Beauty",            tag: "korean_ingredients" },
+  // 🌿 Skin Brightening
+  { label: "Brightening",       tag: "brightening",        emoji: "🌿" },
+  { label: "Glass Skin",        tag: "glass_skin",         emoji: "✨" },
+  { label: "Herbal Glow",       tag: "herbal_brightening", emoji: "🌱" },
+  { label: "Whitening",         tag: "whitening",          emoji: "💫" },
+  // ✨ Stretch Marks
+  { label: "Stretch Marks",     tag: "stretch_marks",      emoji: "✨" },
+  { label: "Skin Repair",       tag: "korean_repair",      emoji: "🔬" },
+  { label: "Repair Body Wash",  tag: "repair_body_wash",   emoji: "🛁" },
+  // 💧 Face Care
+  { label: "Moisturizers",      tag: "moisturizer",        emoji: "💧" },
+  { label: "Hydrating Wash",    tag: "hydration",          emoji: "💦" },
+  { label: "Korean Toner",      tag: "korean_essence",     emoji: "🇰🇷" },
+  { label: "Herbal Oils",       tag: "herbal_facial",      emoji: "🌿" },
+  // 🧴 Cleansers
+  { label: "Face Wash",         tag: "face_wash",          emoji: "🧴" },
+  { label: "Face Masks",        tag: "masks",              emoji: "🎭" },
+  { label: "Sheet Masks",       tag: "korean_sheet_mask",  emoji: "🇰🇷" },
+  { label: "Eye Masks",         tag: "eye_mask",           emoji: "👁️" },
+  { label: "Lip Masks",         tag: "lip_mask",           emoji: "💋" },
+  // ☀️ Sunscreen
+  { label: "Sunscreen",         tag: "sunscreen",          emoji: "☀️" },
+  { label: "Korean SPF",        tag: "korean_spf",         emoji: "🇰🇷" },
+  { label: "Body Sunscreen",    tag: "body_sunscreen",     emoji: "🌞" },
+  // 🌸 Exfoliator & Anti-Pimples
+  { label: "Exfoliators",       tag: "exfoliation",        emoji: "🌸" },
+  { label: "Body Scrubs",       tag: "body_scrub",         emoji: "🛁" },
+  { label: "Anti-Pimple",       tag: "acne",               emoji: "🎯" },
+  { label: "Pore Refining",     tag: "korean_exfoliant",   emoji: "🔬" },
+  // 💎 Serums & Treatments
+  { label: "Anti-Wrinkle",      tag: "anti_aging",         emoji: "⏳" },
+  { label: "Collagen",          tag: "collagen",           emoji: "💎" },
+  { label: "Snail Mucin",       tag: "snail_mucin",        emoji: "🐌" },
+  { label: "Anti-Blackhead",    tag: "anti_blackhead",     emoji: "🖤" },
+  { label: "Natural Oils",      tag: "natural_oils",       emoji: "🫒" },
+  { label: "African Botanicals",tag: "african_ingredients",emoji: "🌍" },
 ];
 
 function CategoryNav({ categoryImages }: { categoryImages: Record<string, string | null> }) {
@@ -322,14 +343,14 @@ function CategoryNav({ categoryImages }: { categoryImages: Record<string, string
                 onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "#f0fdf4"; el.style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.transform = "none"; }}
               >
-                <div style={{ width: 60, height: 60, borderRadius: 14, overflow: "hidden", border: "2px solid #e2ece8", flexShrink: 0, background: "#f1f5f9" }}>
+                <div style={{ width: 60, height: 60, borderRadius: 14, overflow: "hidden", border: "2px solid #e2ece8", flexShrink: 0, background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {img ? (
-                    <img src={optimizeImg(resolveImg(img), 300)!} alt={c.label} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.3s" }}
-                      onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.12)")}
+                    <img src={optimizeImg(resolveImg(img), 300)!} alt={c.label} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "4px", display: "block", transition: "transform 0.3s" }}
+                      onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.1)")}
                       onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
                     />
                   ) : (
-                    <div className="shimbox" style={{ width: "100%", height: "100%" }} />
+                    <span style={{ fontSize: 26 }}>{c.emoji}</span>
                   )}
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textAlign: "center", lineHeight: 1.25, whiteSpace: "nowrap", letterSpacing: 0.1 }}>{c.label}</span>
@@ -348,34 +369,54 @@ function CategoryNav({ categoryImages }: { categoryImages: Record<string, string
 ═══════════════════════════════════════════════════════════════ */
 const HERO_SLIDES = [
   {
-    tag: "Hydration & Repair",
-    headline: "Glow Up With\nHydrated Skin",
-    sub: "Shop hydration, barrier & repair products — delivered to Lesotho",
-    cta: "Shop Hydration",
-    ctaLink: "/store?tag=hydration",
+    tag: "🌿 Skin Brightening",
+    headline: "Glow From\nWithin",
+    sub: "Brightening serums, Korean glass-skin & herbal oils — all in one store",
+    cta: "Shop Brightening",
+    ctaLink: "/store?tag=brightening",
     bg: "linear-gradient(135deg, #061a12 0%, #0a2a1f 50%, #1b5e4a 100%)",
     accent: "#c8a75a",
-    filterTag: "hydration",
+    filterTag: "brightening",
   },
   {
-    tag: "Flash Deals",
-    headline: "Up to 60% Off\nTop Beauty Brands",
-    sub: "Limited time — brightening, anti-aging & more on sale now",
-    cta: "View All Deals",
-    ctaLink: "/store?sort=discount",
-    bg: "linear-gradient(135deg, #5f0a0a, #8b1a1a, #c0392b)",
-    accent: "#fde68a",
-    filterTag: "",
-  },
-  {
-    tag: "African × Korean",
-    headline: "The Best of\nBoth Worlds",
-    sub: "African botanicals meets K-beauty innovation — exclusively curated",
-    cta: "Explore Now",
-    ctaLink: "/store?tag=african_ingredients",
+    tag: "✨ Stretch Marks & Repair",
+    headline: "Restore &\nRenew",
+    sub: "Stretch mark creams, repair serums & Korean skin-rebuild treatments",
+    cta: "Shop Repair",
+    ctaLink: "/store?tag=stretch_marks",
     bg: "linear-gradient(135deg, #2d1b69, #5b21b6, #7c3aed)",
     accent: "#fce7f3",
-    filterTag: "african_ingredients",
+    filterTag: "stretch_marks",
+  },
+  {
+    tag: "☀️ Sunscreen + 🌸 Anti-Pimples",
+    headline: "Protect &\nClear",
+    sub: "Korean lightweight SPF, pore-refining exfoliators & acne treatments",
+    cta: "Shop Now",
+    ctaLink: "/store?tag=sunscreen",
+    bg: "linear-gradient(135deg, #5f0a0a, #8b1a1a, #c0392b)",
+    accent: "#fde68a",
+    filterTag: "sunscreen",
+  },
+  {
+    tag: "💎 Advanced Serums",
+    headline: "Science\nMeets Nature",
+    sub: "Snail mucin, collagen boosters, African botanicals & anti-wrinkle actives",
+    cta: "Shop Serums",
+    ctaLink: "/store?tag=anti_aging",
+    bg: "linear-gradient(135deg, #0d2137, #1a3a6b, #2d5a9e)",
+    accent: "#93c5fd",
+    filterTag: "anti_aging",
+  },
+  {
+    tag: "💧 Face Care + 🧴 Cleansers",
+    headline: "Hydrate,\nCleanse & Glow",
+    sub: "Korean toners, herbal facial oils, sheet masks & deep-cleanse essentials",
+    cta: "Shop Face Care",
+    ctaLink: "/store?tag=hydration",
+    bg: "linear-gradient(135deg, #064e3b, #065f46, #047857)",
+    accent: "#a7f3d0",
+    filterTag: "hydration",
   },
 ];
 
@@ -718,6 +759,118 @@ function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
           <div style={{ height: "100%", width: `${sold}%`, background: "linear-gradient(90deg,#c0392b,#e74c3c)", borderRadius: 3 }} />
         </div>
         <span style={{ fontSize: 9, color: "#c0392b", fontWeight: 700, marginTop: 3, display: "block" }}>{sold}% sold</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHOP BY CATEGORY — 7-category visual grid
+═══════════════════════════════════════════════════════════════ */
+const STORE_CATEGORIES = [
+  {
+    emoji: "🌿", title: "Skin Brightening",
+    desc: "Brightening serums, glass-skin K-beauty & herbal brightening oils",
+    tag: "brightening",
+    color: "#0f3f2f", light: "#e6f2ee",
+    items: ["Face wash", "Serums", "Body lotion", "Korean glass-skin", "Herbal oils"],
+  },
+  {
+    emoji: "✨", title: "Stretch Marks Remover",
+    desc: "Creams, serums & Korean repair treatments for stretch marks",
+    tag: "stretch_marks",
+    color: "#6b21a8", light: "#f5e8f8",
+    items: ["Remover cream", "Body lotion", "Repair serum", "Korean repair", "Repairing wash"],
+  },
+  {
+    emoji: "💧", title: "Face Care Essentials",
+    desc: "Moisturisers, herbal oils, Korean toners & deep-cleansing essentials",
+    tag: "hydration",
+    color: "#1e3a5f", light: "#e8eef8",
+    items: ["Moisturizers", "Hydrating wash", "Deep cleanse", "Herbal oils", "Korean toner"],
+  },
+  {
+    emoji: "🧴", title: "Cleanser & Cosmetic Care",
+    desc: "Face wash, Korean sheet masks, eye masks & lip masks",
+    tag: "face_wash",
+    color: "#0f3f2f", light: "#e6f2ee",
+    items: ["Face wash", "Face masks", "Sheet masks", "Eye masks", "Lip masks"],
+  },
+  {
+    emoji: "☀️", title: "Sunscreen Collection",
+    desc: "SPF for face & body, Korean no-white-cast SPF & herbal sun creams",
+    tag: "sunscreen",
+    color: "#92400e", light: "#fef3cd",
+    items: ["SPF face", "Body lotion SPF", "Korean lightweight", "Herbal sun cream"],
+  },
+  {
+    emoji: "🌸", title: "Exfoliator & Anti-Pimples",
+    desc: "Facial exfoliators, body scrubs, Korean pore-refining & acne control",
+    tag: "exfoliation",
+    color: "#9b1c1c", light: "#fdecea",
+    items: ["Facial exfoliators", "Body scrubs", "Anti-pimple", "Korean pore-refine", "Acne control"],
+  },
+  {
+    emoji: "💎", title: "Advanced Serums & Treatments",
+    desc: "Snail mucin, collagen boosters, anti-wrinkle & African botanical actives",
+    tag: "anti_aging",
+    color: "#4c1d95", light: "#f5e8f8",
+    items: ["Anti-acne serum", "Anti-blackhead", "Anti-wrinkle", "Collagen", "Snail mucin"],
+  },
+];
+
+function ShopByCategory() {
+  return (
+    <div style={{ background: "#f8fafc", padding: "40px 0 32px" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
+        {/* Section header */}
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 24 }}>
+          <div>
+            <h2 style={{ fontSize: "clamp(20px,2.5vw,26px)", fontWeight: 900, color: "#0f3f2f", margin: 0, letterSpacing: -0.5 }}>
+              Shop by Category
+            </h2>
+            <p style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}>
+              Korean skincare · African botanicals · International beauty — all in one store
+            </p>
+          </div>
+          <Link href="/store" style={{ fontSize: 13, fontWeight: 700, color: "#0f3f2f", textDecoration: "none", whiteSpace: "nowrap", border: "1.5px solid #0f3f2f", padding: "7px 16px", borderRadius: 8, transition: "all 0.2s" }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "#0f3f2f"; el.style.color = "white"; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = "#0f3f2f"; }}
+          >View All →</Link>
+        </div>
+
+        {/* 7-category grid: 4 on top row, 3 on bottom */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: 14 }}>
+          {STORE_CATEGORIES.map(cat => (
+            <Link
+              key={cat.tag}
+              href={`/store?tag=${cat.tag}`}
+              style={{ textDecoration: "none", background: "white", border: `1.5px solid ${cat.light}`, borderRadius: 16, overflow: "hidden", transition: "box-shadow 0.22s, transform 0.22s, border-color 0.22s", display: "flex", flexDirection: "column" }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.boxShadow = "0 8px 28px rgba(0,0,0,0.11)"; el.style.transform = "translateY(-3px)"; el.style.borderColor = cat.color; }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.boxShadow = "none"; el.style.transform = "none"; el.style.borderColor = cat.light; }}
+            >
+              {/* Coloured header band */}
+              <div style={{ background: cat.color, padding: "16px 18px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 28, flexShrink: 0 }}>{cat.emoji}</span>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "white", letterSpacing: -0.3 }}>{cat.title}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.72)", marginTop: 2, lineHeight: 1.35 }}>{cat.desc}</div>
+                </div>
+              </div>
+              {/* Sub-item pills */}
+              <div style={{ padding: "12px 14px 14px", background: cat.light, flex: 1 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {cat.items.map(item => (
+                    <span key={item} style={{ fontSize: 11, color: cat.color, background: "white", border: `1px solid ${cat.color}22`, borderRadius: 20, padding: "3px 9px", fontWeight: 600 }}>
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: cat.color }}>Shop {cat.title} →</div>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1241,6 +1394,7 @@ export default function HomePage() {
       <AnnouncementBar />
       <CategoryNav categoryImages={categoryImages} />
       <HeroBanner products={heroLoad ? [] : heroProducts} />
+      <ShopByCategory />
       <TrustBar />
       <TopBrands brands={brands} brandImages={brandImages} />
       <PromoBanners featuredProducts={promoProducts.length >= 3 ? promoProducts : heroProducts.slice(0, 3)} />

@@ -91,26 +91,61 @@ const SORT_API_MAP: Record<SortOption, string> = {
 
 const PAGE_SIZE = 24;
 
+// ─── 7 store categories ────────────────────────────────────────────────────
+// Each group maps to one sidebar section and one set of quick-filter pills.
 const COLLECTION_TAGS = [
-  { tag: "anti_aging", label: "Anti-Aging", group: "Skin Concerns" },
-  { tag: "acne", label: "Acne Care", group: "Skin Concerns" },
-  { tag: "brightening", label: "Brightening", group: "Skin Concerns" },
-  { tag: "whitening", label: "Whitening", group: "Skin Concerns" },
-  { tag: "hydration", label: "Hydration", group: "Skin Concerns" },
-  { tag: "repair", label: "Repair", group: "Skin Concerns" },
-  { tag: "barrier", label: "Skin Barrier", group: "Skin Concerns" },
-  { tag: "eczema", label: "Eczema", group: "Skin Concerns" },
-  { tag: "rosacea", label: "Rosacea", group: "Skin Concerns" },
-  { tag: "scar", label: "Scar Care", group: "Skin Concerns" },
-  { tag: "sunscreen", label: "Sunscreen", group: "Product Types" },
-  { tag: "oils", label: "Face Oils", group: "Product Types" },
-  { tag: "soaps", label: "Soaps", group: "Product Types" },
-  { tag: "body", label: "Body Care", group: "Product Types" },
-  { tag: "masks", label: "Face Masks", group: "Product Types" },
-  { tag: "exfoliation", label: "Exfoliation", group: "Product Types" },
-  { tag: "clinical_acids", label: "Clinical Acids", group: "Ingredients" },
-  { tag: "african_ingredients", label: "African Botanicals", group: "Ingredients" },
-  { tag: "korean_ingredients", label: "K-Beauty", group: "Ingredients" },
+  // 🌿 Skin Brightening
+  { tag: "brightening",         label: "Brightening Serums & Wash",     group: "🌿 Skin Brightening" },
+  { tag: "brightening_body",    label: "Brightening Body Lotion/Wash",  group: "🌿 Skin Brightening" },
+  { tag: "glass_skin",          label: "Korean Glass-Skin",             group: "🌿 Skin Brightening" },
+  { tag: "herbal_brightening",  label: "Herbal & Traditional Oils",     group: "🌿 Skin Brightening" },
+  { tag: "whitening",           label: "Whitening",                     group: "🌿 Skin Brightening" },
+
+  // ✨ Stretch Marks Remover
+  { tag: "stretch_marks",       label: "Stretch Marks Cream",           group: "✨ Stretch Marks Remover" },
+  { tag: "stretch_serum",       label: "Stretch Marks Serum",           group: "✨ Stretch Marks Remover" },
+  { tag: "repair_body_lotion",  label: "Stretch Marks Body Lotion",     group: "✨ Stretch Marks Remover" },
+  { tag: "repair_body_wash",    label: "Repairing Body Wash",           group: "✨ Stretch Marks Remover" },
+  { tag: "korean_repair",       label: "Korean Skin-Repair",            group: "✨ Stretch Marks Remover" },
+
+  // 💧 Face Care Essentials
+  { tag: "moisturizer",         label: "Face Moisturizers",             group: "💧 Face Care Essentials" },
+  { tag: "hydration",           label: "Hydrating Face Wash",           group: "💧 Face Care Essentials" },
+  { tag: "deep_cleanse",        label: "Deep Cleansing Face Wash",      group: "💧 Face Care Essentials" },
+  { tag: "herbal_facial",       label: "Herbal Facial Oils",            group: "💧 Face Care Essentials" },
+  { tag: "traditional_skin",    label: "Traditional Skincare",          group: "💧 Face Care Essentials" },
+  { tag: "korean_essence",      label: "Korean Essence & Toner",        group: "💧 Face Care Essentials" },
+
+  // 🧴 Cleanser & Cosmetic Care
+  { tag: "face_wash",           label: "Face Wash & Cleansers",         group: "🧴 Cleanser & Cosmetic Care" },
+  { tag: "masks",               label: "Face Masks",                    group: "🧴 Cleanser & Cosmetic Care" },
+  { tag: "korean_sheet_mask",   label: "Korean Sheet Masks",            group: "🧴 Cleanser & Cosmetic Care" },
+  { tag: "eye_mask",            label: "Eye Masks",                     group: "🧴 Cleanser & Cosmetic Care" },
+  { tag: "lip_mask",            label: "Lip Masks",                     group: "🧴 Cleanser & Cosmetic Care" },
+
+  // ☀️ Sunscreen
+  { tag: "sunscreen",           label: "SPF Face Sunscreen",            group: "☀️ Sunscreen Collection" },
+  { tag: "body_sunscreen",      label: "Body Sunscreen Lotion",         group: "☀️ Sunscreen Collection" },
+  { tag: "korean_spf",          label: "Korean Lightweight SPF",        group: "☀️ Sunscreen Collection" },
+  { tag: "herbal_sunscreen",    label: "Herbal Sun Protection",         group: "☀️ Sunscreen Collection" },
+
+  // 🌸 Exfoliator & Anti-Pimples
+  { tag: "exfoliation",         label: "Facial Exfoliators",            group: "🌸 Exfoliator & Anti-Pimples" },
+  { tag: "body_scrub",          label: "Body Scrubs",                   group: "🌸 Exfoliator & Anti-Pimples" },
+  { tag: "acne",                label: "Anti-Pimple Creams",            group: "🌸 Exfoliator & Anti-Pimples" },
+  { tag: "korean_exfoliant",    label: "Korean Pore-Refining",          group: "🌸 Exfoliator & Anti-Pimples" },
+  { tag: "acne_control",        label: "Acne Control Treatments",       group: "🌸 Exfoliator & Anti-Pimples" },
+
+  // 💎 Advanced Serums & Treatments
+  { tag: "anti_acne_serum",     label: "Anti-Acne Serums",              group: "💎 Advanced Serums & Treatments" },
+  { tag: "anti_blackhead",      label: "Anti-Blackhead Treatments",     group: "💎 Advanced Serums & Treatments" },
+  { tag: "anti_aging",          label: "Anti-Wrinkle Serums",           group: "💎 Advanced Serums & Treatments" },
+  { tag: "collagen",            label: "Collagen Boosting Serums",      group: "💎 Advanced Serums & Treatments" },
+  { tag: "herbal_medicinal",    label: "Medicinal Herb Skincare",       group: "💎 Advanced Serums & Treatments" },
+  { tag: "natural_oils",        label: "Natural Skin Oils",             group: "💎 Advanced Serums & Treatments" },
+  { tag: "skin_protein",        label: "Skin Protein & Repair",         group: "💎 Advanced Serums & Treatments" },
+  { tag: "snail_mucin",         label: "Korean Snail Mucin",            group: "💎 Advanced Serums & Treatments" },
+  { tag: "african_ingredients", label: "African Botanicals",            group: "💎 Advanced Serums & Treatments" },
 ];
 
 const TAG_LABEL: Record<string, string> = Object.fromEntries(COLLECTION_TAGS.map(t => [t.tag, t.label]));
@@ -496,18 +531,20 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
    QUICK FILTERS ROW
 ================================================================ */
 const QUICK_FILTERS = [
-  { label: "All Products", q: "" },
-  { label: "Best Sellers", q: "sort=popular" },
-  { label: "Flash Deals", q: "sort=discount" },
-  { label: "Top Rated", q: "sort=rating" },
-  { label: "New Arrivals", q: "sort=newest" },
-  { label: "Hydration", q: "tag=hydration" },
-  { label: "Anti-Aging", q: "tag=anti_aging" },
-  { label: "Brightening", q: "tag=brightening" },
-  { label: "Sunscreen", q: "tag=sunscreen" },
-  { label: "African Picks", q: "tag=african_ingredients" },
-  { label: "K-Beauty", q: "tag=korean_ingredients" },
-  { label: "In Stock Only", q: "in_stock=true" },
+  { label: "All Products",       q: "" },
+  { label: "Best Sellers",       q: "sort=popular" },
+  { label: "Flash Deals",        q: "sort=discount" },
+  { label: "New Arrivals",       q: "sort=newest" },
+  { label: "🌿 Brightening",     q: "tag=brightening" },
+  { label: "✨ Stretch Marks",    q: "tag=stretch_marks" },
+  { label: "💧 Face Care",       q: "tag=hydration" },
+  { label: "🧴 Cleansers",       q: "tag=face_wash" },
+  { label: "☀️ Sunscreen",       q: "tag=sunscreen" },
+  { label: "🌸 Anti-Pimples",    q: "tag=acne" },
+  { label: "💎 Serums",          q: "tag=anti_aging" },
+  { label: "K-Beauty",           q: "tag=glass_skin" },
+  { label: "African Botanicals", q: "tag=african_ingredients" },
+  { label: "In Stock Only",      q: "in_stock=true" },
 ];
 
 /* ================================================================
@@ -753,9 +790,17 @@ export default function StoreClient() {
   /* ── FILTER PANEL ── */
   const FilterPanel = () => (
     <div>
-      {/* Collection tags by group */}
-      {["Skin Concerns", "Product Types", "Ingredients"].map(group => (
-        <FilterSection key={group} title={group} defaultOpen={group === "Skin Concerns"}>
+      {/* Collection tags — one section per store category */}
+      {[
+        "🌿 Skin Brightening",
+        "✨ Stretch Marks Remover",
+        "💧 Face Care Essentials",
+        "🧴 Cleanser & Cosmetic Care",
+        "☀️ Sunscreen Collection",
+        "🌸 Exfoliator & Anti-Pimples",
+        "💎 Advanced Serums & Treatments",
+      ].map((group, gi) => (
+        <FilterSection key={group} title={group} defaultOpen={gi === 0}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {COLLECTION_TAGS.filter(t => t.group === group).map(t => (
               <label key={t.tag} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
@@ -894,7 +939,15 @@ export default function StoreClient() {
           <form onSubmit={handleSearch} style={{ flex: 1, display: "flex", background: "white", borderRadius: 9, overflow: "hidden", maxWidth: 700, boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
             <select value={selectedTag} onChange={e => setSelectedTag(e.target.value)} style={{ background: "var(--gray-100)", border: "none", borderRight: "1px solid var(--gray-200)", padding: "0 12px", fontSize: 12, color: "var(--gray-700)", fontFamily: "inherit", cursor: "pointer", outline: "none", minWidth: 90 }}>
               <option value="">All</option>
-              {["Skin Concerns", "Product Types", "Ingredients"].map(g => (
+              {[
+                "🌿 Skin Brightening",
+                "✨ Stretch Marks Remover",
+                "💧 Face Care Essentials",
+                "🧴 Cleanser & Cosmetic Care",
+                "☀️ Sunscreen Collection",
+                "🌸 Exfoliator & Anti-Pimples",
+                "💎 Advanced Serums & Treatments",
+              ].map(g => (
                 <optgroup key={g} label={g}>
                   {COLLECTION_TAGS.filter(t => t.group === g).map(t => (
                     <option key={t.tag} value={t.tag}>{t.label}</option>
