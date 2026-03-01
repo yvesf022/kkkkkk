@@ -78,34 +78,57 @@ const SORT_API_MAP: Record<SortOption, string> = {
 };
 
 // Beauty category slugs (must match products.category column values)
-const BEAUTY_SLUGS = [
-  "moisturizer","sunscreen","face_wash","serum","body_lotion","face_mask",
-  "eye_mask","anti_acne","skin_brightening","collagen","skin_natural_oils",
-  "herbal_oils","anti_wrinkles","body_wash","exfoliator","lip_mask",
+// ── Collection tags — sourced directly from the CSV "collections" column ──────
+// These are the primary navigation system for this catalogue.
+
+export const COLLECTION_TAGS: { tag: string; label: string; emoji: string; group: string }[] = [
+  // Skin concerns
+  { tag: "anti_aging",          label: "Anti-Aging",           emoji: "✨", group: "Skin Concerns" },
+  { tag: "acne",                label: "Acne",                 emoji: "🎯", group: "Skin Concerns" },
+  { tag: "brightening",         label: "Brightening",          emoji: "🌟", group: "Skin Concerns" },
+  { tag: "whitening",           label: "Whitening",            emoji: "🤍", group: "Skin Concerns" },
+  { tag: "hydration",           label: "Hydration",            emoji: "💧", group: "Skin Concerns" },
+  { tag: "repair",              label: "Repair",               emoji: "🔧", group: "Skin Concerns" },
+  { tag: "barrier",             label: "Barrier",              emoji: "🛡️", group: "Skin Concerns" },
+  { tag: "eczema",              label: "Eczema",               emoji: "🌿", group: "Skin Concerns" },
+  { tag: "rosacea",             label: "Rosacea",              emoji: "🌹", group: "Skin Concerns" },
+  { tag: "scar",                label: "Scar",                 emoji: "🩹", group: "Skin Concerns" },
+  { tag: "stretch_mark",        label: "Stretch Mark",         emoji: "📏", group: "Skin Concerns" },
+  // Product types
+  { tag: "sunscreen",           label: "Sunscreen",            emoji: "☀️", group: "Product Types" },
+  { tag: "oils",                label: "Oils",                 emoji: "🌿", group: "Product Types" },
+  { tag: "soaps",               label: "Soaps",                emoji: "🧼", group: "Product Types" },
+  { tag: "body",                label: "Body",                 emoji: "💆", group: "Product Types" },
+  { tag: "masks",               label: "Masks",                emoji: "🎭", group: "Product Types" },
+  { tag: "exfoliation",         label: "Exfoliation",          emoji: "✦",  group: "Product Types" },
+  // Ingredient focus
+  { tag: "clinical_acids",      label: "Clinical Acids",       emoji: "⚗️", group: "Ingredients" },
+  { tag: "african_ingredients", label: "African Ingredients",  emoji: "🌍", group: "Ingredients" },
+  { tag: "korean_ingredients",  label: "Korean Ingredients",   emoji: "🇰🇷", group: "Ingredients" },
 ];
-const PHONE_SLUGS = ["samsung","apple","xiaomi","motorola","oneplus","google","realme"];
+
+// Lookup map: tag → label
+const TAG_LABEL: Record<string, string> = Object.fromEntries(
+  COLLECTION_TAGS.map(t => [t.tag, t.label])
+);
+
+// For legacy category filtering (still used by sidebar brand / category fallback)
+const ALL_SLUGS = COLLECTION_TAGS.map(t => t.tag);
 
 const PAGE_SIZE = 20;
 
-// Human-readable labels for beauty category slugs (for filter chips)
-const BEAUTY_CAT_LABELS: Record<string, string> = {
-  moisturizer: "Moisturiser", sunscreen: "Sunscreen", face_wash: "Face Wash",
-  serum: "Serum", body_lotion: "Body Lotion", face_mask: "Face Mask",
-  eye_mask: "Eye Mask", anti_acne: "Anti-Acne", skin_brightening: "Brightening",
-  collagen: "Collagen", skin_natural_oils: "Natural Oils", herbal_oils: "Herbal Oils",
-  anti_wrinkles: "Anti-Wrinkle", body_wash: "Body Wash", exfoliator: "Exfoliator",
-  lip_mask: "Lip Mask",
-};
-
 const QUICK_FILTERS = [
-  { label: "All Products",  q: "" },
-  { label: "Best Sellers",  q: "sort=popular" },
-  { label: "Flash Deals",   q: "sort=discount" },
-  { label: "Top Rated",     q: "sort=rating" },
-  { label: "New Arrivals",  q: "sort=newest" },
-  { label: "Beauty Care",   q: "main_cat=beauty" },
-  { label: "Smartphones",   q: "main_cat=phones" },
-  { label: "In Stock Only", q: "in_stock=true" },
+  { label: "All Products",     q: "" },
+  { label: "Best Sellers",     q: "sort=popular" },
+  { label: "Flash Deals",      q: "sort=discount" },
+  { label: "Top Rated",        q: "sort=rating" },
+  { label: "New Arrivals",     q: "sort=newest" },
+  { label: "Hydration",        q: "tag=hydration" },
+  { label: "Anti-Aging",       q: "tag=anti_aging" },
+  { label: "Brightening",      q: "tag=brightening" },
+  { label: "African Picks",    q: "tag=african_ingredients" },
+  { label: "K-Beauty",         q: "tag=korean_ingredients" },
+  { label: "In Stock Only",    q: "in_stock=true" },
 ];
 
 /* ================================================================
@@ -243,7 +266,7 @@ function ProductCardList({ product, onClick }: { product: ProductListItem; onCli
         {product.brand && <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.8, color: "var(--primary)" }}>{product.brand}</div>}
         <div style={{ fontSize: 15, fontWeight: 600, color: "var(--gray-900)", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{product.title}</div>
         {product.rating != null && product.rating > 0 && <StarRow rating={product.rating} count={product.rating_number} />}
-        {product.category && <div style={{ fontSize: 11, color: "var(--gray-500)" }}>Category: {BEAUTY_CAT_LABELS[product.category] ?? product.category}</div>}
+        {product.category && <div style={{ fontSize: 11, color: "var(--gray-500)" }}>Category: {TAG_LABEL[product.category] ?? product.category}</div>}
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: product.in_stock ? "#22c55e" : "#ef4444" }} />
           <span style={{ fontSize: 11, color: product.in_stock ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{product.in_stock ? "In Stock" : "Out of Stock"}</span>
@@ -325,6 +348,7 @@ export default function StoreClient() {
   const [selectedCategory,  setSelectedCategory]  = useState(params.get("category") ?? "");
   const [selectedBrand,     setSelectedBrand]     = useState(params.get("brand") ?? "");
   const [selectedMainCat,   setSelectedMainCat]   = useState(params.get("main_cat") ?? "");
+  const [selectedTag,       setSelectedTag]       = useState(params.get("tag") ?? "");
   const [priceMin,          setPriceMin]          = useState(params.get("min_price") ?? "");
   const [priceMax,          setPriceMax]          = useState(params.get("max_price") ?? "");
   const [inStockOnly,       setInStockOnly]       = useState(params.get("in_stock") === "true");
@@ -336,12 +360,12 @@ export default function StoreClient() {
   /* ── Sidebar metadata ── */
   const [sidebarBrands, setSidebarBrands] = useState<string[]>([]);
 
-  const hasFilters = !!(searchQuery || selectedCategory || selectedBrand || selectedMainCat || priceMin || priceMax || inStockOnly || minRating);
+  const hasFilters = !!(searchQuery || selectedCategory || selectedBrand || selectedMainCat || selectedTag || priceMin || priceMax || inStockOnly || minRating);
 
   /* ── Clear all ── */
   const clearAllFilters = useCallback(() => {
     setSearchQuery(""); setSearchInput(""); setSelectedCategory("");
-    setSelectedBrand(""); setSelectedMainCat(""); setPriceMin(""); setPriceMax("");
+    setSelectedBrand(""); setSelectedMainCat(""); setSelectedTag(""); setPriceMin(""); setPriceMax("");
     setInStockOnly(false); setMinRating(""); setActiveQuick(""); setSort("newest");
   }, []);
 
@@ -359,59 +383,28 @@ export default function StoreClient() {
   }, []);
 
   /* ================================================================
-     LOAD PRODUCTS
-     Two strategies:
-       A) selectedMainCat = "beauty" | "phones"
-          → GET /api/products/by-department/{dept}
-            ?sort=<api_sort>&page=<n>&per_page=<n>
-            Response: { results: ProductListItem[], total, page, per_page }
-
-       B) everything else
-          → GET /api/products
-            ?q=<search>&category=<slug>&brand=<brand>
-            &min_price=<n>&max_price=<n>&in_stock=<bool>&min_rating=<n>
-            &sort=<api_sort>&page=<n>&per_page=<n>
-            Response: { total, page, per_page, pages, results: ProductListItem[] }
+     LOAD PRODUCTS — single strategy: GET /api/products
+     Params: q, category, brand, tag, min_price, max_price,
+             in_stock, min_rating, sort, page, per_page
   ================================================================ */
   const loadProducts = useCallback(async (pg = 1, append = false) => {
     if (append) setLoadingMore(true); else setLoading(true);
     try {
       const apiSort = SORT_API_MAP[sort];
-      let url: string;
-      let data: { total?: number; results?: ProductListItem[] };
+      const qs = new URLSearchParams({ sort: apiSort, page: String(pg), per_page: String(PAGE_SIZE) });
+      if (searchQuery)      qs.set("q",           searchQuery);
+      if (selectedCategory) qs.set("category",    selectedCategory);
+      if (selectedBrand)    qs.set("brand",        selectedBrand);
+      if (selectedTag)      qs.set("tag",          selectedTag);
+      if (selectedMainCat)  qs.set("main_category", selectedMainCat);
+      if (priceMin)         qs.set("min_price",    priceMin);
+      if (priceMax)         qs.set("max_price",    priceMax);
+      if (inStockOnly)      qs.set("in_stock",     "true");
+      if (minRating)        qs.set("min_rating",   minRating);
+      const url = `${API}/api/products?${qs}`;
+      const resp = await fetch(url);
+      const data: { total?: number; results?: ProductListItem[] } = resp.ok ? await resp.json() : { total: 0, results: [] };
 
-      if ((selectedMainCat === "beauty" || selectedMainCat === "phones") && !selectedCategory) {
-        /* Strategy A — department endpoint (only when NO subcategory selected).
-           The by-department endpoint does NOT support a category= filter — it returns
-           ALL products in the department. When a subcategory is selected we fall through
-           to Strategy B which sends category= to the main products endpoint instead. */
-        const qs = new URLSearchParams({
-          sort:     apiSort,
-          page:     String(pg),
-          per_page: String(PAGE_SIZE),
-        });
-        url = `${API}/api/products/by-department/${selectedMainCat}?${qs}`;
-        const resp = await fetch(url);
-        data = resp.ok ? await resp.json() : { total: 0, results: [] };
-      } else {
-        /* Strategy B — main products endpoint */
-        const qs = new URLSearchParams({ sort: apiSort, page: String(pg), per_page: String(PAGE_SIZE) });
-        // search — backend accepts both q= and search=; we send q=
-        if (searchQuery)      qs.set("q",          searchQuery);
-        // FIX: when user picked a subcategory within beauty/phones, pass category= so
-        // products are filtered correctly (the by-department endpoint doesn't support this).
-        if (selectedCategory) qs.set("category",   selectedCategory);
-        if (selectedBrand)    qs.set("brand",       selectedBrand);
-        if (priceMin)         qs.set("min_price",   priceMin);
-        if (priceMax)         qs.set("max_price",   priceMax);
-        if (inStockOnly)      qs.set("in_stock",    "true");
-        if (minRating)        qs.set("min_rating",  minRating);
-        url = `${API}/api/products?${qs}`;
-        const resp = await fetch(url);
-        data = resp.ok ? await resp.json() : { total: 0, results: [] };
-      }
-
-      // Both endpoints return { results: [...], total }
       const items: ProductListItem[] = data.results ?? [];
       const tot:   number            = data.total ?? items.length;
 
@@ -424,12 +417,12 @@ export default function StoreClient() {
     } finally {
       if (append) setLoadingMore(false); else setLoading(false);
     }
-  }, [sort, searchQuery, selectedMainCat, selectedCategory, selectedBrand, priceMin, priceMax, inStockOnly, minRating]);
+  }, [sort, searchQuery, selectedMainCat, selectedCategory, selectedBrand, selectedTag, priceMin, priceMax, inStockOnly, minRating]);
 
   /* Re-fetch when any filter/sort changes */
   useEffect(() => { loadProducts(1); }, [
     sort, searchQuery, selectedMainCat, selectedCategory, selectedBrand,
-    priceMin, priceMax, inStockOnly, minRating,
+    selectedTag, priceMin, priceMax, inStockOnly, minRating,
   ]);
 
   /* Quick filter pill handler */
@@ -437,18 +430,16 @@ export default function StoreClient() {
     setActiveQuick(q);
     // Reset all filters first
     setSort("newest");
-    setSelectedCategory(""); setSelectedBrand(""); setSelectedMainCat("");
+    setSelectedCategory(""); setSelectedBrand(""); setSelectedMainCat(""); setSelectedTag("");
     setPriceMin(""); setPriceMax(""); setInStockOnly(false); setMinRating("");
     setSearchQuery(""); setSearchInput("");
-    // If q is empty string ("All Products"), just show everything with default sort
     if (!q) return;
-    // Apply quick filter — parse as URLSearchParams so multi-param values work
     const parsed = new URLSearchParams(q);
     const sortVal = parsed.get("sort");
-    const mainCat = parsed.get("main_cat");
+    const tagVal  = parsed.get("tag");
     const inStock = parsed.get("in_stock");
     if (sortVal) setSort(sortVal as SortOption);
-    if (mainCat) setSelectedMainCat(mainCat);
+    if (tagVal)  setSelectedTag(tagVal);
     if (inStock === "true") setInStockOnly(true);
   };
 
@@ -461,49 +452,53 @@ export default function StoreClient() {
   /* ── FILTER PANEL (shared by sidebar + mobile drawer) ── */
   const FilterPanel = () => (
     <div>
-      {/* Department */}
-      <FilterSection title="Department">
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {[
-            { label: "All Departments",             val: "" },
-            { label: "Beauty & Personal Care",      val: "beauty" },
-            { label: "Cell Phones & Accessories",   val: "phones" },
-          ].map(opt => (
-            <label key={opt.val} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: selectedMainCat === opt.val ? "var(--primary)" : "var(--gray-700)" }}>
-              <input type="radio" name="main_cat" checked={selectedMainCat === opt.val} onChange={() => setSelectedMainCat(opt.val)} style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
-              {opt.label}
+      {/* Collection Tags — Skin Concerns */}
+      <FilterSection title="Skin Concerns">
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {COLLECTION_TAGS.filter(t => t.group === "Skin Concerns").map(t => (
+            <label key={t.tag} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13,
+              color: selectedTag === t.tag ? "var(--primary)" : "var(--gray-700)",
+              fontWeight: selectedTag === t.tag ? 700 : 400 }}>
+              <input type="radio" name="tag" checked={selectedTag === t.tag}
+                onChange={() => setSelectedTag(selectedTag === t.tag ? "" : t.tag)}
+                style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
+              <span>{t.emoji}</span> {t.label}
             </label>
           ))}
         </div>
       </FilterSection>
 
-      {/* Beauty subcategory filter — only when beauty is selected */}
-      {selectedMainCat === "beauty" && (
-        <FilterSection title="Skincare Category">
-          <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 200, overflowY: "auto" }}>
-            {BEAUTY_SLUGS.map(slug => (
-              <label key={slug} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: selectedCategory === slug ? "var(--primary)" : "var(--gray-700)" }}>
-                <input type="radio" name="beauty_cat" checked={selectedCategory === slug} onChange={() => setSelectedCategory(selectedCategory === slug ? "" : slug)} style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
-                {BEAUTY_CAT_LABELS[slug] ?? slug}
-              </label>
-            ))}
-          </div>
-        </FilterSection>
-      )}
+      {/* Collection Tags — Product Types */}
+      <FilterSection title="Product Types">
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {COLLECTION_TAGS.filter(t => t.group === "Product Types").map(t => (
+            <label key={t.tag} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13,
+              color: selectedTag === t.tag ? "var(--primary)" : "var(--gray-700)",
+              fontWeight: selectedTag === t.tag ? 700 : 400 }}>
+              <input type="radio" name="tag" checked={selectedTag === t.tag}
+                onChange={() => setSelectedTag(selectedTag === t.tag ? "" : t.tag)}
+                style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
+              <span>{t.emoji}</span> {t.label}
+            </label>
+          ))}
+        </div>
+      </FilterSection>
 
-      {/* Phone brand filter — only when phones is selected */}
-      {selectedMainCat === "phones" && (
-        <FilterSection title="Phone Brand">
-          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            {PHONE_SLUGS.map(slug => (
-              <label key={slug} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: selectedCategory === slug ? "var(--primary)" : "var(--gray-700)" }}>
-                <input type="radio" name="phone_brand" checked={selectedCategory === slug} onChange={() => setSelectedCategory(selectedCategory === slug ? "" : slug)} style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
-                {slug.charAt(0).toUpperCase() + slug.slice(1)}
-              </label>
-            ))}
-          </div>
-        </FilterSection>
-      )}
+      {/* Collection Tags — Ingredients */}
+      <FilterSection title="Ingredients">
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {COLLECTION_TAGS.filter(t => t.group === "Ingredients").map(t => (
+            <label key={t.tag} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13,
+              color: selectedTag === t.tag ? "var(--primary)" : "var(--gray-700)",
+              fontWeight: selectedTag === t.tag ? 700 : 400 }}>
+              <input type="radio" name="tag" checked={selectedTag === t.tag}
+                onChange={() => setSelectedTag(selectedTag === t.tag ? "" : t.tag)}
+                style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
+              <span>{t.emoji}</span> {t.label}
+            </label>
+          ))}
+        </div>
+      </FilterSection>
 
       {/* Price Range */}
       <FilterSection title="Price Range">
@@ -549,7 +544,7 @@ export default function StoreClient() {
         </label>
       </FilterSection>
 
-      {/* Brands from GET /api/brands */}
+      {/* Brands */}
       {sidebarBrands.length > 0 && (
         <FilterSection title="Brand" defaultOpen={false}>
           <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 200, overflowY: "auto" }}>
@@ -563,7 +558,7 @@ export default function StoreClient() {
         </FilterSection>
       )}
 
-      {/* Sort (in sidebar for mobile) */}
+      {/* Sort */}
       <FilterSection title="Sort By" defaultOpen={false}>
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(([v, l]) => (
@@ -594,11 +589,24 @@ export default function StoreClient() {
         <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)", display: "flex", alignItems: "center", gap: 12 }}>
           {/* Search form */}
           <form onSubmit={handleSearch} style={{ flex: 1, display: "flex", background: "white", borderRadius: 8, overflow: "hidden", maxWidth: 680 }}>
-            {/* Department quick-select */}
-            <select value={selectedMainCat} onChange={e => setSelectedMainCat(e.target.value)} style={{ background: "var(--gray-100)", border: "none", borderRight: "1px solid var(--gray-200)", padding: "0 12px", fontSize: 12, color: "var(--gray-700)", fontFamily: "inherit", cursor: "pointer", outline: "none", minHeight: "auto", height: "100%" }}>
+            {/* Tag quick-select */}
+            <select value={selectedTag} onChange={e => setSelectedTag(e.target.value)} style={{ background: "var(--gray-100)", border: "none", borderRight: "1px solid var(--gray-200)", padding: "0 12px", fontSize: 12, color: "var(--gray-700)", fontFamily: "inherit", cursor: "pointer", outline: "none", minHeight: "auto", height: "100%" }}>
               <option value="">All</option>
-              <option value="beauty">Beauty</option>
-              <option value="phones">Phones</option>
+              <optgroup label="Skin Concerns">
+                {COLLECTION_TAGS.filter(t => t.group === "Skin Concerns").map(t => (
+                  <option key={t.tag} value={t.tag}>{t.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Product Types">
+                {COLLECTION_TAGS.filter(t => t.group === "Product Types").map(t => (
+                  <option key={t.tag} value={t.tag}>{t.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Ingredients">
+                {COLLECTION_TAGS.filter(t => t.group === "Ingredients").map(t => (
+                  <option key={t.tag} value={t.tag}>{t.label}</option>
+                ))}
+              </optgroup>
             </select>
             <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Search for products, brands and more..." style={{ flex: 1, padding: "12px 16px", border: "none", fontSize: 14, fontFamily: "inherit", outline: "none", color: "var(--gray-900)" }} />
             <button type="submit" style={{ background: "var(--accent)", border: "none", padding: "0 20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "auto", transition: "background 0.2s" }}
@@ -650,8 +658,9 @@ export default function StoreClient() {
           <Link href="/" style={{ color: "var(--gray-500)", textDecoration: "none" }}>Home</Link>
           <span>/</span>
           <Link href="/store" style={{ color: "var(--gray-500)", textDecoration: "none" }}>Store</Link>
-          {selectedMainCat && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>{selectedMainCat === "beauty" ? "Beauty & Personal Care" : "Cell Phones"}</span></>}
-          {selectedCategory && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>{BEAUTY_CAT_LABELS[selectedCategory] ?? selectedCategory}</span></>}
+          {selectedMainCat && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>{selectedMainCat}</span></>}
+          {selectedTag && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>{TAG_LABEL[selectedTag] ?? selectedTag}</span></>}
+          {selectedCategory && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>{selectedCategory}</span></>}
           {searchQuery && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>Search: &ldquo;{searchQuery}&rdquo;</span></>}
         </div>
       </div>
@@ -698,9 +707,10 @@ export default function StoreClient() {
           {/* Active filter chips */}
           {hasFilters && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-              {selectedMainCat && <FilterChip label={selectedMainCat === "beauty" ? "Beauty & Personal Care" : "Cell Phones & Accessories"} onRemove={() => setSelectedMainCat("")} />}
+              {selectedMainCat && <FilterChip label={selectedMainCat} onRemove={() => setSelectedMainCat("")} />}
+              {selectedTag && <FilterChip label={TAG_LABEL[selectedTag] ?? selectedTag} onRemove={() => setSelectedTag("")} />}
               {searchQuery && <FilterChip label={`Search: "${searchQuery}"`} onRemove={() => { setSearchQuery(""); setSearchInput(""); setActiveQuick(""); }} />}
-              {selectedCategory && <FilterChip label={BEAUTY_CAT_LABELS[selectedCategory] ?? selectedCategory} onRemove={() => setSelectedCategory("")} />}
+              {selectedCategory && <FilterChip label={TAG_LABEL[selectedCategory] ?? selectedCategory} onRemove={() => setSelectedCategory("")} />}
               {selectedBrand && <FilterChip label={`Brand: ${selectedBrand}`} onRemove={() => setSelectedBrand("")} />}
               {(priceMin || priceMax) && <FilterChip label={`M${priceMin || "0"} – M${priceMax || "∞"}`} onRemove={() => { setPriceMin(""); setPriceMax(""); }} />}
               {inStockOnly && <FilterChip label="In Stock Only" onRemove={() => setInStockOnly(false)} />}

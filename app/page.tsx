@@ -86,7 +86,7 @@ function safeViewAll(raw: string): string {
     const url = new URL(raw, "http://x");
     const params = new URLSearchParams();
     // Whitelist every param the store page understands
-    for (const key of ["q", "sort", "category", "brand", "main_cat", "main_category",
+    for (const key of ["q", "sort", "category", "brand", "main_cat", "main_category", "tag",
                         "min_price", "max_price", "in_stock", "min_rating"]) {
       const val = url.searchParams.get(key);
       if (val) params.set(key, val);
@@ -333,80 +333,29 @@ const Icons = {
 };
 
 // Real product photos from Unsplash (free to use, no attribution required)
+// Navigation category tiles — one per collection tag from the CSV
+// Each links to /store?tag=<tag> which uses the new tag= filter endpoint
 const NAV_CATS = [
-  {
-    label: "Skincare",
-    href: "/store?category=moisturizer",
-    img: "https://images.unsplash.com/photo-1591130901921-3f0652bb3915?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Skincare moisturizer bottles",
-  },
-  {
-    label: "Phones",
-    href: "/store?main_cat=phones",
-    img: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Smartphone",
-  },
-  {
-    label: "Wellness",
-    href: "/store?category=collagen",
-    img: "https://images.unsplash.com/photo-1616750819456-5cdee9b85d22?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Wellness supplements",
-  },
-  {
-    label: "Body Care",
-    href: "/store?category=body_lotion",
-    img: "https://images.unsplash.com/photo-1629380108599-ea06489d66f5?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Body lotion bottles",
-  },
-  {
-    label: "Sunscreen",
-    href: "/store?category=sunscreen",
-    img: "https://images.unsplash.com/photo-1638609927040-8a7e97cd9d6a?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Sunscreen tube",
-  },
-  {
-    label: "Serums",
-    href: "/store?category=serum",
-    img: "https://images.unsplash.com/photo-1679394270597-e90694d70350?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Face serum bottle",
-  },
-  {
-    label: "Natural Oils",
-    href: "/store?category=herbal_oils",
-    img: "https://images.unsplash.com/photo-1613803745799-ba6c10aace85?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Natural oil bottles",
-  },
-  {
-    // FIX: "Gift Sets" linked to ?sort=discount which is valid — keeping it
-    label: "Gift Sets",
-    href: "/store?sort=discount",
-    img: "https://images.unsplash.com/photo-1567721913486-6585f069b332?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Luxury gift set",
-  },
-  {
-    label: "Eye Care",
-    href: "/store?category=eye_mask",
-    img: "https://images.unsplash.com/photo-1620916297397-a4a5402a3c6c?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Eye care product",
-  },
-  {
-    label: "Cleansers",
-    href: "/store?category=face_wash",
-    img: "https://images.unsplash.com/photo-1571782742478-0816a4773a10?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Face cleanser tubes",
-  },
-  {
-    label: "Brightening",
-    href: "/store?category=skin_brightening",
-    img: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Brightening skincare product",
-  },
-  {
-    label: "Anti-Aging",
-    href: "/store?category=anti_wrinkles",
-    img: "https://images.unsplash.com/photo-1670615119585-3585bc6a0fc6?fm=jpg&q=80&w=200&h=200&fit=crop",
-    alt: "Anti-aging cream",
-  },
+  { label: "Anti-Aging",          href: "/store?tag=anti_aging",          img: "https://images.unsplash.com/photo-1670615119585-3585bc6a0fc6?fm=jpg&q=80&w=200&h=200&fit=crop",  alt: "Anti-aging skincare" },
+  { label: "Acne",                href: "/store?tag=acne",                img: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?fm=jpg&q=80&w=200&h=200&fit=crop",  alt: "Acne treatment products" },
+  { label: "Brightening",         href: "/store?tag=brightening",         img: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Brightening skincare" },
+  { label: "Whitening",           href: "/store?tag=whitening",           img: "https://images.unsplash.com/photo-1591130901921-3f0652bb3915?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Whitening products" },
+  { label: "Hydration",           href: "/store?tag=hydration",           img: "https://images.unsplash.com/photo-1629380108599-ea06489d66f5?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Hydrating skincare" },
+  { label: "Repair",              href: "/store?tag=repair",              img: "https://images.unsplash.com/photo-1679394270597-e90694d70350?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Skin repair products" },
+  { label: "Barrier",             href: "/store?tag=barrier",             img: "https://images.unsplash.com/photo-1571782742478-0816a4773a10?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Barrier skincare" },
+  { label: "Eczema",              href: "/store?tag=eczema",              img: "https://images.unsplash.com/photo-1616750819456-5cdee9b85d22?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Eczema relief products" },
+  { label: "Rosacea",             href: "/store?tag=rosacea",             img: "https://images.unsplash.com/photo-1620916297397-a4a5402a3c6c?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Rosacea skincare" },
+  { label: "Scar",                href: "/store?tag=scar",                img: "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?fm=jpg&q=80&w=200&h=200&fit=crop",  alt: "Scar treatment" },
+  { label: "Stretch Mark",        href: "/store?tag=stretch_mark",        img: "https://images.unsplash.com/photo-1613803745799-ba6c10aace85?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Stretch mark products" },
+  { label: "Sunscreen",           href: "/store?tag=sunscreen",           img: "https://images.unsplash.com/photo-1638609927040-8a7e97cd9d6a?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Sunscreen products" },
+  { label: "Oils",                href: "/store?tag=oils",                img: "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Face and body oils" },
+  { label: "Soaps",               href: "/store?tag=soaps",               img: "https://images.unsplash.com/photo-1607006344380-b6775a0824a7?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Natural soaps" },
+  { label: "Body",                href: "/store?tag=body",                img: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Body care products" },
+  { label: "Masks",               href: "/store?tag=masks",               img: "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Face masks" },
+  { label: "Exfoliation",         href: "/store?tag=exfoliation",         img: "https://images.unsplash.com/photo-1570194065650-d99fb4b47a0c?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Exfoliating products" },
+  { label: "Clinical Acids",      href: "/store?tag=clinical_acids",      img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "Clinical acid skincare" },
+  { label: "African Ingredients", href: "/store?tag=african_ingredients", img: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "African ingredient skincare" },
+  { label: "Korean Ingredients",  href: "/store?tag=korean_ingredients",  img: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?fm=jpg&q=80&w=200&h=200&fit=crop", alt: "K-beauty products" },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -488,9 +437,9 @@ function CategoryNav() {
 //  HERO BANNER
 // ═══════════════════════════════════════════════════════════════
 const HERO_SLIDES = [
-  { tag: "New Collection", headline: "Elevate Your\nStyle Game", sub: "Premium fashion curated for Lesotho's finest", cta: "Shop Now", ctaLink: "/store?main_cat=beauty", bg: "linear-gradient(135deg,#0a2a1f 0%,#0f3f2f 45%,#1b5e4a 100%)", accent: "#c8a75a" },
-  { tag: "Flash Deals",    headline: "Up to 60% Off\nTop Brands",   sub: "Limited time — grab the best deals before they're gone", cta: "View Deals",  ctaLink: "/store?sort=discount",   bg: "linear-gradient(135deg,#7f1d1d,#b91c1c,#ef4444)", accent: "#fde68a" },
-  { tag: "Beauty Picks",   headline: "Glow Up With\nPremium Skincare", sub: "Authentic beauty products from world-class brands", cta: "Shop Beauty", ctaLink: "/store?main_cat=beauty", bg: "linear-gradient(135deg,#4a1772,#7c3aed,#a855f7)", accent: "#fce7f3" },
+  { tag: "Hydration & Repair",    headline: "Glow Up With\nHydrated Skin",          sub: "Shop hydration, barrier & repair products for Lesotho", cta: "Shop Hydration",  ctaLink: "/store?tag=hydration",           bg: "linear-gradient(135deg,#0a2a1f 0%,#0f3f2f 45%,#1b5e4a 100%)", accent: "#c8a75a" },
+  { tag: "Flash Deals",           headline: "Up to 60% Off\nTop Beauty Brands",      sub: "Limited time — brightening, anti-aging & more on sale",   cta: "View Deals",      ctaLink: "/store?sort=discount",           bg: "linear-gradient(135deg,#7f1d1d,#b91c1c,#ef4444)",             accent: "#fde68a" },
+  { tag: "African × Korean",      headline: "The Best of\nBoth Worlds",             sub: "African botanicals meets K-beauty innovation",            cta: "Shop Now",         ctaLink: "/store?tag=african_ingredients", bg: "linear-gradient(135deg,#4a1772,#7c3aed,#a855f7)",             accent: "#fce7f3" },
 ];
 
 function useRotatingIndex(total: number, intervalMs: number, offset = 0): number {
@@ -661,24 +610,22 @@ function TrustBar() {
 function PromoBanners() {
   const banners = [
     {
-      img: "https://images.unsplash.com/photo-1591130901921-3f0652bb3915?fm=jpg&q=85&w=600&fit=crop",
+      img: "https://images.unsplash.com/photo-1629380108599-ea06489d66f5?fm=jpg&q=85&w=600&fit=crop",
       gradientOverlay: "linear-gradient(90deg, rgba(6,78,59,0.97) 0%, rgba(6,78,59,0.92) 52%, rgba(6,78,59,0.4) 75%, transparent 100%)",
-      tag: "Beauty", title: "Skincare\nEssentials", sub: "Up to 40% off premium brands",
-      href: "/store?main_cat=beauty", accent: "#c8a75a",
+      tag: "Hydration", title: "Deep Hydration\nEssentials", sub: "Moisturisers, serums & barriers for all skin types",
+      href: "/store?tag=hydration", accent: "#c8a75a",
     },
     {
-      img: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?fm=jpg&q=85&w=600&fit=crop",
-      gradientOverlay: "linear-gradient(90deg, rgba(30,58,138,0.97) 0%, rgba(30,58,138,0.92) 52%, rgba(30,58,138,0.4) 75%, transparent 100%)",
-      tag: "Phones", title: "Latest\nSmartphones", sub: "Top brands at best prices",
-      href: "/store?main_cat=phones", accent: "#93c5fd",
+      img: "https://images.unsplash.com/photo-1638609927040-8a7e97cd9d6a?fm=jpg&q=85&w=600&fit=crop",
+      gradientOverlay: "linear-gradient(90deg, rgba(180,80,0,0.97) 0%, rgba(180,80,0,0.92) 52%, rgba(180,80,0,0.4) 75%, transparent 100%)",
+      tag: "Sun Care", title: "SPF Every\nSingle Day", sub: "Body & face sunscreens from trusted brands",
+      href: "/store?tag=sunscreen", accent: "#fde68a",
     },
     {
-      img: "https://images.unsplash.com/photo-1613803745799-ba6c10aace85?fm=jpg&q=85&w=600&fit=crop",
+      img: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?fm=jpg&q=85&w=600&fit=crop",
       gradientOverlay: "linear-gradient(90deg, rgba(76,29,149,0.97) 0%, rgba(76,29,149,0.92) 52%, rgba(76,29,149,0.4) 75%, transparent 100%)",
-      // FIX: was /store?q=wellness — the backend q= param does a title/brand search.
-      // Use category=collagen to ensure products actually appear.
-      tag: "Wellness", title: "Health &\nWellness", sub: "Natural & organic products",
-      href: "/store?category=collagen", accent: "#e9d5ff",
+      tag: "African Ingredients", title: "Rooted in\nAfrica", sub: "Shea, marula, baobab & more — proudly African",
+      href: "/store?tag=african_ingredients", accent: "#e9d5ff",
     },
   ];
   return (
@@ -839,97 +786,91 @@ function Marquee() {
 //  CATEGORY IMAGE GRID
 // ═══════════════════════════════════════════════════════════════
 function CategoryImageGrid() {
-  const [depts, setDepts] = useState<DeptCategory[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    fetch(`${API}/api/categories/departments`)
-      .then(r => r.ok ? r.json() : [])
-      .then((data: unknown) => setDepts(Array.isArray(data) ? (data as DeptCategory[]) : []))
-      .catch(() => {})
-      .finally(() => setLoaded(true));
-  }, []);
-
-  const beauty = depts.find(d => d.key === "beauty");
-  const phones = depts.find(d => d.key === "phones");
+  // Collection tag groups with colours and tag lists
+  const TAG_GROUPS = [
+    {
+      key: "concerns",
+      title: "Shop by Skin Concern",
+      label: "Skin Concerns",
+      accent: "var(--primary)",
+      href: "/store",
+      tags: [
+        { tag: "anti_aging",   label: "Anti-Aging",   emoji: "✨" },
+        { tag: "acne",         label: "Acne",         emoji: "🎯" },
+        { tag: "brightening",  label: "Brightening",  emoji: "🌟" },
+        { tag: "whitening",    label: "Whitening",    emoji: "🤍" },
+        { tag: "hydration",    label: "Hydration",    emoji: "💧" },
+        { tag: "repair",       label: "Repair",       emoji: "🔧" },
+        { tag: "barrier",      label: "Barrier",      emoji: "🛡️" },
+        { tag: "eczema",       label: "Eczema",       emoji: "🌿" },
+        { tag: "rosacea",      label: "Rosacea",      emoji: "🌹" },
+        { tag: "scar",         label: "Scar",         emoji: "🩹" },
+        { tag: "stretch_mark", label: "Stretch Mark", emoji: "📏" },
+      ],
+    },
+    {
+      key: "types",
+      title: "Shop by Product Type",
+      label: "Product Types",
+      accent: "#be185d",
+      href: "/store",
+      tags: [
+        { tag: "sunscreen",    label: "Sunscreen",   emoji: "☀️" },
+        { tag: "oils",         label: "Oils",        emoji: "🌿" },
+        { tag: "soaps",        label: "Soaps",       emoji: "🧼" },
+        { tag: "body",         label: "Body",        emoji: "💆" },
+        { tag: "masks",        label: "Masks",       emoji: "🎭" },
+        { tag: "exfoliation",  label: "Exfoliation", emoji: "✦" },
+      ],
+    },
+    {
+      key: "ingredients",
+      title: "Shop by Ingredients",
+      label: "Ingredients",
+      accent: "#7c3aed",
+      href: "/store",
+      tags: [
+        { tag: "clinical_acids",      label: "Clinical Acids",      emoji: "⚗️" },
+        { tag: "african_ingredients", label: "African Ingredients", emoji: "🌍" },
+        { tag: "korean_ingredients",  label: "Korean Ingredients",  emoji: "🇰🇷" },
+      ],
+    },
+  ];
 
   return (
     <div style={{ background: "var(--gray-50)" }}>
-      {/* Beauty */}
-      <div style={{ background: "white", margin: "6px 0", padding: "24px 0 20px" }}>
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 4, height: 36, background: "var(--primary)", borderRadius: 2 }} />
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.5, color: "var(--primary)", marginBottom: 2 }}>Featured</div>
-                <h2 style={{ fontSize: 18, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.4 }}>Beauty &amp; Personal Care</h2>
+      {TAG_GROUPS.map(group => (
+        <div key={group.key} style={{ background: "white", margin: "6px 0", padding: "24px 0 20px" }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 4, height: 36, background: group.accent, borderRadius: 2 }} />
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.5, color: group.accent, marginBottom: 2 }}>{group.label}</div>
+                  <h2 style={{ fontSize: 18, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.4 }}>{group.title}</h2>
+                </div>
               </div>
+              <Link href={group.href} style={{ fontSize: 12, fontWeight: 700, color: group.accent, textDecoration: "none", display: "flex", alignItems: "center", gap: 4, border: `1.5px solid ${group.accent}`, padding: "7px 16px", borderRadius: 20, transition: "background 0.2s" }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = group.accent; el.style.color = "white"; }}
+                onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = group.accent; }}
+              >View All <Icons.ArrowRight /></Link>
             </div>
-            <Link href="/store?main_cat=beauty" style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", textDecoration: "none", display: "flex", alignItems: "center", gap: 4, border: "1.5px solid var(--primary)", padding: "7px 16px", borderRadius: 20, transition: "background 0.2s" }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "var(--primary)"; el.style.color = "white"; }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = "var(--primary)"; }}
-            >View All <Icons.ArrowRight /></Link>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: 8 }}>
-            {!loaded
-              ? Array.from({ length: 16 }).map((_, i) => <div key={i} className="shimbox" style={{ height: 110, borderRadius: 10 }} />)
-              : (beauty?.subcategories ?? []).slice(0, 16).map(sub => (
-                  <Link key={sub.key} href={sub.href} style={{ textDecoration: "none" }}>
-                    <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid var(--gray-200)", transition: "box-shadow 0.2s, transform 0.2s", background: "white" }}
-                      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; }}
-                      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
-                    >
-                      {sub.image
-                        ? <img src={optimizeImg(resolveImg(sub.image))!} alt={sub.label} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} loading="lazy" />
-                        : <div style={{ aspectRatio: "1/1", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.Skincare /></div>
-                      }
-                      <div style={{ padding: "6px 8px 8px", fontSize: 10, fontWeight: 600, color: "var(--gray-800)", textAlign: "center", lineHeight: 1.2 }}>{sub.label}</div>
-                    </div>
-                  </Link>
-                ))
-            }
+            <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(group.tags.length, 6)}, 1fr)`, gap: 10 }}>
+              {group.tags.map(t => (
+                <Link key={t.tag} href={`/store?tag=${t.tag}`} style={{ textDecoration: "none" }}>
+                  <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${group.accent}22`, transition: "box-shadow 0.2s, transform 0.2s", background: `${group.accent}08` }}
+                    onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; el.style.background = `${group.accent}18`; }}
+                    onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; el.style.background = `${group.accent}08`; }}
+                  >
+                    <div style={{ aspectRatio: "1/1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>{t.emoji}</div>
+                    <div style={{ padding: "6px 8px 10px", fontSize: 11, fontWeight: 700, color: "var(--gray-800)", textAlign: "center", lineHeight: 1.2 }}>{t.label}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Phones */}
-      <div style={{ background: "#0d1b2a", margin: "6px 0", padding: "24px 0 20px" }}>
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 4, height: 36, background: "#3b82f6", borderRadius: 2 }} />
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.5, color: "#60a5fa", marginBottom: 2 }}>Electronics</div>
-                <h2 style={{ fontSize: 18, fontWeight: 900, color: "white", margin: 0, letterSpacing: -0.4 }}>Cell Phones &amp; Accessories</h2>
-              </div>
-            </div>
-            <Link href="/store?main_cat=phones" style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", textDecoration: "none", border: "1.5px solid #3b82f6", padding: "7px 16px", borderRadius: 20, display: "flex", alignItems: "center", gap: 4, transition: "background 0.2s" }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "#3b82f6"; el.style.color = "white"; }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = "#60a5fa"; }}
-            >View All <Icons.ArrowRight /></Link>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min((phones?.subcategories?.length ?? 0) + 1, 8)},1fr)`, gap: 10 }}>
-            {!loaded
-              ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="shimbox" style={{ height: 120, borderRadius: 10 }} />)
-              : [...(phones?.subcategories ?? []), { key: "__all", label: "All Phones", href: "/store?main_cat=phones", image: null } as SubCat].map(sub => (
-                  <Link key={sub.key} href={sub.href} style={{ textDecoration: "none" }}>
-                    <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", transition: "background 0.2s, transform 0.2s" }}
-                      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.background = "rgba(59,130,246,0.15)"; el.style.transform = "translateY(-2px)"; }}
-                      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.background = "rgba(255,255,255,0.05)"; el.style.transform = "none"; }}
-                    >
-                      {sub.image
-                        ? <img src={optimizeImg(resolveImg(sub.image))!} alt={sub.label} style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover" }} loading="lazy" />
-                        : <div style={{ aspectRatio: "1/1", display: "flex", alignItems: "center", justifyContent: "center" }}><Icons.Phone /></div>
-                      }
-                      <div style={{ padding: "6px 8px 8px", fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 1.2 }}>{sub.label}</div>
-                    </div>
-                  </Link>
-                ))
-            }
-          </div>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
