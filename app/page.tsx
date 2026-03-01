@@ -548,11 +548,46 @@ function HeroProductImg({ p }: { p: HP }) {
 ═══════════════════════════════════════════════════════════════ */
 function TrustBar() {
   const items = [
-    { img: "https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?fm=jpg&q=80&w=80&h=80&fit=crop", title: "Free Delivery", sub: "Orders over M500" },
-    { img: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?fm=jpg&q=80&w=80&h=80&fit=crop", title: "100% Authentic", sub: "Verified products" },
-    { img: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?fm=jpg&q=80&w=80&h=80&fit=crop", title: "Easy Returns", sub: "7-day hassle-free" },
-    { img: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?fm=jpg&q=80&w=80&h=80&fit=crop", title: "Secure Payment", sub: "Encrypted checkout" },
-    { img: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?fm=jpg&q=80&w=80&h=80&fit=crop", title: "Gift Packaging", sub: "Premium wrapping" },
+    {
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f3f2f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      ),
+      title: "Free Delivery", sub: "Orders over M500",
+    },
+    {
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f3f2f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      ),
+      title: "100% Authentic", sub: "Verified products",
+    },
+    {
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f3f2f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+        </svg>
+      ),
+      title: "Easy Returns", sub: "7-day hassle-free",
+    },
+    {
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f3f2f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      ),
+      title: "Secure Payment", sub: "Encrypted checkout",
+    },
+    {
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f3f2f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+        </svg>
+      ),
+      title: "Gift Packaging", sub: "Premium wrapping",
+    },
   ];
   return (
     <div style={{ background: "white", borderTop: "1px solid #eef0f3", borderBottom: "1px solid #eef0f3", margin: "0" }}>
@@ -563,8 +598,8 @@ function TrustBar() {
               onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.background = "#f9fafb")}
               onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.background = "white")}
             >
-              <div style={{ width: 44, height: 44, borderRadius: 12, overflow: "hidden", flexShrink: 0, background: "#f1f5f9" }}>
-                <img src={item.img} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" />
+              <div style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0, background: "#e8f5f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {item.icon}
               </div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", lineHeight: 1.2 }}>{item.title}</div>
@@ -633,8 +668,8 @@ function PromoBanners({ featuredProducts }: { featuredProducts: HP[] }) {
     {
       product: featuredProducts[0],
       gradient: "linear-gradient(100deg, rgba(6,78,59,0.97) 0%, rgba(6,78,59,0.9) 55%, rgba(6,78,59,0.25) 80%, transparent 100%)",
-      tag: "Hydration", title: "Deep Hydration\nEssentials", sub: "Moisturisers, serums & barriers for all skin types",
-      href: "/store?tag=hydration", accent: "#c8a75a",
+      tag: "Beauty & Skincare", title: "Glow &\nHydrate", sub: "Moisturisers, serums & face care for all skin types",
+      href: "/store?main_cat=beauty", accent: "#c8a75a",
     },
     {
       product: featuredProducts[1],
@@ -645,8 +680,8 @@ function PromoBanners({ featuredProducts }: { featuredProducts: HP[] }) {
     {
       product: featuredProducts[2],
       gradient: "linear-gradient(100deg, rgba(60,10,130,0.97) 0%, rgba(60,10,130,0.9) 55%, rgba(60,10,130,0.25) 80%, transparent 100%)",
-      tag: "African Ingredients", title: "Rooted in\nAfrica", sub: "Shea, marula, baobab & more — proudly African",
-      href: "/store?tag=african_ingredients", accent: "#e9d5ff",
+      tag: "Phones & Tech", title: "Flagship\nMobiles", sub: "Samsung, Apple, Xiaomi & more — top brands in stock",
+      href: "/store?main_cat=phones", accent: "#e9d5ff",
     },
   ];
 
@@ -736,7 +771,6 @@ function FlashDeals({ products }: { products: HP[] }) {
 
 function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
   const disc = p.discount_pct ?? (p.compare_price && p.compare_price > p.price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : 0);
-  const sold = useRef(Math.floor(Math.random() * 45 + 20)).current;
   const [imgIdx, setImgIdx] = useState(0);
   const [imgVis, setImgVis] = useState(true);
   const imgs: string[] = [];
@@ -764,11 +798,12 @@ function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
       <div style={{ padding: "10px 10px 13px" }}>
         <div style={{ fontSize: 11, color: "#374151", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", marginBottom: 8, minHeight: 30 }}>{p.title}</div>
         <div style={{ fontSize: 15, fontWeight: 800, color: "#c0392b", marginBottom: 2 }}>{formatCurrency(p.price)}</div>
-        {p.compare_price && p.compare_price > p.price && <div style={{ fontSize: 10, color: "#9ca3af", textDecoration: "line-through", marginBottom: 8 }}>{formatCurrency(p.compare_price)}</div>}
-        <div style={{ height: 5, background: "#fee2e2", borderRadius: 3, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${sold}%`, background: "linear-gradient(90deg,#c0392b,#e74c3c)", borderRadius: 3 }} />
-        </div>
-        <span style={{ fontSize: 9, color: "#c0392b", fontWeight: 700, marginTop: 3, display: "block" }}>{sold}% sold</span>
+        {p.compare_price && p.compare_price > p.price && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 10, color: "#9ca3af", textDecoration: "line-through" }}>{formatCurrency(p.compare_price)}</div>
+            {p.rating && p.rating > 0 && <div style={{ fontSize: 10, color: "#f59e0b" }}>★ {p.rating.toFixed(1)}</div>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -782,52 +817,44 @@ const STORE_CATEGORIES = [
   {
     title: "Skin Brightening",
     desc: "Serums, body lotion, glass-skin K-beauty & herbal brightening oils",
-    /* use the broadest tag that your products actually carry */
     tag: "brightening",
     color: "#0f3f2f", light: "#e6f2ee",
-    items: ["Brightening face wash", "Brightening serums", "Brightening body lotion", "Korean glass-skin", "Herbal oils"],
   },
   {
     title: "Stretch Marks Remover",
     desc: "Creams, serums & Korean repair treatments for stretch marks",
     tag: "repair",
     color: "#6b21a8", light: "#f5e8f8",
-    items: ["Remover cream", "Stretch marks lotion", "Repair serum", "Korean repair", "Repairing body wash"],
   },
   {
     title: "Face Care Essentials",
     desc: "Moisturisers, herbal oils, Korean toners & deep-cleansing essentials",
     tag: "hydration",
     color: "#1e3a5f", light: "#e8eef8",
-    items: ["Face moisturizers", "Hydrating face wash", "Deep cleansing wash", "Herbal facial oils", "Korean toner"],
   },
   {
     title: "Cleanser & Cosmetic Care",
     desc: "Face wash, Korean sheet masks, eye masks & lip masks",
     tag: "masks",
     color: "#065f46", light: "#d1fae5",
-    items: ["Face wash", "Face masks", "Korean sheet masks", "Eye masks", "Lip masks"],
   },
   {
     title: "Sunscreen Collection",
     desc: "SPF for face & body, Korean no-white-cast SPF & herbal sun creams",
     tag: "sunscreen",
     color: "#92400e", light: "#fef3cd",
-    items: ["SPF face sunscreen", "Body sunscreen lotion", "Korean lightweight SPF", "Herbal sun protection"],
   },
   {
     title: "Exfoliator & Anti-Pimples",
     desc: "Facial exfoliators, body scrubs, Korean pore-refining & acne control",
     tag: "acne",
     color: "#9b1c1c", light: "#fdecea",
-    items: ["Facial exfoliators", "Body scrubs", "Anti-pimple creams", "Korean pore-refining", "Acne control"],
   },
   {
     title: "Advanced Serums & Treatments",
     desc: "Snail mucin, collagen boosters, anti-wrinkle & African botanical actives",
     tag: "anti_aging",
     color: "#4c1d95", light: "#ede9fe",
-    items: ["Anti-acne serums", "Anti-blackhead", "Anti-wrinkle serums", "Collagen boosting", "Snail mucin"],
   },
 ];
 
@@ -912,22 +939,15 @@ function ShopByCategory() {
                   )}
                 </div>
 
-                {/* Card footer — title, description, sub-item pills */}
+                {/* Card footer — title and description only, no hardcoded fake pill items */}
                 <div style={{ padding: "13px 14px 15px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 14, fontWeight: 800, color: cat.color, letterSpacing: -0.2 }}>{cat.title}</span>
                     {hasProducts && <span style={{ fontSize: 10, color: "#64748b", background: "#f1f5f9", padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>{products.length}+ products</span>}
                   </div>
                   <p style={{ fontSize: 11.5, color: "#64748b", margin: 0, lineHeight: 1.45 }}>{cat.desc}</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 2 }}>
-                    {cat.items.slice(0, 4).map(item => (
-                      <span key={item} style={{ fontSize: 10, color: cat.color, background: cat.light, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>
-                        {item}
-                      </span>
-                    ))}
-                  </div>
                   <div style={{ marginTop: "auto", paddingTop: 8, fontSize: 12, fontWeight: 700, color: cat.color }}>
-                    Shop {cat.title} →
+                    {hasProducts ? `Shop ${cat.title} →` : "Coming soon"}
                   </div>
                 </div>
               </Link>
@@ -969,10 +989,10 @@ function DepartmentGrid({ departments }: { departments: DeptCategory[] }) {
       {departments.map(dept => (
         <div key={dept.key} style={{ background: "white", margin: "6px 0", padding: "24px 0 20px" }}>
           <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
-            <SectionHeader title={dept.title} subtitle={`Browse all ${dept.title.toLowerCase()}`} accentColor="#0f3f2f" viewAllHref={dept.href} viewAllLabel="View All" />
+            <SectionHeader title={dept.title} subtitle={`Browse all ${dept.title.toLowerCase()}`} accentColor="#0f3f2f" viewAllHref={`/store?dept=${dept.key}`} viewAllLabel="View All" />
             <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(dept.subcategories.length, 8)}, 1fr)`, gap: 10 }}>
               {dept.subcategories.filter(s => s.image).map(sub => (
-                <Link key={sub.key} href={sub.href} style={{ textDecoration: "none" }}>
+                <Link key={sub.key} href={`/store?category=${sub.key}`} style={{ textDecoration: "none" }}>
                   <div style={{ borderRadius: 14, overflow: "hidden", border: "1px solid #e5e7eb", background: "white", transition: "box-shadow 0.2s, transform 0.2s" }}
                     onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; }}
                     onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}

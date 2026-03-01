@@ -691,6 +691,8 @@ export default function StoreClient() {
   const [priceMax, setPriceMax] = useState(params.get("max_price") ?? "");
   const [inStockOnly, setInStockOnly] = useState(params.get("in_stock") === "true");
   const [minRating, setMinRating] = useState(params.get("min_rating") ?? "");
+  /* dept = "beauty" | "phones" — maps to /api/products/by-department/{dept} */
+  const [selectedDept, setSelectedDept] = useState(params.get("dept") ?? params.get("main_cat") ?? "");
 
   /* ── KEY FIX: sync filter state whenever the URL changes ──────────────
      Next.js reuses the mounted component when navigating between /store
@@ -710,6 +712,7 @@ export default function StoreClient() {
     const pMax = params.get("max_price") ?? "";
     const ins  = params.get("in_stock") === "true";
     const rat  = params.get("min_rating") ?? "";
+    const dept = params.get("dept") ?? params.get("main_cat") ?? "";
     setSearchInput(q);
     setSearchQuery(q);
     setSort(s);
@@ -720,6 +723,7 @@ export default function StoreClient() {
     setPriceMax(pMax);
     setInStockOnly(ins);
     setMinRating(rat);
+    setSelectedDept(dept);
     setActiveQuick("");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
@@ -733,12 +737,12 @@ export default function StoreClient() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
 
-  const hasFilters = !!(searchQuery || selectedTag || selectedCategory || selectedBrand || priceMin || priceMax || inStockOnly || minRating);
+  const hasFilters = !!(searchQuery || selectedTag || selectedCategory || selectedBrand || priceMin || priceMax || inStockOnly || minRating || selectedDept);
 
   const clearAll = useCallback(() => {
     setSearchQuery(""); setSearchInput(""); setSelectedTag("");
     setSelectedCategory(""); setSelectedBrand(""); setPriceMin(""); setPriceMax("");
-    setInStockOnly(false); setMinRating(""); setActiveQuick(""); setSort("newest");
+    setInStockOnly(false); setMinRating(""); setActiveQuick(""); setSort("newest"); setSelectedDept("");
   }, []);
 
   /* Fetch sidebar data */
@@ -761,17 +765,25 @@ export default function StoreClient() {
   const loadProducts = useCallback(async (pg = 1, append = false) => {
     if (append) setLoadingMore(true); else setLoading(true);
     try {
-      const qs = new URLSearchParams({ sort: SORT_API_MAP[sort], page: String(pg), per_page: String(PAGE_SIZE) });
-      if (searchQuery) qs.set("q", searchQuery);
-      if (selectedTag) qs.set("tag", selectedTag);
-      if (selectedCategory) qs.set("category", selectedCategory);
-      if (selectedBrand) qs.set("brand", selectedBrand);
-      if (priceMin) qs.set("min_price", priceMin);
-      if (priceMax) qs.set("max_price", priceMax);
-      if (inStockOnly) qs.set("in_stock", "true");
-      if (minRating) qs.set("min_rating", minRating);
+      let res: Response;
 
-      const res = await fetch(`${API}/api/products?${qs}`);
+      if (selectedDept) {
+        // Department mode: use /api/products/by-department/{dept}
+        const qs = new URLSearchParams({ sort, page: String(pg), per_page: String(PAGE_SIZE) });
+        res = await fetch(`${API}/api/products/by-department/${encodeURIComponent(selectedDept)}?${qs}`);
+      } else {
+        const qs = new URLSearchParams({ sort: SORT_API_MAP[sort], page: String(pg), per_page: String(PAGE_SIZE) });
+        if (searchQuery) qs.set("q", searchQuery);
+        if (selectedTag) qs.set("tag", selectedTag);
+        if (selectedCategory) qs.set("category", selectedCategory);
+        if (selectedBrand) qs.set("brand", selectedBrand);
+        if (priceMin) qs.set("min_price", priceMin);
+        if (priceMax) qs.set("max_price", priceMax);
+        if (inStockOnly) qs.set("in_stock", "true");
+        if (minRating) qs.set("min_rating", minRating);
+        res = await fetch(`${API}/api/products?${qs}`);
+      }
+
       const data = res.ok ? await res.json() : { total: 0, results: [] };
       const items: ProductListItem[] = data.results ?? [];
       const tot: number = data.total ?? items.length;
@@ -785,7 +797,7 @@ export default function StoreClient() {
     } finally {
       if (append) setLoadingMore(false); else setLoading(false);
     }
-  }, [sort, searchQuery, selectedTag, selectedCategory, selectedBrand, priceMin, priceMax, inStockOnly, minRating]);
+  }, [sort, searchQuery, selectedTag, selectedCategory, selectedBrand, priceMin, priceMax, inStockOnly, minRating, selectedDept]);
 
   useEffect(() => { loadProducts(1); }, [loadProducts]);
 
@@ -794,7 +806,7 @@ export default function StoreClient() {
     setSort("newest");
     setSelectedTag(""); setSelectedCategory(""); setSelectedBrand("");
     setPriceMin(""); setPriceMax(""); setInStockOnly(false); setMinRating("");
-    setSearchQuery(""); setSearchInput("");
+    setSearchQuery(""); setSearchInput(""); setSelectedDept("");
     if (!q) return;
     const p = new URLSearchParams(q);
     const sv = p.get("sort"); const tv = p.get("tag"); const is = p.get("in_stock");
@@ -813,8 +825,34 @@ export default function StoreClient() {
   // useCallback prevents FilterPanel remounting on every render (which resets collapse state)
   const FilterPanel = useCallback(() => (
     <div>
-      {/* Collection tags — one section per store category */}
-      {[
+      {/* Department quick nav */}
+      <FilterSection title="Department" defaultOpen={true}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {[
+            { key: "", label: "All Products" },
+            { key: "beauty", label: "Beauty & Personal Care" },
+            { key: "phones", label: "Cell Phones & Accessories" },
+          ].map(d => (
+            <label key={d.key || "all"} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input
+                type="radio"
+                name="dept"
+                checked={selectedDept === d.key}
+                onChange={() => {
+                  setSelectedDept(d.key);
+                  // Clear conflicting filters when switching department
+                  if (d.key) { setSelectedTag(""); setSelectedCategory(""); setSearchQuery(""); setSearchInput(""); }
+                }}
+                style={{ accentColor: "var(--primary)", cursor: "pointer", width: 14, height: 14 }}
+              />
+              <span style={{ fontSize: 13, color: selectedDept === d.key ? "var(--primary)" : "var(--gray-700)", fontWeight: selectedDept === d.key ? 700 : 400 }}>{d.label}</span>
+            </label>
+          ))}
+        </div>
+      </FilterSection>
+
+      {/* Collection tags — hidden in dept mode since dept endpoint handles its own categories */}
+      {!selectedDept && [
         "🌿 Skin Brightening",
         "✨ Stretch Marks & Repair",
         "💧 Face Care Essentials",
@@ -938,7 +976,7 @@ export default function StoreClient() {
         </div>
       </FilterSection>
     </div>
-  ), [selectedTag, selectedCategory, selectedBrand, priceMin, priceMax, inStockOnly, minRating, sort, categories, brands, clearAll]);
+  ), [selectedTag, selectedCategory, selectedBrand, priceMin, priceMax, inStockOnly, minRating, sort, categories, brands, clearAll, selectedDept]);
 
   /* ── RENDER ── */
   return (
@@ -1040,6 +1078,7 @@ export default function StoreClient() {
           <Link href="/" style={{ color: "var(--gray-400)", textDecoration: "none", transition: "color 0.15s" }} onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = "var(--primary)")} onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.color = "var(--gray-400)")}>Home</Link>
           <span>/</span>
           <Link href="/store" style={{ color: "var(--gray-400)", textDecoration: "none" }}>Store</Link>
+          {selectedDept && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>{selectedDept === "beauty" ? "Beauty & Personal Care" : selectedDept === "phones" ? "Cell Phones & Accessories" : selectedDept}</span></>}
           {selectedTag && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>{TAG_LABEL[selectedTag] ?? selectedTag}</span></>}
           {selectedCategory && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>{selectedCategory}</span></>}
           {selectedBrand && <><span>/</span><span style={{ color: "var(--gray-700)", fontWeight: 600 }}>{selectedBrand}</span></>}
@@ -1112,6 +1151,7 @@ export default function StoreClient() {
           {/* Active filter chips */}
           {hasFilters && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+              {selectedDept && <FilterChip label={selectedDept === "beauty" ? "Beauty & Personal Care" : selectedDept === "phones" ? "Cell Phones & Accessories" : selectedDept} onRemove={() => setSelectedDept("")} />}
               {selectedTag && <FilterChip label={TAG_LABEL[selectedTag] ?? selectedTag} onRemove={() => setSelectedTag("")} />}
               {searchQuery && <FilterChip label={`"${searchQuery}"`} onRemove={() => { setSearchQuery(""); setSearchInput(""); setActiveQuick(""); }} />}
               {selectedCategory && <FilterChip label={selectedCategory} onRemove={() => setSelectedCategory("")} />}
