@@ -795,17 +795,17 @@ function CategoryImageGrid() {
       accent: "var(--primary)",
       href: "/store",
       tags: [
-        { tag: "anti_aging",   label: "Anti-Aging",   emoji: "✨" },
-        { tag: "acne",         label: "Acne",         emoji: "🎯" },
-        { tag: "brightening",  label: "Brightening",  emoji: "🌟" },
-        { tag: "whitening",    label: "Whitening",    emoji: "🤍" },
-        { tag: "hydration",    label: "Hydration",    emoji: "💧" },
-        { tag: "repair",       label: "Repair",       emoji: "🔧" },
-        { tag: "barrier",      label: "Barrier",      emoji: "🛡️" },
-        { tag: "eczema",       label: "Eczema",       emoji: "🌿" },
-        { tag: "rosacea",      label: "Rosacea",      emoji: "🌹" },
-        { tag: "scar",         label: "Scar",         emoji: "🩹" },
-        { tag: "stretch_mark", label: "Stretch Mark", emoji: "📏" },
+        { tag: "anti_aging",   label: "Anti-Aging",   img: "https://images.unsplash.com/photo-1670615119585-3585bc6a0fc6?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "acne",         label: "Acne",         img: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "brightening",  label: "Brightening",  img: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "whitening",    label: "Whitening",    img: "https://images.unsplash.com/photo-1591130901921-3f0652bb3915?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "hydration",    label: "Hydration",    img: "https://images.unsplash.com/photo-1629380108599-ea06489d66f5?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "repair",       label: "Repair",       img: "https://images.unsplash.com/photo-1679394270597-e90694d70350?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "barrier",      label: "Barrier",      img: "https://images.unsplash.com/photo-1571782742478-0816a4773a10?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "eczema",       label: "Eczema",       img: "https://images.unsplash.com/photo-1616750819456-5cdee9b85d22?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "rosacea",      label: "Rosacea",      img: "https://images.unsplash.com/photo-1620916297397-a4a5402a3c6c?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "scar",         label: "Scar",         img: "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "stretch_mark", label: "Stretch Mark", img: "https://images.unsplash.com/photo-1613803745799-ba6c10aace85?fm=jpg&q=80&w=200&h=200&fit=crop" },
       ],
     },
     {
@@ -815,12 +815,12 @@ function CategoryImageGrid() {
       accent: "#be185d",
       href: "/store",
       tags: [
-        { tag: "sunscreen",    label: "Sunscreen",   emoji: "☀️" },
-        { tag: "oils",         label: "Oils",        emoji: "🌿" },
-        { tag: "soaps",        label: "Soaps",       emoji: "🧼" },
-        { tag: "body",         label: "Body",        emoji: "💆" },
-        { tag: "masks",        label: "Masks",       emoji: "🎭" },
-        { tag: "exfoliation",  label: "Exfoliation", emoji: "✦" },
+        { tag: "sunscreen",    label: "Sunscreen",   img: "https://images.unsplash.com/photo-1638609927040-8a7e97cd9d6a?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "oils",         label: "Oils",        img: "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "soaps",        label: "Soaps",       img: "https://images.unsplash.com/photo-1607006344380-b6775a0824a7?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "body",         label: "Body",        img: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "masks",        label: "Masks",       img: "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "exfoliation",  label: "Exfoliation", img: "https://images.unsplash.com/photo-1570194065650-d99fb4b47a0c?fm=jpg&q=80&w=200&h=200&fit=crop" },
       ],
     },
     {
@@ -830,9 +830,9 @@ function CategoryImageGrid() {
       accent: "#7c3aed",
       href: "/store",
       tags: [
-        { tag: "clinical_acids",      label: "Clinical Acids",      emoji: "⚗️" },
-        { tag: "african_ingredients", label: "African Ingredients", emoji: "🌍" },
-        { tag: "korean_ingredients",  label: "Korean Ingredients",  emoji: "🇰🇷" },
+        { tag: "clinical_acids",      label: "Clinical Acids",      img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "african_ingredients", label: "African Ingredients", img: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?fm=jpg&q=80&w=200&h=200&fit=crop" },
+        { tag: "korean_ingredients",  label: "Korean Ingredients",  img: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?fm=jpg&q=80&w=200&h=200&fit=crop" },
       ],
     },
   ];
@@ -858,12 +858,17 @@ function CategoryImageGrid() {
             <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(group.tags.length, 6)}, 1fr)`, gap: 10 }}>
               {group.tags.map(t => (
                 <Link key={t.tag} href={`/store?tag=${t.tag}`} style={{ textDecoration: "none" }}>
-                  <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${group.accent}22`, transition: "box-shadow 0.2s, transform 0.2s", background: `${group.accent}08` }}
-                    onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; el.style.background = `${group.accent}18`; }}
-                    onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; el.style.background = `${group.accent}08`; }}
+                  <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${group.accent}22`, transition: "box-shadow 0.2s, transform 0.2s", background: "white" }}
+                    onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; }}
+                    onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
                   >
-                    <div style={{ aspectRatio: "1/1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>{t.emoji}</div>
-                    <div style={{ padding: "6px 8px 10px", fontSize: 11, fontWeight: 700, color: "var(--gray-800)", textAlign: "center", lineHeight: 1.2 }}>{t.label}</div>
+                    <div style={{ aspectRatio: "1/1", overflow: "hidden", background: "var(--gray-100)" }}>
+                      <img src={(t as {img?: string}).img ?? ""} alt={t.label} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.35s ease" }}
+                        onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.08)")}
+                        onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+                      />
+                    </div>
+                    <div style={{ padding: "7px 8px 10px", fontSize: 11, fontWeight: 700, color: "var(--gray-800)", textAlign: "center", lineHeight: 1.2, background: "white" }}>{t.label}</div>
                   </div>
                 </Link>
               ))}
@@ -1062,6 +1067,7 @@ function JustForYou({ products }: { products: HP[] }) {
 
 function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; delay: number; onClick: () => void }) {
   const [saved, setSaved] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
   const [imgVis, setImgVis] = useState(true);
   const imgs: string[] = [];
@@ -1079,9 +1085,9 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
   const curImg = imgs[imgIdx] ?? null;
   return (
     <div onClick={onClick}
-      style={{ background: "white", border: "1px solid var(--gray-200)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s", position: "relative", animationDelay: `${delay}ms` }}
-      onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; }}
-      onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ background: "white", border: hovered ? "1px solid var(--primary)" : "1px solid var(--gray-200)", borderRadius: 12, overflow: "hidden", cursor: "pointer", transition: "box-shadow 0.2s, transform 0.2s, border-color 0.2s", position: "relative", animationDelay: `${delay}ms`, boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.1)" : "none", transform: hovered ? "translateY(-3px)" : "none" }}
     >
       {disc && disc >= 5 && <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#e53e3e", color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>}
       {!p.in_stock && (
@@ -1117,6 +1123,62 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
               <span style={{ fontSize: 10, color: "var(--gray-600)", fontWeight: 600 }}>{p.rating.toFixed(1)}</span>
             </div>
           )}
+        </div>
+        <button
+          onClick={e => { e.stopPropagation(); /* add to cart logic here */ }}
+          style={{ marginTop: 10, width: "100%", background: hovered ? "var(--primary)" : "var(--gray-100)", color: hovered ? "white" : "var(--gray-600)", border: "none", borderRadius: 7, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "background 0.2s, color 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: "auto" }}
+        >
+          <Icons.Cart /> Add to Cart
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TOP BRANDS BAR
+// ═══════════════════════════════════════════════════════════════
+const FEATURED_BRANDS = [
+  { name: "CeraVe",      href: "/store?brand=CeraVe",      img: "https://images.unsplash.com/photo-1556229174-5e42a09e45af?fm=jpg&q=80&w=160&h=80&fit=crop" },
+  { name: "Neutrogena",  href: "/store?brand=Neutrogena",  img: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?fm=jpg&q=80&w=160&h=80&fit=crop" },
+  { name: "L'Oreal",     href: "/store?brand=L'Oreal",     img: "https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?fm=jpg&q=80&w=160&h=80&fit=crop" },
+  { name: "Garnier",     href: "/store?brand=Garnier",     img: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?fm=jpg&q=80&w=160&h=80&fit=crop" },
+  { name: "REVLON",      href: "/store?brand=REVLON",      img: "https://images.unsplash.com/photo-1631214524020-3c69a5a92126?fm=jpg&q=80&w=160&h=80&fit=crop" },
+  { name: "NYX",         href: "/store?brand=NYX",         img: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?fm=jpg&q=80&w=160&h=80&fit=crop" },
+  { name: "Maybelline",  href: "/store?brand=Maybelline",  img: "https://images.unsplash.com/photo-1483985988355-763728e1935b?fm=jpg&q=80&w=160&h=80&fit=crop" },
+  { name: "The Ordinary",href: "/store?brand=The Ordinary",img: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?fm=jpg&q=80&w=160&h=80&fit=crop" },
+];
+function TopBrands() {
+  return (
+    <div style={{ background: "white", margin: "6px 0", padding: "20px 0" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 4, height: 36, background: "var(--accent)", borderRadius: 2 }} />
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.5, color: "var(--accent)", marginBottom: 2 }}>Official Stores</div>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: "var(--gray-900)", margin: 0, letterSpacing: -0.4 }}>Top Brands</h2>
+            </div>
+          </div>
+          <Link href="/store" style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", textDecoration: "none", border: "1.5px solid var(--primary)", padding: "7px 16px", borderRadius: 20, display: "flex", alignItems: "center", gap: 4, transition: "background 0.2s" }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "var(--primary)"; el.style.color = "white"; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = "var(--primary)"; }}
+          >All Brands <Icons.ArrowRight /></Link>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: 10 }}>
+          {FEATURED_BRANDS.map(b => (
+            <Link key={b.name} href={b.href} style={{ textDecoration: "none" }}>
+              <div style={{ border: "1px solid var(--gray-200)", borderRadius: 12, overflow: "hidden", background: "white", transition: "box-shadow 0.2s, transform 0.2s, border-color 0.2s" }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-2px)"; el.style.borderColor = "var(--primary)"; }}
+                onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; el.style.borderColor = "var(--gray-200)"; }}
+              >
+                <div style={{ aspectRatio: "2/1", overflow: "hidden", background: "var(--gray-50)" }}>
+                  <img src={b.img} alt={b.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                </div>
+                <div style={{ padding: "8px 6px", fontSize: 11, fontWeight: 700, textAlign: "center", color: "var(--gray-800)", background: "white" }}>{b.name}</div>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
@@ -1211,6 +1273,7 @@ export default function HomePage() {
       <CategoryNav />
       <HeroBanner products={heroLoad ? [] : heroProducts} />
       <TrustBar />
+      <TopBrands />
       <PromoBanners />
       <FlashDeals products={heroProducts} />
       <Marquee />
