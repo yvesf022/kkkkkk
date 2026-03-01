@@ -15,23 +15,46 @@ function resolveImg(url: string | null | undefined): string | null {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
 }
-function optimizeImg(url: string | null | undefined, size: 300 | 500 | 800 | 1500 = 500): string | null {
+
+/*
+ * optimizeImg — always requests full 1500px Amazon CDN images.
+ * Strip-then-inject approach: removes ALL size tokens first to prevent
+ * double-injection (the bug that was causing blurry/broken images),
+ * then injects exactly one _AC_SL1500_ for maximum quality.
+ */
+function optimizeImg(url: string | null | undefined, _size?: number): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
-  // Replace all known Amazon image size tokens
-  let out = url
-    .replace(/_AC_U[XY]\d+_(?:CR\d+,\d+,\d+,\d+_)?/gi, `_AC_SL${size}_`)
-    .replace(/_AC_S[LYX][SX]?\d+_/gi, `_AC_SL${size}_`)
-    .replace(/_SL\d+_/g, `_AC_SL${size}_`)
-    .replace(/_SS\d+_/g, `_AC_SL${size}_`)
-    .replace(/\._[A-Z]{2}\d+_\./, `._SL${size}_.`);
-  // If the URL still has no size token, inject one before the file extension
-  // e.g. https://m.media-amazon.com/images/I/71abc.jpg → ...71abc._SL500_.jpg
-  if (out === url && /\.jpe?g|\.(webp|png)/i.test(out)) {
-    out = out.replace(/(\.jpe?g|\.webp|\.png)(?:\?.*)?$/i, `._AC_SL${size}_$1`);
-  }
-  return out;
+
+  const SIZE = 1500;
+
+  let base = url
+    .replace(/_SX\d+_SY\d+_(?:QL\d+_)?(?:FM\w+_)?/gi, "")
+    .replace(/_AC_SX\d+_CR[\d,]+_/gi, "")
+    .replace(/_AC_SL\d+_/gi, "")
+    .replace(/_AC_SX\d+_/gi, "")
+    .replace(/_AC_SY\d+_/gi, "")
+    .replace(/_AC_UX\d+_(?:QL\d+_)?/gi, "")
+    .replace(/_AC_UY\d+_/gi, "")
+    .replace(/_AC_UL\d+_/gi, "")
+    .replace(/_AC_US\d+_/gi, "")
+    .replace(/_SX\d+_/gi, "")
+    .replace(/_SY\d+_/gi, "")
+    .replace(/_SL\d+_/gi, "")
+    .replace(/_SS\d+_/gi, "")
+    .replace(/_QL\d+_/gi, "")
+    .replace(/_CR[\d,]+_/gi, "")
+    .replace(/_FM\w+_/gi, "")
+    .replace(/\._AC_\./gi, ".")
+    .replace(/_\.(jpe?g|webp|png)/gi, ".$1")
+    .replace(/\._+\./g, ".")
+    .replace(/\.{2,}/g, ".");
+
+  const out = base.replace(/(\.(jpe?g|webp|png))(\?.*)?$/i, `._AC_SL${SIZE}_$1$3`);
+  return out !== base ? out : base;
 }
+
+
 
 /* ─────────────────────────────────────────────────
    TYPES
@@ -215,7 +238,7 @@ function ProductImg({ src, alt, size = 300, style: extraStyle }: { src: string |
   const optimized = optimizeImg(resolved, size);
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", background: "#f1f5f9", ...extraStyle }}>
+    <div style={{ position: "relative", width: "100%", height: "100%", background: "#ffffff", ...extraStyle }}>
       {optimized && (
         <img
           src={optimized}
@@ -228,7 +251,9 @@ function ProductImg({ src, alt, size = 300, style: extraStyle }: { src: string |
             inset: 0,
             width: "100%",
             height: "100%",
-            objectFit: "cover",
+            objectFit: "contain",
+            padding: "8px",
+            background: "#ffffff",
             opacity: visible ? 1 : 0,
             transition: "opacity 0.35s ease",
           }}
@@ -284,44 +309,29 @@ function AnnouncementBar() {
 /* ═══════════════════════════════════════════════════════════════
    CATEGORY NAV — real product images fetched from backend
 ═══════════════════════════════════════════════════════════════ */
-// Top scrollable category bubbles — one per major store category + key sub-tags
+/*
+ * NAV_CATS — only use tag values that actually exist in your products.tags column.
+ * These map to the standard tags a beauty product CSV import (collections column) would have.
+ * Dead-end tags (custom invented ones with no matching products) have been removed.
+ */
 const NAV_CATS = [
-  // 🌿 Skin Brightening
-  { label: "Brightening",       tag: "brightening",        emoji: "🌿" },
-  { label: "Glass Skin",        tag: "glass_skin",         emoji: "✨" },
-  { label: "Herbal Glow",       tag: "herbal_brightening", emoji: "🌱" },
-  { label: "Whitening",         tag: "whitening",          emoji: "💫" },
-  // ✨ Stretch Marks
-  { label: "Stretch Marks",     tag: "stretch_marks",      emoji: "✨" },
-  { label: "Skin Repair",       tag: "korean_repair",      emoji: "🔬" },
-  { label: "Repair Body Wash",  tag: "repair_body_wash",   emoji: "🛁" },
-  // 💧 Face Care
-  { label: "Moisturizers",      tag: "moisturizer",        emoji: "💧" },
-  { label: "Hydrating Wash",    tag: "hydration",          emoji: "💦" },
-  { label: "Korean Toner",      tag: "korean_essence",     emoji: "🇰🇷" },
-  { label: "Herbal Oils",       tag: "herbal_facial",      emoji: "🌿" },
-  // 🧴 Cleansers
-  { label: "Face Wash",         tag: "face_wash",          emoji: "🧴" },
-  { label: "Face Masks",        tag: "masks",              emoji: "🎭" },
-  { label: "Sheet Masks",       tag: "korean_sheet_mask",  emoji: "🇰🇷" },
-  { label: "Eye Masks",         tag: "eye_mask",           emoji: "👁️" },
-  { label: "Lip Masks",         tag: "lip_mask",           emoji: "💋" },
-  // ☀️ Sunscreen
-  { label: "Sunscreen",         tag: "sunscreen",          emoji: "☀️" },
-  { label: "Korean SPF",        tag: "korean_spf",         emoji: "🇰🇷" },
-  { label: "Body Sunscreen",    tag: "body_sunscreen",     emoji: "🌞" },
-  // 🌸 Exfoliator & Anti-Pimples
-  { label: "Exfoliators",       tag: "exfoliation",        emoji: "🌸" },
-  { label: "Body Scrubs",       tag: "body_scrub",         emoji: "🛁" },
-  { label: "Anti-Pimple",       tag: "acne",               emoji: "🎯" },
-  { label: "Pore Refining",     tag: "korean_exfoliant",   emoji: "🔬" },
-  // 💎 Serums & Treatments
-  { label: "Anti-Wrinkle",      tag: "anti_aging",         emoji: "⏳" },
-  { label: "Collagen",          tag: "collagen",           emoji: "💎" },
-  { label: "Snail Mucin",       tag: "snail_mucin",        emoji: "🐌" },
-  { label: "Anti-Blackhead",    tag: "anti_blackhead",     emoji: "🖤" },
-  { label: "Natural Oils",      tag: "natural_oils",       emoji: "🫒" },
-  { label: "African Botanicals",tag: "african_ingredients",emoji: "🌍" },
+  { label: "Brightening",      tag: "brightening",          emoji: "🌿" },
+  { label: "Whitening",        tag: "whitening",            emoji: "💫" },
+  { label: "Hydration",        tag: "hydration",            emoji: "💧" },
+  { label: "Moisturizers",     tag: "moisturizer",          emoji: "🫧" },
+  { label: "Repair",           tag: "repair",               emoji: "✨" },
+  { label: "Face Wash",        tag: "face_wash",            emoji: "🧴" },
+  { label: "Face Masks",       tag: "masks",                emoji: "🎭" },
+  { label: "Sunscreen",        tag: "sunscreen",            emoji: "☀️" },
+  { label: "Exfoliators",      tag: "exfoliation",          emoji: "🌸" },
+  { label: "Anti-Pimple",      tag: "acne",                 emoji: "🎯" },
+  { label: "Anti-Aging",       tag: "anti_aging",           emoji: "⏳" },
+  { label: "Serums",           tag: "serum",                emoji: "💎" },
+  { label: "Collagen",         tag: "collagen",             emoji: "💉" },
+  { label: "Body Care",        tag: "body",                 emoji: "🛁" },
+  { label: "Natural Oils",     tag: "oils",                 emoji: "🫒" },
+  { label: "K-Beauty",         tag: "korean_ingredients",   emoji: "🇰🇷" },
+  { label: "African Botanicals", tag: "african_ingredients", emoji: "🌍" },
 ];
 
 function CategoryNav({ categoryImages }: { categoryImages: Record<string, string | null> }) {
@@ -369,9 +379,9 @@ function CategoryNav({ categoryImages }: { categoryImages: Record<string, string
 ═══════════════════════════════════════════════════════════════ */
 const HERO_SLIDES = [
   {
-    tag: "🌿 Skin Brightening",
+    tag: "Brightening & Glow",
     headline: "Glow From\nWithin",
-    sub: "Brightening serums, Korean glass-skin & herbal oils — all in one store",
+    sub: "Brightening serums, body lotion & herbal oils — delivered to Lesotho",
     cta: "Shop Brightening",
     ctaLink: "/store?tag=brightening",
     bg: "linear-gradient(135deg, #061a12 0%, #0a2a1f 50%, #1b5e4a 100%)",
@@ -379,29 +389,29 @@ const HERO_SLIDES = [
     filterTag: "brightening",
   },
   {
-    tag: "✨ Stretch Marks & Repair",
+    tag: "Repair & Restore",
     headline: "Restore &\nRenew",
-    sub: "Stretch mark creams, repair serums & Korean skin-rebuild treatments",
+    sub: "Stretch mark creams, repair serums & skin rebuild treatments",
     cta: "Shop Repair",
-    ctaLink: "/store?tag=stretch_marks",
+    ctaLink: "/store?tag=repair",
     bg: "linear-gradient(135deg, #2d1b69, #5b21b6, #7c3aed)",
     accent: "#fce7f3",
-    filterTag: "stretch_marks",
+    filterTag: "repair",
   },
   {
-    tag: "☀️ Sunscreen + 🌸 Anti-Pimples",
+    tag: "Sunscreen & Anti-Pimples",
     headline: "Protect &\nClear",
-    sub: "Korean lightweight SPF, pore-refining exfoliators & acne treatments",
-    cta: "Shop Now",
+    sub: "Broad-spectrum SPF + exfoliators & acne-control treatments",
+    cta: "Shop Sunscreen",
     ctaLink: "/store?tag=sunscreen",
     bg: "linear-gradient(135deg, #5f0a0a, #8b1a1a, #c0392b)",
     accent: "#fde68a",
     filterTag: "sunscreen",
   },
   {
-    tag: "💎 Advanced Serums",
+    tag: "Advanced Serums",
     headline: "Science\nMeets Nature",
-    sub: "Snail mucin, collagen boosters, African botanicals & anti-wrinkle actives",
+    sub: "Collagen boosters, anti-aging actives & African botanical serums",
     cta: "Shop Serums",
     ctaLink: "/store?tag=anti_aging",
     bg: "linear-gradient(135deg, #0d2137, #1a3a6b, #2d5a9e)",
@@ -409,9 +419,9 @@ const HERO_SLIDES = [
     filterTag: "anti_aging",
   },
   {
-    tag: "💧 Face Care + 🧴 Cleansers",
+    tag: "Hydration & Face Care",
     headline: "Hydrate,\nCleanse & Glow",
-    sub: "Korean toners, herbal facial oils, sheet masks & deep-cleanse essentials",
+    sub: "Moisturisers, herbal oils, face masks & deep-cleanse essentials",
     cta: "Shop Face Care",
     ctaLink: "/store?tag=hydration",
     bg: "linear-gradient(135deg, #064e3b, #065f46, #047857)",
@@ -522,7 +532,7 @@ function HeroProductImg({ p }: { p: HP }) {
     setVisible(false);
     const t = setTimeout(() => { setCur(p); setVisible(true); }, 300);
     return () => clearTimeout(t);
-  }, [p.id]);
+  }, [p.id, p.main_image]);
   const src = resolveImg(cur.main_image);
   return src ? (
     <img src={optimizeImg(src, 500)!} alt={cur.title}
@@ -619,7 +629,6 @@ function TopBrands({ brands, brandImages }: { brands: BrandItem[]; brandImages: 
    PROMO BANNERS — 3-column with real product images as backgrounds
 ═══════════════════════════════════════════════════════════════ */
 function PromoBanners({ featuredProducts }: { featuredProducts: HP[] }) {
-  const byTag = (tag: string) => featuredProducts.find(p => p.category === tag || (p.main_image && tag));
   const banners = [
     {
       product: featuredProducts[0],
@@ -735,8 +744,9 @@ function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
   if (p.images) p.images.filter(Boolean).forEach(u => { const r = resolveImg(u); if (r && !imgs.includes(r)) imgs.push(r); });
   useEffect(() => {
     if (imgs.length < 2) return;
-    const id = setInterval(() => { setImgVis(false); setTimeout(() => { setImgIdx(i => (i + 1) % imgs.length); setImgVis(true); }, 320); }, 3000);
-    return () => clearInterval(id);
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const id = setInterval(() => { setImgVis(false); timeoutId = setTimeout(() => { setImgIdx(i => (i + 1) % imgs.length); setImgVis(true); }, 320); }, 3000);
+    return () => { clearInterval(id); clearTimeout(timeoutId); };
   }, [imgs.length]);
   const curImg = imgs[imgIdx] ?? null;
 
@@ -746,9 +756,9 @@ function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
       onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; el.style.borderColor = "#e5e7eb"; }}
     >
       {disc && disc >= 5 && <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: "#c0392b", color: "white", fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 5 }}>-{disc}%</div>}
-      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "#f8fafc" }}>
+      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "#ffffff" }}>
         {curImg ? (
-          <img src={optimizeImg(curImg, 500)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.05)", transition: "opacity 0.3s ease, transform 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+          <img src={optimizeImg(curImg, 500)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", padding: "8px", background: "#ffffff", opacity: imgVis ? 1 : 0, transition: "opacity 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
         ) : <div className="shimbox" style={{ position: "absolute", inset: 0 }} />}
       </div>
       <div style={{ padding: "10px 10px 13px" }}>
@@ -767,109 +777,162 @@ function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
 /* ═══════════════════════════════════════════════════════════════
    SHOP BY CATEGORY — 7-category visual grid
 ═══════════════════════════════════════════════════════════════ */
+/* ─── 7 store categories — tags must match values actually stored in products.tags ─── */
 const STORE_CATEGORIES = [
   {
-    emoji: "🌿", title: "Skin Brightening",
-    desc: "Brightening serums, glass-skin K-beauty & herbal brightening oils",
+    title: "Skin Brightening",
+    desc: "Serums, body lotion, glass-skin K-beauty & herbal brightening oils",
+    /* use the broadest tag that your products actually carry */
     tag: "brightening",
     color: "#0f3f2f", light: "#e6f2ee",
-    items: ["Face wash", "Serums", "Body lotion", "Korean glass-skin", "Herbal oils"],
+    items: ["Brightening face wash", "Brightening serums", "Brightening body lotion", "Korean glass-skin", "Herbal oils"],
   },
   {
-    emoji: "✨", title: "Stretch Marks Remover",
+    title: "Stretch Marks Remover",
     desc: "Creams, serums & Korean repair treatments for stretch marks",
-    tag: "stretch_marks",
+    tag: "repair",
     color: "#6b21a8", light: "#f5e8f8",
-    items: ["Remover cream", "Body lotion", "Repair serum", "Korean repair", "Repairing wash"],
+    items: ["Remover cream", "Stretch marks lotion", "Repair serum", "Korean repair", "Repairing body wash"],
   },
   {
-    emoji: "💧", title: "Face Care Essentials",
+    title: "Face Care Essentials",
     desc: "Moisturisers, herbal oils, Korean toners & deep-cleansing essentials",
     tag: "hydration",
     color: "#1e3a5f", light: "#e8eef8",
-    items: ["Moisturizers", "Hydrating wash", "Deep cleanse", "Herbal oils", "Korean toner"],
+    items: ["Face moisturizers", "Hydrating face wash", "Deep cleansing wash", "Herbal facial oils", "Korean toner"],
   },
   {
-    emoji: "🧴", title: "Cleanser & Cosmetic Care",
+    title: "Cleanser & Cosmetic Care",
     desc: "Face wash, Korean sheet masks, eye masks & lip masks",
-    tag: "face_wash",
-    color: "#0f3f2f", light: "#e6f2ee",
-    items: ["Face wash", "Face masks", "Sheet masks", "Eye masks", "Lip masks"],
+    tag: "masks",
+    color: "#065f46", light: "#d1fae5",
+    items: ["Face wash", "Face masks", "Korean sheet masks", "Eye masks", "Lip masks"],
   },
   {
-    emoji: "☀️", title: "Sunscreen Collection",
+    title: "Sunscreen Collection",
     desc: "SPF for face & body, Korean no-white-cast SPF & herbal sun creams",
     tag: "sunscreen",
     color: "#92400e", light: "#fef3cd",
-    items: ["SPF face", "Body lotion SPF", "Korean lightweight", "Herbal sun cream"],
+    items: ["SPF face sunscreen", "Body sunscreen lotion", "Korean lightweight SPF", "Herbal sun protection"],
   },
   {
-    emoji: "🌸", title: "Exfoliator & Anti-Pimples",
+    title: "Exfoliator & Anti-Pimples",
     desc: "Facial exfoliators, body scrubs, Korean pore-refining & acne control",
-    tag: "exfoliation",
+    tag: "acne",
     color: "#9b1c1c", light: "#fdecea",
-    items: ["Facial exfoliators", "Body scrubs", "Anti-pimple", "Korean pore-refine", "Acne control"],
+    items: ["Facial exfoliators", "Body scrubs", "Anti-pimple creams", "Korean pore-refining", "Acne control"],
   },
   {
-    emoji: "💎", title: "Advanced Serums & Treatments",
+    title: "Advanced Serums & Treatments",
     desc: "Snail mucin, collagen boosters, anti-wrinkle & African botanical actives",
     tag: "anti_aging",
-    color: "#4c1d95", light: "#f5e8f8",
-    items: ["Anti-acne serum", "Anti-blackhead", "Anti-wrinkle", "Collagen", "Snail mucin"],
+    color: "#4c1d95", light: "#ede9fe",
+    items: ["Anti-acne serums", "Anti-blackhead", "Anti-wrinkle serums", "Collagen boosting", "Snail mucin"],
   },
 ];
 
+/* ShopByCategory — fetches 4 real product images per category from the backend */
 function ShopByCategory() {
+  const [catImages, setCatImages] = useState<Record<string, HP[]>>({});
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    // Fetch 4 products per category in parallel
+    Promise.all(
+      STORE_CATEGORIES.map(cat =>
+        fetch(`${API}/api/products?tag=${encodeURIComponent(cat.tag)}&per_page=4&sort_by=sales&sort_order=desc`)
+          .then(r => r.ok ? r.json() : { results: [] })
+          .then((d: { results?: HP[] }) => ({ tag: cat.tag, products: d.results ?? [] }))
+          .catch(() => ({ tag: cat.tag, products: [] }))
+      )
+    ).then(results => {
+      const map: Record<string, HP[]> = {};
+      results.forEach(({ tag, products }) => { map[tag] = products; });
+      setCatImages(map);
+      setLoaded(true);
+    });
+  }, []);
+
   return (
-    <div style={{ background: "#f8fafc", padding: "40px 0 32px" }}>
+    <div style={{ background: "#f8fafc", padding: "40px 0 36px" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 clamp(16px,4vw,40px)" }}>
         {/* Section header */}
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 24 }}>
           <div>
             <h2 style={{ fontSize: "clamp(20px,2.5vw,26px)", fontWeight: 900, color: "#0f3f2f", margin: 0, letterSpacing: -0.5 }}>
               Shop by Category
             </h2>
-            <p style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}>
-              Korean skincare · African botanicals · International beauty — all in one store
+            <p style={{ fontSize: 14, color: "#64748b", marginTop: 5 }}>
+              Korean skincare · African botanicals · International beauty — delivered to Lesotho
             </p>
           </div>
-          <Link href="/store" style={{ fontSize: 13, fontWeight: 700, color: "#0f3f2f", textDecoration: "none", whiteSpace: "nowrap", border: "1.5px solid #0f3f2f", padding: "7px 16px", borderRadius: 8, transition: "all 0.2s" }}
+          <Link href="/store" style={{ fontSize: 13, fontWeight: 700, color: "#0f3f2f", textDecoration: "none", whiteSpace: "nowrap", border: "1.5px solid #0f3f2f", padding: "7px 16px", borderRadius: 8, transition: "all 0.2s", flexShrink: 0 }}
             onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "#0f3f2f"; el.style.color = "white"; }}
             onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.color = "#0f3f2f"; }}
           >View All →</Link>
         </div>
 
-        {/* 7-category grid: 4 on top row, 3 on bottom */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: 14 }}>
-          {STORE_CATEGORIES.map(cat => (
-            <Link
-              key={cat.tag}
-              href={`/store?tag=${cat.tag}`}
-              style={{ textDecoration: "none", background: "white", border: `1.5px solid ${cat.light}`, borderRadius: 16, overflow: "hidden", transition: "box-shadow 0.22s, transform 0.22s, border-color 0.22s", display: "flex", flexDirection: "column" }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.boxShadow = "0 8px 28px rgba(0,0,0,0.11)"; el.style.transform = "translateY(-3px)"; el.style.borderColor = cat.color; }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.boxShadow = "none"; el.style.transform = "none"; el.style.borderColor = cat.light; }}
-            >
-              {/* Coloured header band */}
-              <div style={{ background: cat.color, padding: "16px 18px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 28, flexShrink: 0 }}>{cat.emoji}</span>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "white", letterSpacing: -0.3 }}>{cat.title}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.72)", marginTop: 2, lineHeight: 1.35 }}>{cat.desc}</div>
+        {/* 7-category grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))", gap: 16 }}>
+          {STORE_CATEGORIES.map(cat => {
+            const products = catImages[cat.tag] ?? [];
+            const hasProducts = products.length > 0;
+            return (
+              <Link
+                key={cat.tag}
+                href={`/store?tag=${cat.tag}`}
+                style={{ textDecoration: "none", background: "white", border: "1.5px solid #e5e7eb", borderRadius: 16, overflow: "hidden", transition: "box-shadow 0.22s, transform 0.22s, border-color 0.22s", display: "flex", flexDirection: "column" }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.boxShadow = "0 8px 28px rgba(0,0,0,0.12)"; el.style.transform = "translateY(-3px)"; el.style.borderColor = cat.color; }}
+                onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.boxShadow = "none"; el.style.transform = "none"; el.style.borderColor = "#e5e7eb"; }}
+              >
+                {/* 2×2 product image grid — real photos only */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "100px 100px", gap: 2, background: "#f1f5f9" }}>
+                  {!loaded ? (
+                    // Loading skeleton — 4 shimmer boxes
+                    [0,1,2,3].map(i => <div key={i} className="shimbox" style={{ width: "100%", height: "100%" }} />)
+                  ) : hasProducts ? (
+                    // Real product images — fill up to 4 slots, repeat if fewer
+                    [0,1,2,3].map(i => {
+                      const p = products[i % products.length];
+                      const src = p ? optimizeImg(resolveImg(p.main_image), 400) : null;
+                      return src ? (
+                        <img key={i} src={src} alt={p.title} loading="lazy"
+                          style={{ width: "100%", height: "100%", objectFit: "contain", background: "white", padding: "6px" }}
+                          onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }}
+                        />
+                      ) : (
+                        <div key={i} style={{ width: "100%", height: "100%", background: cat.light }} />
+                      );
+                    })
+                  ) : (
+                    // No products found — solid light background placeholder
+                    <div style={{ gridColumn: "1/-1", gridRow: "1/-1", background: cat.light, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: 13, color: cat.color, fontWeight: 600, opacity: 0.7 }}>Products coming soon</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-              {/* Sub-item pills */}
-              <div style={{ padding: "12px 14px 14px", background: cat.light, flex: 1 }}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {cat.items.map(item => (
-                    <span key={item} style={{ fontSize: 11, color: cat.color, background: "white", border: `1px solid ${cat.color}22`, borderRadius: 20, padding: "3px 9px", fontWeight: 600 }}>
-                      {item}
-                    </span>
-                  ))}
+
+                {/* Card footer — title, description, sub-item pills */}
+                <div style={{ padding: "13px 14px 15px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: cat.color, letterSpacing: -0.2 }}>{cat.title}</span>
+                    {hasProducts && <span style={{ fontSize: 10, color: "#64748b", background: "#f1f5f9", padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>{products.length}+ products</span>}
+                  </div>
+                  <p style={{ fontSize: 11.5, color: "#64748b", margin: 0, lineHeight: 1.45 }}>{cat.desc}</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 2 }}>
+                    {cat.items.slice(0, 4).map(item => (
+                      <span key={item} style={{ fontSize: 10, color: cat.color, background: cat.light, borderRadius: 20, padding: "2px 8px", fontWeight: 600 }}>
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: "auto", paddingTop: 8, fontSize: 12, fontWeight: 700, color: cat.color }}>
+                    Shop {cat.title} →
+                  </div>
                 </div>
-                <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: cat.color }}>Shop {cat.title} →</div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -914,7 +977,7 @@ function DepartmentGrid({ departments }: { departments: DeptCategory[] }) {
                     onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-3px)"; }}
                     onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
                   >
-                    <div style={{ aspectRatio: "1/1", overflow: "hidden", background: "#f1f5f9" }}>
+                    <div style={{ aspectRatio: "1/1", overflow: "hidden", background: "#ffffff" }}>
                       <img src={optimizeImg(sub.image, 500)!} alt={sub.label} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.35s ease" }}
                         onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.1)")}
                         onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
@@ -1007,8 +1070,9 @@ function SectionCard({ p, accent, onClick }: { p: HP; accent: string; onClick: (
   if (p.images) p.images.filter(Boolean).forEach(u => { const r = resolveImg(u); if (r && !imgs.includes(r)) imgs.push(r); });
   useEffect(() => {
     if (imgs.length < 2) return;
-    const id = setInterval(() => { setImgVis(false); setTimeout(() => { setImgIdx(i => (i + 1) % imgs.length); setImgVis(true); }, 300); }, 3600);
-    return () => clearInterval(id);
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const id = setInterval(() => { setImgVis(false); timeoutId = setTimeout(() => { setImgIdx(i => (i + 1) % imgs.length); setImgVis(true); }, 300); }, 3600);
+    return () => { clearInterval(id); clearTimeout(timeoutId); };
   }, [imgs.length]);
   const curImg = imgs[imgIdx] ?? null;
 
@@ -1019,9 +1083,9 @@ function SectionCard({ p, accent, onClick }: { p: HP; accent: string; onClick: (
     >
       {disc && disc >= 5 && <div style={{ position: "absolute", top: 8, left: 8, zIndex: 2, background: accent, color: "white", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4 }}>-{disc}%</div>}
       {!p.in_stock && <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.65)", zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", background: "white", border: "1px solid #d1d5db", padding: "4px 12px", borderRadius: 6 }}>Sold Out</span></div>}
-      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "#f8fafc" }}>
+      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "#ffffff" }}>
         {curImg ? (
-          <img src={optimizeImg(curImg, 500)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.06)", transition: "opacity 0.3s ease, transform 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+          <img src={optimizeImg(curImg, 500)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", padding: "8px", background: "#ffffff", opacity: imgVis ? 1 : 0, transition: "opacity 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
         ) : <div className="shimbox" style={{ position: "absolute", inset: 0 }} />}
       </div>
       <div style={{ padding: "10px 11px 13px" }}>
@@ -1119,8 +1183,9 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
   useEffect(() => {
     if (imgs.length < 2) return;
     const interval = 3000 + (delay % 900);
-    const id = setInterval(() => { setImgVis(false); setTimeout(() => { setImgIdx(i => (i + 1) % imgs.length); setImgVis(true); }, 300); }, interval);
-    return () => clearInterval(id);
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const id = setInterval(() => { setImgVis(false); timeoutId = setTimeout(() => { setImgIdx(i => (i + 1) % imgs.length); setImgVis(true); }, 300); }, interval);
+    return () => { clearInterval(id); clearTimeout(timeoutId); };
   }, [imgs.length, delay]);
   const curImg = imgs[imgIdx] ?? null;
 
@@ -1139,9 +1204,9 @@ function JFYCard({ p, disc, delay, onClick }: { p: HP; disc: number | null; dela
       >
         <span style={{ color: saved ? "#c0392b" : "#9ca3af" }}>{saved ? "♥" : "♡"}</span>
       </button>
-      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "#f8fafc" }}>
+      <div style={{ position: "relative", aspectRatio: "1/1", overflow: "hidden", background: "#ffffff" }}>
         {curImg ? (
-          <img src={optimizeImg(curImg, 500)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: imgVis ? 1 : 0, transform: imgVis ? "scale(1)" : "scale(1.04)", transition: "opacity 0.3s ease, transform 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+          <img src={optimizeImg(curImg, 500)!} alt={p.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", padding: "8px", background: "#ffffff", opacity: imgVis ? 1 : 0, transition: "opacity 0.3s ease" }} onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
         ) : <div className="shimbox" style={{ position: "absolute", inset: 0 }} />}
       </div>
       <div style={{ padding: "10px 12px 13px" }}>
@@ -1205,9 +1270,9 @@ function RecentlyViewed() {
               onMouseEnter={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "0 6px 18px rgba(0,0,0,0.1)"; el.style.transform = "translateY(-2px)"; }}
               onMouseLeave={e => { const el = e.currentTarget as HTMLDivElement; el.style.boxShadow = "none"; el.style.transform = "none"; }}
             >
-              <div style={{ aspectRatio: "1/1", overflow: "hidden", background: "#f1f5f9" }}>
+              <div style={{ aspectRatio: "1/1", overflow: "hidden", background: "#ffffff" }}>
                 {p.main_image ? (
-                  <img src={optimizeImg(resolveImg(p.main_image), 500)!} alt={p.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={optimizeImg(resolveImg(p.main_image), 500)!} alt={p.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "6px", background: "#ffffff" }} />
                 ) : <div className="shimbox" style={{ width: "100%", height: "100%" }} />}
               </div>
               <div style={{ padding: "8px 9px 10px" }}>
@@ -1245,7 +1310,7 @@ function Newsletter() {
           <div style={{ display: "flex", gap: 10, maxWidth: 500, margin: "0 auto" }}>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your email address"
               style={{ flex: 1, padding: "14px 18px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.2)", fontSize: 14, fontFamily: "inherit", outline: "none", background: "rgba(255,255,255,0.95)", color: "#1a1a1a" }} />
-            <button onClick={() => { if (email.includes("@")) setDone(true); }}
+            <button onClick={() => { if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) setDone(true); }}
               style={{ background: "#c8a75a", color: "#1a1a1a", border: "none", padding: "14px 26px", borderRadius: 9, fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: "inherit", transition: "transform 0.2s, box-shadow 0.2s" }}
               onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.transform = "translateY(-2px)"; el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)"; }}
               onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.transform = "none"; el.style.boxShadow = "none"; }}
@@ -1365,7 +1430,8 @@ export default function HomePage() {
       results.forEach(({ tag, img }) => { if (img) map[tag] = img; });
       setCategoryImages(prev => ({ ...map, ...prev }));
     });
-  }, [heroProducts.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heroProducts.length, categoryImages]);
 
   /* Assign brand images from hero products after brands loaded */
   useEffect(() => {

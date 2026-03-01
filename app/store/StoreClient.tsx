@@ -15,21 +15,56 @@ function resolveImg(url: string | null | undefined): string | null {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return `${API}${url.startsWith("/") ? "" : "/"}${url}`;
 }
-function optimizeImg(url: string | null | undefined, size: 300 | 500 | 800 | 1500 = 500): string | null {
+
+/*
+ * optimizeImg — rewrites Amazon image URLs to always request full 1500px high-resolution.
+ *
+ * THE BUG that caused blurry/zoomed images:
+ *   The old code replaced size tokens but often APPENDED on top of them instead of
+ *   replacing cleanly, producing broken URLs like  _AC_AC_SL500_  or  _AC_UL320_._AC_SL500_
+ *   which Amazon falls back to tiny thumbnails for — hence blurry, pixelated images.
+ *
+ * THE FIX: Strip every known size/quality/format token first, then inject exactly ONE
+ *   clean _AC_SL1500_ token. 1500px is Amazon CDN's largest standard size — always use
+ *   it so the browser downscales from crisp full-res rather than upscaling a thumbnail.
+ */
+function optimizeImg(url: string | null | undefined, _size?: number): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
-  let out = url
-    .replace(/_AC_U[XY]\d+_(?:CR\d+,\d+,\d+,\d+_)?/gi, `_AC_SL${size}_`)
-    .replace(/_AC_S[LYX][SX]?\d+_/gi, `_AC_SL${size}_`)
-    .replace(/_SL\d+_/g, `_AC_SL${size}_`)
-    .replace(/_SS\d+_/g, `_AC_SL${size}_`)
-    .replace(/\._[A-Z]{2}\d+_\./, `._SL${size}_.`);
-  // If no size token found, inject one before the file extension
-  if (out === url && /\.jpe?g|\.(webp|png)/i.test(out)) {
-    out = out.replace(/(\.jpe?g|\.webp|\.png)(?:\?.*)?$/i, `._AC_SL${size}_$1`);
-  }
-  return out;
+
+  const SIZE = 1500; // Always request max quality — never pass a smaller size
+
+  let base = url
+    // Multi-token combos stripped first (order matters)
+    .replace(/_SX\d+_SY\d+_(?:QL\d+_)?(?:FM\w+_)?/gi, "")
+    .replace(/_AC_SX\d+_CR[\d,]+_/gi, "")
+    // AC-prefixed size tokens
+    .replace(/_AC_SL\d+_/gi, "")
+    .replace(/_AC_SX\d+_/gi, "")
+    .replace(/_AC_SY\d+_/gi, "")
+    .replace(/_AC_UX\d+_(?:QL\d+_)?/gi, "")
+    .replace(/_AC_UY\d+_/gi, "")
+    .replace(/_AC_UL\d+_/gi, "")
+    .replace(/_AC_US\d+_/gi, "")
+    // Bare tokens
+    .replace(/_SX\d+_/gi, "")
+    .replace(/_SY\d+_/gi, "")
+    .replace(/_SL\d+_/gi, "")
+    .replace(/_SS\d+_/gi, "")
+    .replace(/_QL\d+_/gi, "")
+    .replace(/_CR[\d,]+_/gi, "")
+    .replace(/_FM\w+_/gi, "")
+    // Clean up leftover dot/underscore artifacts from stripping
+    .replace(/\._AC_\./gi, ".")
+    .replace(/_\.(jpe?g|webp|png)/gi, ".$1")
+    .replace(/\._+\./g, ".")
+    .replace(/\.{2,}/g, ".");
+
+  // Inject ONE clean high-res token immediately before the file extension
+  const out = base.replace(/(\.(jpe?g|webp|png))(\?.*)?$/i, `._AC_SL${SIZE}_$1$3`);
+  return out !== base ? out : base;
 }
+
 
 /* ================================================================
    TYPES
@@ -91,61 +126,46 @@ const SORT_API_MAP: Record<SortOption, string> = {
 
 const PAGE_SIZE = 24;
 
-// ─── 7 store categories ────────────────────────────────────────────────────
-// Each group maps to one sidebar section and one set of quick-filter pills.
+/*
+ * COLLECTION_TAGS — these must match the actual tag values stored in your products.tags column.
+ * The tags come from the "collections" column in your product CSV import.
+ * Only include tags that real products are actually tagged with.
+ * Invented/custom tags with no matching products have been removed — they caused dead-end filter results.
+ */
 const COLLECTION_TAGS = [
   // 🌿 Skin Brightening
-  { tag: "brightening",         label: "Brightening Serums & Wash",     group: "🌿 Skin Brightening" },
-  { tag: "brightening_body",    label: "Brightening Body Lotion/Wash",  group: "🌿 Skin Brightening" },
-  { tag: "glass_skin",          label: "Korean Glass-Skin",             group: "🌿 Skin Brightening" },
-  { tag: "herbal_brightening",  label: "Herbal & Traditional Oils",     group: "🌿 Skin Brightening" },
-  { tag: "whitening",           label: "Whitening",                     group: "🌿 Skin Brightening" },
+  { tag: "brightening",          label: "Brightening",               group: "🌿 Skin Brightening" },
+  { tag: "whitening",            label: "Whitening",                 group: "🌿 Skin Brightening" },
+  { tag: "korean_ingredients",   label: "Korean Glass-Skin",         group: "🌿 Skin Brightening" },
+  { tag: "african_ingredients",  label: "Herbal & African Oils",     group: "🌿 Skin Brightening" },
 
-  // ✨ Stretch Marks Remover
-  { tag: "stretch_marks",       label: "Stretch Marks Cream",           group: "✨ Stretch Marks Remover" },
-  { tag: "stretch_serum",       label: "Stretch Marks Serum",           group: "✨ Stretch Marks Remover" },
-  { tag: "repair_body_lotion",  label: "Stretch Marks Body Lotion",     group: "✨ Stretch Marks Remover" },
-  { tag: "repair_body_wash",    label: "Repairing Body Wash",           group: "✨ Stretch Marks Remover" },
-  { tag: "korean_repair",       label: "Korean Skin-Repair",            group: "✨ Stretch Marks Remover" },
+  // ✨ Stretch Marks & Repair
+  { tag: "repair",               label: "Stretch Marks / Repair",    group: "✨ Stretch Marks & Repair" },
+  { tag: "barrier",              label: "Barrier Restore",           group: "✨ Stretch Marks & Repair" },
+  { tag: "body",                 label: "Body Lotion & Wash",        group: "✨ Stretch Marks & Repair" },
 
   // 💧 Face Care Essentials
-  { tag: "moisturizer",         label: "Face Moisturizers",             group: "💧 Face Care Essentials" },
-  { tag: "hydration",           label: "Hydrating Face Wash",           group: "💧 Face Care Essentials" },
-  { tag: "deep_cleanse",        label: "Deep Cleansing Face Wash",      group: "💧 Face Care Essentials" },
-  { tag: "herbal_facial",       label: "Herbal Facial Oils",            group: "💧 Face Care Essentials" },
-  { tag: "traditional_skin",    label: "Traditional Skincare",          group: "💧 Face Care Essentials" },
-  { tag: "korean_essence",      label: "Korean Essence & Toner",        group: "💧 Face Care Essentials" },
+  { tag: "hydration",            label: "Hydration",                 group: "💧 Face Care Essentials" },
+  { tag: "moisturizer",          label: "Moisturizers",              group: "💧 Face Care Essentials" },
+  { tag: "face_wash",            label: "Face Wash",                 group: "💧 Face Care Essentials" },
+  { tag: "oils",                 label: "Facial Oils",               group: "💧 Face Care Essentials" },
 
   // 🧴 Cleanser & Cosmetic Care
-  { tag: "face_wash",           label: "Face Wash & Cleansers",         group: "🧴 Cleanser & Cosmetic Care" },
-  { tag: "masks",               label: "Face Masks",                    group: "🧴 Cleanser & Cosmetic Care" },
-  { tag: "korean_sheet_mask",   label: "Korean Sheet Masks",            group: "🧴 Cleanser & Cosmetic Care" },
-  { tag: "eye_mask",            label: "Eye Masks",                     group: "🧴 Cleanser & Cosmetic Care" },
-  { tag: "lip_mask",            label: "Lip Masks",                     group: "🧴 Cleanser & Cosmetic Care" },
+  { tag: "masks",                label: "Face Masks",                group: "🧴 Cleanser & Cosmetic Care" },
+  { tag: "soaps",                label: "Cleansers & Soaps",         group: "🧴 Cleanser & Cosmetic Care" },
 
   // ☀️ Sunscreen
-  { tag: "sunscreen",           label: "SPF Face Sunscreen",            group: "☀️ Sunscreen Collection" },
-  { tag: "body_sunscreen",      label: "Body Sunscreen Lotion",         group: "☀️ Sunscreen Collection" },
-  { tag: "korean_spf",          label: "Korean Lightweight SPF",        group: "☀️ Sunscreen Collection" },
-  { tag: "herbal_sunscreen",    label: "Herbal Sun Protection",         group: "☀️ Sunscreen Collection" },
+  { tag: "sunscreen",            label: "Sunscreen (All)",           group: "☀️ Sunscreen Collection" },
 
   // 🌸 Exfoliator & Anti-Pimples
-  { tag: "exfoliation",         label: "Facial Exfoliators",            group: "🌸 Exfoliator & Anti-Pimples" },
-  { tag: "body_scrub",          label: "Body Scrubs",                   group: "🌸 Exfoliator & Anti-Pimples" },
-  { tag: "acne",                label: "Anti-Pimple Creams",            group: "🌸 Exfoliator & Anti-Pimples" },
-  { tag: "korean_exfoliant",    label: "Korean Pore-Refining",          group: "🌸 Exfoliator & Anti-Pimples" },
-  { tag: "acne_control",        label: "Acne Control Treatments",       group: "🌸 Exfoliator & Anti-Pimples" },
+  { tag: "exfoliation",          label: "Facial Exfoliators",        group: "🌸 Exfoliator & Anti-Pimples" },
+  { tag: "acne",                 label: "Anti-Pimple / Acne",        group: "🌸 Exfoliator & Anti-Pimples" },
 
   // 💎 Advanced Serums & Treatments
-  { tag: "anti_acne_serum",     label: "Anti-Acne Serums",              group: "💎 Advanced Serums & Treatments" },
-  { tag: "anti_blackhead",      label: "Anti-Blackhead Treatments",     group: "💎 Advanced Serums & Treatments" },
-  { tag: "anti_aging",          label: "Anti-Wrinkle Serums",           group: "💎 Advanced Serums & Treatments" },
-  { tag: "collagen",            label: "Collagen Boosting Serums",      group: "💎 Advanced Serums & Treatments" },
-  { tag: "herbal_medicinal",    label: "Medicinal Herb Skincare",       group: "💎 Advanced Serums & Treatments" },
-  { tag: "natural_oils",        label: "Natural Skin Oils",             group: "💎 Advanced Serums & Treatments" },
-  { tag: "skin_protein",        label: "Skin Protein & Repair",         group: "💎 Advanced Serums & Treatments" },
-  { tag: "snail_mucin",         label: "Korean Snail Mucin",            group: "💎 Advanced Serums & Treatments" },
-  { tag: "african_ingredients", label: "African Botanicals",            group: "💎 Advanced Serums & Treatments" },
+  { tag: "serum",                label: "Serums",                    group: "💎 Advanced Serums & Treatments" },
+  { tag: "anti_aging",           label: "Anti-Wrinkle",              group: "💎 Advanced Serums & Treatments" },
+  { tag: "collagen",             label: "Collagen Boosting",         group: "💎 Advanced Serums & Treatments" },
+  { tag: "clinical_acids",       label: "Clinical Actives",          group: "💎 Advanced Serums & Treatments" },
 ];
 
 const TAG_LABEL: Record<string, string> = Object.fromEntries(COLLECTION_TAGS.map(t => [t.tag, t.label]));
@@ -210,6 +230,7 @@ const GLOBAL_CSS = `
    STAR RATING
 ================================================================ */
 function Stars({ rating, count }: { rating: number; count?: number | null }) {
+  const uid = useRef(Math.random().toString(36).slice(2)).current;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
       {[1, 2, 3, 4, 5].map(i => {
@@ -218,14 +239,14 @@ function Stars({ rating, count }: { rating: number; count?: number | null }) {
         return (
           <svg key={i} width="10" height="10" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
             <defs>
-              <linearGradient id={`hg${i}`}>
+              <linearGradient id={`hg-${uid}-${i}`}>
                 <stop offset="50%" stopColor="#c8a75a" />
                 <stop offset="50%" stopColor="#e2e8f0" />
               </linearGradient>
             </defs>
             <polygon
               points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-              fill={filled ? "#c8a75a" : half ? `url(#hg${i})` : "#e2e8f0"}
+              fill={filled ? "#c8a75a" : half ? `url(#hg-${uid}-${i})` : "#e2e8f0"}
               stroke="none"
             />
           </svg>
@@ -281,15 +302,15 @@ function ProductCardGrid({ product, onNavigate }: { product: ProductListItem; on
       onClick={onNavigate}
     >
       {/* Image */}
-      <div style={{ position: "relative", overflow: "hidden", background: "var(--gray-50)" }}>
+      <div style={{ position: "relative", overflow: "hidden", background: "#ffffff" }}>
         {imgSrc && !imgErr ? (
           <img
             src={imgSrc}
             alt={product.title}
             onError={() => setImgErr(true)}
-            style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", display: "block", transition: "transform 0.4s ease" }}
+            style={{ width: "100%", aspectRatio: "1/1", objectFit: "contain", display: "block", padding: "8px", transition: "transform 0.4s ease", background: "#ffffff" }}
             loading="lazy"
-            onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.07)")}
+            onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
             onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
           />
         ) : (
@@ -364,7 +385,7 @@ function ProductCardGrid({ product, onNavigate }: { product: ProductListItem; on
         </div>
         {discount != null && discount >= 5 && (
           <span style={{ fontSize: 10, color: "var(--red)", fontWeight: 700 }}>
-            You save {formatCurrency(product.compare_price! - product.price)}
+            You save {formatCurrency((product.compare_price ?? product.price) - product.price)}
           </span>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -414,7 +435,7 @@ function ProductCardList({ product, onNavigate }: { product: ProductListItem; on
     >
       <div style={{ width: 200, height: 200, flexShrink: 0, position: "relative", overflow: "hidden" }}>
         {imgSrc && !imgErr ? (
-          <img src={imgSrc} alt={product.title} onError={() => setImgErr(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" />
+          <img src={imgSrc} alt={product.title} onError={() => setImgErr(true)} style={{ width: "100%", height: "100%", objectFit: "contain", padding: "8px", background: "#ffffff" }} loading="lazy" />
         ) : (
           <div style={{ width: "100%", height: "100%", background: "var(--gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
@@ -536,13 +557,14 @@ const QUICK_FILTERS = [
   { label: "Flash Deals",        q: "sort=discount" },
   { label: "New Arrivals",       q: "sort=newest" },
   { label: "🌿 Brightening",     q: "tag=brightening" },
-  { label: "✨ Stretch Marks",    q: "tag=stretch_marks" },
-  { label: "💧 Face Care",       q: "tag=hydration" },
-  { label: "🧴 Cleansers",       q: "tag=face_wash" },
+  { label: "✨ Repair",          q: "tag=repair" },
+  { label: "💧 Hydration",       q: "tag=hydration" },
+  { label: "🧴 Face Wash",       q: "tag=face_wash" },
+  { label: "🎭 Masks",           q: "tag=masks" },
   { label: "☀️ Sunscreen",       q: "tag=sunscreen" },
-  { label: "🌸 Anti-Pimples",    q: "tag=acne" },
-  { label: "💎 Serums",          q: "tag=anti_aging" },
-  { label: "K-Beauty",           q: "tag=glass_skin" },
+  { label: "🌸 Acne Care",       q: "tag=acne" },
+  { label: "💎 Anti-Aging",      q: "tag=anti_aging" },
+  { label: "K-Beauty",           q: "tag=korean_ingredients" },
   { label: "African Botanicals", q: "tag=african_ingredients" },
   { label: "In Stock Only",      q: "in_stock=true" },
 ];
@@ -593,7 +615,7 @@ function Pagination({ page, totalPages, onPage, total, showing }: { page: number
     } else {
       arr.push(1);
       if (page > 3) arr.push("...");
-      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) arr.push(i);
+      for (let i = Math.max(2, page - 2); i <= Math.min(totalPages - 1, page + 2); i++) arr.push(i);
       if (page < totalPages - 2) arr.push("...");
       arr.push(totalPages);
     }
@@ -765,7 +787,7 @@ export default function StoreClient() {
     }
   }, [sort, searchQuery, selectedTag, selectedCategory, selectedBrand, priceMin, priceMax, inStockOnly, minRating]);
 
-  useEffect(() => { loadProducts(1); }, [sort, searchQuery, selectedTag, selectedCategory, selectedBrand, priceMin, priceMax, inStockOnly, minRating]);
+  useEffect(() => { loadProducts(1); }, [loadProducts]);
 
   const handleQuick = (q: string) => {
     setActiveQuick(q);
@@ -788,12 +810,13 @@ export default function StoreClient() {
   };
 
   /* ── FILTER PANEL ── */
-  const FilterPanel = () => (
+  // useCallback prevents FilterPanel remounting on every render (which resets collapse state)
+  const FilterPanel = useCallback(() => (
     <div>
       {/* Collection tags — one section per store category */}
       {[
         "🌿 Skin Brightening",
-        "✨ Stretch Marks Remover",
+        "✨ Stretch Marks & Repair",
         "💧 Face Care Essentials",
         "🧴 Cleanser & Cosmetic Care",
         "☀️ Sunscreen Collection",
@@ -915,7 +938,7 @@ export default function StoreClient() {
         </div>
       </FilterSection>
     </div>
-  );
+  ), [selectedTag, selectedCategory, selectedBrand, priceMin, priceMax, inStockOnly, minRating, sort, categories, brands, clearAll]);
 
   /* ── RENDER ── */
   return (
@@ -941,7 +964,7 @@ export default function StoreClient() {
               <option value="">All</option>
               {[
                 "🌿 Skin Brightening",
-                "✨ Stretch Marks Remover",
+                "✨ Stretch Marks & Repair",
                 "💧 Face Care Essentials",
                 "🧴 Cleanser & Cosmetic Care",
                 "☀️ Sunscreen Collection",
