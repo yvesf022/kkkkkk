@@ -108,13 +108,13 @@ export const metadata: Metadata = {
 
   title: {
     // ✅ IMPROVED: More descriptive, includes key product categories
-    default: "Karabo's Store – Beauty, Phones & Fashion in Lesotho",
+    default: "Karabo's Store – Premium Beauty & Skincare in Lesotho",
     template: "%s | Karabo's Store Lesotho",
   },
 
   // ✅ IMPROVED: Richer description with specific products & local signals
   description:
-    "Shop premium skincare, beauty products, smartphones, accessories and fashion at Karabo's Store — Lesotho's finest online boutique. Free delivery on orders over M500. 100% authentic products.",
+    "Shop premium skincare, serums, face oils, sunscreens and body care at Karabo's Store — Lesotho's finest beauty boutique. Free delivery on orders over M500. 100% authentic products.",
 
   // ✅ IMPROVED: Expanded keyword list targeting Lesotho shoppers
   keywords: [
@@ -123,9 +123,9 @@ export const metadata: Metadata = {
     "online shopping Lesotho",
     "buy skincare Lesotho",
     "beauty products Lesotho",
-    "buy phones Lesotho",
-    "smartphones Maseru",
-    "fashion store Lesotho",
+    "buy sunscreen Lesotho",
+    "face serum Maseru",
+    "skincare boutique Lesotho",
     "collagen supplements Lesotho",
     "body lotion Lesotho",
     "face serum Lesotho",
@@ -198,8 +198,8 @@ export const metadata: Metadata = {
 
   // ✅ FIXED: URL updated to real domain
   openGraph: {
-    title:       "Karabo's Store – Beauty, Phones & Fashion in Lesotho",
-    description: "Shop skincare, smartphones, fashion & wellness at Lesotho's finest online boutique. Free delivery on orders over M500.",
+    title:       "Karabo's Store – Premium Beauty & Skincare in Lesotho",
+    description: "Shop skincare, serums, oils, sunscreens & wellness essentials at Lesotho's finest beauty boutique. Free delivery on orders over M500.",
     url:         "https://www.karabostore.com",
     siteName:    "Karabo's Store",
     images: [
@@ -218,8 +218,8 @@ export const metadata: Metadata = {
   // ✅ IMPROVED: More descriptive Twitter card
   twitter: {
     card:        "summary_large_image",
-    title:       "Karabo's Store – Beauty, Phones & Fashion in Lesotho",
-    description: "Lesotho's finest online boutique. Skincare, smartphones, fashion & more. Free delivery on M500+.",
+    title:       "Karabo's Store – Premium Beauty & Skincare in Lesotho",
+    description: "Lesotho's finest beauty boutique. Skincare, serums, oils & more. Free delivery on M500+.",
     images:      ["/og-image.png"],
   },
 };
@@ -236,6 +236,20 @@ export default function RootLayout({
   return (
     <html lang="en-LS">  {/* ✅ FIXED: Lesotho locale */}
       <head>
+        {/*
+          ⚡ PWA: Capture beforeinstallprompt IMMEDIATELY — the browser fires
+          it very early, before React even mounts, so a useEffect listener
+          always misses it. We stash it on window so InstallPrompt can read it.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.__karabo_deferredPrompt = null;
+          window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window.__karabo_deferredPrompt = e;
+            window.dispatchEvent(new Event('karabo-install-ready'));
+          }, { once: true });
+        `}} />
+
         {/* ✅ NEW: JSON-LD — tells Google exactly what your business is */}
         <script
           type="application/ld+json"
@@ -246,7 +260,7 @@ export default function RootLayout({
               "name": "Karabo's Store",
               "url": "https://www.karabostore.com",
               "logo": "https://www.karabostore.com/icons/icon-512x512.png",
-              "description": "Lesotho's finest online boutique. Shop premium skincare, beauty, smartphones and fashion with free delivery on M500+.",
+              "description": "Lesotho's finest beauty boutique. Shop premium skincare, serums, oils, sunscreens and body care with free delivery on M500+.",
               "address": {
                 "@type": "PostalAddress",
                 "addressCountry": "LS",
@@ -257,8 +271,8 @@ export default function RootLayout({
                 "name": "Karabo's Store Products",
                 "itemListElement": [
                   { "@type": "OfferCatalog", "name": "Beauty & Skincare" },
-                  { "@type": "OfferCatalog", "name": "Mobile & Accessories" },
-                  { "@type": "OfferCatalog", "name": "Fashion & Streetwear" },
+                  { "@type": "OfferCatalog", "name": "Sunscreen & SPF" },
+                  { "@type": "OfferCatalog", "name": "Serums & Face Oils" },
                   { "@type": "OfferCatalog", "name": "Health & Wellness" }
                 ]
               }

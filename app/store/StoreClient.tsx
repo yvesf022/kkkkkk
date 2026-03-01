@@ -18,12 +18,17 @@ function resolveImg(url: string | null | undefined): string | null {
 function optimizeImg(url: string | null | undefined, size: 300 | 500 | 800 | 1500 = 500): string | null {
   if (!url) return null;
   if (!url.includes("m.media-amazon.com")) return url;
-  return url
+  let out = url
     .replace(/_AC_U[XY]\d+_(?:CR\d+,\d+,\d+,\d+_)?/gi, `_AC_SL${size}_`)
     .replace(/_AC_S[LYX][SX]?\d+_/gi, `_AC_SL${size}_`)
     .replace(/_SL\d+_/g, `_AC_SL${size}_`)
     .replace(/_SS\d+_/g, `_AC_SL${size}_`)
     .replace(/\._[A-Z]{2}\d+_\./, `._SL${size}_.`);
+  // If no size token found, inject one before the file extension
+  if (out === url && /\.jpe?g|\.(webp|png)/i.test(out)) {
+    out = out.replace(/(\.jpe?g|\.webp|\.png)(?:\?.*)?$/i, `._AC_SL${size}_$1`);
+  }
+  return out;
 }
 
 /* ================================================================
@@ -216,7 +221,7 @@ function ProductCardGrid({ product, onNavigate }: { product: ProductListItem; on
   const [saved, setSaved] = useState(false);
   const [added, setAdded] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const imgSrc = optimizeImg(resolveImg(product.main_image ?? product.image_url), 300);
+  const imgSrc = optimizeImg(resolveImg(product.main_image ?? product.image_url), 500);
   const discount = getDiscount(product);
 
   return (
@@ -362,7 +367,7 @@ function ProductCardGrid({ product, onNavigate }: { product: ProductListItem; on
 function ProductCardList({ product, onNavigate }: { product: ProductListItem; onNavigate: () => void }) {
   const [imgErr, setImgErr] = useState(false);
   const [saved, setSaved] = useState(false);
-  const imgSrc = optimizeImg(resolveImg(product.main_image ?? product.image_url), 300);
+  const imgSrc = optimizeImg(resolveImg(product.main_image ?? product.image_url), 500);
   const discount = getDiscount(product);
 
   return (
@@ -627,6 +632,38 @@ export default function StoreClient() {
   const [priceMax, setPriceMax] = useState(params.get("max_price") ?? "");
   const [inStockOnly, setInStockOnly] = useState(params.get("in_stock") === "true");
   const [minRating, setMinRating] = useState(params.get("min_rating") ?? "");
+
+  /* ── KEY FIX: sync filter state whenever the URL changes ──────────────
+     Next.js reuses the mounted component when navigating between /store
+     URLs (e.g. clicking "View All Anti-Aging" → /store?tag=anti_aging).
+     useState initial values only run once at mount, so without this effect
+     clicking any "View All" or external filter link shows the wrong products.
+  ─────────────────────────────────────────────────────────────────────── */
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    const q    = params.get("q") ?? "";
+    const s    = (params.get("sort") as SortOption) ?? "newest";
+    const tag  = params.get("tag") ?? "";
+    const cat  = params.get("category") ?? "";
+    const brd  = params.get("brand") ?? "";
+    const pMin = params.get("min_price") ?? "";
+    const pMax = params.get("max_price") ?? "";
+    const ins  = params.get("in_stock") === "true";
+    const rat  = params.get("min_rating") ?? "";
+    setSearchInput(q);
+    setSearchQuery(q);
+    setSort(s);
+    setSelectedTag(tag);
+    setSelectedCategory(cat);
+    setSelectedBrand(brd);
+    setPriceMin(pMin);
+    setPriceMax(pMax);
+    setInStockOnly(ins);
+    setMinRating(rat);
+    setActiveQuick("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
 
   /* ── UI state ── */
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
