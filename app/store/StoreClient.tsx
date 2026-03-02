@@ -79,29 +79,34 @@ export default function StoreClient() {
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [showMobileFilter, setShowMobileFilter] = useState(false);
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
 
-  // 1. DYNAMIC CATEGORY FETCHING (Fixes "Fashion/Baby" Ghosting)
+  // 1. DYNAMIC CATEGORY FETCHING — Pulls real data from backend
   useEffect(() => {
     fetch(`${API}/api/categories`)
       .then(res => res.json())
-      .then(data => setDbCategories(data))
+      .then(data => {
+        // Ensure data is an array to prevent .map crashes
+        setDbCategories(Array.isArray(data) ? data : []);
+      })
       .catch(err => console.error("Filter fetch error:", err));
   }, []);
 
-  // 2. PRODUCT LOADING
+  // 2. PRODUCT LOADING — Syncs with search params
   const loadProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const qs = searchParams.toString();
-      // Ensure we only show active/stocked items to match Jumia behavior
-      const res = await fetch(`${API}/api/products?status=active&${qs}`);
+      const params = new URLSearchParams(searchParams.toString());
+      // Jumia behavior: Default to showing active items
+      if (!params.has("status")) params.set("status", "active");
+      
+      const res = await fetch(`${API}/api/products?${params.toString()}`);
       const data = await res.json();
       setProducts(data.results || []);
       setTotal(data.total || 0);
     } catch (err) {
       console.error("Failed to load products:", err);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -112,11 +117,10 @@ export default function StoreClient() {
   }, [loadProducts]);
 
   /* ============================================================
-     FILTER PANEL (YOUR DESIGN - NOW DYNAMIC)
+      FILTER PANEL — Dynamically rendered based on DB
   ============================================================ */
   const FilterPanel = () => {
     const currentCat = searchParams.get("category");
-    const currentBrand = searchParams.get("brand");
 
     const toggleFilter = (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -130,25 +134,34 @@ export default function StoreClient() {
 
     return (
       <div style={{ padding: "16px" }}>
-        {/* Category Section */}
         <div style={{ marginBottom: "24px" }}>
           <h4 style={{ fontSize: "13px", fontWeight: 800, textTransform: "uppercase", marginBottom: "12px", color: "#1a1a1a" }}>Category</h4>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {/* "All" Option */}
+            <button
+              onClick={() => {
+                const p = new URLSearchParams(searchParams.toString());
+                p.delete("category");
+                router.push(`/store?${p.toString()}`);
+              }}
+              style={{
+                background: "none", border: "none", padding: "4px 0", cursor: "pointer",
+                fontSize: "14px", color: !currentCat ? "#0f3f2f" : "#666",
+                fontWeight: !currentCat ? 800 : 400, textAlign: "left"
+              }}
+            >
+              All Departments
+            </button>
+
             {dbCategories.map((cat) => (
               <button
                 key={cat.slug}
                 onClick={() => toggleFilter("category", cat.slug)}
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  background: "none",
-                  border: "none",
-                  padding: "4px 0",
-                  cursor: "pointer",
-                  fontSize: "14px",
+                  display: "flex", justifyContent: "space-between", background: "none",
+                  border: "none", padding: "4px 0", cursor: "pointer", fontSize: "14px",
                   color: currentCat === cat.slug ? "#0f3f2f" : "#666",
-                  fontWeight: currentCat === cat.slug ? 800 : 400,
-                  textAlign: "left"
+                  fontWeight: currentCat === cat.slug ? 800 : 400, textAlign: "left"
                 }}
               >
                 <span>{cat.name}</span>
@@ -166,7 +179,9 @@ export default function StoreClient() {
       
       {/* Sidebar - Desktop Only */}
       <aside style={{ width: "260px", flexShrink: 0 }} className="desktop-only">
-        <FilterPanel />
+        <div style={{ position: 'sticky', top: '20px' }}>
+          <FilterPanel />
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -180,30 +195,50 @@ export default function StoreClient() {
 
         {loading ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "15px" }}>
-            {[...Array(8)].map((_, i) => <div key={i} className="shimbox" style={{ height: "300px", borderRadius: "8px" }} />)}
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "15px" }}>
-            {products.map((p) => (
-              <Link key={p.id} href={`/store/product/${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                <div style={{ border: "1px solid #eee", borderRadius: "8px", overflow: "hidden", background: "white" }}>
-                  <div style={{ aspectRatio: "1/1", background: "#f9f9f9" }}>
-                    <img src={optimizeImg(resolveImg(p.main_image)) || "/placeholder.png"} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "contain", padding: "10px" }} />
-                  </div>
-                  <div style={{ padding: "12px" }}>
-                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "4px" }}>{p.brand}</div>
-                    <div style={{ fontSize: "14px", fontWeight: 500, height: "40px", overflow: "hidden" }}>{p.title}</div>
-                    <div style={{ fontSize: "18px", fontWeight: 900, marginTop: "8px" }}>{formatCurrency(p.price)}</div>
-                  </div>
-                </div>
-              </Link>
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="shimbox" style={{ height: "320px", borderRadius: "8px" }} />
             ))}
           </div>
+        ) : (
+          <>
+            {products.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "15px" }}>
+                {products.map((p) => (
+                  <Link key={p.id} href={`/store/product/${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                    <div style={{ border: "1px solid #eee", borderRadius: "8px", overflow: "hidden", background: "white", transition: 'transform 0.2s', height: '100%' }}
+                         onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+                         onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                      <div style={{ aspectRatio: "1/1", background: "#fff", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img 
+                          src={optimizeImg(resolveImg(p.main_image)) || "/placeholder.png"} 
+                          alt={p.title} 
+                          style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: "12px" }} 
+                        />
+                      </div>
+                      <div style={{ padding: "12px", borderTop: '1px solid #f5f5f5' }}>
+                        <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f3f2f", textTransform: 'uppercase', marginBottom: "4px" }}>{p.brand || "Generic"}</div>
+                        <div style={{ fontSize: "13px", fontWeight: 400, height: "38px", overflow: "hidden", display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: '1.4' }}>{p.title}</div>
+                        <div style={{ fontSize: "18px", fontWeight: 900, marginTop: "8px", color: '#1a1a1a' }}>{formatCurrency(p.price)}</div>
+                        {p.compare_price && p.compare_price > p.price && (
+                           <div style={{ fontSize: '12px', color: '#999', textDecoration: 'line-through' }}>{formatCurrency(p.compare_price)}</div>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '100px 0', background: 'white', borderRadius: '8px', border: '1px solid #eee' }}>
+                <p style={{ color: '#666' }}>No products found in this category.</p>
+                <button onClick={() => router.push('/store')} style={{ marginTop: '10px', color: '#0f3f2f', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>Clear all filters</button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
       <style>{`
-        .shimbox { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        .shimbox { background: linear-gradient(90deg, #f8f8f8 25%, #f0f0f0 50%, #f8f8f8 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         @media (max-width: 768px) { .desktop-only { display: none; } }
       `}</style>
