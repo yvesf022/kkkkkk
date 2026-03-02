@@ -314,24 +314,24 @@ function AnnouncementBar() {
  * These map to the standard tags a beauty product CSV import (collections column) would have.
  * Dead-end tags (custom invented ones with no matching products) have been removed.
  */
+// NAV_CATS — category slugs match products.category column in DB exactly
 const NAV_CATS = [
-  { label: "Brightening",      tag: "brightening",          emoji: "🌿" },
-  { label: "Whitening",        tag: "whitening",            emoji: "💫" },
-  { label: "Hydration",        tag: "hydration",            emoji: "💧" },
-  { label: "Moisturizers",     tag: "moisturizer",          emoji: "🫧" },
-  { label: "Repair",           tag: "repair",               emoji: "✨" },
-  { label: "Face Wash",        tag: "face_wash",            emoji: "🧴" },
-  { label: "Face Masks",       tag: "masks",                emoji: "🎭" },
-  { label: "Sunscreen",        tag: "sunscreen",            emoji: "☀️" },
-  { label: "Exfoliators",      tag: "exfoliation",          emoji: "🌸" },
-  { label: "Anti-Pimple",      tag: "acne",                 emoji: "🎯" },
-  { label: "Anti-Aging",       tag: "anti_aging",           emoji: "⏳" },
-  { label: "Serums",           tag: "serum",                emoji: "💎" },
-  { label: "Collagen",         tag: "collagen",             emoji: "💉" },
-  { label: "Body Care",        tag: "body",                 emoji: "🛁" },
-  { label: "Natural Oils",     tag: "oils",                 emoji: "🫒" },
-  { label: "K-Beauty",         tag: "korean_ingredients",   emoji: "🇰🇷" },
-  { label: "African Botanicals", tag: "african_ingredients", emoji: "🌍" },
+  { label: "Brightening",    category: "skin_brightening", emoji: "🌿" },
+  { label: "Moisturisers",   category: "moisturizer",      emoji: "💧" },
+  { label: "Repair",         category: "body_lotion",      emoji: "✨" },
+  { label: "Face Wash",      category: "face_wash",        emoji: "🧴" },
+  { label: "Face Masks",     category: "face_mask",        emoji: "🎭" },
+  { label: "Sunscreen",      category: "sunscreen",        emoji: "☀️" },
+  { label: "Exfoliators",    category: "exfoliator",       emoji: "🌸" },
+  { label: "Anti-Pimple",    category: "anti_acne",        emoji: "🎯" },
+  { label: "Anti-Aging",     category: "anti_wrinkles",    emoji: "⏳" },
+  { label: "Serums",         category: "serum",            emoji: "💎" },
+  { label: "Collagen",       category: "collagen",         emoji: "🔬" },
+  { label: "Body Care",      category: "body_wash",        emoji: "🛁" },
+  { label: "Natural Oils",   category: "skin_natural_oils",emoji: "🫒" },
+  { label: "Herbal Oils",    category: "herbal_oils",      emoji: "🌿" },
+  { label: "Eye Masks",      category: "eye_mask",         emoji: "👁" },
+  { label: "Lip Masks",      category: "lip_mask",         emoji: "💋" },
 ];
 
 function CategoryNav({ categoryImages }: { categoryImages: Record<string, string | null> }) {
@@ -344,11 +344,11 @@ function CategoryNav({ categoryImages }: { categoryImages: Record<string, string
         <ScrollBtn dir="l" onClick={() => scroll("l")} style={{ left: -2, width: 32, height: 32, fontSize: 14 }} />
         <div ref={rowRef} style={{ display: "flex", gap: 4, overflowX: "auto", scrollbarWidth: "none", padding: "2px 20px" }}>
           {NAV_CATS.map(c => {
-            const img = categoryImages[c.tag];
+            const img = categoryImages[c.category];
             return (
               <Link
-                key={c.tag}
-                href={`/store?tag=${c.tag}`}
+                key={c.category}
+                href={`/store?category=${c.category}`}
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7, padding: "8px 10px", borderRadius: 10, textDecoration: "none", flexShrink: 0, transition: "background 0.2s, transform 0.2s" }}
                 onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "#f0fdf4"; el.style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.transform = "none"; }}
@@ -383,50 +383,50 @@ const HERO_SLIDES = [
     headline: "Glow From\nWithin",
     sub: "Brightening serums, body lotion & herbal oils — delivered to Lesotho",
     cta: "Shop Brightening",
-    ctaLink: "/store?tag=brightening",
+    ctaLink: "/store?category=skin_brightening",
     bg: "linear-gradient(135deg, #061a12 0%, #0a2a1f 50%, #1b5e4a 100%)",
     accent: "#c8a75a",
-    filterTag: "brightening",
+    filterCategory: "skin_brightening",
   },
   {
     tag: "Repair & Restore",
     headline: "Restore &\nRenew",
-    sub: "Stretch mark creams, repair serums & skin rebuild treatments",
-    cta: "Shop Repair",
-    ctaLink: "/store?tag=repair",
+    sub: "Body lotions, repair serums & skin rebuild treatments",
+    cta: "Shop Body Care",
+    ctaLink: "/store?category=body_lotion",
     bg: "linear-gradient(135deg, #2d1b69, #5b21b6, #7c3aed)",
     accent: "#fce7f3",
-    filterTag: "repair",
+    filterCategory: "body_lotion",
   },
   {
     tag: "Sunscreen & Anti-Pimples",
     headline: "Protect &\nClear",
     sub: "Broad-spectrum SPF + exfoliators & acne-control treatments",
     cta: "Shop Sunscreen",
-    ctaLink: "/store?tag=sunscreen",
+    ctaLink: "/store?category=sunscreen",
     bg: "linear-gradient(135deg, #5f0a0a, #8b1a1a, #c0392b)",
     accent: "#fde68a",
-    filterTag: "sunscreen",
+    filterCategory: "sunscreen",
   },
   {
     tag: "Advanced Serums",
     headline: "Science\nMeets Nature",
-    sub: "Collagen boosters, anti-aging actives & African botanical serums",
+    sub: "Collagen boosters, anti-aging actives & botanical serums",
     cta: "Shop Serums",
-    ctaLink: "/store?tag=anti_aging",
+    ctaLink: "/store?category=serum",
     bg: "linear-gradient(135deg, #0d2137, #1a3a6b, #2d5a9e)",
     accent: "#93c5fd",
-    filterTag: "anti_aging",
+    filterCategory: "serum",
   },
   {
     tag: "Hydration & Face Care",
     headline: "Hydrate,\nCleanse & Glow",
     sub: "Moisturisers, herbal oils, face masks & deep-cleanse essentials",
-    cta: "Shop Face Care",
-    ctaLink: "/store?tag=hydration",
+    cta: "Shop Moisturisers",
+    ctaLink: "/store?category=moisturizer",
     bg: "linear-gradient(135deg, #064e3b, #065f46, #047857)",
     accent: "#a7f3d0",
-    filterTag: "hydration",
+    filterCategory: "moisturizer",
   },
 ];
 
@@ -675,13 +675,13 @@ function PromoBanners({ featuredProducts }: { featuredProducts: HP[] }) {
       product: featuredProducts[1],
       gradient: "linear-gradient(100deg, rgba(140,60,0,0.97) 0%, rgba(140,60,0,0.9) 55%, rgba(140,60,0,0.25) 80%, transparent 100%)",
       tag: "Sun Care", title: "SPF Every\nSingle Day", sub: "Body & face sunscreens from trusted brands",
-      href: "/store?tag=sunscreen", accent: "#fde68a",
+      href: "/store?category=sunscreen", accent: "#fde68a",
     },
     {
       product: featuredProducts[2],
       gradient: "linear-gradient(100deg, rgba(60,10,130,0.97) 0%, rgba(60,10,130,0.9) 55%, rgba(60,10,130,0.25) 80%, transparent 100%)",
-      tag: "Phones & Tech", title: "Flagship\nMobiles", sub: "Samsung, Apple, Xiaomi & more — top brands in stock",
-      href: "/store?main_cat=phones", accent: "#e9d5ff",
+      tag: "Anti-Aging", title: "Turn Back\nthe Clock", sub: "Collagen boosters, retinol serums & anti-wrinkle treatments",
+      href: "/store?category=anti_wrinkles", accent: "#e9d5ff",
     },
   ];
 
@@ -813,48 +813,49 @@ function FlashCard({ p, onClick }: { p: HP; onClick: () => void }) {
    SHOP BY CATEGORY — 7-category visual grid
 ═══════════════════════════════════════════════════════════════ */
 /* ─── 7 store categories — tags must match values actually stored in products.tags ─── */
+// STORE_CATEGORIES — category slugs match products.category column in DB exactly
 const STORE_CATEGORIES = [
   {
     title: "Skin Brightening",
     desc: "Serums, body lotion, glass-skin K-beauty & herbal brightening oils",
-    tag: "brightening",
+    category: "skin_brightening",
     color: "#0f3f2f", light: "#e6f2ee",
   },
   {
-    title: "Stretch Marks Remover",
-    desc: "Creams, serums & Korean repair treatments for stretch marks",
-    tag: "repair",
-    color: "#6b21a8", light: "#f5e8f8",
-  },
-  {
-    title: "Face Care Essentials",
-    desc: "Moisturisers, herbal oils, Korean toners & deep-cleansing essentials",
-    tag: "hydration",
+    title: "Moisturisers",
+    desc: "Daily face creams, gel moisturisers & hydrating lotions for all skin types",
+    category: "moisturizer",
     color: "#1e3a5f", light: "#e8eef8",
   },
   {
-    title: "Cleanser & Cosmetic Care",
-    desc: "Face wash, Korean sheet masks, eye masks & lip masks",
-    tag: "masks",
-    color: "#065f46", light: "#d1fae5",
-  },
-  {
-    title: "Sunscreen Collection",
+    title: "Sunscreen",
     desc: "SPF for face & body, Korean no-white-cast SPF & herbal sun creams",
-    tag: "sunscreen",
+    category: "sunscreen",
     color: "#92400e", light: "#fef3cd",
   },
   {
-    title: "Exfoliator & Anti-Pimples",
-    desc: "Facial exfoliators, body scrubs, Korean pore-refining & acne control",
-    tag: "acne",
+    title: "Serums & Treatments",
+    desc: "Vitamin C, niacinamide, retinol & collagen-boosting active serums",
+    category: "serum",
+    color: "#4c1d95", light: "#ede9fe",
+  },
+  {
+    title: "Face Wash & Cleansers",
+    desc: "Foaming, gel & cream cleansers for deep pore cleansing",
+    category: "face_wash",
+    color: "#065f46", light: "#d1fae5",
+  },
+  {
+    title: "Anti-Acne Care",
+    desc: "Spot treatments, acne patches & pore-refining formulas",
+    category: "anti_acne",
     color: "#9b1c1c", light: "#fdecea",
   },
   {
-    title: "Advanced Serums & Treatments",
-    desc: "Snail mucin, collagen boosters, anti-wrinkle & African botanical actives",
-    tag: "anti_aging",
-    color: "#4c1d95", light: "#ede9fe",
+    title: "Anti-Aging",
+    desc: "Wrinkle-reducing serums, collagen boosters & firming treatments",
+    category: "anti_wrinkles",
+    color: "#6b21a8", light: "#f5e8f8",
   },
 ];
 
@@ -867,14 +868,14 @@ function ShopByCategory() {
     // Fetch 4 products per category in parallel
     Promise.all(
       STORE_CATEGORIES.map(cat =>
-        fetch(`${API}/api/products?tag=${encodeURIComponent(cat.tag)}&per_page=4&sort_by=sales&sort_order=desc`)
+        fetch(`${API}/api/products?category=${encodeURIComponent(cat.category)}&per_page=4&sort=popular`)
           .then(r => r.ok ? r.json() : { results: [] })
-          .then((d: { results?: HP[] }) => ({ tag: cat.tag, products: d.results ?? [] }))
-          .catch(() => ({ tag: cat.tag, products: [] }))
+          .then((d: { results?: HP[] }) => ({ category: cat.category, products: d.results ?? [] }))
+          .catch(() => ({ category: cat.category, products: [] }))
       )
     ).then(results => {
       const map: Record<string, HP[]> = {};
-      results.forEach(({ tag, products }) => { map[tag] = products; });
+      results.forEach(({ category, products }) => { map[category] = products; });
       setCatImages(map);
       setLoaded(true);
     });
@@ -902,12 +903,12 @@ function ShopByCategory() {
         {/* 7-category grid */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))", gap: 16 }}>
           {STORE_CATEGORIES.map(cat => {
-            const products = catImages[cat.tag] ?? [];
+            const products = catImages[cat.category] ?? [];
             const hasProducts = products.length > 0;
             return (
               <Link
-                key={cat.tag}
-                href={`/store?tag=${cat.tag}`}
+                key={cat.category}
+                href={`/store?category=${cat.category}`}
                 style={{ textDecoration: "none", background: "white", border: "1.5px solid #e5e7eb", borderRadius: 16, overflow: "hidden", transition: "box-shadow 0.22s, transform 0.22s, border-color 0.22s", display: "flex", flexDirection: "column" }}
                 onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.boxShadow = "0 8px 28px rgba(0,0,0,0.12)"; el.style.transform = "translateY(-3px)"; el.style.borderColor = cat.color; }}
                 onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.boxShadow = "none"; el.style.transform = "none"; el.style.borderColor = "#e5e7eb"; }}
@@ -1420,7 +1421,7 @@ export default function HomePage() {
         if (p.main_image && !brMap[key]) brMap[key] = p.main_image;
       }
     });
-    // Also map NAV_CATS tags from sections
+    // Map sections products into category image cache
     sections.forEach(sec => {
       sec.products.forEach(p => {
         if (p.category && p.main_image && !catMap[p.category]) catMap[p.category] = p.main_image;
@@ -1430,28 +1431,27 @@ export default function HomePage() {
     setBrandImages(prev => ({ ...brMap, ...prev }));
   }, [heroProducts, sections]);
 
-  /* Fetch per-tag images for category nav using /api/products/random per tag */
+  /* Fetch per-category images for category nav */
   useEffect(() => {
-    const missingTags = NAV_CATS.filter(c => !categoryImages[c.tag]).map(c => c.tag);
-    if (missingTags.length === 0) return;
-    // Batch: fetch one product per tag to get its image
+    const missingCats = NAV_CATS.filter(c => !categoryImages[c.category]).map(c => c.category);
+    if (missingCats.length === 0) return;
     Promise.all(
-      missingTags.slice(0, 8).map(tag =>
-        fetch(`${API}/api/products?tag=${tag}&per_page=1&with_images=true`)
+      missingCats.slice(0, 16).map(category =>
+        fetch(`${API}/api/products?category=${category}&per_page=1`)
           .then(r => r.ok ? r.json() : { results: [] })
           .then((d: { results?: HP[] }) => {
             const p = d.results?.[0];
-            return { tag, img: p?.main_image ?? null };
+            return { category, img: p?.main_image ?? null };
           })
-          .catch(() => ({ tag, img: null }))
+          .catch(() => ({ category, img: null }))
       )
     ).then(results => {
       const map: Record<string, string | null> = {};
-      results.forEach(({ tag, img }) => { if (img) map[tag] = img; });
+      results.forEach(({ category, img }) => { if (img) map[category] = img; });
       setCategoryImages(prev => ({ ...map, ...prev }));
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heroProducts.length, categoryImages]);
+  }, [heroProducts.length]);
 
   /* Assign brand images from hero products after brands loaded */
   useEffect(() => {
