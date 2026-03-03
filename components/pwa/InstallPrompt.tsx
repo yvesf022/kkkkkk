@@ -20,7 +20,11 @@ type Platform = "android" | "ios" | "desktop" | "unsupported";
 function detectPlatform(): Platform {
   if (typeof window === "undefined") return "unsupported";
   const ua = navigator.userAgent;
+  // iOS must come before Android (iPads can include "Android" in some UAs)
   if (/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream) return "ios";
+  // Android must come before the generic Chrome/desktop check — Chrome on
+  // Android contains "Chrome" in the UA so without this order it would be
+  // misclassified as "desktop" and never get the Android install flow.
   if (/Android/.test(ua)) return "android";
   if (/Chrome|Edg|Samsung/.test(ua)) return "desktop";
   return "unsupported";
@@ -76,7 +80,10 @@ export default function InstallPrompt() {
         promptRef.current = early;
         window.__karabo_deferredPrompt = null;
         setCanInstall(true);
-        setTimeout(() => setShowBanner(true), 2200);
+        // Delay past the 2500ms splash so the banner never fires invisibly
+        // underneath it — Chrome counts that as a missed interaction and
+        // won't re-show the native prompt.
+        setTimeout(() => setShowBanner(true), 3200);
         return true;
       }
       return false;
@@ -89,7 +96,7 @@ export default function InstallPrompt() {
       (e as BeforeInstallPromptEvent).preventDefault?.();
       promptRef.current = e as BeforeInstallPromptEvent;
       setCanInstall(true);
-      setTimeout(() => setShowBanner(true), 2200);
+      setTimeout(() => setShowBanner(true), 3200);
     };
     window.addEventListener("beforeinstallprompt", nativeHandler);
 
@@ -238,7 +245,7 @@ const FF = "'Sora', -apple-system, BlinkMacSystemFont, sans-serif";
 
 const s: Record<string, React.CSSProperties> = {
   banner: {
-    position:"fixed", bottom:16, left:16, right:16, zIndex:9999,
+    position:"fixed", bottom:16, left:16, right:16, zIndex:999999,
     display:"flex", alignItems:"center", gap:12, padding:"14px 16px",
     background:"#fff", border:"1px solid #E2E8F0", borderRadius:16,
     boxShadow:"0 8px 32px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.06)",
@@ -260,7 +267,7 @@ const s: Record<string, React.CSSProperties> = {
     display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
   },
   overlay: {
-    position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,.5)",
+    position:"fixed", inset:0, zIndex:999999, background:"rgba(0,0,0,.5)",
     display:"flex", alignItems:"flex-end", justifyContent:"center",
     padding:"0 16px 16px", animation:"ks-fadeIn .25s ease", fontFamily:FF,
   },
