@@ -86,8 +86,11 @@ export default function StoreClient() {
     fetch(`${API}/api/categories`)
       .then(res => res.json())
       .then(data => {
-        // Ensure data is an array to prevent .map crashes
-        setDbCategories(Array.isArray(data) ? data : []);
+        // Push 'others' to the end so the 20 real categories come first
+        const cats = Array.isArray(data) ? data : [];
+        const others = cats.filter((c: Category) => c.slug === "others");
+        const rest   = cats.filter((c: Category) => c.slug !== "others");
+        setDbCategories([...rest, ...others]);
       })
       .catch(err => console.error("Filter fetch error:", err));
   }, []);
@@ -188,7 +191,7 @@ export default function StoreClient() {
       <main style={{ flex: 1 }}>
         <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h1 style={{ fontSize: "20px", fontWeight: 900 }}>
-            {searchParams.get("category")?.replace("_", " ").toUpperCase() || "ALL PRODUCTS"}
+            {searchParams.get("category")?.replace(/_/g, " ").toUpperCase() || "ALL PRODUCTS"}
             <span style={{ fontSize: "14px", fontWeight: 400, color: "#666", marginLeft: "10px" }}>({total} products)</span>
           </h1>
         </div>
